@@ -233,7 +233,10 @@ def crawl(seed_url: str) -> CrawlResult:
     result = CrawlResult(seed_url=seed_url, platform=platform)
 
     with sync_playwright() as pw:
-        browser: Browser = pw.chromium.launch(headless=True)
+        browser: Browser = pw.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+        )
         context = browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
