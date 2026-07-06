@@ -1,5 +1,10 @@
-MAX_CRAWL_DEPTH = 4
+MAX_PAGES = 8            # bio page + funnel pages, before the checkout hop
+MAX_CHECKOUT_HOPS = 3    # extra pages crawled from buy/enroll links on sales pages
 SCREENSHOT_DIR = "./screenshots"
+EVIDENCE_DIR = "./evidence"
+
+# Kept for backward compat with older scripts
+MAX_CRAWL_DEPTH = MAX_PAGES
 
 FUNNEL_KEYWORDS = [
     "course", "coaching", "program", "masterclass", "workshop", "training",
@@ -11,6 +16,11 @@ FUNNEL_KEYWORDS = [
     "kajabi", "teachable", "thinkific", "podia", "stan.store",
     "samcart", "clickfunnels", "kartra", "systeme",
     "gumroad", "payhip", "lemon",
+]
+
+CHECKOUT_LINK_KEYWORDS = [
+    "checkout", "buy", "enroll", "cart", "order", "register",
+    "purchase", "pay", "get-access", "get access", "sign-up-now",
 ]
 
 NOISE_DOMAINS = [
