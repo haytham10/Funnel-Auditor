@@ -1,3 +1,4 @@
 playwright
 beautifulsoup4
 rich
+python-dateutil

@@ -2,10 +2,19 @@
 Funnel Auditor — CLI entry point.
 
 Usage:
-    python main.py <url>
+    python main.py walk <url> [--name NAME] [--handle @H] [--followers N] [--out DIR]
+    python main.py crawl <url>          # crawl + summary only, no evidence packet
+    python main.py <url>                # same as walk
+
+`walk` produces the full evidence packet (evidence.json + packet.md + page
+text + screenshots) under ./evidence/<slug>/ — the machine half of the
+5-stop funnel walk, ready to hand to the opener-finder skill.
 """
 
+import argparse
+import re
 import sys
+from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
@@ -13,6 +22,7 @@ from rich.table import Table
 from rich import box
 from rich.text import Text
 
+from config import EVIDENCE_DIR
 from audit.crawler import crawl, CrawlResult
 
 console = Console()
@@ -84,28 +94,89 @@ def print_summary(result: CrawlResult) -> None:
         console.print(nl_table)
 
     console.print()
-    console.print(
-        f"[bold]Pages crawled:[/bold] {len(result.pages)}   "
-        f"[bold]Screenshots saved to:[/bold] [dim]./screenshots/[/dim]"
-    )
+    console.print(f"[bold]Pages crawled:[/bold] {len(result.pages)}")
     console.print()
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
-        console.print("[red]Usage: python main.py <url>[/red]")
-        sys.exit(1)
+def _slugify(value: str) -> str:
+    value = re.sub(r"^https?://(www\.)?", "", value.strip().lower())
+    value = re.sub(r"[^\w]+", "-", value).strip("-")
+    return value[:60] or "lead"
 
-    url = sys.argv[1].strip()
-    if not url.startswith("http"):
-        url = "https://" + url
 
-    console.print(f"\n[bold cyan]Starting crawl:[/bold cyan] {url}\n")
+def _normalize_url(url: str) -> str:
+    url = url.strip()
+    return url if url.startswith("http") else "https://" + url
+
+
+def cmd_walk(args: argparse.Namespace) -> None:
+    from audit.evidence import build_evidence
+
+    url = _normalize_url(args.url)
+    slug = _slugify(args.name or args.handle or url)
+    out_dir = Path(args.out) if args.out else Path(EVIDENCE_DIR) / slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    console.print(f"\n[bold cyan]Walking funnel:[/bold cyan] {url}")
+    console.print(f"[dim]Evidence packet → {out_dir}[/dim]\n")
 
     with console.status("[bold green]Crawling funnel…[/bold green]", spinner="dots"):
-        result = crawl(url)
+        result = crawl(url, screenshot_dir=str(out_dir / "screenshots"))
 
     print_summary(result)
+
+    with console.status("[bold green]Building evidence packet…[/bold green]", spinner="dots"):
+        packet_dir = build_evidence(
+            result,
+            out_dir,
+            lead_name=args.name or "",
+            handle=args.handle or "",
+            followers=args.followers,
+        )
+
+    console.print(Panel.fit(
+        f"[bold green]Evidence packet ready[/bold green]\n"
+        f"[bold]{packet_dir / 'packet.md'}[/bold]\n"
+        f"{packet_dir / 'evidence.json'}",
+        border_style="green",
+    ))
+    console.print()
+
+
+def cmd_crawl(args: argparse.Namespace) -> None:
+    url = _normalize_url(args.url)
+    console.print(f"\n[bold cyan]Starting crawl:[/bold cyan] {url}\n")
+    with console.status("[bold green]Crawling funnel…[/bold green]", spinner="dots"):
+        result = crawl(url)
+    print_summary(result)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="funnel-auditor")
+    sub = parser.add_subparsers(dest="command")
+
+    p_walk = sub.add_parser("walk", help="crawl + full evidence packet")
+    p_walk.add_argument("url")
+    p_walk.add_argument("--name", help="lead's name (used for the evidence folder + packet header)")
+    p_walk.add_argument("--handle", help="IG handle, e.g. @coachjane")
+    p_walk.add_argument("--followers", type=int, help="IG follower count (audience floor input)")
+    p_walk.add_argument("--out", help="output dir (default: ./evidence/<slug>/)")
+    p_walk.set_defaults(func=cmd_walk)
+
+    p_crawl = sub.add_parser("crawl", help="crawl + terminal summary only")
+    p_crawl.add_argument("url")
+    p_crawl.set_defaults(func=cmd_crawl)
+
+    argv = sys.argv[1:]
+    if not argv:
+        parser.print_help()
+        sys.exit(1)
+    # Bare URL → walk
+    if argv[0] not in ("walk", "crawl", "-h", "--help"):
+        argv = ["walk"] + argv
+
+    args = parser.parse_args(argv)
+    args.func(args)
 
 
 if __name__ == "__main__":

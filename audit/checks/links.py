@@ -1,4 +1,4 @@
-"""Broken internal link detection via HEAD requests."""
+"""Broken internal link detection via HEAD (with GET fallback) requests."""
 
 import urllib.request
 import urllib.error
@@ -9,6 +9,10 @@ from bs4 import BeautifulSoup
 
 _TIMEOUT = 10
 
+# Only these read as genuinely dead. Bot walls (403/999), method rejections
+# (405), and rate limits (429) are NOT evidence of a dead link.
+_DEAD_STATUSES = {0, 404, 410}
+
 
 def _same_host(url: str, base_url: str) -> bool:
     base_host = urlparse(base_url).netloc.lower()
@@ -16,12 +20,13 @@ def _same_host(url: str, base_url: str) -> bool:
     return base_host == link_host
 
 
-def _head_status(url: str) -> int:
+def _status(url: str, method: str = "HEAD") -> int:
     try:
-        req = urllib.request.Request(url, method="HEAD")
+        req = urllib.request.Request(url, method=method)
         req.add_header(
             "User-Agent",
-            "Mozilla/5.0 (compatible; FunnelAuditor/1.0)",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         )
         with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
             return resp.status
@@ -34,6 +39,7 @@ def _head_status(url: str) -> int:
 def check_links(html: str, base_url: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
     broken: list[dict] = []
+    unverifiable: list[dict] = []
     checked: set[str] = set()
 
     for tag in soup.find_all("a", href=True):
@@ -51,11 +57,18 @@ def check_links(html: str, base_url: str) -> dict:
             continue
         checked.add(absolute)
 
-        status = _head_status(absolute)
-        if status == 0 or status >= 400:
+        status = _status(absolute, "HEAD")
+        if status in (403, 405, 429, 999):
+            # Many hosts reject HEAD or gate bots — retry once as GET
+            status = _status(absolute, "GET")
+
+        if status in _DEAD_STATUSES:
             broken.append({"url": absolute, "status": status})
+        elif status in (403, 429, 999):
+            unverifiable.append({"url": absolute, "status": status})
 
     return {
         "broken": broken,
+        "unverifiable": unverifiable,
         "total_checked": len(checked),
     }
