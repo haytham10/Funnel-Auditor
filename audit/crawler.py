@@ -324,7 +324,10 @@ def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 
 
 
 _CHECKOUT_KW = _kw("checkout", "buy", "enroll", "cart", "order", "register",
-                   "purchase", "pay", "get access")
+                   "purchase", "pay", "get access", "reserve", "reserve my (?:seat|spot)",
+                   "save my (?:seat|spot)", "join now", "start now", "get started",
+                   "sign up now", "claim my spot", "grab your spot", "book (?:your|my) (?:seat|spot)",
+                   "add to cart", "get instant access")
 
 
 def extract_checkout_links(html: str, base_url: str) -> list[dict]:
@@ -583,32 +586,44 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
             )
             result.pages.append(crawled)
 
-        # --- Step 3: One more hop into checkouts from sales/course pages ---
+        # --- Step 3: follow the buy/enroll/reserve CTA all the way to the
+        # real checkout — mandatory, not best-effort. A single hop from only
+        # "sales/course/direct" pages missed real checkouts sitting behind
+        # a freebie-then-upsell page, a booking page, or a second click
+        # inside the checkout flow itself (reserve → payment). This now
+        # runs multiple passes over EVERY page crawled so far (any type,
+        # any depth, including pages discovered by an earlier pass), until
+        # no new checkout links turn up or the hop budget is spent.
         checkout_hops = 0
-        for crawled in list(result.pages):
-            if checkout_hops >= MAX_CHECKOUT_HOPS or len(result.pages) >= MAX_PAGES + MAX_CHECKOUT_HOPS:
+        for _pass in range(4):
+            if checkout_hops >= MAX_CHECKOUT_HOPS:
                 break
-            if crawled.depth != 1 or crawled.link_type not in ("sales", "course", "direct"):
-                continue
-            if not crawled.html or crawled.external:
-                continue
-            for co_link in extract_checkout_links(crawled.html, crawled.url):
-                if checkout_hops >= MAX_CHECKOUT_HOPS:
+            found_this_pass = False
+            for crawled in list(result.pages):
+                if checkout_hops >= MAX_CHECKOUT_HOPS or len(result.pages) >= MAX_PAGES + MAX_CHECKOUT_HOPS:
                     break
-                canon = normalize(co_link["url"])
-                if canon in visited:
+                if crawled.link_type == "checkout" or not crawled.html:
                     continue
-                visited.add(canon)
-                result.pages.append(_fetch_and_screenshot(
-                    page,
-                    co_link["url"],
-                    depth=2,
-                    link_type="checkout",
-                    screenshot_dir=screenshot_dir,
-                    source_url=crawled.url,
-                    external=not same_site(co_link["url"], seed_url),
-                ))
-                checkout_hops += 1
+                for co_link in extract_checkout_links(crawled.html, crawled.url):
+                    if checkout_hops >= MAX_CHECKOUT_HOPS:
+                        break
+                    canon = normalize(co_link["url"])
+                    if canon in visited:
+                        continue
+                    visited.add(canon)
+                    result.pages.append(_fetch_and_screenshot(
+                        page,
+                        co_link["url"],
+                        depth=crawled.depth + 1,
+                        link_type="checkout",
+                        screenshot_dir=screenshot_dir,
+                        source_url=crawled.url,
+                        external=not same_site(co_link["url"], seed_url),
+                    ))
+                    checkout_hops += 1
+                    found_this_pass = True
+            if not found_this_pass:
+                break
 
         browser.close()
 
