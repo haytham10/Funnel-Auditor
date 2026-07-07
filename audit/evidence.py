@@ -43,10 +43,24 @@ from audit.extract import (
 from audit.gates import evaluate_floors
 from audit.urls import same_site
 
-TEXT_INLINE_CHARS = 700       # how much page text goes inline in packet.md
+# How much page text goes inline in packet.md. 700 chars was cutting every
+# offer/course/checkout page off after its hero section — exactly the part
+# of the page that never has the actual curriculum, pricing structure, or
+# copy inconsistencies in it. A manual walk caught a sales-page-vs-checkout
+# curriculum mismatch on Heidi McBain (Modules One-Eight vs Part One-Five)
+# that the tool couldn't have surfaced at 700 chars — that content starts
+# well past that cutoff. Offer-bearing pages now get the full page text
+# inline (still capped, matching the file cap); everything else gets a
+# shorter preview since About/Contact pages rarely carry findings.
+TEXT_INLINE_CHARS = 700
+TEXT_INLINE_CHARS_OFFER = 6000
 TEXT_FILE_MAX_CHARS = 20000   # cap per page text file
 
 _OFFER_PAGE_TYPES = ("sales", "course", "checkout", "booking", "freebie", "opt-in")
+
+
+def _inline_cap(link_type: str) -> int:
+    return TEXT_INLINE_CHARS_OFFER if link_type in _OFFER_PAGE_TYPES else TEXT_INLINE_CHARS
 
 
 @dataclass
@@ -223,6 +237,225 @@ def _leak_candidates(pages: list[PageEvidence], seed_url: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# The 5-stop walk — mandatory, logged, never silently skipped.
+#
+# Every audit must report a result for all five stops (found / not_found /
+# blocked), even when the answer is "nothing here." A blank stop is a bug,
+# not a clean result — it means the walk stopped early instead of reporting
+# what it actually found.
+# ---------------------------------------------------------------------------
+
+_START_HERE_RE = re.compile(r"\bstart here\b|\bbegin\b|\bstart now\b|\bget started\b", re.I)
+
+
+def _stop_bio(pages: list[PageEvidence], funnel_links: list[dict]) -> dict:
+    bio = pages[0] if pages else None
+    if not bio or not bio.page.html:
+        err = bio.page.error if bio else "no crawl"
+        return {"stop": "bio", "status": "blocked",
+                "detail": f"Bio page failed to load ({err[:120] if err else 'unknown error'})."}
+    n = len(funnel_links)
+    detail = f"{n} destination link(s) found on the bio page."
+    if n >= 4 and not any(_START_HERE_RE.search(l.get("label", "")) for l in funnel_links):
+        detail += (f" {n} near-equal links, none labeled as a primary entry point "
+                   "(\"Start Here\"/\"Begin\") — ambiguous first click for a new visitor.")
+    return {"stop": "bio", "status": "found", "detail": detail}
+
+
+def _stop_freebie(pages: list[PageEvidence]) -> dict:
+    freebies = [p for p in pages if p.page.link_type in ("freebie", "opt-in") and not p.page.error]
+    if not freebies:
+        return {"stop": "freebie", "status": "not_found",
+                "detail": "No freebie/opt-in page found anywhere in the crawled funnel."}
+    captured = [p for p in freebies if p.checks.get("forms", {}).get("form_present")]
+    if captured:
+        return {"stop": "freebie", "status": "found",
+                "detail": f"{captured[0].page.url} — captures email before delivering."}
+    return {"stop": "freebie", "status": "found",
+            "detail": f"{freebies[0].page.url} — no visible email capture form; "
+                      "delivers without capturing a contact, or capture happens off-page "
+                      "(verify by hand before opening on this)."}
+
+
+def _stop_offer(pages: list[PageEvidence]) -> dict:
+    # Category classification is a heuristic guess and imperfect — a real
+    # price on the page is a stronger, direct signal than the URL/label
+    # keyword match that assigns link_type. A page priced at $2,700 but
+    # classified "direct" (no "sales"/"course" keyword in its slug) is
+    # still an offer page.
+    offers = [p for p in pages if not p.page.error and not p.page.external
+              and p.page.link_type != "checkout"
+              and (p.page.link_type in ("sales", "course") or p.prices)]
+    if not offers:
+        return {"stop": "offer", "status": "not_found",
+                "detail": "No priced offer/sales page found on her own site."}
+    lines = []
+    for p in offers[:3]:
+        price = p.prices[0]["price"] if p.prices else "no price shown"
+        lines.append(f"{p.page.url} — {price}")
+    return {"stop": "offer", "status": "found", "detail": "; ".join(lines)}
+
+
+def _stop_checkout(pages: list[PageEvidence]) -> dict:
+    checkouts = [p for p in pages if p.page.link_type == "checkout"]
+    lines = []
+    any_loaded = False
+    for p in checkouts[:3]:
+        if p.page.error:
+            lines.append(f"{p.page.url} — FAILED TO LOAD ({p.page.error[:100]})")
+            continue
+        any_loaded = True
+        price = p.prices[0]["price"] if p.prices else "no price shown"
+        transacts = p.checks.get("checkout", {}).get("transacts")
+        state = "requires purchase to go further" if transacts else "reached, no payment form on this page"
+        lines.append(f"{p.page.url} — {price} — blocked: {state}")
+    if lines:
+        return {"stop": "checkout", "status": "found" if any_loaded else "blocked",
+                "detail": "; ".join(lines)}
+
+    # No separate checkout URL — some platforms (Squarespace commerce
+    # blocks, embedded Stripe elements) transact inline on the sales page
+    # itself instead of hopping to a dedicated checkout URL. Missing this
+    # is the exact failure that made Nina Bradley's "Pay & book now" flow
+    # read as "checkout not reached" when it was actually right there.
+    embedded = [p for p in pages if p.page.link_type in ("sales", "course")
+                and not p.page.error and p.checks.get("checkout", {}).get("transacts")]
+    if embedded:
+        p = embedded[0]
+        price = p.prices[0]["price"] if p.prices else "no price shown"
+        return {"stop": "checkout", "status": "found",
+                "detail": f"{p.page.url} — {price} — embedded checkout on the sales page itself "
+                         "(no separate checkout URL to hop to) — blocked: requires purchase to go further"}
+
+    return {"stop": "checkout", "status": "not_reached",
+            "detail": "No checkout page reached and no embedded/inline checkout detected on any "
+                     "sales or course page — no buy/enroll/reserve link or payment form found "
+                     "anywhere in this crawl."}
+
+
+def _stop_audience(email_capture_anywhere: bool, pages: list[PageEvidence]) -> dict:
+    if email_capture_anywhere:
+        return {"stop": "audience", "status": "found",
+                "detail": "Email capture found — owns at least one list-building mechanism, "
+                         "not fully dependent on rented reach."}
+    return {"stop": "audience", "status": "not_found",
+            "detail": "No email capture found anywhere in the crawled funnel — audience "
+                     "appears fully rented (IG/social only), no owned list."}
+
+
+def _walk_stops(pages: list[PageEvidence], funnel_links: list[dict], email_capture_anywhere: bool) -> list[dict]:
+    return [
+        _stop_bio(pages, funnel_links),
+        _stop_freebie(pages),
+        _stop_offer(pages),
+        _stop_checkout(pages),
+        _stop_audience(email_capture_anywhere, pages),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Cross-stop reconciliation — the primary output, not an afterthought.
+#
+# A stale cohort date, a price change, or a dropped curriculum section is
+# often invisible on any ONE page — a sales page's "reserve your seat" copy
+# reads as fine on its own; the leak only exists in the gap between what the
+# sales page promises and what checkout actually shows. This is exactly what
+# per-page checks structurally cannot catch, no matter how deep they read
+# a single page. This pass runs after every page is analyzed and diffs
+# Stop 3 (offer) against Stop 4 (checkout) directly, plus checks every date
+# anywhere in the funnel against today regardless of which stop it's on.
+# ---------------------------------------------------------------------------
+
+def _reconcile(pages: list[PageEvidence]) -> list[dict]:
+    findings: list[dict] = []
+    own = [p for p in pages if not p.page.error]
+
+    # Every stale date anywhere, including on the checkout page itself —
+    # the per-page candidate list above already surfaces these, but a date
+    # discovered ONLY at checkout (never mentioned on the offer page) is a
+    # materially different, stronger finding: the visitor had no way to
+    # know until the last step. Flag that combination explicitly.
+    offers = [p for p in own if p.page.link_type != "checkout"
+              and (p.page.link_type in ("sales", "course") or p.prices)]
+    checkouts = [p for p in own if p.page.link_type == "checkout"]
+
+    for c in checkouts:
+        offer_dates = set()
+        for o in offers:
+            offer_dates |= {d["raw"] for d in o.dates}
+        for d in c.dates:
+            if not d["stale_candidate"]:
+                continue
+            if d["raw"] in offer_dates:
+                continue  # already visible upstream — the per-page pass covers it
+            findings.append({
+                "kind": "checkout_reveals_stale_date",
+                "tier": "A",
+                "summary": f"Checkout shows \"{d['raw']}\" ({d['days_past']} days past) that no "
+                          "offer/sales page ever mentions",
+                "where": c.page.url,
+                "note": f"The sales page makes no date commitment a visitor could check in advance; "
+                       f"checkout is the first and only place the (already-passed) date shows up — "
+                       f"…{d['context'][:160]}…",
+            })
+
+    # Price mismatch between what the offer page states and what checkout
+    # actually charges.
+    for o in offers:
+        o_prices = {p["price"].replace(" ", "") for p in o.prices[:5]}
+        if not o_prices:
+            continue
+        for c in checkouts:
+            c_prices = {p["price"].replace(" ", "") for p in c.prices[:5]}
+            if not c_prices:
+                continue
+            if o_prices.isdisjoint(c_prices):
+                findings.append({
+                    "kind": "price_mismatch",
+                    "tier": "A",
+                    "summary": f"Price differs between offer page ({', '.join(sorted(o_prices))}) "
+                              f"and checkout ({', '.join(sorted(c_prices))})",
+                    "where": f"{o.page.url} vs {c.page.url}",
+                    "note": "Verify this isn't a currency/unit difference before opening on it — "
+                           "if it's a real change, that's the felt cost (someone who saw the offer "
+                           "price and returns to buy sees a different number).",
+                })
+
+    # Curriculum/section-count comparison — observational only. The exact
+    # false-positive this guards against: Heidi McBain's sales page called
+    # its 8 sections "Modules" and Thinkific's own template called the same
+    # 8 sections "Parts" — identical content, cosmetic labels. Only surface
+    # this when the counts genuinely differ by 2+, and always as a
+    # non-definitive note the human/Claude layer has to read, never as an
+    # asserted leak.
+    _SECTION_RE = re.compile(
+        r"\b(?:Module|Part|Chapter|Session)\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)\b[:\-]",
+        re.I,
+    )
+    for o in offers:
+        o_count = len(set(_SECTION_RE.findall(o.text)))
+        if not o_count:
+            continue
+        for c in checkouts:
+            c_count = len(set(_SECTION_RE.findall(c.text)))
+            if not c_count:
+                continue
+            if abs(o_count - c_count) >= 2:
+                findings.append({
+                    "kind": "curriculum_count_note",
+                    "tier": "C",
+                    "summary": f"Section count differs: offer page shows ~{o_count}, "
+                              f"checkout shows ~{c_count} (observational, not asserted as a leak)",
+                    "where": f"{o.page.url} vs {c.page.url}",
+                    "note": "Read both pages before opening on this — could be identical content "
+                           "under different labels (Module vs Part), a 'Show more' pagination "
+                           "artifact, or a genuine drift. Do not treat the count alone as proof.",
+                })
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Packet writer
 # ---------------------------------------------------------------------------
 
@@ -269,6 +502,11 @@ def build_evidence(
     )
 
     candidates = _leak_candidates(pages, result.seed_url)
+    email_capture_anywhere = any(
+        p.checks.get("forms", {}).get("form_present") for p in pages if not p.page.external
+    )
+    walk_stops = _walk_stops(pages, result.funnel_links, email_capture_anywhere)
+    reconciliation = _reconcile(pages)
 
     # Harvested emails, merged (name-matching personals first)
     personal, generic = [], []
@@ -289,6 +527,8 @@ def build_evidence(
         "seed_url": result.seed_url,
         "bio_platform": result.platform,
         "floors": floors.as_dict(),
+        "walk_stops": walk_stops,
+        "reconciliation": reconciliation,
         "harvested_emails": {"personal": personal, "generic": generic},
         "leak_candidates": candidates,
         "funnel_links": result.funnel_links,
@@ -308,7 +548,7 @@ def build_evidence(
                 "screenshot_desktop": p.page.screenshot_desktop,
                 "screenshot_mobile": p.page.screenshot_mobile,
                 "text_file": p.text_file,
-                "text_inline": p.text[:TEXT_INLINE_CHARS],
+                "text_inline": p.text[:_inline_cap(p.page.link_type)],
                 "headings": p.headings,
                 "prices": p.prices,
                 "emails": p.emails,
@@ -346,6 +586,28 @@ def _render_packet(ev: dict) -> str:
     if ev["floors"]["hard_fail"]:
         L.append("\n**HARD FAIL on the floor → Lane 3 unless an equivalent signal overrides.**")
 
+    # The 5-stop walk — every stop reports a result, never blank.
+    L.append("\n## 5-Stop Walk")
+    _STOP_LABEL = {"bio": "Stop 1 — Bio", "freebie": "Stop 2 — Freebie",
+                   "offer": "Stop 3 — Offer/Sales", "checkout": "Stop 4 — Checkout",
+                   "audience": "Stop 5 — Audience Ownership"}
+    _STATUS_MARK = {"found": "✅ FOUND", "not_found": "⭕ NOT FOUND",
+                    "not_reached": "⭕ NOT REACHED", "blocked": "🚫 BLOCKED"}
+    for s in ev["walk_stops"]:
+        L.append(f"- **{_STOP_LABEL[s['stop']]}** — {_STATUS_MARK[s['status']]} — {s['detail']}")
+
+    # Reconciliation — the primary output. Cross-page mismatches lead over
+    # anything found by reading a single page in isolation.
+    L.append("\n## Reconciliation (cross-page diff — read this before anything else below)")
+    if not ev["reconciliation"]:
+        L.append("- No cross-page mismatches found (dates, prices, or curriculum counts all "
+                 "consistent between offer and checkout pages, where both were reached).")
+    else:
+        for r in sorted(ev["reconciliation"], key=lambda x: x["tier"]):
+            L.append(f"- **[Tier {r['tier']} — {r['kind']}]** {r['summary']} — {r['where']}")
+            if r.get("note"):
+                L.append(f"  - {r['note']}")
+
     # Emails
     L.append("\n## Harvested contact emails")
     he = ev["harvested_emails"]
@@ -358,8 +620,8 @@ def _render_packet(ev: dict) -> str:
     for e in he["generic"]:
         L.append(f"- {e['email']} (generic) — found on {e['source']}")
 
-    # Leak candidates
-    L.append("\n## Machine-flagged leak candidates")
+    # Leak candidates — single-page observations, secondary to reconciliation above.
+    L.append("\n## Machine-flagged leak candidates (single-page — see Reconciliation above first)")
     if not ev["leak_candidates"]:
         L.append("- None auto-detected. That does NOT mean Lane 2 — read the pages; "
                  "copy/offer/sequencing leaks don't auto-detect.")
@@ -418,7 +680,7 @@ def _render_packet(ev: dict) -> str:
                          f"({d['days_past']} days past{', year assumed' if d['year_assumed'] else ''}) — "
                          f"context: …{d['context'][:120]}…")
         if p.get("text_inline"):
-            L.append("Key copy (first %d chars):" % TEXT_INLINE_CHARS)
+            L.append("Key copy (first %d chars):" % len(p["text_inline"]))
             L.append("```")
             L.append(p["text_inline"].strip())
             L.append("```")

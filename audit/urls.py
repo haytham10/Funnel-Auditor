@@ -26,8 +26,13 @@ _TRACKING_PARAMS_RE = re.compile(
 
 
 def normalize(url: str) -> str:
-    """Canonical form: lowercase host, no fragment, no tracking params,
-    no trailing slash (except root kept as bare host)."""
+    """Canonical form: https scheme, lowercase host, no fragment, no
+    tracking params, no trailing slash (except root kept as bare host).
+
+    Scheme is forced to https for dedupe purposes: a page's http:// and
+    https:// variants are the same page (usually a stray un-upgraded
+    template link), and treating them as distinct wasted crawl-budget
+    slots re-fetching the same content twice."""
     parsed = urlparse(url.strip())
     host = parsed.netloc.lower()
     if host.startswith("www."):
@@ -37,7 +42,7 @@ def normalize(url: str) -> str:
         [(k, v) for k, v in parse_qsl(parsed.query)
          if not _TRACKING_PARAMS_RE.match(k)]
     )
-    return urlunparse((parsed.scheme.lower() or "https", host, path, "", query, ""))
+    return urlunparse(("https", host, path, "", query, ""))
 
 
 def registrable_domain(url_or_host: str) -> str:
