@@ -318,8 +318,15 @@ def _stop_checkout(pages: list[PageEvidence]) -> dict:
     # itself instead of hopping to a dedicated checkout URL. Missing this
     # is the exact failure that made Nina Bradley's "Pay & book now" flow
     # read as "checkout not reached" when it was actually right there.
+    #
+    # Requires an actual visible price, not just the word "payment" —
+    # Shermon Sims's GoHighLevel privacy-policy page ("Payment information
+    # via third-party processors...") matched the transacts regex with no
+    # price anywhere on the page, which isn't a checkout, it's a privacy
+    # disclosure describing payment processing in the abstract.
     embedded = [p for p in pages if p.page.link_type in ("sales", "course")
-                and not p.page.error and p.checks.get("checkout", {}).get("transacts")]
+                and not p.page.error and p.prices
+                and p.checks.get("checkout", {}).get("transacts")]
     if embedded:
         p = embedded[0]
         price = p.prices[0]["price"] if p.prices else "no price shown"
