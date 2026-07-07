@@ -150,11 +150,15 @@ def extract_links(html: str, base_url: str, platform: str) -> tuple[list[dict], 
             continue
         seen.add(absolute)
 
-        # Same-host links: keep only the lead's own sub-pages on bio platforms
-        if parsed.netloc.lower() == bio_host:
+        # Same-host links: on bio-link aggregators (Stan, Linktree, Beacons),
+        # keep only sub-pages under her own profile path — other paths on
+        # that host belong to other creators' profiles. On a self-hosted
+        # ("direct") site, the whole host is hers, so same-host nav links
+        # (pricing pages, "Work with Me", courses, etc.) are exactly the
+        # internal funnel pages that need to be followed, not skipped.
+        if parsed.netloc.lower() == bio_host and on_bio_platform:
             own_subpage = (
-                on_bio_platform
-                and profile_prefix
+                profile_prefix
                 and parsed.path.startswith(profile_prefix + "/")
                 and parsed.path.rstrip("/") != profile_prefix
             )
