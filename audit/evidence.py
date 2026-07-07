@@ -318,8 +318,15 @@ def _stop_checkout(pages: list[PageEvidence]) -> dict:
     # itself instead of hopping to a dedicated checkout URL. Missing this
     # is the exact failure that made Nina Bradley's "Pay & book now" flow
     # read as "checkout not reached" when it was actually right there.
+    #
+    # Requires an actual visible price, not just the word "payment" —
+    # Shermon Sims's GoHighLevel privacy-policy page ("Payment information
+    # via third-party processors...") matched the transacts regex with no
+    # price anywhere on the page, which isn't a checkout, it's a privacy
+    # disclosure describing payment processing in the abstract.
     embedded = [p for p in pages if p.page.link_type in ("sales", "course")
-                and not p.page.error and p.checks.get("checkout", {}).get("transacts")]
+                and not p.page.error and p.prices
+                and p.checks.get("checkout", {}).get("transacts")]
     if embedded:
         p = embedded[0]
         price = p.prices[0]["price"] if p.prices else "no price shown"
@@ -366,91 +373,117 @@ def _walk_stops(pages: list[PageEvidence], funnel_links: list[dict], email_captu
 # anywhere in the funnel against today regardless of which stop it's on.
 # ---------------------------------------------------------------------------
 
+def _normalize_price(raw: str) -> str:
+    """$59 and $59.00 are the same price. Strip everything but the currency
+    symbol/code and the numeric value, drop a trailing .00, so formatting
+    differences don't read as a price change."""
+    m = re.match(r"([$£€]|USD|AED|GBP|EUR)?\s?([\d,]+(?:\.\d{1,2})?)", raw.strip())
+    if not m:
+        return raw.strip()
+    symbol, number = m.group(1) or "", m.group(2).replace(",", "")
+    if number.endswith(".00"):
+        number = number[:-3]
+    return f"{symbol}{number}"
+
+
+def _origin_offer_page(checkout: PageEvidence, by_url: dict[str, PageEvidence]) -> PageEvidence | None:
+    """Walk a checkout page's hop chain back to the specific sales/course
+    page that actually linked to it — NOT just any offer page found
+    anywhere on the site. Comparing a checkout against every offer page on
+    the domain produced nonsense (a $17 digital-download page "mismatching"
+    a $297 course's checkout — they're different products). Only the page
+    that was the real click-through source is a valid comparison."""
+    seen: set[str] = set()
+    current = checkout
+    for _ in range(6):
+        src = current.page.source_url
+        if not src or src in seen:
+            return None
+        seen.add(src)
+        origin = by_url.get(src)
+        if origin is None:
+            return None
+        if origin.page.link_type != "checkout":
+            return origin
+        current = origin
+    return None
+
+
 def _reconcile(pages: list[PageEvidence]) -> list[dict]:
     findings: list[dict] = []
     own = [p for p in pages if not p.page.error]
-
-    # Every stale date anywhere, including on the checkout page itself —
-    # the per-page candidate list above already surfaces these, but a date
-    # discovered ONLY at checkout (never mentioned on the offer page) is a
-    # materially different, stronger finding: the visitor had no way to
-    # know until the last step. Flag that combination explicitly.
-    offers = [p for p in own if p.page.link_type != "checkout"
-              and (p.page.link_type in ("sales", "course") or p.prices)]
+    by_url = {p.page.url: p for p in own}
     checkouts = [p for p in own if p.page.link_type == "checkout"]
 
+    # Pair each checkout with the ONE offer page that actually led to it
+    # (via the crawl's hop chain), not every offer page on the site.
+    pairs: list[tuple[PageEvidence, PageEvidence]] = []
     for c in checkouts:
-        offer_dates = set()
-        for o in offers:
-            offer_dates |= {d["raw"] for d in o.dates}
+        origin = _origin_offer_page(c, by_url)
+        if origin is not None:
+            pairs.append((origin, c))
+
+    for o, c in pairs:
+        # A date shown only at checkout, never on the specific offer page
+        # that led there — the visitor had no way to know until the last step.
+        offer_dates = {d["raw"] for d in o.dates}
         for d in c.dates:
-            if not d["stale_candidate"]:
+            if not d["stale_candidate"] or d["raw"] in offer_dates:
                 continue
-            if d["raw"] in offer_dates:
-                continue  # already visible upstream — the per-page pass covers it
             findings.append({
                 "kind": "checkout_reveals_stale_date",
                 "tier": "A",
-                "summary": f"Checkout shows \"{d['raw']}\" ({d['days_past']} days past) that no "
-                          "offer/sales page ever mentions",
-                "where": c.page.url,
+                "summary": f"Checkout shows \"{d['raw']}\" ({d['days_past']} days past) that the "
+                          "offer page leading here never mentions",
+                "where": f"{o.page.url} → {c.page.url}",
                 "note": f"The sales page makes no date commitment a visitor could check in advance; "
                        f"checkout is the first and only place the (already-passed) date shows up — "
                        f"…{d['context'][:160]}…",
             })
 
-    # Price mismatch between what the offer page states and what checkout
-    # actually charges.
-    for o in offers:
-        o_prices = {p["price"].replace(" ", "") for p in o.prices[:5]}
-        if not o_prices:
-            continue
-        for c in checkouts:
-            c_prices = {p["price"].replace(" ", "") for p in c.prices[:5]}
-            if not c_prices:
-                continue
-            if o_prices.isdisjoint(c_prices):
-                findings.append({
-                    "kind": "price_mismatch",
-                    "tier": "A",
-                    "summary": f"Price differs between offer page ({', '.join(sorted(o_prices))}) "
-                              f"and checkout ({', '.join(sorted(c_prices))})",
-                    "where": f"{o.page.url} vs {c.page.url}",
-                    "note": "Verify this isn't a currency/unit difference before opening on it — "
-                           "if it's a real change, that's the felt cost (someone who saw the offer "
-                           "price and returns to buy sees a different number).",
-                })
+        # Price mismatch, same product only (paired via the actual hop,
+        # not a same-domain scan) — and normalized so "$59" vs "$59.00"
+        # doesn't read as a change.
+        o_prices = {_normalize_price(p["price"]) for p in o.prices[:5]}
+        c_prices = {_normalize_price(p["price"]) for p in c.prices[:5]}
+        if o_prices and c_prices and o_prices.isdisjoint(c_prices):
+            findings.append({
+                "kind": "price_mismatch",
+                "tier": "A",
+                "summary": f"Price differs between the offer page ({', '.join(sorted(o_prices))}) "
+                          f"and its own checkout ({', '.join(sorted(c_prices))})",
+                "where": f"{o.page.url} → {c.page.url}",
+                "note": "Same product, hop-verified (this checkout was reached FROM this offer page) — "
+                       "if this holds up on a manual look, that's the felt cost (someone who saw the "
+                       "offer price and returns to buy sees a different number).",
+            })
 
-    # Curriculum/section-count comparison — observational only. The exact
-    # false-positive this guards against: Heidi McBain's sales page called
-    # its 8 sections "Modules" and Thinkific's own template called the same
-    # 8 sections "Parts" — identical content, cosmetic labels. Only surface
-    # this when the counts genuinely differ by 2+, and always as a
-    # non-definitive note the human/Claude layer has to read, never as an
+    # Curriculum/section-count comparison — observational only, same-product
+    # pairing only. The exact false-positive this guards against: Heidi
+    # McBain's sales page called its 8 sections "Modules" and Thinkific's
+    # own template called the same 8 sections "Parts" — identical content,
+    # cosmetic labels. Only surface when counts differ by 2+, and always as
+    # a non-definitive note the human/Claude layer has to read, never as an
     # asserted leak.
     _SECTION_RE = re.compile(
         r"\b(?:Module|Part|Chapter|Session)\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)\b[:\-]",
         re.I,
     )
-    for o in offers:
+    for o, c in pairs:
         o_count = len(set(_SECTION_RE.findall(o.text)))
-        if not o_count:
+        c_count = len(set(_SECTION_RE.findall(c.text)))
+        if not o_count or not c_count or abs(o_count - c_count) < 2:
             continue
-        for c in checkouts:
-            c_count = len(set(_SECTION_RE.findall(c.text)))
-            if not c_count:
-                continue
-            if abs(o_count - c_count) >= 2:
-                findings.append({
-                    "kind": "curriculum_count_note",
-                    "tier": "C",
-                    "summary": f"Section count differs: offer page shows ~{o_count}, "
-                              f"checkout shows ~{c_count} (observational, not asserted as a leak)",
-                    "where": f"{o.page.url} vs {c.page.url}",
-                    "note": "Read both pages before opening on this — could be identical content "
-                           "under different labels (Module vs Part), a 'Show more' pagination "
-                           "artifact, or a genuine drift. Do not treat the count alone as proof.",
-                })
+        findings.append({
+            "kind": "curriculum_count_note",
+            "tier": "C",
+            "summary": f"Section count differs: offer page shows ~{o_count}, "
+                      f"checkout shows ~{c_count} (observational, not asserted as a leak)",
+            "where": f"{o.page.url} → {c.page.url}",
+            "note": "Read both pages before opening on this — could be identical content "
+                   "under different labels (Module vs Part), a 'Show more' pagination "
+                   "artifact, or a genuine drift. Do not treat the count alone as proof.",
+        })
 
     return findings
 
