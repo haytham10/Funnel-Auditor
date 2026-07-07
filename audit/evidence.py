@@ -38,7 +38,7 @@ from audit.checks import (
 )
 from audit.extract import (
     visible_text, extract_headings, extract_prices, extract_emails,
-    extract_dates, extract_availability,
+    extract_dates, extract_availability, detect_foreign_currency,
 )
 from audit.gates import evaluate_floors
 from audit.urls import same_site
@@ -58,6 +58,7 @@ class PageEvidence:
     emails: dict = field(default_factory=dict)
     dates: list = field(default_factory=list)
     availability: list = field(default_factory=list)
+    foreign_currency: str | None = None
     text: str = ""
     text_file: str = ""
 
@@ -100,6 +101,10 @@ def _analyze_page(page: CrawledPage, seed_url: str, lead_name: str) -> PageEvide
     ev.emails = extract_emails(html, url, seed_url=seed_url, lead_name=lead_name)
     ev.dates = extract_dates(ev.text, page_url=url)
     ev.availability = extract_availability(ev.text)
+    if page.foreign_locale_html:
+        ev.foreign_currency = detect_foreign_currency(
+            ev.text, visible_text(page.foreign_locale_html)
+        )
     return ev
 
 
@@ -197,6 +202,14 @@ def _leak_candidates(pages: list[PageEvidence], seed_url: str) -> list[dict]:
                 add(4, "A", "Checkout page fails to load", pg.url,
                     f"Error: {pg.error[:100]}")
             elif not pg.error:
+                if p.foreign_currency:
+                    add(4, "B",
+                        f"Checkout defaults non-US visitors into {p.foreign_currency} "
+                        "with no easy way back to USD", pg.url,
+                        "Verified by re-fetching this checkout as a non-US visitor (locale/timezone "
+                        "probe) — the price this page shows depends on where the visitor is browsing "
+                        "from, invisible to a normal US-locale crawl. Every non-US sale on this link "
+                        "starts with a currency-confusion moment before checkout.")
                 co = p.checks.get("checkout", {})
                 # Only her own transacting checkout counts — an order bump
                 # missing from her web designer's cart is not her leak.
@@ -434,5 +447,9 @@ def _render_packet(ev: dict) -> str:
     L.append("- Anything behind a login or a real payment attempt")
     L.append("- Email delivery + follow-up sequence (ghost test: opt in, wait 48h)")
     L.append("- Tone, friction, and how the pages *feel* to click through")
+    L.append("- IP-geolocation-based currency defaulting on checkout pages (a locale/timezone "
+             "probe runs automatically and catches SOME cases, but platforms that key off the "
+             "visitor's real IP — not browser locale — need a human check: VPN from abroad, or "
+             "ask a contact in another country to screenshot the checkout)")
     L.append("")
     return "\n".join(L)

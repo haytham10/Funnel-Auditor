@@ -50,6 +50,31 @@ _PRICE_RE = re.compile(
     r"(?:[$£€]\s?\d[\d,]*(?:\.\d{2})?|(?:USD|AED|GBP|EUR)\s?\d[\d,]*(?:\.\d{2})?|\d[\d,]*\s?(?:AED|USD))",
 )
 
+# ISO-4217-ish currency codes that show up next to a number when a checkout
+# has geo/locale-defaulted a non-US visitor into local currency. USD/US$ are
+# excluded — they're the expected baseline, not a signal.
+_CURRENCY_CODE_RE = re.compile(
+    r"\b(MAD|EUR|GBP|AED|CAD|AUD|INR|ZAR|NZD|SGD|MXN|BRL|JPY|CHF|SEK|NOK|DKK)\b"
+)
+_CURRENCY_SYMBOL_RE = re.compile(r"[£€₹₩₦₨]")
+
+
+def detect_foreign_currency(base_text: str, probed_text: str) -> str | None:
+    """Compare a page's normal-locale render against a foreign-locale probe
+    render. Returns the foreign currency code/symbol if the probe shows a
+    currency the base render didn't, else None. This is the only way to
+    catch Thinkific/Kajabi/etc. geo-defaulting a non-US visitor into local
+    currency on a checkout page — a single-locale crawl always renders as
+    a US visitor and never sees it."""
+    base_codes = set(_CURRENCY_CODE_RE.findall(base_text))
+    probed_codes = set(_CURRENCY_CODE_RE.findall(probed_text))
+    new_codes = probed_codes - base_codes
+    if new_codes:
+        return sorted(new_codes)[0]
+    if _CURRENCY_SYMBOL_RE.search(probed_text) and not _CURRENCY_SYMBOL_RE.search(base_text):
+        return _CURRENCY_SYMBOL_RE.search(probed_text).group()
+    return None
+
 
 def extract_prices(text: str) -> list[dict]:
     """Every price-looking string with ~60 chars of surrounding context."""
