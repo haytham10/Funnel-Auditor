@@ -7,6 +7,18 @@ for the checks/extraction layer.
 Hop structure mirrors the 5-stop walk: bio page (Stop 1) → funnel pages
 (Stops 2-3) → one more hop into checkout/buy links found on sales pages
 (Stop 4).
+
+Scope rules (hard-won from real walks):
+- The lead's own site (same registrable domain, any subdomain) is always
+  in scope — nav pages, pricing, courses, booking.
+- External domains are in scope ONLY when they're funnel/booking platforms
+  (Calendly, Kajabi, Stripe, ...). A radio station she was interviewed on,
+  or the web designer credited in her footer, is NOT her funnel; those are
+  recorded as external references and never crawled. One page max per
+  external domain.
+- Auth/login/account/search/legal pages never advance a walk; skipped.
+- URLs are normalized (fragments, tracking params, trailing slashes)
+  before dedupe, so #anchors don't triple-crawl the same page.
 """
 
 import os
@@ -17,25 +29,29 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright, Page, Browser
+from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 
 from config import (
     MAX_PAGES, MAX_CHECKOUT_HOPS, SCREENSHOT_DIR,
     NOISE_DOMAINS, BIO_LINK_PLATFORMS, CHECKOUT_LINK_KEYWORDS,
+    EXTERNAL_FUNNEL_PLATFORMS, SKIP_PATH_RE, OFFER_PATH_HINTS,
 )
+from audit.urls import normalize, same_site
 
 
 @dataclass
 class CrawledPage:
     url: str
     title: str
-    link_type: str          # "bio_page" | "sales" | "freebie" | "opt-in" | "course" | "checkout" | "direct"
+    link_type: str          # "bio_page" | "sales" | "freebie" | "opt-in" | "course" | "checkout" | "booking" | "direct"
     load_time_ms: float
     screenshot_desktop: str
     screenshot_mobile: str
     depth: int
     source_url: str = ""
     error: str = ""
+    http_status: int = 0    # plain-request probe when the browser nav failed
+    external: bool = False  # not on the lead's own site
     html: str = field(default="", repr=False)
 
 
@@ -46,6 +62,7 @@ class CrawlResult:
     pages: list[CrawledPage] = field(default_factory=list)
     funnel_links: list[dict] = field(default_factory=list)   # {url, label, category}
     noise_links: list[dict] = field(default_factory=list)
+    external_refs: list[dict] = field(default_factory=list)  # linked but out-of-scope, never crawled
 
 
 # ---------------------------------------------------------------------------
@@ -66,12 +83,32 @@ def detect_platform(url: str) -> str:
 # Link extraction & classification
 # ---------------------------------------------------------------------------
 
-def _is_noise(url: str) -> bool:
+def _host_matches(url: str, domains: list[str] | tuple[str, ...]) -> bool:
     hostname = urlparse(url).netloc.lower().lstrip("www.")
-    return any(hostname == nd or hostname.endswith("." + nd) for nd in NOISE_DOMAINS)
+    full = hostname + urlparse(url).path.lower()
+    for d in domains:
+        if "/" in d:
+            if full.startswith(d) or full.startswith("www." + d):
+                return True
+        elif hostname == d or hostname.endswith("." + d):
+            return True
+    return False
+
+
+def _is_noise(url: str) -> bool:
+    return _host_matches(url, NOISE_DOMAINS)
+
+
+def _is_external_platform(url: str) -> bool:
+    return _host_matches(url, EXTERNAL_FUNNEL_PLATFORMS)
 
 
 _LEGAL_RE = re.compile(r"/legal/|terms-of-service|terms-and-conditions|privacy-policy|/terms/?$|/privacy/?$", re.I)
+_SKIP_PATH = re.compile(SKIP_PATH_RE, re.I)
+_SKIP_LABELS = {
+    "log in", "login", "sign in", "signin", "my account", "account",
+    "search", "cookie policy", "cart",
+}
 
 
 def _is_legal(url: str, label: str) -> bool:
@@ -80,58 +117,84 @@ def _is_legal(url: str, label: str) -> bool:
     )
 
 
-def _funnel_category(url: str, label: str) -> str | None:
-    """
-    Return a funnel category string if the link looks funnel-relevant,
-    else None.
-    """
-    text = (url + " " + label).lower()
+def _is_skippable(url: str, label: str) -> bool:
+    """Auth, account, search — pages that never advance a funnel walk."""
+    if _SKIP_PATH.search(urlparse(url).path + "/"):
+        return True
+    return label.strip().lower() in _SKIP_LABELS
 
-    # Platform-hosted stores are always funnel-relevant
-    funnel_platforms = [
-        "kajabi.com", "teachable.com", "thinkific.com", "podia.com",
-        "samcart.com", "clickfunnels.com", "kartra.com", "systeme.io",
-        "gumroad.com", "payhip.com", "lemonsqueezy.com", "stan.store",
-        "whop.com",
-    ]
-    hostname = urlparse(url).netloc.lower().lstrip("www.")
-    for fp in funnel_platforms:
-        if hostname == fp or hostname.endswith("." + fp):
-            if any(k in text for k in ("free", "freebie", "download", "checklist", "guide", "template")):
-                return "freebie"
-            if any(k in text for k in ("opt", "subscribe", "signup", "sign up", "join")):
-                return "opt-in"
-            return "sales"
 
-    # Keyword-based classification
-    if any(k in text for k in ("free", "freebie", "download", "checklist", "guide", "template", "gift")):
-        return "freebie"
-    if any(k in text for k in ("opt-in", "optin", "subscribe", "signup", "sign up", "newsletter")):
-        return "opt-in"
-    if any(k in text for k in ("course", "program", "masterclass", "bootcamp", "workshop", "training", "membership")):
-        return "course"
-    if any(k in text for k in ("buy", "enroll", "join", "offer", "sales", "book", "schedule", "call", "consult", "coaching")):
+# Word-boundary keyword matching. The old substring version classified
+# "judgement-free" as a freebie and "signature" as a signup. Hyphens count
+# as word characters here ("judgement-free" must NOT match "free"; a URL
+# slug like /free-guide still matches because "/" is a real boundary).
+def _kw(*words: str) -> re.Pattern:
+    return re.compile(
+        r"(?<![\w-])(?:" + "|".join(words) + r")(?![\w-])", re.I
+    )
+
+
+_FREEBIE_KW = _kw("free", "freebie", "download", "checklist", "guide", "template", "gift")
+_OPTIN_KW = _kw("opt-?in", "subscribe", "sign\\s?up", "newsletter", "waitlist", "wait\\s?list")
+_COURSE_KW = _kw("courses?", "programs?", "masterclass", "bootcamp", "workshops?",
+                 "trainings?", "membership", "classes", "intensive")
+_SALES_KW = _kw("buy", "enroll", "join", "offers?", "sales?", "pricing", "prices",
+                "invest(?:ment)?", "shop", "store", "services?", "packages?",
+                "work with", "coaching")
+_BOOKING_KW = _kw("book", "booking", "schedule", "calls?", "consult(?:ation)?s?",
+                  "discovery", "appointment")
+_OFFER_HINT_RE = re.compile("|".join(re.escape(h) for h in OFFER_PATH_HINTS), re.I)
+
+
+def _funnel_category(url: str, label: str) -> str:
+    """Best-guess category for a link that's already been scoped in.
+
+    URL path hyphens are separators (/free-guide → "free guide"), label
+    hyphens are compounds ("judgement-free" stays intact and must NOT
+    match "free")."""
+    path = urlparse(url).path.lower().replace("-", " ").replace("_", " ")
+    text = f"{path} {label}".strip()
+
+    if _is_external_platform(url):
+        if _BOOKING_KW.search(text) or _host_matches(
+            url, ["calendly.com", "acuityscheduling.com", "youcanbook.me",
+                  "tidycal.com", "savvycal.com", "cal.com"]
+        ):
+            return "booking"
+        if _FREEBIE_KW.search(text):
+            return "freebie"
         return "sales"
 
-    return None
+    if _FREEBIE_KW.search(text):
+        return "freebie"
+    if _OPTIN_KW.search(text):
+        return "opt-in"
+    if _COURSE_KW.search(text):
+        return "course"
+    if _BOOKING_KW.search(text):
+        return "booking"
+    if _SALES_KW.search(text):
+        return "sales"
+    return "direct"
 
 
-def extract_links(html: str, base_url: str, platform: str) -> tuple[list[dict], list[dict]]:
+def extract_links(html: str, base_url: str, platform: str) -> tuple[list[dict], list[dict], list[dict]]:
     """
-    Parse the bio page HTML and split links into funnel-relevant and noise.
-    Returns (funnel_links, noise_links) where each item is {url, label, category}.
+    Parse a page's links into (funnel_links, noise_links, external_refs).
+
+    funnel_links   — crawlable: the lead's own pages + external funnel platforms,
+                     sorted so offer-bearing pages get the budget first.
+    noise_links    — socials/marketplaces, recorded not crawled.
+    external_refs  — other external domains (press, designers, directories):
+                     recorded for the judgment layer, never crawled.
     """
     soup = BeautifulSoup(html, "html.parser")
     funnel_links: list[dict] = []
     noise_links: list[dict] = []
+    external_refs: list[dict] = []
     seen: set[str] = set()
 
     bio_parsed = urlparse(base_url)
-    bio_host = bio_parsed.netloc.lower()
-    # On bio platforms (Stan, Linktree, Beacons) the lead's own product pages
-    # live on the SAME host under her profile path (stan.store/<handle>/p/...).
-    # Same-host links outside her profile path are other profiles / platform
-    # pages and get skipped.
     on_bio_platform = platform != "direct"
     profile_prefix = bio_parsed.path.rstrip("/")
 
@@ -145,38 +208,67 @@ def extract_links(html: str, base_url: str, platform: str) -> tuple[list[dict], 
         if parsed.scheme not in ("http", "https"):
             continue
 
-        # Deduplicate
-        if absolute in seen:
+        canon = normalize(absolute)
+        if canon in seen or canon == normalize(base_url):
             continue
-        seen.add(absolute)
-
-        # Same-host links: keep only the lead's own sub-pages on bio platforms
-        if parsed.netloc.lower() == bio_host:
-            own_subpage = (
-                on_bio_platform
-                and profile_prefix
-                and parsed.path.startswith(profile_prefix + "/")
-                and parsed.path.rstrip("/") != profile_prefix
-            )
-            if not own_subpage:
-                continue
+        seen.add(canon)
 
         label = tag.get_text(separator=" ", strip=True) or tag.get("aria-label", "") or ""
 
         if _is_noise(absolute):
             noise_links.append({"url": absolute, "label": label, "category": "noise"})
             continue
-        if _is_legal(absolute, label):
+        if _is_legal(absolute, label) or _is_skippable(absolute, label):
             continue
 
-        category = _funnel_category(absolute, label)
-        if category:
-            funnel_links.append({"url": absolute, "label": label, "category": category})
+        if same_site(absolute, base_url):
+            # On bio-link aggregators (Stan, Linktree, Beacons), same-host
+            # links outside her profile path are other creators' profiles.
+            # On her own self-hosted site, every internal page is hers.
+            if on_bio_platform:
+                own_subpage = (
+                    profile_prefix
+                    and parsed.path.startswith(profile_prefix + "/")
+                    and parsed.path.rstrip("/") != profile_prefix
+                )
+                if not own_subpage:
+                    continue
+            funnel_links.append({
+                "url": absolute, "label": label,
+                "category": _funnel_category(absolute, label),
+                "scope": "internal",
+            })
+        elif _is_external_platform(absolute):
+            funnel_links.append({
+                "url": absolute, "label": label,
+                "category": _funnel_category(absolute, label),
+                "scope": "external_platform",
+            })
         else:
-            # Unrecognised external link — include as "direct" for safety
-            funnel_links.append({"url": absolute, "label": label, "category": "direct"})
+            # Press mentions, web-designer credits, podcast hosts, ...
+            # Not her funnel. Never crawled, but kept visible.
+            external_refs.append({"url": absolute, "label": label, "category": "external"})
 
-    return funnel_links, noise_links
+    funnel_links.sort(key=_link_priority)
+    return funnel_links, noise_links, external_refs
+
+
+def _link_priority(link: dict) -> tuple:
+    """Spend the page budget on offers first. Internal offer-path pages,
+    then internal typed pages, then internal misc, then external platforms."""
+    internal = link.get("scope") == "internal"
+    path = urlparse(link["url"]).path
+    offer_path = bool(_OFFER_HINT_RE.search(path))
+    typed = link["category"] in ("sales", "course", "freebie", "opt-in", "booking")
+    if internal and offer_path:
+        rank = 0
+    elif internal and typed:
+        rank = 1
+    elif internal:
+        rank = 2
+    else:
+        rank = 3
+    return (rank,)
 
 
 def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 6) -> list[dict]:
@@ -186,7 +278,7 @@ def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 
     button, record where it routes, reset, repeat.
     """
     found: list[dict] = []
-    seen_urls: set[str] = {seed_url.rstrip("/")}
+    seen_urls: set[str] = {normalize(seed_url)}
     seen_labels: set[str] = set()
 
     try:
@@ -213,11 +305,13 @@ def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 
         try:
             buttons.nth(i).click(timeout=3_000)
             page.wait_for_timeout(2_500)
-            dest = page.url.rstrip("/")
+            dest = normalize(page.url)
             if dest not in seen_urls:
                 seen_urls.add(dest)
-                category = _funnel_category(dest, label) or "product"
-                found.append({"url": page.url, "label": label, "category": category})
+                category = _funnel_category(page.url, label)
+                found.append({"url": page.url, "label": label,
+                              "category": category if category != "direct" else "product",
+                              "scope": "internal"})
             # Reset for the next click (goto is more reliable than go_back here)
             page.goto(seed_url, wait_until="networkidle", timeout=30_000)
         except Exception:
@@ -229,8 +323,13 @@ def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 
     return found
 
 
+_CHECKOUT_KW = _kw("checkout", "buy", "enroll", "cart", "order", "register",
+                   "purchase", "pay", "get access")
+
+
 def extract_checkout_links(html: str, base_url: str) -> list[dict]:
-    """Find buy/enroll/checkout links on a sales or course page (Stop 4 hop)."""
+    """Find buy/enroll/checkout links on a sales or course page (Stop 4 hop).
+    Same scope rules: her site or a payment/funnel platform, nothing else."""
     soup = BeautifulSoup(html, "html.parser")
     found: list[dict] = []
     seen: set[str] = set()
@@ -242,12 +341,15 @@ def extract_checkout_links(html: str, base_url: str) -> list[dict]:
         absolute = urljoin(base_url, href)
         if urlparse(absolute).scheme not in ("http", "https"):
             continue
-        if absolute in seen or _is_noise(absolute):
+        canon = normalize(absolute)
+        if canon in seen or _is_noise(absolute):
+            continue
+        if not (same_site(absolute, base_url) or _is_external_platform(absolute)):
             continue
         label = tag.get_text(separator=" ", strip=True) or ""
-        text = (absolute + " " + label).lower()
-        if any(k in text for k in CHECKOUT_LINK_KEYWORDS):
-            seen.add(absolute)
+        text = urlparse(absolute).path.lower() + " " + label
+        if _CHECKOUT_KW.search(text):
+            seen.add(canon)
             found.append({"url": absolute, "label": label, "category": "checkout"})
     return found
 
@@ -270,6 +372,27 @@ def _screenshot_path(url: str, suffix: str, screenshot_dir: str) -> str:
     return str(Path(screenshot_dir) / filename)
 
 
+def _probe_status(context: BrowserContext, url: str) -> int:
+    """Plain HTTP GET through the same proxy/context, no browser rendering.
+    Distinguishes 'site is down' from 'site blocks headless browsers' —
+    an HTTP 200 here with a failed nav means bot wall, not a dead link."""
+    try:
+        resp = context.request.get(url, timeout=15_000, max_redirects=5)
+        return resp.status
+    except Exception:
+        return 0
+
+
+def _goto_with_fallback(page: Page, url: str, timeout_ms: int = 30_000) -> None:
+    """networkidle is the best signal but hangs on chatty pages (analytics
+    long-polls, live chat). Fall back to domcontentloaded + settle."""
+    try:
+        page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+    except Exception:
+        page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+        page.wait_for_timeout(4_000)
+
+
 def _fetch_and_screenshot(
     page: Page,
     url: str,
@@ -277,19 +400,21 @@ def _fetch_and_screenshot(
     link_type: str,
     screenshot_dir: str,
     source_url: str = "",
+    external: bool = False,
 ) -> CrawledPage:
     desktop_path = _screenshot_path(url, "desktop", screenshot_dir)
     mobile_path = _screenshot_path(url, "mobile", screenshot_dir)
     title = ""
     load_time_ms = 0.0
     error = ""
+    http_status = 0
     html = ""
 
     try:
         # Desktop screenshot + rendered HTML
         page.set_viewport_size({"width": 1280, "height": 800})
         t0 = time.perf_counter()
-        page.goto(url, wait_until="networkidle", timeout=30_000)
+        _goto_with_fallback(page, url)
         load_time_ms = (time.perf_counter() - t0) * 1000
         title = page.title()
         html = page.content()
@@ -297,11 +422,25 @@ def _fetch_and_screenshot(
 
         # Mobile screenshot (same page, resize viewport)
         page.set_viewport_size({"width": 390, "height": 844})
-        page.reload(wait_until="networkidle", timeout=30_000)
+        try:
+            page.reload(wait_until="networkidle", timeout=15_000)
+        except Exception:
+            page.wait_for_timeout(2_000)
         page.screenshot(path=mobile_path, full_page=True)
 
     except Exception as exc:
         error = str(exc)
+        http_status = _probe_status(page.context, url)
+        if http_status == 200:
+            error += (
+                " [HTTP probe: 200 — the site answers plain requests; this is "
+                "a bot wall / heavy-JS render issue, NOT a dead link. Do not "
+                "open on it as broken.]"
+            )
+        elif http_status:
+            error += f" [HTTP probe: {http_status}]"
+        else:
+            error += " [HTTP probe also failed — site may genuinely be unreachable.]"
         desktop_path = desktop_path if Path(desktop_path).exists() else ""
         mobile_path = mobile_path if Path(mobile_path).exists() else ""
 
@@ -315,6 +454,8 @@ def _fetch_and_screenshot(
         depth=depth,
         source_url=source_url,
         error=error,
+        http_status=http_status,
+        external=external,
         html=html,
     )
 
@@ -344,16 +485,17 @@ def _ensure_mitm_friendly_tls() -> None:
 def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
     """
     Full crawl:
-    1. Load the bio page, extract links.
-    2. Screenshot the bio page.
-    3. For each funnel-relevant link, fetch + screenshot.
-    4. One more hop: checkout/buy links found on sales/course pages.
+    1. Load the bio page, extract + scope + prioritize links.
+    2. Crawl the lead's own funnel pages (offer pages first), plus at most
+       one page per external funnel platform.
+    3. One more hop: checkout/buy links found on sales/course pages.
     Returns a CrawlResult with rendered HTML kept on every page.
     """
     screenshot_dir = screenshot_dir or SCREENSHOT_DIR
     platform = detect_platform(seed_url)
     result = CrawlResult(seed_url=seed_url, platform=platform)
     visited: set[str] = set()
+    external_domains_crawled: set[str] = set()
 
     with sync_playwright() as pw:
         launch_kwargs: dict = {
@@ -394,34 +536,42 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
             page, seed_url, depth=0, link_type="bio_page", screenshot_dir=screenshot_dir
         )
         result.pages.append(bio_page)
-        visited.add(seed_url)
+        visited.add(normalize(seed_url))
 
         if not bio_page.html:
             browser.close()
             return result
 
-        funnel_links, noise_links = extract_links(bio_page.html, seed_url, platform)
+        funnel_links, noise_links, external_refs = extract_links(
+            bio_page.html, seed_url, platform
+        )
 
         # Bio platforms with JS product cards (Stan et al.) expose no hrefs —
         # discover products by clicking when anchor extraction found no own pages.
         if platform != "direct":
-            seed_host = urlparse(seed_url).netloc.lower()
-            has_own_pages = any(
-                urlparse(l["url"]).netloc.lower() == seed_host for l in funnel_links
-            )
+            has_own_pages = any(l.get("scope") == "internal" for l in funnel_links)
             if not has_own_pages:
                 funnel_links.extend(_discover_clickable_products(page, seed_url))
 
         result.funnel_links = funnel_links
         result.noise_links = noise_links
+        result.external_refs = external_refs
 
-        # --- Step 2: Crawl each funnel-relevant page ---
+        # --- Step 2: Crawl each funnel-relevant page, offers first ---
         for link in funnel_links:
             if len(result.pages) >= MAX_PAGES:
                 break
-            if link["url"] in visited:
+            canon = normalize(link["url"])
+            if canon in visited:
                 continue
-            visited.add(link["url"])
+            is_external = link.get("scope") == "external_platform"
+            if is_external:
+                from audit.urls import registrable_domain
+                dom = registrable_domain(link["url"])
+                if dom in external_domains_crawled:
+                    continue
+                external_domains_crawled.add(dom)
+            visited.add(canon)
             crawled = _fetch_and_screenshot(
                 page,
                 link["url"],
@@ -429,6 +579,7 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
                 link_type=link["category"],
                 screenshot_dir=screenshot_dir,
                 source_url=seed_url,
+                external=is_external,
             )
             result.pages.append(crawled)
 
@@ -439,14 +590,15 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
                 break
             if crawled.depth != 1 or crawled.link_type not in ("sales", "course", "direct"):
                 continue
-            if not crawled.html:
+            if not crawled.html or crawled.external:
                 continue
             for co_link in extract_checkout_links(crawled.html, crawled.url):
                 if checkout_hops >= MAX_CHECKOUT_HOPS:
                     break
-                if co_link["url"] in visited:
+                canon = normalize(co_link["url"])
+                if canon in visited:
                     continue
-                visited.add(co_link["url"])
+                visited.add(canon)
                 result.pages.append(_fetch_and_screenshot(
                     page,
                     co_link["url"],
@@ -454,6 +606,7 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
                     link_type="checkout",
                     screenshot_dir=screenshot_dir,
                     source_url=crawled.url,
+                    external=not same_site(co_link["url"], seed_url),
                 ))
                 checkout_hops += 1
 
