@@ -52,7 +52,6 @@ class CrawledPage:
     error: str = ""
     http_status: int = 0    # plain-request probe when the browser nav failed
     external: bool = False  # not on the lead's own site
-    foreign_locale_html: str = field(default="", repr=False)  # checkout pages only
     html: str = field(default="", repr=False)
 
 
@@ -461,44 +460,6 @@ def _fetch_and_screenshot(
     )
 
 
-# A checkout page can default a visitor's currency based on locale/
-# timezone (client-side) OR IP geolocation (server-side) — platforms vary,
-# and this probe can only ever catch the first kind. Verified case: Heidi
-# McBain's Thinkific checkout showed MAD 574.09 to a real Morocco-based
-# visitor (screenshot evidence) but stayed at $59.00 under this exact
-# fr-MA/Africa-Casablanca locale+timezone probe, because this environment's
-# egress IP doesn't change. A clean result from this probe is NOT proof the
-# checkout is clean — it only rules out the locale-based mechanism. Real
-# IP-geolocation-based defaulting needs a human check (VPN, or a contact
-# browsing from abroad); see the packet's blind-spots section.
-_FOREIGN_LOCALE = "fr-MA"
-_FOREIGN_TIMEZONE = "Africa/Casablanca"
-
-
-def _probe_foreign_locale(browser: Browser, proxied: bool, url: str) -> str:
-    """One extra fetch of a checkout page as a non-US visitor (locale/
-    timezone only — see module note above on what this can't catch).
-    Returns the rendered HTML, or '' if the probe itself fails (never
-    blocks the walk)."""
-    try:
-        ctx = browser.new_context(
-            locale=_FOREIGN_LOCALE,
-            timezone_id=_FOREIGN_TIMEZONE,
-            ignore_https_errors=proxied,
-        )
-        p = ctx.new_page()
-        try:
-            p.goto(url, wait_until="domcontentloaded", timeout=20_000)
-        except Exception:
-            p.goto(url, wait_until="commit", timeout=15_000)
-        p.wait_for_timeout(3_000)
-        html = p.content()
-        ctx.close()
-        return html
-    except Exception:
-        return ""
-
-
 def _ensure_mitm_friendly_tls() -> None:
     """
     TLS-intercepting proxies (managed cloud sessions) can reset Chromium's
@@ -648,20 +609,6 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
                     external=not same_site(co_link["url"], seed_url),
                 ))
                 checkout_hops += 1
-
-        # --- Step 4: foreign-locale currency probe on checkout pages ---
-        # Capped — this doubles the page load for each one, so only run it
-        # where it matters: pages that actually show a price to transact.
-        currency_probes = 0
-        for crawled in result.pages:
-            if currency_probes >= 2:
-                break
-            if crawled.link_type != "checkout" or not crawled.html or crawled.error:
-                continue
-            if "$" not in crawled.html and "USD" not in crawled.html.upper():
-                continue
-            crawled.foreign_locale_html = _probe_foreign_locale(browser, proxied, crawled.url)
-            currency_probes += 1
 
         browser.close()
 
