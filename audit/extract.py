@@ -1,13 +1,16 @@
 """
 Content extraction from crawled pages: visible text, headings, prices,
-contact emails, and stale/past dates near launch-implying copy.
+contact emails, stale/past dates near launch-implying copy, and offer
+availability (coming soon / sold out / fully booked / placeholder text).
 """
 
 import re
-from datetime import date, timedelta
+from datetime import date
 
 from bs4 import BeautifulSoup
 from dateutil import parser as dateparser
+
+from audit.urls import same_site
 
 
 # ---------------------------------------------------------------------------
@@ -71,21 +74,34 @@ _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _GENERIC_PREFIXES = {
     "info", "contact", "hello", "hi", "support", "admin", "team",
     "help", "office", "mail", "enquiries", "inquiries", "no-reply", "noreply",
+    "reception", "bookings", "booking", "press", "sales", "studio",
+    "newsletter", "media", "billing", "accounts", "orders",
 }
 _JUNK_DOMAIN_RE = re.compile(r"\.(png|jpe?g|gif|webp|svg|css|js)$", re.I)
 # Platform-owned support addresses are not the lead's contact
 _JUNK_HOSTS = (
     "example.com", "sentry.io", "wixpress.com", "domain.com", "email.com",
     "stanwith.me", "stan.store", "linktr.ee", "linktree.com", "beacons.ai",
-    "kajabi.com", "squarespace.com", "wix.com",
+    "kajabi.com", "squarespace.com", "wix.com", "godaddy.com",
 )
 
 
-def extract_emails(html: str, source_url: str = "") -> dict:
+def extract_emails(html: str, source_url: str = "", seed_url: str = "",
+                   lead_name: str = "") -> dict:
     """
     Harvest emails from mailto: links and raw page text.
-    Split into personal vs generic (info@/contact@/... prefixes).
+
+    Scope rule: an address only counts when the page it was found on is the
+    lead's own site, OR the address's domain matches the lead's domain.
+    (A radio station's reception@ address harvested from a press link is
+    not her contact — that exact failure shipped once.)
+
+    Ranking: locals containing the lead's first/last name outrank other
+    personal-looking locals; generic prefixes (info@, hello@, reception@...)
+    go in the generic bucket.
     """
+    on_lead_site = not seed_url or same_site(source_url or seed_url, seed_url)
+
     # JSON-escaped markup (> etc.) otherwise glues onto addresses
     html = re.sub(r"\\u[0-9a-fA-F]{4}", " ", html)
     soup = BeautifulSoup(html, "html.parser")
@@ -101,6 +117,8 @@ def extract_emails(html: str, source_url: str = "") -> dict:
     for m in _EMAIL_RE.finditer(html):
         candidates.add(m.group().lower())
 
+    name_tokens = [t for t in re.split(r"[^a-z]+", lead_name.lower()) if len(t) >= 3]
+
     personal, generic = [], []
     for addr in sorted(candidates):
         local, _, domain = addr.partition("@")
@@ -108,11 +126,18 @@ def extract_emails(html: str, source_url: str = "") -> dict:
             continue
         if "." not in domain:
             continue
+        # Scope: skip addresses that belong to neither the lead's page nor
+        # the lead's domain.
+        if not on_lead_site and not (seed_url and same_site("https://" + domain, seed_url)):
+            continue
         entry = {"email": addr, "source": source_url}
         if local in _GENERIC_PREFIXES:
             generic.append(entry)
         else:
+            entry["name_match"] = any(t in local for t in name_tokens)
             personal.append(entry)
+
+    personal.sort(key=lambda e: not e.get("name_match"))
     return {"personal": personal, "generic": generic}
 
 
@@ -124,6 +149,13 @@ _LAUNCH_KEYWORDS = re.compile(
     r"start|begin|kick[\s-]?off|enroll|doors|join|goes? live|cohort|round"
     r"|register|early bird|deadline|closes?|opens?|workshop|webinar"
     r"|masterclass|challenge|event|next session|book",
+    re.I,
+)
+
+# A date sitting next to a blog byline / article listing is a publish date,
+# not a launch date. A quiet blog is a soft signal, not the Pam pattern.
+_BYLINE_RE = re.compile(
+    r"read more|min read|posted|published|blog|article|episode",
     re.I,
 )
 
@@ -148,15 +180,18 @@ _DATE_PATTERNS = [
 _COPYRIGHT_RE = re.compile(r"(?:©|&copy;|copyright)", re.I)
 
 
-def extract_dates(text: str, today: date | None = None) -> list[dict]:
+def extract_dates(text: str, today: date | None = None, page_url: str = "") -> list[dict]:
     """
     All parseable dates found in the text, each with context and a
     stale_candidate flag: date is >7 days past AND sits near
-    launch-implying copy AND is not a copyright line.
+    launch-implying copy AND is not a copyright line or a blog byline.
+    Blog publish dates get blog_byline=True and never become stale
+    candidates — a quiet blog is reported separately as a soft signal.
     Dates written without a year get year_assumed=True — judge those
     with a human eye (could mean next year).
     """
     today = today or date.today()
+    on_blog_page = bool(re.search(r"/(blog|news|articles|podcast)(/|$)", page_url, re.I))
     results: list[dict] = []
     seen: set[str] = set()
 
@@ -182,17 +217,20 @@ def extract_dates(text: str, today: date | None = None) -> list[dict]:
                 continue
 
             days_past = (today - parsed).days
+            blog_byline = on_blog_page or bool(_BYLINE_RE.search(near))
             stale = (
                 days_past > 7
                 and days_past < 400
                 and bool(_LAUNCH_KEYWORDS.search(ctx))
                 and not _COPYRIGHT_RE.search(near)
+                and not blog_byline
             )
             results.append({
                 "raw": raw,
                 "parsed": parsed.isoformat(),
                 "days_past": days_past,
                 "year_assumed": year_assumed,
+                "blog_byline": blog_byline,
                 "context": ctx,
                 "stale_candidate": stale,
             })
@@ -200,3 +238,45 @@ def extract_dates(text: str, today: date | None = None) -> list[dict]:
     # Stale candidates first, then most recent
     results.sort(key=lambda d: (not d["stale_candidate"], abs(d["days_past"])))
     return results[:30]
+
+
+# ---------------------------------------------------------------------------
+# Offer availability (the empty-shelf pattern)
+# ---------------------------------------------------------------------------
+# The strongest finding in a July 2026 batch — a flagship course marked
+# "temporarily unavailable while it gets a refresh," with six more courses
+# at "coming soon" — was invisible to every existing check. Same batch:
+# a "Fully Booked — no slots available" popup and a terms page shipped with
+# a literal "[Insert Email]" placeholder. This extraction exists so an
+# offer that cannot currently be bought is machine-visible.
+
+_AVAILABILITY_PATTERNS: list[tuple[str, re.Pattern]] = [
+    ("coming_soon", re.compile(r"\bcoming soon\b", re.I)),
+    ("unavailable", re.compile(
+        r"\b(?:temporarily |currently )?unavailable\b|\bcheck back soon\b", re.I)),
+    ("sold_out", re.compile(r"\bsold out\b|\bno longer available\b", re.I)),
+    ("fully_booked", re.compile(
+        r"\bfully booked\b|\bno slots? available\b|\bat (?:full )?capacity\b"
+        r"|\bnot (?:currently )?(?:accepting|taking) (?:new )?(?:clients|bookings)\b", re.I)),
+    ("closed", re.compile(
+        r"\b(?:enrollment|enrolment|doors|cart|registration) (?:is |are )?closed\b", re.I)),
+    ("waitlist_only", re.compile(r"\bjoin the wait\s?list\b|\bwaitlist\b", re.I)),
+    ("placeholder", re.compile(r"\[(?:insert|add|your|todo)[^\]\n]{0,40}\]", re.I)),
+]
+
+
+def extract_availability(text: str) -> list[dict]:
+    """Availability blockers with context. `waitlist_only` is only meaningful
+    when it's the ONLY path to an offer — the evidence layer judges that;
+    here every hit is reported with its surroundings."""
+    found: list[dict] = []
+    seen: set[str] = set()
+    for kind, pattern in _AVAILABILITY_PATTERNS:
+        for m in pattern.finditer(text):
+            ctx = text[max(0, m.start() - 100): m.end() + 100].replace("\n", " ").strip()
+            key = kind + "|" + ctx[:50]
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append({"kind": kind, "match": m.group().strip(), "context": ctx})
+    return found[:15]

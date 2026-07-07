@@ -14,6 +14,15 @@ walk's known patterns), and writes a self-contained packet:
 The packet is a FIRST DRAFT of the walk, machine half only. The sting test,
 vitamin filter, lane call, and anything behind logins/DMs/payments stay with
 the human + Claude layer.
+
+Candidate rules that keep the packet honest:
+- Findings on EXTERNAL pages (booking platforms aside) are never her leaks.
+- A stale date repeated by a shared nav/footer widget is ONE finding that
+  appears on N pages, not N findings.
+- An offer page that says "coming soon" / "sold out" / "fully booked" /
+  "temporarily unavailable" is an empty-shelf candidate — the single
+  highest-value machine catch (it's copy, so no link ever breaks).
+- Blog publish dates are a soft "quiet blog" signal, not the Pam pattern.
 """
 
 import json
@@ -28,12 +37,16 @@ from audit.checks import (
     check_pixels, check_forms, check_links, check_meta, check_speed, check_checkout,
 )
 from audit.extract import (
-    visible_text, extract_headings, extract_prices, extract_emails, extract_dates,
+    visible_text, extract_headings, extract_prices, extract_emails,
+    extract_dates, extract_availability,
 )
 from audit.gates import evaluate_floors
+from audit.urls import same_site
 
 TEXT_INLINE_CHARS = 700       # how much page text goes inline in packet.md
 TEXT_FILE_MAX_CHARS = 20000   # cap per page text file
+
+_OFFER_PAGE_TYPES = ("sales", "course", "checkout", "booking", "freebie", "opt-in")
 
 
 @dataclass
@@ -44,6 +57,7 @@ class PageEvidence:
     prices: list = field(default_factory=list)
     emails: dict = field(default_factory=dict)
     dates: list = field(default_factory=list)
+    availability: list = field(default_factory=list)
     text: str = ""
     text_file: str = ""
 
@@ -65,16 +79,17 @@ def _is_bio_host(url: str) -> bool:
     return any(host == h or host.endswith("." + h) for h in _BIO_HOSTS)
 
 
-def _analyze_page(page: CrawledPage) -> PageEvidence:
+def _analyze_page(page: CrawledPage, seed_url: str, lead_name: str) -> PageEvidence:
     ev = PageEvidence(page=page)
     if not page.html:
         return ev
     html, url = page.html, page.url
+    skip_links = _is_bio_host(url) or page.external
     ev.checks = {
         "pixels": check_pixels(html, url),
         "forms": check_forms(html, url),
         "links": ({"broken": [], "unverifiable": [], "total_checked": 0, "skipped": True}
-                  if _is_bio_host(url) else check_links(html, url)),
+                  if skip_links else check_links(html, url)),
         "meta": check_meta(html, url),
         "speed": check_speed(html, url, page.load_time_ms),
         "checkout": check_checkout(html, url),
@@ -82,8 +97,9 @@ def _analyze_page(page: CrawledPage) -> PageEvidence:
     ev.text = visible_text(html)
     ev.headings = extract_headings(html)
     ev.prices = extract_prices(ev.text)
-    ev.emails = extract_emails(html, url)
-    ev.dates = extract_dates(ev.text)
+    ev.emails = extract_emails(html, url, seed_url=seed_url, lead_name=lead_name)
+    ev.dates = extract_dates(ev.text, page_url=url)
+    ev.availability = extract_availability(ev.text)
     return ev
 
 
@@ -91,7 +107,7 @@ def _analyze_page(page: CrawledPage) -> PageEvidence:
 # Machine-flagged leak candidates (mapped to walk.md known patterns)
 # ---------------------------------------------------------------------------
 
-def _leak_candidates(pages: list[PageEvidence]) -> list[dict]:
+def _leak_candidates(pages: list[PageEvidence], seed_url: str) -> list[dict]:
     """
     Conservative auto-flags. Every one is a CANDIDATE: the sting test and
     vitamin filter still decide whether it's an opener. Tiers follow the
@@ -102,15 +118,64 @@ def _leak_candidates(pages: list[PageEvidence]) -> list[dict]:
     def add(stop, tier, what, where, note=""):
         cands.append({"stop": stop, "tier": tier, "what": what, "where": where, "note": note})
 
+    own_pages = [p for p in pages if not p.page.external]
+
     any_capture = any(
-        p.checks.get("forms", {}).get("form_present") for p in pages
+        p.checks.get("forms", {}).get("form_present") for p in own_pages
     )
 
-    for p in pages:
+    # --- Stale dates, deduped across pages (shared nav/footer widgets) ---
+    stale_seen: dict[str, dict] = {}
+    for p in own_pages:
+        for d in p.dates:
+            if not d["stale_candidate"]:
+                continue
+            key = d["raw"] + "|" + d["context"][:60]
+            if key in stale_seen:
+                stale_seen[key]["pages"].append(p.page.url)
+            else:
+                stale_seen[key] = {"date": d, "pages": [p.page.url]}
+    for entry in list(stale_seen.values())[:4]:
+        d = entry["date"]
+        n = len(entry["pages"])
+        where = entry["pages"][0] + (f" (+{n - 1} more pages — shared nav/footer element)" if n > 1 else "")
+        add(3, "B", f"Stale date still showing: \"{d['raw']}\" ({d['days_past']} days past)",
+            where,
+            f"Context: …{d['context'][:140]}… (Pam pattern — passed kickoff date reads as 'I missed it'.)"
+            + (" YEAR ASSUMED — could mean next occurrence, verify." if d["year_assumed"] else ""))
+
+    # --- Offer availability: the empty-shelf pattern ---
+    avail_seen: set[str] = set()
+    for p in own_pages:
+        pg = p.page
+        offer_page = pg.link_type in _OFFER_PAGE_TYPES or bool(p.prices)
+        for a in p.availability:
+            key = a["kind"] + "|" + a["context"][:50]
+            if key in avail_seen:
+                continue
+            avail_seen.add(key)
+            if a["kind"] == "placeholder":
+                add(3, "B", f"Placeholder text still live: \"{a['match']}\"", pg.url,
+                    f"Context: …{a['context'][:140]}… Shipped-unfinished signal, same family as a stale date.")
+            elif a["kind"] == "waitlist_only":
+                continue  # only meaningful in combination — judged below
+            elif offer_page:
+                tier = "A" if a["kind"] in ("unavailable", "fully_booked", "closed") else "B"
+                add(3, tier,
+                    f"Offer availability blocker on an offer page: \"{a['match']}\"", pg.url,
+                    f"Context: …{a['context'][:140]}… If this is the ladder's entry offer, "
+                    "warmed-up traffic has nowhere to buy in — verify what a visitor can actually purchase today.")
+
+    for p in own_pages:
         pg = p.page
         if pg.link_type == "bio_page" and pg.error:
-            add(1, "A", "Bio link fails to load", pg.url,
-                f"Error: {pg.error[:100]}. Verify logged-out: hard 404 = openable, permission wall = not.")
+            if pg.http_status == 200:
+                add(1, "-", "Bio page blocked the headless crawl (HTTP probe: 200)", pg.url,
+                    "Site is UP for real visitors — bot wall, not a finding. Walk it by hand/screenshots.")
+            else:
+                add(1, "A", "Bio link fails to load", pg.url,
+                    f"Error: {pg.error[:100]}. HTTP probe: {pg.http_status or 'no response'}. "
+                    "Verify logged-out: hard 404 = openable, permission wall = not.")
 
         broken = p.checks.get("links", {}).get("broken", [])
         if broken:
@@ -118,13 +183,6 @@ def _leak_candidates(pages: list[PageEvidence]) -> list[dict]:
             add("-", "B", f"{len(broken)} dead internal link(s)", pg.url,
                 f"Dead: {urls}. Dead/stale element — the finding type behind most warm replies. "
                 "Verify logged-out by hand before opening on it.")
-
-        stale = [d for d in p.dates if d["stale_candidate"]]
-        for d in stale[:2]:
-            add(3, "B", f"Stale date still showing: \"{d['raw']}\" ({d['days_past']} days past)",
-                pg.url,
-                f"Context: …{d['context'][:140]}… (Pam pattern — passed kickoff date reads as 'I missed it'.)"
-                + (" YEAR ASSUMED — could mean next occurrence, verify." if d["year_assumed"] else ""))
 
         if pg.link_type in ("freebie", "opt-in") and not pg.error:
             if not p.checks.get("forms", {}).get("form_present"):
@@ -135,15 +193,29 @@ def _leak_candidates(pages: list[PageEvidence]) -> list[dict]:
                 add(2, "B", "Freebie/opt-in page with no email capture visible", pg.url, note)
 
         if pg.link_type == "checkout":
-            if pg.error:
-                add(4, "A", "Checkout page fails to load", pg.url, f"Error: {pg.error[:100]}")
-            else:
+            if pg.error and pg.http_status != 200:
+                add(4, "A", "Checkout page fails to load", pg.url,
+                    f"Error: {pg.error[:100]}")
+            elif not pg.error:
                 co = p.checks.get("checkout", {})
-                if co.get("platform") == "kajabi" and not co.get("order_bump_detected"):
+                # Only her own transacting checkout counts — an order bump
+                # missing from her web designer's cart is not her leak.
+                if (same_site(pg.url, seed_url) and co.get("transacts")
+                        and co.get("platform") == "kajabi"
+                        and not co.get("order_bump_detected")):
                     add(4, "B", "Bare Kajabi checkout — no order bump detected", pg.url,
                         "Easiest revenue lift at the highest-intent moment (PWH receipt: $522 from one bump).")
 
-    if pages and not any_capture:
+    # --- Quiet blog: soft signal, never a leak candidate ---
+    for p in own_pages:
+        blog_dates = [d for d in p.dates if d.get("blog_byline") and 60 < d["days_past"] < 400]
+        if blog_dates and re.search(r"/(blog|news|articles)(/|$)", p.page.url, re.I):
+            newest = min(blog_dates, key=lambda d: d["days_past"])
+            add("-", "C", f"Blog looks quiet — newest post ~{newest['days_past']} days old", p.page.url,
+                "Soft activity signal only. Cross-check against her IG activity before reading anything into it.")
+            break
+
+    if own_pages and not any_capture:
         add(5, "C", "No email capture anywhere in the crawled funnel", "whole funnel",
             "Audience ownership signal. MECHANISM by default — only an opener if framed as felt cost.")
 
@@ -165,7 +237,7 @@ def build_evidence(
     out = Path(out_dir)
     (out / "pages").mkdir(parents=True, exist_ok=True)
 
-    pages = [_analyze_page(p) for p in result.pages]
+    pages = [_analyze_page(p, result.seed_url, lead_name) for p in result.pages]
 
     # Page text files
     for i, p in enumerate(pages, start=1):
@@ -179,9 +251,9 @@ def build_evidence(
     bio = pages[0].page if pages else None
     offer_evidence: list[str] = []
     for p in pages:
-        if p.page.error:
+        if p.page.error or p.page.external:
             continue
-        if p.page.link_type in ("sales", "course", "checkout") :
+        if p.page.link_type in ("sales", "course", "checkout", "booking"):
             offer_evidence.append(f"{p.page.link_type} page: {p.page.url}")
         for pr in p.prices[:2]:
             offer_evidence.append(f"price {pr['price']} on {p.page.url}")
@@ -190,14 +262,15 @@ def build_evidence(
         bio_link_error=(bio.error if bio else "no crawl"),
         offer_evidence=offer_evidence,
         email_capture_anywhere=any(
-            p.checks.get("forms", {}).get("form_present") for p in pages
+            p.checks.get("forms", {}).get("form_present")
+            for p in pages if not p.page.external
         ),
         followers=followers,
     )
 
-    candidates = _leak_candidates(pages)
+    candidates = _leak_candidates(pages, result.seed_url)
 
-    # Harvested emails, merged
+    # Harvested emails, merged (name-matching personals first)
     personal, generic = [], []
     seen_addr: set[str] = set()
     for p in pages:
@@ -206,6 +279,7 @@ def build_evidence(
                 if e["email"] not in seen_addr:
                     seen_addr.add(e["email"])
                     target.append(e)
+    personal.sort(key=lambda e: not e.get("name_match"))
 
     evidence = {
         "generated": datetime.now().isoformat(timespec="seconds"),
@@ -219,6 +293,7 @@ def build_evidence(
         "leak_candidates": candidates,
         "funnel_links": result.funnel_links,
         "noise_links": result.noise_links,
+        "external_refs": result.external_refs,
         "pages": [
             {
                 "url": p.page.url,
@@ -227,14 +302,18 @@ def build_evidence(
                 "depth": p.page.depth,
                 "source_url": p.page.source_url,
                 "error": p.page.error,
+                "http_status": p.page.http_status,
+                "external": p.page.external,
                 "load_time_ms": p.page.load_time_ms,
                 "screenshot_desktop": p.page.screenshot_desktop,
                 "screenshot_mobile": p.page.screenshot_mobile,
                 "text_file": p.text_file,
+                "text_inline": p.text[:TEXT_INLINE_CHARS],
                 "headings": p.headings,
                 "prices": p.prices,
                 "emails": p.emails,
                 "dates": p.dates,
+                "availability": p.availability,
                 "checks": p.checks,
             }
             for p in pages
@@ -274,7 +353,8 @@ def _render_packet(ev: dict) -> str:
         L.append("- None visible from the crawl. Next steps per Email OS: freebie opt-in reply-to, "
                  "podcast/YouTube notes, Google search, pattern guess + verify.")
     for e in he["personal"]:
-        L.append(f"- **{e['email']}** (personal-looking) — found on {e['source']}")
+        tag = "matches lead name" if e.get("name_match") else "personal-looking"
+        L.append(f"- **{e['email']}** ({tag}) — found on {e['source']}")
     for e in he["generic"]:
         L.append(f"- {e['email']} (generic) — found on {e['source']}")
 
@@ -288,12 +368,22 @@ def _render_packet(ev: dict) -> str:
         if c["note"]:
             L.append(f"  - {c['note']}")
 
+    # External references — visible but explicitly out of scope
+    if ev.get("external_refs"):
+        L.append("\n## External references (NOT crawled — not her funnel)")
+        L.append("Press mentions, directories, designer credits, and other third-party "
+                 "sites linked from her pages. Nothing on these domains is her leak.")
+        for r in ev["external_refs"][:12]:
+            label = f" ({r['label']})" if r.get("label") else ""
+            L.append(f"- {r['url']}{label}")
+
     # Pages
     L.append("\n## Page-by-page")
     for i, p in enumerate(ev["pages"], start=1):
-        L.append(f"\n### [{i}] {p['link_type'].upper()} — {p['url']}")
+        ext = " — EXTERNAL (platform page, not her site)" if p.get("external") else ""
+        L.append(f"\n### [{i}] {p['link_type'].upper()} — {p['url']}{ext}")
         if p["error"]:
-            L.append(f"**FAILED TO LOAD:** {p['error'][:200]}")
+            L.append(f"**FAILED TO LOAD:** {p['error'][:260]}")
             continue
         if p["title"]:
             L.append(f"Title: {p['title']}")
@@ -309,7 +399,7 @@ def _render_packet(ev: dict) -> str:
             f"pixels: {'yes' if pix.get('any_present') else 'none'}",
             f"broken links: {len(links.get('broken', []))}",
         ]
-        if co.get("platform"):
+        if co.get("platform") and (co.get("transacts") or p["link_type"] == "checkout"):
             summary.append(f"checkout platform: {co['platform']}")
             summary.append(f"order bump: {'yes' if co.get('order_bump_detected') else 'no'}")
         L.append("Checks: " + " • ".join(summary))
@@ -319,12 +409,19 @@ def _render_packet(ev: dict) -> str:
             L.append("Prices seen: " + "; ".join(
                 f"{x['price']} (“…{x['context'][:70]}…”)" for x in p["prices"][:5]
             ))
+        for a in p.get("availability", [])[:5]:
+            L.append(f"AVAILABILITY: [{a['kind']}] \"{a['match']}\" — context: …{a['context'][:120]}…")
         stale = [d for d in p["dates"] if d["stale_candidate"]]
         if stale:
             for d in stale[:3]:
                 L.append(f"STALE DATE CANDIDATE: \"{d['raw']}\" parsed {d['parsed']} "
                          f"({d['days_past']} days past{', year assumed' if d['year_assumed'] else ''}) — "
                          f"context: …{d['context'][:120]}…")
+        if p.get("text_inline"):
+            L.append("Key copy (first %d chars):" % TEXT_INLINE_CHARS)
+            L.append("```")
+            L.append(p["text_inline"].strip())
+            L.append("```")
         if p["screenshot_desktop"] or p["screenshot_mobile"]:
             L.append(f"Screenshots: {p['screenshot_desktop']} | {p['screenshot_mobile']}")
         if p["text_file"]:
