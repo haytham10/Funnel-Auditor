@@ -43,10 +43,24 @@ from audit.extract import (
 from audit.gates import evaluate_floors
 from audit.urls import same_site
 
-TEXT_INLINE_CHARS = 700       # how much page text goes inline in packet.md
+# How much page text goes inline in packet.md. 700 chars was cutting every
+# offer/course/checkout page off after its hero section — exactly the part
+# of the page that never has the actual curriculum, pricing structure, or
+# copy inconsistencies in it. A manual walk caught a sales-page-vs-checkout
+# curriculum mismatch on Heidi McBain (Modules One-Eight vs Part One-Five)
+# that the tool couldn't have surfaced at 700 chars — that content starts
+# well past that cutoff. Offer-bearing pages now get the full page text
+# inline (still capped, matching the file cap); everything else gets a
+# shorter preview since About/Contact pages rarely carry findings.
+TEXT_INLINE_CHARS = 700
+TEXT_INLINE_CHARS_OFFER = 6000
 TEXT_FILE_MAX_CHARS = 20000   # cap per page text file
 
 _OFFER_PAGE_TYPES = ("sales", "course", "checkout", "booking", "freebie", "opt-in")
+
+
+def _inline_cap(link_type: str) -> int:
+    return TEXT_INLINE_CHARS_OFFER if link_type in _OFFER_PAGE_TYPES else TEXT_INLINE_CHARS
 
 
 @dataclass
@@ -308,7 +322,7 @@ def build_evidence(
                 "screenshot_desktop": p.page.screenshot_desktop,
                 "screenshot_mobile": p.page.screenshot_mobile,
                 "text_file": p.text_file,
-                "text_inline": p.text[:TEXT_INLINE_CHARS],
+                "text_inline": p.text[:_inline_cap(p.page.link_type)],
                 "headings": p.headings,
                 "prices": p.prices,
                 "emails": p.emails,
@@ -418,7 +432,7 @@ def _render_packet(ev: dict) -> str:
                          f"({d['days_past']} days past{', year assumed' if d['year_assumed'] else ''}) — "
                          f"context: …{d['context'][:120]}…")
         if p.get("text_inline"):
-            L.append("Key copy (first %d chars):" % TEXT_INLINE_CHARS)
+            L.append("Key copy (first %d chars):" % len(p["text_inline"]))
             L.append("```")
             L.append(p["text_inline"].strip())
             L.append("```")

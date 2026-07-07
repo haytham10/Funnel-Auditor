@@ -1,5 +1,5 @@
-MAX_PAGES = 8            # bio page + funnel pages, before the checkout hop
-MAX_CHECKOUT_HOPS = 3    # extra pages crawled from buy/enroll links on sales pages
+MAX_PAGES = 16           # bio page + funnel pages, before the checkout hop
+MAX_CHECKOUT_HOPS = 6    # extra pages crawled from buy/enroll links on sales pages
 SCREENSHOT_DIR = "./screenshots"
 EVIDENCE_DIR = "./evidence"
 
