@@ -19,15 +19,22 @@ they are.
 
 ## Daily flow
 
-1. **You**: browse IG like a human, spot a candidate coach, grab name +
+1. **You**: browse IG like a human, spot candidate coaches, grab name +
    link-in-bio + follower count (the 20 seconds you already spend).
-2. **Paste it into a Claude Code session in this repo**: "process this lead:
-   Jane Doe, @janedoecoach, linktr.ee/janedoe, 4.2K followers". The
-   `/process-lead` skill does the rest and ends with draft variants.
-3. **You**: pick a variant, say "approve" → Gmail draft appears; send it from
-   Gmail; say "log this" → Notion updated per the Email OS rules.
+2. **Hand the leads over**, either way:
+   - one at a time in chat — "process this lead: Jane Doe, @janedoecoach,
+     linktr.ee/janedoe, 4.2K followers" (`/process-lead`), or
+   - log them straight into Notion while sourcing (Contact Name + Site URL
+     minimum), then say "batch audit" — `/batch-audit` pulls the fresh
+     Researching rows and works them all, ending in one batch brief with
+     draft variants per lead.
+3. **You**: approve variants → Gmail drafts appear; send from Gmail; say
+   "log this" → Notion updated per the Email OS rules.
 4. **Each morning**: `/pipeline-tick` (or let the scheduled Routine run it)
    gives you replies, due follow-ups with drafts, and today's send queue.
+
+All of this runs in Claude Code on the web — sessions of this repo carry the
+skills and connectors; no API key involved.
 
 ## The machine walk
 
@@ -68,6 +75,9 @@ comment-gated freebies, ghost test).
 
 - `process-lead` — orchestrator: intake → walk → floors → Notion →
   opener-finder → email draft → Gmail draft on approval.
+- `batch-audit` — batch front-end: fetches fresh Researching rows from
+  Notion after a sourcing session and runs the process-lead flow on each
+  (≤8 per run), delivering one batch brief + all drafts for approval.
 - `pipeline-tick` — daily ops: reply detection (Gmail → Notion sync), due
   follow-ups drafted, dormant revivals, send queue sorted sub-12K first,
   hygiene flags.
