@@ -75,6 +75,24 @@ BOOKING_EMBED_HOSTS = (
     "savvycal.com", "cal.com", "youcanbook.me",
 )
 
+# UI chrome that happens to be a <button> but is never a funnel destination —
+# nav toggles, FAQ/accordion controls, media transport. Filtering these out
+# keeps both the evidence packet's "unverified button" warnings and the
+# click-discovery crawler focused on actual CTAs instead of buried in noise.
+JS_BUTTON_NOISE_RE = (
+    r"^(open|close|toggle|show|hide)\s+(the\s+)?(menu|nav(igation)?|sidebar|search|filters?)\b"
+    r"|^(menu|search|filters?|close|back|next|previous|play|pause|mute|unmute)$"
+)
+
+# Button text that reads as completing a real payment or order — never
+# clicked during discovery, even on a sales/booking page, even though those
+# page types never carry an actual payment form. Defense in depth: the click
+# scope already excludes "checkout"-type pages, this is the second layer.
+UNSAFE_CLICK_RE = (
+    r"\b(pay now|submit payment|place (?:my )?order|complete (?:my )?(?:order|purchase)|"
+    r"confirm (?:order|purchase|payment)|complete checkout)\b"
+)
+
 # Same-domain paths that never advance a funnel walk: auth, account,
 # search, wp plumbing, legal. Crawling a login page burns a page-budget
 # slot to learn nothing (the login page's existence is already visible

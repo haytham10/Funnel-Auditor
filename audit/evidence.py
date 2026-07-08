@@ -44,16 +44,12 @@ from audit.extract import (
 )
 from audit.gates import evaluate_floors
 from audit.urls import same_site
-from config import BOOKING_EMBED_HOSTS
+from config import BOOKING_EMBED_HOSTS, JS_BUTTON_NOISE_RE
 
 _BOOKING_EMBED_RE = re.compile(
     "|".join(re.escape(h) for h in BOOKING_EMBED_HOSTS), re.I
 )
-_JS_BUTTON_NOISE_RE = re.compile(
-    r"^(open|close|toggle|show|hide)\s+(the\s+)?(menu|nav(igation)?|sidebar|search|filters?)\b"
-    r"|^(menu|search|filters?|close|back|next|previous|play|pause|mute|unmute)$",
-    re.I,
-)
+_JS_BUTTON_NOISE_RE = re.compile(JS_BUTTON_NOISE_RE, re.I)
 
 
 def _detect_booking_embed(html: str) -> str:
@@ -654,6 +650,7 @@ def build_evidence(
                 "checks": p.checks,
                 "booking_embed": p.booking_embed,
                 "blind_spots": p.blind_spots,
+                "cta_clicks": p.page.cta_clicks,
             }
             for p in pages
         ],
@@ -692,15 +689,45 @@ def _render_packet(ev: dict) -> str:
         for p in embed_pages:
             L.append(f"- {p['url']} — embed marker: `{p['booking_embed']}`")
 
+    # CTA click-discovery — sales/course/booking pages only (see
+    # _discover_cta_destinations). These buttons were actually clicked, so
+    # their destination is CONFIRMED, not a guess — read this before
+    # treating any of them as an unverified blind spot below.
+    click_pages = [p for p in ev["pages"] if p.get("cta_clicks")]
+    if click_pages:
+        L.append("\n## CTA click-discovery (buttons actually clicked, destinations confirmed)")
+        for p in click_pages:
+            L.append(f"- {p['url']}:")
+            for c in p["cta_clicks"]:
+                dest = c["destination"]
+                if dest == "navigation":
+                    L.append(f"  - \"{c['button_text']}\" → navigates to {c['url']}")
+                elif dest == "embedded_widget":
+                    srcs = ", ".join(c.get("iframe_src") or []) or "unknown src"
+                    L.append(f"  - \"{c['button_text']}\" → reveals an embedded widget ({srcs})")
+                elif dest == "no_visible_change":
+                    L.append(f"  - \"{c['button_text']}\" → clicked, no visible change detected "
+                             "(could be a JS action a static check can't see, e.g. adding to a cart)")
+                elif dest == "skipped_unsafe":
+                    L.append(f"  - \"{c['button_text']}\" → NOT clicked (reads as a payment/order "
+                             "completion action — verify by hand)")
+
     # Broader blind spots: any iframe (not just known booking platforms) and
     # any JS-only button are both invisible to link extraction and NOT
     # guaranteed to render in the screenshot. Same "verify before calling it
-    # missing" rule applies.
+    # missing" rule applies. Buttons already resolved by click-discovery
+    # above are excluded here — they're confirmed, not unverified.
     other_iframe_pages = [
         p for p in ev["pages"]
         if any(not i["known_booking_platform"] for i in p.get("blind_spots", {}).get("iframes", []))
     ]
-    js_button_pages = [p for p in ev["pages"] if p.get("blind_spots", {}).get("js_only_buttons")]
+    js_button_pages = []
+    for p in ev["pages"]:
+        btns = p.get("blind_spots", {}).get("js_only_buttons", [])
+        clicked_text = {c["button_text"] for c in p.get("cta_clicks", [])}
+        remaining = [b for b in btns if b not in clicked_text]
+        if remaining:
+            js_button_pages.append((p, remaining))
     if other_iframe_pages or js_button_pages:
         L.append("\n## ⚠️ OTHER UNVERIFIED INTERACTIVE ELEMENTS")
         L.append("Static crawl + screenshot can't fully verify these — read the raw page "
@@ -708,10 +735,9 @@ def _render_packet(ev: dict) -> str:
         for p in other_iframe_pages:
             srcs = [i["src"] for i in p["blind_spots"]["iframes"] if not i["known_booking_platform"]]
             L.append(f"- {p['url']} — unrecognized iframe(s): {', '.join(srcs[:3])}")
-        for p in js_button_pages:
-            btns = p["blind_spots"]["js_only_buttons"]
-            L.append(f"- {p['url']} — {len(btns)} JS-only button(s), destination not verified: "
-                     + ", ".join(f'"{b}"' for b in btns[:5]))
+        for p, remaining in js_button_pages:
+            L.append(f"- {p['url']} — {len(remaining)} JS-only button(s), destination not verified: "
+                     + ", ".join(f'"{b}"' for b in remaining[:5]))
 
     # Floors
     L.append("\n## Floor signals (Gate 0)")
