@@ -35,6 +35,7 @@ from config import (
     MAX_PAGES, MAX_CHECKOUT_HOPS, SCREENSHOT_DIR,
     NOISE_DOMAINS, BIO_LINK_PLATFORMS, CHECKOUT_LINK_KEYWORDS,
     EXTERNAL_FUNNEL_PLATFORMS, SKIP_PATH_RE, OFFER_PATH_HINTS,
+    BOOKING_EMBED_HOSTS,
 )
 from audit.urls import normalize, same_site
 
@@ -396,6 +397,38 @@ def _goto_with_fallback(page: Page, url: str, timeout_ms: int = 30_000) -> None:
         page.wait_for_timeout(4_000)
 
 
+_BOOKING_EMBED_HOSTS = BOOKING_EMBED_HOSTS
+# The iframe itself doesn't exist in the SSR'd HTML — an async widget script
+# (e.g. assets.calendly.com/.../widget.js) injects it client-side, sometimes
+# a beat after networkidle fires. Detect the container/script markers, which
+# ARE present immediately, then wait for the iframe they produce.
+_BOOKING_IFRAME_SELECTOR = ", ".join(f'iframe[src*="{h}"]' for h in _BOOKING_EMBED_HOSTS)
+_BOOKING_MARKER_SELECTOR = ", ".join(
+    f'[class*="{h.split(".")[0]}-inline-widget"], [data-url*="{h}"], script[src*="{h}"]'
+    for h in _BOOKING_EMBED_HOSTS
+) + ", " + _BOOKING_IFRAME_SELECTOR
+
+
+def _wait_for_embeds(page: Page, timeout_ms: int = 8_000) -> None:
+    """Inline booking widgets (Calendly and friends) render inside an iframe
+    injected by an async script — the injection can land after networkidle,
+    and the widget's own fetch for available slots happens inside that
+    iframe, invisible to the parent page's network-idle signal. A screenshot
+    taken right after goto/reload can catch the widget container present but
+    still empty, producing a false 'no CTA here' read. Detect the container
+    or script tag (present in the raw HTML immediately), then wait for the
+    iframe it produces before any screenshot is taken."""
+    try:
+        if page.locator(_BOOKING_MARKER_SELECTOR).count() > 0:
+            try:
+                page.wait_for_selector(_BOOKING_IFRAME_SELECTOR, state="attached", timeout=timeout_ms)
+            except Exception:
+                pass
+            page.wait_for_timeout(2_500)
+    except Exception:
+        pass
+
+
 def _fetch_and_screenshot(
     page: Page,
     url: str,
@@ -420,6 +453,7 @@ def _fetch_and_screenshot(
         _goto_with_fallback(page, url)
         load_time_ms = (time.perf_counter() - t0) * 1000
         title = page.title()
+        _wait_for_embeds(page)
         html = page.content()
         page.screenshot(path=desktop_path, full_page=True)
 
@@ -429,6 +463,7 @@ def _fetch_and_screenshot(
             page.reload(wait_until="networkidle", timeout=15_000)
         except Exception:
             page.wait_for_timeout(2_000)
+        _wait_for_embeds(page)
         page.screenshot(path=mobile_path, full_page=True)
 
     except Exception as exc:

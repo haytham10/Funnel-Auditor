@@ -42,6 +42,24 @@ from audit.extract import (
 )
 from audit.gates import evaluate_floors
 from audit.urls import same_site
+from config import BOOKING_EMBED_HOSTS
+
+_BOOKING_EMBED_RE = re.compile(
+    "|".join(re.escape(h) for h in BOOKING_EMBED_HOSTS), re.I
+)
+
+
+def _detect_booking_embed(html: str) -> str:
+    """Inline booking widgets (Calendly and friends) are a confirmed
+    screenshot blind spot: the widget's iframe loads async and its own
+    slot-availability fetch can land after the screenshot is taken, so a
+    real, working booking widget can show up as blank space in the
+    evidence screenshot. Flag the platform by name whenever its marker
+    (script src / data-url / iframe src) appears anywhere in the page HTML,
+    so a blank area near this page is read as 'screenshot unreliable here',
+    never as a confirmed missing-CTA finding."""
+    m = _BOOKING_EMBED_RE.search(html)
+    return m.group(0).lower() if m else ""
 
 # How much page text goes inline in packet.md. 700 chars was cutting every
 # offer/course/checkout page off after its hero section — exactly the part
@@ -74,6 +92,7 @@ class PageEvidence:
     availability: list = field(default_factory=list)
     text: str = ""
     text_file: str = ""
+    booking_embed: str = ""
 
 
 def _slug(value: str) -> str:
@@ -114,6 +133,7 @@ def _analyze_page(page: CrawledPage, seed_url: str, lead_name: str) -> PageEvide
     ev.emails = extract_emails(html, url, seed_url=seed_url, lead_name=lead_name)
     ev.dates = extract_dates(ev.text, page_url=url)
     ev.availability = extract_availability(ev.text)
+    ev.booking_embed = _detect_booking_embed(html)
     return ev
 
 
@@ -588,6 +608,7 @@ def build_evidence(
                 "dates": p.dates,
                 "availability": p.availability,
                 "checks": p.checks,
+                "booking_embed": p.booking_embed,
             }
             for p in pages
         ],
@@ -610,6 +631,21 @@ def _render_packet(ev: dict) -> str:
     L.append("")
     L.append("> Machine half of the walk only. Human observations outrank everything here. "
              "Every flag below is a CANDIDATE — sting test and vitamin filter still apply.")
+
+    # Booking-embed screenshot warning — confirmed blind spot (see
+    # _detect_booking_embed). Surfaced at the top so it can't be missed.
+    embed_pages = [p for p in ev["pages"] if p.get("booking_embed")]
+    if embed_pages:
+        L.append("\n## ⚠️ SCREENSHOT RELIABILITY WARNING")
+        L.append("The following page(s) embed an inline booking widget "
+                 "(Calendly or similar). These widgets load async and can appear "
+                 "as blank space in the screenshot even when a real, working "
+                 "booking option is there. **Do not treat blank space on these "
+                 "pages as a missing-CTA finding without checking the raw page "
+                 "text/HTML for the widget marker first, and ideally opening the "
+                 "live page by hand.**")
+        for p in embed_pages:
+            L.append(f"- {p['url']} — embed marker: `{p['booking_embed']}`")
 
     # Floors
     L.append("\n## Floor signals (Gate 0)")
@@ -719,6 +755,11 @@ def _render_packet(ev: dict) -> str:
             L.append("```")
         if p["screenshot_desktop"] or p["screenshot_mobile"]:
             L.append(f"Screenshots: {p['screenshot_desktop']} | {p['screenshot_mobile']}")
+        if p.get("booking_embed"):
+            L.append(f"⚠️ Contains an inline `{p['booking_embed']}` booking widget — "
+                     "screenshot may show this as blank space even when it's live and working. "
+                     "Do not call a nearby gap a missing CTA without verifying against the raw "
+                     "page text or the live page.")
         if p["text_file"]:
             L.append(f"Full text: {p['text_file']}")
 

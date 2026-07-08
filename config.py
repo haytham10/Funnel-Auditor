@@ -62,6 +62,19 @@ EXTERNAL_FUNNEL_PLATFORMS = [
     "gohighlevel.com", "app.gohighlevel.com",
 ]
 
+# Booking-widget platforms that get embedded INLINE on a lead's own page
+# (not linked out to) via an async script that injects an iframe. Confirmed
+# by hand: the iframe's own slot-availability fetch happens after the
+# parent page's networkidle signal, and a full-page screenshot can capture
+# the widget's container present but visually blank — producing a false
+# "no CTA here" read. Any page containing one of these markers needs an
+# explicit screenshot-reliability warning in its evidence, not a same-page
+# missing-CTA finding taken at face value.
+BOOKING_EMBED_HOSTS = (
+    "calendly.com", "tidycal.com", "acuityscheduling.com",
+    "savvycal.com", "cal.com", "youcanbook.me",
+)
+
 # Same-domain paths that never advance a funnel walk: auth, account,
 # search, wp plumbing, legal. Crawling a login page burns a page-budget
 # slot to learn nothing (the login page's existence is already visible
