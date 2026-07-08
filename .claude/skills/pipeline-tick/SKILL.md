@@ -34,13 +34,20 @@ Disqualified).
 For each due row, identify the touch type from Sequence + Touch # + Status
 (cold Touch 2/3/4, warm bump, dormant back-from-the-dead) and draft it with
 the **haytham-email-draft** skill — full loop, correct email type, mechanics
-cadence. Deliver all drafts in the brief as labeled variants per lead.
+cadence.
 
-Do NOT log or increment anything at draft time. Only after Haytham approves
-does a Gmail draft get created; only after he confirms a send does the
-logging + property diff happen (per the email-draft skill's rules, including
-Touch 4 → Dormant with a 2-3 week revival date, never Lost for a cold
-no-reply).
+Then create the Gmail DRAFT automatically for the strongest variant — with
+one guard: check Gmail drafts first (`list_drafts`), and if an unsent draft
+to that address already exists, do NOT stack a second one; surface the old
+draft in the brief instead ("draft from <date> still unsent — send, edit,
+or delete"). Warm replies (turn-two moves) are drafted as replies in the
+existing thread (`replyToMessageId`). Deliver every draft in the brief as
+labeled variants per lead, marking which variant is sitting in Gmail.
+
+Do NOT log or increment anything at draft time — a Gmail draft is not a
+send. Only after Haytham confirms a send does the logging + property diff
+happen (per the email-draft skill's rules, including Touch 4 → Dormant with
+a 2-3 week revival date, never Lost for a cold no-reply).
 
 ## 3 — Send queue
 
@@ -68,8 +75,10 @@ this before coffee.
 ## Hard rules
 
 - Drafts only. Never send. Never auto-advance Touch #, Status, Last
-  Contacted, or Next Action for an unsent email.
+  Contacted, or Next Action for an unsent email — creating a Gmail draft is
+  not a send.
 - Reply-detection updates (Status/Sequence on a real reply, verbatim reply
-  logging) are the ONLY writes this skill makes without approval — they
-  record reality, they don't create outreach.
+  logging) are the ONLY Notion writes this skill makes without approval —
+  they record reality, they don't create outreach.
+- Never stack a second unsent draft to the same address.
 - Never query or touch Instagram.

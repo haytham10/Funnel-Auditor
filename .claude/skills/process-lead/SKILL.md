@@ -1,9 +1,9 @@
 ---
 name: process-lead
-description: Take a sourced Instagram lead from raw intake (name + bio link + follower count) all the way to an approved cold-email draft. Use this skill WHENEVER Haytham pastes a new lead — a handle, a link-in-bio URL, a follower count, optionally notes or screenshots — or says "process this lead," "run this one," "new lead," or pastes several candidates from a sourcing session. It runs the machine funnel walk (Python), enforces the Gate 0 floors, logs to the Notion pipeline, hands the evidence to the opener-finder, then the email-draft skill, and finishes with a Gmail DRAFT awaiting his approval. It never sends anything and never touches Instagram.
+description: Take a sourced Instagram lead from raw intake (name + bio link + follower count) all the way to a cold-email Gmail DRAFT. Use this skill WHENEVER Haytham pastes a new lead — a handle, a link-in-bio URL, a follower count, optionally notes or screenshots — or says "process this lead," "run this one," "new lead," or pastes several candidates from a sourcing session. It runs the machine funnel walk (Python), does the mandatory vision pass over the screenshots, enforces the Gate 0 floors, logs to the Notion pipeline, hands the evidence to the opener-finder, then the email-draft skill, and finishes with a Gmail DRAFT he reviews and sends by hand. It never sends anything and never touches Instagram.
 ---
 
-# Process Lead — intake → walk → Notion → opener → draft
+# Process Lead — intake → walk → vision pass → Notion → opener → Gmail draft
 
 One command per candidate. Haytham sources on Instagram by hand (that stays
 manual — no IG automation, ever); this skill takes over the moment he has a
@@ -12,16 +12,46 @@ candidate's public info.
 ## Input
 
 Minimum: a link-in-bio / site URL. Wanted: contact name, IG profile URL,
-follower count. Optional: email if already known, niche hint, his own notes or
-screenshots from clicking around, Source (how he found them).
+follower count. Optional: email if already known, niche hint, his own notes,
+Source (how he found them).
+
+**The sourcing contract (IG evidence).** At sourcing time Haytham attaches
+his IG screenshots (profile header, recent posts grid, link-in-bio screen,
+anything he clicked) directly to the lead's Notion page body. That is the
+system's only window into Instagram — it must NEVER fetch instagram.com
+itself. In chat he may paste screenshots instead; pasted evidence counts the
+same and outranks everything.
 
 If several leads are pasted at once, process them one at a time, start to
-finish, and give a one-line verdict per lead at the end.
+finish, and give a one-line verdict per lead at the end. (For batches already
+logged in Notion, the batch-audit skill is the entry point — it parallelizes
+with one lead-processor agent per lead.)
 
 If only an IG profile URL is given with no bio-link URL: do NOT try to fetch
 Instagram. Run a web search for the person instead; if that surfaces their
 site/linktree, use it. Otherwise ask for the link in their bio — that's the
 one thing only he can see.
+
+## Step 0 — Pull the lead's Notion page + IG evidence
+
+If the lead exists in the pipeline (batch runs always; chat runs when he
+pastes a Notion URL), fetch the page first:
+
+1. `notion-fetch` the lead page. Properties are the intake of record; the
+   page body may already hold an old walk (you will overwrite it fresh).
+2. Collect every image in the page body — these are the sourcing
+   screenshots. The fetch returns signed file URLs (file.notion.so /
+   secure.notion-static.com). Download each one now (`curl -o
+   evidence/<slug>/ig/<n>.png "<signed url>"`) — the URLs expire, so don't
+   defer. Then **Read every downloaded image**.
+3. What to pull from the IG screenshots: last-post recency (activity floor),
+   follower count if the property is empty, the bio promise vs. where the
+   bio link actually goes, and SMYKM hook material (a recent post topic, a
+   named framework, a launch, a personal update).
+
+No images attached and none pasted → proceed site-only, but carry the flag
+"IG evidence: none attached — site-only walk" into the Notion body and the
+final verdict so Haytham knows this call is weaker.
 
 ## Step 1 — Machine walk
 
@@ -30,19 +60,47 @@ pip install -q -r requirements.txt   # first run only
 python main.py walk <bio-link-url> --name "<Name>" --handle "<@handle>" --followers <N>
 ```
 
-Read the resulting `evidence/<slug>/packet.md` and `evidence.json`. Read the
-bio page desktop screenshot, plus the screenshot of any page the packet
-flagged. Read the page text files for the sales/freebie pages — the copy is
-where non-mechanical leaks live.
+This produces `evidence/<slug>/packet.md`, `evidence.json`, per-page text
+files, and desktop+mobile screenshots of every funnel stop.
 
-If the crawl errored on the bio page, that is itself a possible Tier A finding
-(verify: hard 404 vs permission wall) — don't abandon the lead.
+If the crawl errored on the bio page, that is itself a possible Tier A
+finding (verify: hard 404 vs bot wall vs permission wall — the screenshot
+tells you which) — don't abandon the lead.
+
+## Step 1.5 — The vision pass (mandatory, the quality core)
+
+The packet's machine checks are pattern-matchers; they misfire and they miss.
+You have eyes — use them the way Haytham does when he clicks through by hand.
+
+**Read, as images, the desktop screenshot of EVERY crawled page**, plus the
+mobile screenshot of the bio page and of every offer/checkout/booking page.
+Read the full text files of the sales/freebie pages — copy is where
+non-mechanical leaks live.
+
+Two jobs, in this order:
+
+1. **Confirm or kill every machine flag.** Each reconciliation entry, leak
+   candidate, stale-date candidate, and availability hit in packet.md is a
+   CANDIDATE, not a finding. Find it on the screenshot/text with your own
+   eyes. Common misfires to kill: a footer copyright year read as a stale
+   event date; "sold out" inside a testimonial or story; a price mismatch
+   across two unrelated products; a "broken" link that the screenshot shows
+   rendering fine; bot-wall pages read as dead pages. A flag you could not
+   visually confirm is DEAD — it cannot become a finding or an opener, ever.
+   Keep a rejected-flags list (one-word reason each); it goes in the verdict.
+2. **Find what the machine can't.** While reading, hunt vision-only leaks:
+   an empty or stuck calendar, a hero promising a program the links don't
+   sell, placeholder/lorem content, a checkout asking for trust the page
+   hasn't earned, layout breakage on mobile, stale dates baked into images,
+   a freebie button that goes nowhere. These are exactly the leaks Haytham
+   catches manually — this pass is what replaces his click-through.
 
 ## Step 2 — Floors (Gate 0, full version)
 
-The packet gives the machine half. Complete the rest:
+The packet + vision pass give the machine half. Complete the rest:
 
-- **Activity floor**: one web search on the lead's name + niche/handle. Last
+- **Activity floor**: IG screenshots first (post dates are usually visible),
+  then one web search on the lead's name + niche/handle to corroborate. Last
   visible activity within ~3 weeks? While there, collect SMYKM hook material
   (recent post, launch, named framework, personal update) — needed later.
 - **Niche floor**: genuinely parenting or faith-based. Adjacent wellness
@@ -68,14 +126,15 @@ Followers, Source, Email (if found — see Step 5), Status = Researching.
 
 Now invoke the **haytham-opener-finder** skill logic with:
 - the evidence packet as Step A (the crawl + search layer, already done), and
-- Haytham's notes/screenshots as Step B (the human read — it OUTRANKS the
-  machine layer wherever they disagree).
+- the vision pass + IG screenshots + any notes Haytham typed as Step B (the
+  human-layer read — it OUTRANKS the machine text checks wherever they
+  disagree, and Haytham's own typed notes outrank everything).
 
 Follow that skill exactly: Gate 1, 5-stop walk, sting test + vitamin filter,
 lane classification, opening angle + innocent explanation + SMYKM hook with
-WORK/LIFE/METRIC label. Machine-flagged candidates in the packet are
-candidates only — they still have to survive both filters. Write the page
-body and properties to Notion in the exact schema.md format.
+WORK/LIFE/METRIC label. Only visually-confirmed findings enter the filters.
+Write the page body and properties to Notion in the exact schema.md format,
+including the "IG evidence" and rejected-flags lines.
 
 ## Step 5 — Email address
 
@@ -91,25 +150,38 @@ Work the Email OS decision tree with what the packet harvested:
 If the email came from a source the walk flagged as broken/suspect, Status
 stays Researching and that flag goes in Notes as the FIRST line.
 
-## Step 6 — The draft
+## Step 6 — The draft → Gmail, automatically
 
-Lane 1 or Lane 2 with an email address → invoke the **haytham-email-draft**
-skill for the Touch 1 opener. Full silent loop, voice rules, gate — as that
-skill specifies. Deliver labeled variants.
+Lane 1 or Lane 2 with a usable, non-suspect email address → invoke the
+**haytham-email-draft** skill for the Touch 1 opener. Full silent loop,
+voice rules, gate — as that skill specifies.
 
-Then STOP and wait:
-- On approval of a variant → create a **Gmail draft** (never send) to the
-  lead's address with the chosen subject and body.
-- On "log this" → do the full Notion logging + property diff exactly as the
-  email-draft skill specifies (Status Audit Ready → Outreach Sent only after
-  he confirms it was actually sent).
+Then, without waiting for approval:
+- Pick the variant that came through the gate strongest and **create the
+  Gmail DRAFT** (never send) to the lead's address with that subject and
+  body. Haytham reviews, edits, and sends from Gmail by hand.
+- Append one line to the lead's Notes: `Gmail draft ready (Touch 1) —
+  "<subject>" — <date>`. Do NOT touch Status, Touch #, Last Contacted, or
+  the Email Thread Log — those record sends, and nothing has been sent.
+- In the verdict, show the drafted variant in full plus the runner-up
+  variants labeled, so he can swap in Gmail if he prefers another.
+
+Held instead of drafted (say which and why): suspect-source address, generic
+address when the finding is personal, or the email-draft gate never passed.
+
+Logging ("log this" / pipeline-tick reply detection) still happens ONLY when
+Haytham confirms an email actually left. A Gmail draft is not a send.
 
 ## Hard rules
 
 - Never send an email. Gmail drafts only. Sending is Haytham's hand.
-- Never fetch, scrape, or automate anything on instagram.com.
-- Never invent findings; a walk with nothing that survives the filters is
-  Lane 2 or Lane 3, not a manufactured leak.
+- Never fetch, scrape, or automate anything on instagram.com. IG evidence
+  comes only from screenshots he attached or pasted.
+- Never invent findings; a walk with nothing that survives the vision pass
+  and both filters is Lane 2 or Lane 3, not a manufactured leak.
+- A machine flag that failed visual confirmation is dead. It does not get
+  resurrected as a hedge ("might also be…") in the email.
 - One lead's full run ends with: lane verdict, strongest finding, innocent
-  explanation, SMYKM hook + label, email address status, and (if applicable)
-  the draft variants. That's the complete hand-off.
+  explanation, SMYKM hook + label, email address status, IG-evidence status,
+  rejected-flags count, and the Gmail-draft status. That's the complete
+  hand-off.
