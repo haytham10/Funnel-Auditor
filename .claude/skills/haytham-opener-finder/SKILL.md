@@ -24,13 +24,20 @@ Build a first-pass stop-by-stop skeleton from what steps 1-3 surfaced, with tier
 
 ---
 
-## Step B — Reconcile with the human read
+## Step B — Reconcile with the human-layer read
 
-Now bring in whatever Haytham gave you: screenshots, free-form notes, or both. This is not a fallback for when the crawl comes up short — it's the correction layer that outranks the crawl every time the two disagree, because it reflects the real click-through experience a static fetch cannot capture (friction, tone, whether a wall is a permission gate or a hard 404, whether a "broken" freebie is actually a manual-delivery lag).
+The human layer comes in two forms, and at least one is required:
 
-Reconciliation rules:
+1. **Haytham's own material** — screenshots, free-form notes, or both, pasted in chat or attached to the lead's Notion page (his IG sourcing screenshots live there). This outranks everything else in the walk.
+2. **The vision pass** (automated runs, or whenever a machine walk produced screenshots) — read, as images, the desktop screenshot of every crawled page plus mobile for the bio and offer/checkout pages, and the full text files of offer pages. This is Claude's own click-through, and it outranks the machine text checks.
+
+**Machine flags are candidates, not findings.** Every reconciliation entry, leak candidate, stale-date and availability hit in the packet must be confirmed on the screenshot/text by eye before it can enter the filters. Known misfires: footer copyright years read as stale dates, "sold out" inside a testimonial, prices compared across unrelated products, bot walls read as dead pages. A flag that fails visual confirmation is dead — record it as rejected (one-word reason) and never resurrect it. While confirming, hunt the vision-only leaks the checks can't see: empty/stuck calendars, hero promises the links don't sell, placeholder content, stale dates baked into images, mobile breakage, freebie buttons that go nowhere.
+
+This layer is not a fallback for when the crawl comes up short — it's the correction layer that outranks the crawl every time the two disagree, because it reflects the real click-through experience a static fetch cannot capture (friction, tone, whether a wall is a permission gate or a hard 404, whether a "broken" freebie is actually a manual-delivery lag).
+
+Reconciliation rules (Haytham's notes > vision pass > machine checks):
 - **Where user observation and crawl agree:** confirmed, move on.
-- **Where they conflict:** the user's observation wins. Note briefly why the crawl missed it (logged-in view, geo-gated, JS-rendered content the fetch couldn't see, etc.) if it's discoverable, but don't block on figuring that out.
+- **Where they conflict:** the user's observation wins (and the vision pass wins over the machine text checks). Note briefly why the lower layer missed it (logged-in view, geo-gated, JS-rendered content the fetch couldn't see, etc.) if it's discoverable, but don't block on figuring that out.
 - **Where the crawl flagged a gap and the user's notes fill it:** merge — this is the expected, common case (comment-gated freebies, DM flows, paid checkouts).
 - **Where the crawl found something the user's notes don't mention:** keep it if it's clearly evidenced (e.g. a stale date, a dead link) — the user may simply not have walked that particular stop.
 
@@ -136,7 +143,7 @@ After writing, confirm to the user: lane verdict, the single strongest finding i
 
 ## What this skill does NOT do
 
-- It does not stop at crawling. Site URL, linked pages, and one lead-name search happen automatically before the walk (Step A), but the user's screenshots and notes are what confirm, correct, or fill in what the crawl can't reach — logins, DM flows, comment-gated freebies, real checkout attempts. A crawl-only walk is a draft, not a finished one.
+- It does not stop at crawling. Site URL, linked pages, and one lead-name search happen automatically before the walk (Step A), but the human layer — Haytham's screenshots and notes, and in automated runs the mandatory vision pass over the crawler's screenshots — is what confirms, corrects, or fills in what the crawl can't reach: logins, DM flows, comment-gated freebies, real checkout attempts. A crawl-only walk with no eyes on the screenshots is a draft, never a finished walk.
 - It does not go exploring beyond what's linked. It fetches the Site URL, Profile URL, and any pages Haytham's prompt points to — it doesn't crawl arbitrary internal pages, attempt logins, or try to pay through a paid gate. Those stops rely on user observation.
 - It does not invent findings. If neither the crawl nor the user's observations support a finding at a given stop, say so and move on.
 - It does not draft the email. That's the email skill's job. This skill ends at the opening angle.

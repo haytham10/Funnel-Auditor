@@ -5,9 +5,17 @@ parenting/faith-based coach leads, plus the Claude skills that orchestrate it.
 
 ## The pipeline in one line
 
-Manual IG sourcing → `/process-lead` (machine walk → floors → Notion →
-opener-finder → email draft → Gmail DRAFT) → Haytham sends by hand →
-`/pipeline-tick` (replies, due follow-ups, send queue) daily.
+Manual IG sourcing (Haytham logs the row in Notion + attaches his IG
+screenshots to the page body) → `/batch-audit` (scheduled Routine or "work
+the queue"; one lead-processor agent per lead, ~3 in parallel, cap 15) →
+per lead: machine walk → **mandatory vision pass over the screenshots** →
+floors → opener-finder → Notion write → email address → automatic Gmail
+DRAFT → Haytham reviews in Gmail and sends by hand → `/pipeline-tick`
+(replies, due follow-ups auto-drafted, send queue) daily.
+
+Haytham's only manual jobs: sourcing (with IG screenshots attached),
+reviewing and sending drafts from Gmail, and confirming sends for logging.
+Single pasted leads still go through `/process-lead` directly.
 
 ## Hard rules (non-negotiable)
 
@@ -16,7 +24,12 @@ opener-finder → email draft → Gmail DRAFT) → Haytham sends by hand →
   manual by design.
 - **Never send an email.** The system ends at Gmail drafts. Sending is human.
 - **Never invent findings.** No verified finding → no opener. Lane 2/3 exists.
+  Machine check flags are candidates only — a flag that fails the vision
+  pass (visual confirmation on the screenshot) is dead and stays dead.
 - Notion is the source of truth for pipeline state, not chat memory.
+- A Gmail draft is not a send. Drafts are created automatically; Status /
+  Touch # / Last Contacted / Email Thread Log move only after Haytham
+  confirms an email actually left.
 
 ## Key pieces
 
@@ -24,8 +37,17 @@ opener-finder → email draft → Gmail DRAFT) → Haytham sends by hand →
   under `evidence/<slug>/` (packet.md, evidence.json, page text, screenshots).
 - `audit/` — crawler (Playwright), checks, extraction, Gate 0 floors, packet
   builder.
-- `.claude/skills/process-lead` — one-command lead intake orchestrator.
-- `.claude/skills/pipeline-tick` — daily ops loop (replies/follow-ups/queue).
+- `.claude/skills/process-lead` — the per-lead contract everything else
+  runs: walk → vision pass → floors → opener → automatic Gmail draft.
+- `.claude/skills/batch-audit` — batch orchestrator: pulls Researching rows
+  from Notion, spawns one `lead-processor` agent per lead (~3 parallel,
+  cap 15), verifies the writes landed, delivers one batch brief. Fired by
+  the lead-queue Routine or on demand.
+- `.claude/agents/lead-processor.md` — the per-lead subagent and its
+  structured return block.
+- `.claude/skills/pipeline-tick` — daily ops loop (replies/follow-ups/queue);
+  due follow-ups auto-draft to Gmail, never stacking on an unsent draft to
+  the same address.
 - `.claude/skills/haytham-opener-finder` — the walk: Gate 1, 5 stops, filters,
   lanes, Notion page body format.
 - `.claude/skills/haytham-email-draft` — voice, mechanics, gate, logging rules.

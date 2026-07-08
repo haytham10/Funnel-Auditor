@@ -41,6 +41,11 @@ One short paragraph. Name, business, niche, platform, main offer. Human context 
 One line per stop where something was found or ruled out. Skip clean, unremarkable stops.
 Format: Stop X — [what's there] — [what it means]
 
+## Evidence
+Two lines, always present (added Jul 2026 for the automated runs):
+- IG evidence: [N screenshots read from page attachments / pasted in chat] OR "none — site-only walk".
+- Machine flags rejected in the vision pass: [N — one-word reason each] OR "none rejected".
+
 ## Gate 1
 Solo-operator signals or gatekeeper flags. One to two lines.
 
