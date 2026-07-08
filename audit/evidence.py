@@ -32,6 +32,8 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from bs4 import BeautifulSoup
+
 from audit.crawler import CrawlResult, CrawledPage
 from audit.checks import (
     check_pixels, check_forms, check_links, check_meta, check_speed, check_checkout,
@@ -47,6 +49,11 @@ from config import BOOKING_EMBED_HOSTS
 _BOOKING_EMBED_RE = re.compile(
     "|".join(re.escape(h) for h in BOOKING_EMBED_HOSTS), re.I
 )
+_JS_BUTTON_NOISE_RE = re.compile(
+    r"^(open|close|toggle|show|hide)\s+(the\s+)?(menu|nav(igation)?|sidebar|search|filters?)\b"
+    r"|^(menu|search|filters?|close|back|next|previous|play|pause|mute|unmute)$",
+    re.I,
+)
 
 
 def _detect_booking_embed(html: str) -> str:
@@ -60,6 +67,41 @@ def _detect_booking_embed(html: str) -> str:
     never as a confirmed missing-CTA finding."""
     m = _BOOKING_EMBED_RE.search(html)
     return m.group(0).lower() if m else ""
+
+
+def _interactive_blind_spots(html: str) -> dict:
+    """The Calendly miss was one instance of a bigger category: ANY iframe
+    (chat widgets, other schedulers, Stripe/PayPal payment elements on a
+    checkout page, maps, video) can carry real functionality a screenshot
+    isn't guaranteed to paint, and ANY button with no href is a JS-only
+    control whose destination a static crawl can't follow. Inventory both
+    directly from the rendered DOM — independent of whether anything
+    painted visually — so a blank-looking area always has a structural
+    cross-check instead of resting on pixels alone."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    iframes = []
+    for tag in soup.select("iframe[src]"):
+        src = (tag.get("src") or "").strip()
+        if not src or src.startswith("about:blank") or src.startswith("javascript"):
+            continue
+        iframes.append({"src": src, "known_booking_platform": bool(_BOOKING_EMBED_RE.search(src))})
+
+    js_only_buttons = []
+    for tag in soup.select("button"):
+        if tag.find_parent("a[href]"):
+            continue
+        text = tag.get_text(separator=" ", strip=True)
+        if not text or len(text) > 80:
+            continue
+        # Nav toggles and FAQ/accordion questions are near-universal UI
+        # chrome, not funnel-relevant destinations — flagging every one of
+        # them buries the buttons that actually matter in noise.
+        if _JS_BUTTON_NOISE_RE.search(text) or text.rstrip().endswith("?"):
+            continue
+        js_only_buttons.append(text[:60])
+
+    return {"iframes": iframes, "js_only_buttons": js_only_buttons[:20]}
 
 # How much page text goes inline in packet.md. 700 chars was cutting every
 # offer/course/checkout page off after its hero section — exactly the part
@@ -93,6 +135,7 @@ class PageEvidence:
     text: str = ""
     text_file: str = ""
     booking_embed: str = ""
+    blind_spots: dict = field(default_factory=dict)
 
 
 def _slug(value: str) -> str:
@@ -134,6 +177,7 @@ def _analyze_page(page: CrawledPage, seed_url: str, lead_name: str) -> PageEvide
     ev.dates = extract_dates(ev.text, page_url=url)
     ev.availability = extract_availability(ev.text)
     ev.booking_embed = _detect_booking_embed(html)
+    ev.blind_spots = _interactive_blind_spots(html)
     return ev
 
 
@@ -609,6 +653,7 @@ def build_evidence(
                 "availability": p.availability,
                 "checks": p.checks,
                 "booking_embed": p.booking_embed,
+                "blind_spots": p.blind_spots,
             }
             for p in pages
         ],
@@ -646,6 +691,27 @@ def _render_packet(ev: dict) -> str:
                  "live page by hand.**")
         for p in embed_pages:
             L.append(f"- {p['url']} — embed marker: `{p['booking_embed']}`")
+
+    # Broader blind spots: any iframe (not just known booking platforms) and
+    # any JS-only button are both invisible to link extraction and NOT
+    # guaranteed to render in the screenshot. Same "verify before calling it
+    # missing" rule applies.
+    other_iframe_pages = [
+        p for p in ev["pages"]
+        if any(not i["known_booking_platform"] for i in p.get("blind_spots", {}).get("iframes", []))
+    ]
+    js_button_pages = [p for p in ev["pages"] if p.get("blind_spots", {}).get("js_only_buttons")]
+    if other_iframe_pages or js_button_pages:
+        L.append("\n## ⚠️ OTHER UNVERIFIED INTERACTIVE ELEMENTS")
+        L.append("Static crawl + screenshot can't fully verify these — read the raw page "
+                 "text/HTML or open the live page by hand before calling anything here a finding.")
+        for p in other_iframe_pages:
+            srcs = [i["src"] for i in p["blind_spots"]["iframes"] if not i["known_booking_platform"]]
+            L.append(f"- {p['url']} — unrecognized iframe(s): {', '.join(srcs[:3])}")
+        for p in js_button_pages:
+            btns = p["blind_spots"]["js_only_buttons"]
+            L.append(f"- {p['url']} — {len(btns)} JS-only button(s), destination not verified: "
+                     + ", ".join(f'"{b}"' for b in btns[:5]))
 
     # Floors
     L.append("\n## Floor signals (Gate 0)")
