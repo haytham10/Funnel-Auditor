@@ -35,6 +35,7 @@ from config import (
     MAX_PAGES, MAX_CHECKOUT_HOPS, SCREENSHOT_DIR,
     NOISE_DOMAINS, BIO_LINK_PLATFORMS, CHECKOUT_LINK_KEYWORDS,
     EXTERNAL_FUNNEL_PLATFORMS, SKIP_PATH_RE, OFFER_PATH_HINTS,
+    BOOKING_EMBED_HOSTS, JS_BUTTON_NOISE_RE, UNSAFE_CLICK_RE,
 )
 from audit.urls import normalize, same_site
 
@@ -53,6 +54,7 @@ class CrawledPage:
     http_status: int = 0    # plain-request probe when the browser nav failed
     external: bool = False  # not on the lead's own site
     html: str = field(default="", repr=False)
+    cta_clicks: list = field(default_factory=list)  # JS-only button click-discovery results
 
 
 @dataclass
@@ -323,6 +325,93 @@ def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 
     return found
 
 
+_JS_BUTTON_NOISE_RE = re.compile(JS_BUTTON_NOISE_RE, re.I)
+_UNSAFE_CLICK_RE = re.compile(UNSAFE_CLICK_RE, re.I)
+_CTA_DISCOVERY_PAGE_TYPES = ("sales", "course", "booking")
+
+
+def _discover_cta_destinations(page: Page, url: str, link_type: str, max_clicks: int = 6) -> list[dict]:
+    """On a sales/course/booking page, a JS-only button (no href) is often
+    the real path into a booking widget, an application form, or checkout —
+    link extraction can't see it since there's no anchor to follow. Click
+    each distinct one, record what happened (navigated to a new URL, an
+    iframe/widget appeared in place, or nothing visible changed), then
+    reset to the original page before trying the next.
+
+    Scoped deliberately, not a general "click everything" crawler:
+    - Only runs on sales/course/booking page types — never on a "checkout"
+      page, where a real payment form could live.
+    - Skips any button whose text reads as completing a payment or order
+      (UNSAFE_CLICK_RE), even though that page type shouldn't have one —
+      defense in depth on a live client's real site.
+    - Skips nav/FAQ chrome (JS_BUTTON_NOISE_RE) so the click budget is
+      spent on actual candidate CTAs.
+    - Hard-capped click count, always resets via goto (not go_back) so a
+      failed click can't leave the page in a broken state for whatever
+      runs next.
+    """
+    found: list[dict] = []
+    if link_type not in _CTA_DISCOVERY_PAGE_TYPES:
+        return found
+
+    try:
+        buttons = page.locator("button")
+        count = min(buttons.count(), 25)
+    except Exception:
+        return found
+
+    clicks = 0
+    seen_labels: set[str] = set()
+    for i in range(count):
+        if clicks >= max_clicks:
+            break
+        try:
+            text = buttons.nth(i).inner_text(timeout=1_500).strip().replace("\n", " ")
+        except Exception:
+            continue
+        if not text or len(text) > 80 or text in seen_labels:
+            continue
+        if _JS_BUTTON_NOISE_RE.search(text) or text.rstrip().endswith("?"):
+            continue
+        if _UNSAFE_CLICK_RE.search(text):
+            found.append({"button_text": text, "destination": "skipped_unsafe"})
+            continue
+        seen_labels.add(text)
+
+        try:
+            before_url = normalize(page.url)
+            before_iframes = page.locator("iframe").count()
+            buttons.nth(i).click(timeout=3_000)
+            page.wait_for_timeout(2_000)
+            after_url = normalize(page.url)
+            after_iframes = page.locator("iframe").count()
+
+            if after_url != before_url:
+                found.append({"button_text": text, "destination": "navigation", "url": page.url})
+            elif after_iframes > before_iframes:
+                new_srcs = []
+                for j in range(before_iframes, after_iframes):
+                    try:
+                        src = page.locator("iframe").nth(j).get_attribute("src")
+                    except Exception:
+                        src = None
+                    if src:
+                        new_srcs.append(src)
+                found.append({"button_text": text, "destination": "embedded_widget", "iframe_src": new_srcs})
+            else:
+                found.append({"button_text": text, "destination": "no_visible_change"})
+            clicks += 1
+            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            page.wait_for_timeout(500)
+        except Exception:
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            except Exception:
+                break
+
+    return found
+
+
 _CHECKOUT_KW = _kw("checkout", "buy", "enroll", "cart", "order", "register",
                    "purchase", "pay", "get access", "reserve", "reserve my (?:seat|spot)",
                    "save my (?:seat|spot)", "join now", "start now", "get started",
@@ -396,6 +485,38 @@ def _goto_with_fallback(page: Page, url: str, timeout_ms: int = 30_000) -> None:
         page.wait_for_timeout(4_000)
 
 
+_BOOKING_EMBED_HOSTS = BOOKING_EMBED_HOSTS
+# The iframe itself doesn't exist in the SSR'd HTML — an async widget script
+# (e.g. assets.calendly.com/.../widget.js) injects it client-side, sometimes
+# a beat after networkidle fires. Detect the container/script markers, which
+# ARE present immediately, then wait for the iframe they produce.
+_BOOKING_IFRAME_SELECTOR = ", ".join(f'iframe[src*="{h}"]' for h in _BOOKING_EMBED_HOSTS)
+_BOOKING_MARKER_SELECTOR = ", ".join(
+    f'[class*="{h.split(".")[0]}-inline-widget"], [data-url*="{h}"], script[src*="{h}"]'
+    for h in _BOOKING_EMBED_HOSTS
+) + ", " + _BOOKING_IFRAME_SELECTOR
+
+
+def _wait_for_embeds(page: Page, timeout_ms: int = 8_000) -> None:
+    """Inline booking widgets (Calendly and friends) render inside an iframe
+    injected by an async script — the injection can land after networkidle,
+    and the widget's own fetch for available slots happens inside that
+    iframe, invisible to the parent page's network-idle signal. A screenshot
+    taken right after goto/reload can catch the widget container present but
+    still empty, producing a false 'no CTA here' read. Detect the container
+    or script tag (present in the raw HTML immediately), then wait for the
+    iframe it produces before any screenshot is taken."""
+    try:
+        if page.locator(_BOOKING_MARKER_SELECTOR).count() > 0:
+            try:
+                page.wait_for_selector(_BOOKING_IFRAME_SELECTOR, state="attached", timeout=timeout_ms)
+            except Exception:
+                pass
+            page.wait_for_timeout(2_500)
+    except Exception:
+        pass
+
+
 def _fetch_and_screenshot(
     page: Page,
     url: str,
@@ -412,6 +533,7 @@ def _fetch_and_screenshot(
     error = ""
     http_status = 0
     html = ""
+    cta_clicks: list = []
 
     try:
         # Desktop screenshot + rendered HTML
@@ -420,6 +542,7 @@ def _fetch_and_screenshot(
         _goto_with_fallback(page, url)
         load_time_ms = (time.perf_counter() - t0) * 1000
         title = page.title()
+        _wait_for_embeds(page)
         html = page.content()
         page.screenshot(path=desktop_path, full_page=True)
 
@@ -429,7 +552,19 @@ def _fetch_and_screenshot(
             page.reload(wait_until="networkidle", timeout=15_000)
         except Exception:
             page.wait_for_timeout(2_000)
+        _wait_for_embeds(page)
         page.screenshot(path=mobile_path, full_page=True)
+
+        # CTA click-discovery — after both screenshots, so clicking around
+        # never disturbs the evidence captures. Scoped to sales/course/
+        # booking pages only (see _discover_cta_destinations docstring).
+        page.set_viewport_size({"width": 1280, "height": 800})
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            _wait_for_embeds(page)
+            cta_clicks = _discover_cta_destinations(page, url, link_type)
+        except Exception:
+            cta_clicks = []
 
     except Exception as exc:
         error = str(exc)
@@ -460,6 +595,7 @@ def _fetch_and_screenshot(
         http_status=http_status,
         external=external,
         html=html,
+        cta_clicks=cta_clicks,
     )
 
 
