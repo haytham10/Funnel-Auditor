@@ -23,6 +23,7 @@ Scope rules (hard-won from real walks):
 
 import os
 import re
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -284,7 +285,7 @@ def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 
     seen_labels: set[str] = set()
 
     try:
-        page.goto(seed_url, wait_until="networkidle", timeout=30_000)
+        page.goto(seed_url, wait_until="networkidle", timeout=15_000)
     except Exception:
         return found
 
@@ -305,20 +306,24 @@ def _discover_clickable_products(page: Page, seed_url: str, max_products: int = 
             continue
         seen_labels.add(label)
         try:
+            before_url = normalize(page.url)
             buttons.nth(i).click(timeout=3_000)
             page.wait_for_timeout(2_500)
             dest = normalize(page.url)
-            if dest not in seen_urls:
+            if dest not in seen_urls and dest != before_url:
                 seen_urls.add(dest)
                 category = _funnel_category(page.url, label)
                 found.append({"url": page.url, "label": label,
                               "category": category if category != "direct" else "product",
                               "scope": "internal"})
-            # Reset for the next click (goto is more reliable than go_back here)
-            page.goto(seed_url, wait_until="networkidle", timeout=30_000)
+            # Reset: prefer go_back (cached) over a fresh goto
+            try:
+                page.go_back(wait_until="domcontentloaded", timeout=15_000)
+            except Exception:
+                page.goto(seed_url, wait_until="domcontentloaded", timeout=20_000)
         except Exception:
             try:
-                page.goto(seed_url, wait_until="networkidle", timeout=30_000)
+                page.goto(seed_url, wait_until="domcontentloaded", timeout=20_000)
             except Exception:
                 return found
 
@@ -376,18 +381,43 @@ def _discover_cta_destinations(page: Page, url: str, link_type: str, max_clicks:
         if _UNSAFE_CLICK_RE.search(text):
             found.append({"button_text": text, "destination": "skipped_unsafe"})
             continue
+        # Skip submit buttons — they're form handlers, not CTAs. Clicking
+        # them just times out waiting for visibility (they're often hidden
+        # behind a "buy" flow that hasn't opened yet).
+        try:
+            btn_type = buttons.nth(i).get_attribute("type") or ""
+            if btn_type.lower() == "submit":
+                continue
+        except Exception:
+            pass
+        # Skip invisible buttons — clicking them just burns the 3s timeout.
+        try:
+            if not buttons.nth(i).is_visible(timeout=500):
+                continue
+        except Exception:
+            continue
         seen_labels.add(text)
 
         try:
             before_url = normalize(page.url)
             before_iframes = page.locator("iframe").count()
             buttons.nth(i).click(timeout=3_000)
-            page.wait_for_timeout(2_000)
+            page.wait_for_timeout(1_000)
             after_url = normalize(page.url)
             after_iframes = page.locator("iframe").count()
 
             if after_url != before_url:
                 found.append({"button_text": text, "destination": "navigation", "url": page.url})
+                # Click navigated away — reset via go_back (uses cache, much
+                # faster than a fresh goto). Fall back to goto if go_back fails.
+                try:
+                    page.go_back(wait_until="domcontentloaded", timeout=15_000)
+                    page.wait_for_timeout(300)
+                except Exception:
+                    try:
+                        page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+                    except Exception:
+                        break
             elif after_iframes > before_iframes:
                 new_srcs = []
                 for j in range(before_iframes, after_iframes):
@@ -401,8 +431,6 @@ def _discover_cta_destinations(page: Page, url: str, link_type: str, max_clicks:
             else:
                 found.append({"button_text": text, "destination": "no_visible_change"})
             clicks += 1
-            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
-            page.wait_for_timeout(500)
         except Exception:
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=20_000)
@@ -450,6 +478,13 @@ def extract_checkout_links(html: str, base_url: str) -> list[dict]:
 # Playwright helpers
 # ---------------------------------------------------------------------------
 
+def _progress(msg: str) -> None:
+    """Print crawl progress to stderr so the terminal shows activity.
+    Without this, a 5-page walk produces zero output for 30-60s, which
+    looks like a hang and triggers Hermes' terminal timeout fallback."""
+    print(f"  crawl: {msg}", file=sys.stderr, flush=True)
+
+
 def _safe_filename(url: str) -> str:
     """Turn a URL into a safe filename stem."""
     parsed = urlparse(url)
@@ -475,9 +510,12 @@ def _probe_status(context: BrowserContext, url: str) -> int:
         return 0
 
 
-def _goto_with_fallback(page: Page, url: str, timeout_ms: int = 30_000) -> None:
+def _goto_with_fallback(page: Page, url: str, timeout_ms: int = 15_000) -> None:
     """networkidle is the best signal but hangs on chatty pages (analytics
-    long-polls, live chat). Fall back to domcontentloaded + settle."""
+    long-polls, live chat). Fall back to domcontentloaded + settle.
+    15s ceiling (down from 30s): networkidle either fires in 2-5s on a
+    well-behaved site or never on a chatty one, so 30s just wastes time
+    on the failure path before the fallback kicks in."""
     try:
         page.goto(url, wait_until="networkidle", timeout=timeout_ms)
     except Exception:
@@ -526,6 +564,7 @@ def _fetch_and_screenshot(
     source_url: str = "",
     external: bool = False,
 ) -> CrawledPage:
+    _progress(f"[{depth}] crawling {link_type}: {url[:80]}")
     desktop_path = _screenshot_path(url, "desktop", screenshot_dir)
     mobile_path = _screenshot_path(url, "mobile", screenshot_dir)
     title = ""
@@ -546,25 +585,19 @@ def _fetch_and_screenshot(
         html = page.content()
         page.screenshot(path=desktop_path, full_page=True)
 
-        # Mobile screenshot (same page, resize viewport)
+        # Mobile screenshot — resize + re-screenshot only, no reload.
+        # Responsive CSS reflows on viewport change without a network
+        # round-trip; the old page.reload(networkidle) burned 2-4s per page.
         page.set_viewport_size({"width": 390, "height": 844})
-        try:
-            page.reload(wait_until="networkidle", timeout=15_000)
-        except Exception:
-            page.wait_for_timeout(2_000)
-        _wait_for_embeds(page)
+        page.wait_for_timeout(300)  # brief settle for CSS reflow
         page.screenshot(path=mobile_path, full_page=True)
 
-        # CTA click-discovery — after both screenshots, so clicking around
-        # never disturbs the evidence captures. Scoped to sales/course/
-        # booking pages only (see _discover_cta_destinations docstring).
+        # CTA click-discovery — on the already-loaded page, no re-navigation.
+        # The page is in mobile viewport from the screenshot above; switch
+        # back to desktop so click targets are at their normal coordinates.
         page.set_viewport_size({"width": 1280, "height": 800})
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
-            _wait_for_embeds(page)
-            cta_clicks = _discover_cta_destinations(page, url, link_type)
-        except Exception:
-            cta_clicks = []
+        page.wait_for_timeout(200)
+        cta_clicks = _discover_cta_destinations(page, url, link_type)
 
     except Exception as exc:
         error = str(exc)
@@ -671,6 +704,7 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
         page = context.new_page()
 
         # --- Step 1: Crawl the bio page ---
+        _progress(f"bio page: {seed_url[:80]}")
         bio_page = _fetch_and_screenshot(
             page, seed_url, depth=0, link_type="bio_page", screenshot_dir=screenshot_dir
         )
@@ -697,6 +731,7 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
         result.external_refs = external_refs
 
         # --- Step 2: Crawl each funnel-relevant page, offers first ---
+        _progress(f"step 2: {len(funnel_links)} funnel links to crawl")
         for link in funnel_links:
             if len(result.pages) >= MAX_PAGES:
                 break
@@ -730,6 +765,7 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
         # runs multiple passes over EVERY page crawled so far (any type,
         # any depth, including pages discovered by an earlier pass), until
         # no new checkout links turn up or the hop budget is spent.
+        _progress("step 3: checkout hop discovery")
         checkout_hops = 0
         for _pass in range(4):
             if checkout_hops >= MAX_CHECKOUT_HOPS:
@@ -763,4 +799,5 @@ def crawl(seed_url: str, screenshot_dir: str | None = None) -> CrawlResult:
 
         browser.close()
 
+    _progress(f"done: {len(result.pages)} pages")
     return result
