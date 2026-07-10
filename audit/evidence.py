@@ -43,7 +43,8 @@ from audit.extract import (
     extract_dates, extract_availability,
 )
 from audit.gates import evaluate_floors
-from audit.urls import same_site
+from audit.urls import same_site, slugify
+from audit import vision_gate
 from config import BOOKING_EMBED_HOSTS, JS_BUTTON_NOISE_RE
 
 _BOOKING_EMBED_RE = re.compile(
@@ -134,10 +135,7 @@ class PageEvidence:
     blind_spots: dict = field(default_factory=dict)
 
 
-def _slug(value: str) -> str:
-    value = re.sub(r"^https?://(www\.)?", "", value.strip().lower())
-    value = re.sub(r"[^\w]+", "-", value).strip("-")
-    return value[:60] or "lead"
+_slug = slugify  # kept as a local alias — this module's callers use _slug()
 
 
 # On bio-link platforms, "same host" links are other people's profiles and
@@ -657,6 +655,16 @@ def build_evidence(
     }
     (out / "evidence.json").write_text(json.dumps(evidence, indent=2, default=str))
     (out / "packet.md").write_text(_render_packet(evidence))
+
+    # Vision-pass manifest — built from this same evidence.json plus whatever
+    # is already sitting in out/ig/ (IG screenshots are downloaded in the
+    # skill's Step 0, before this crawl runs). Re-running this after IG
+    # images arrive later is safe: init_manifest() preserves any images
+    # already marked read. See audit/vision_gate.py for why this exists —
+    # short version: a free-text "I read the screenshots" claim can't be
+    # checked, a manifest with a mark-per-file requirement can.
+    vision_gate.init_manifest(out)
+
     return out
 
 
