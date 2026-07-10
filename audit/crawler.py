@@ -396,6 +396,41 @@ def _goto_with_fallback(page: Page, url: str, timeout_ms: int = 30_000) -> None:
         page.wait_for_timeout(4_000)
 
 
+def _scroll_and_settle(page: Page, step: int = 600, pause_ms: int = 350) -> None:
+    """Scroll incrementally through the full page before screenshotting.
+
+    Playwright's full_page screenshot stitches the page while scrolling, but
+    it does not wait for lazy-loaded images or scroll-triggered fade-in
+    animations (IntersectionObserver-based reveals, common on Shopify/Kajabi
+    themes) to finish at each position. Without this pause-and-settle pass,
+    a full_page screenshot can capture elements mid-animation — a blank or
+    placeholder frame that looks like a broken image but isn't. Confirmed
+    false-positive receipt: Tara Mitchell / gentlesleep.com.au, Jul 2026 —
+    a prior walk flagged 7 pages of "broken images" that were actually
+    working lazy-load fades never given time to complete.
+    """
+    try:
+        height = page.evaluate("document.body.scrollHeight")
+        pos = 0
+        while pos < height:
+            page.evaluate(f"window.scrollTo(0, {pos})")
+            page.wait_for_timeout(pause_ms)
+            pos += step
+            new_height = page.evaluate("document.body.scrollHeight")
+            if new_height > height:
+                height = new_height
+        # Settle at the bottom, then return to top (screenshot starts from
+        # the top) — both ends get their pause so nothing near either edge
+        # is mid-animation.
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(pause_ms)
+        page.evaluate("window.scrollTo(0, 0)")
+        page.wait_for_timeout(pause_ms)
+    except Exception:
+        # Non-fatal — some pages (e.g. error pages) have no scrollable body.
+        pass
+
+
 def _fetch_and_screenshot(
     page: Page,
     url: str,
@@ -421,6 +456,7 @@ def _fetch_and_screenshot(
         load_time_ms = (time.perf_counter() - t0) * 1000
         title = page.title()
         html = page.content()
+        _scroll_and_settle(page)
         page.screenshot(path=desktop_path, full_page=True)
 
         # Mobile screenshot (same page, resize viewport)
@@ -429,6 +465,7 @@ def _fetch_and_screenshot(
             page.reload(wait_until="networkidle", timeout=15_000)
         except Exception:
             page.wait_for_timeout(2_000)
+        _scroll_and_settle(page)
         page.screenshot(path=mobile_path, full_page=True)
 
     except Exception as exc:
