@@ -30,6 +30,19 @@ Single pasted leads still go through `/process-lead` directly.
 - A Gmail draft is not a send. Drafts are created automatically; Status /
   Touch # / Last Contacted / Email Thread Log move only after Haytham
   confirms an email actually left.
+- **Before any Notion page update that uses search-and-replace
+  (`update_content`), fetch the page first** to confirm the current literal
+  content format — Notion's enhanced-markdown escaping (`\$`, auto-linked
+  domains, etc.) breaks naive search-and-replace assumptions. If the fetch
+  shows escaped or non-plain formatting, rewrite the full body
+  (`replace_content`) instead. (Added Jul 10, 2026, after a failed write +
+  forced recovery fetch.)
+- **A dispatched subagent (lead-processor or otherwise) gets one resume, not
+  two.** If it comes back with a status-only reply — no new tool calls, no
+  work product since its last turn — take the task over directly instead of
+  nudging it again; see `.claude/skills/batch-audit/SKILL.md` Step 2. (Added
+  Jul 10, 2026, after a stalled-agent loop cost 84.5K+ tokens for zero
+  output.)
 
 ## Key pieces
 

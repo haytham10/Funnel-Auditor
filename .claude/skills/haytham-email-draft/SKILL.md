@@ -62,6 +62,13 @@ Do these in sequence. Do not skip ahead to writing.
 
 ## Logging format (only after the user says "log this")
 
+Before appending, fetch the lead's Notion page to confirm the current
+literal body format — if you're appending via search-and-replace
+(`update_content`), Notion's enhanced-markdown escaping (`\$`, auto-linked
+domains) can break a naive match; escaped/non-plain formatting means use
+`replace_content` (full body rewrite) instead. (Added Jul 10, 2026, after a
+failed search-and-replace write forced a recovery fetch.)
+
 Append to the lead's Notion page body under the Email Thread Log section in this exact format:
 
 ```
