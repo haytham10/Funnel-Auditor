@@ -62,6 +62,22 @@ Batch rules the orchestrator enforces:
 - Never spawn two agents for the same lead, and never re-run a lead that
   already returned its block.
 
+**Stall guardrail (added Jul 10, 2026, after a prior run burned 84.5K+
+tokens on a stuck agent):** if a lead-processor agent returns a status-only
+reply — a stub like "waiting on the walk to finish" or "waiting for the
+monitor's notification," with no new tool calls or work product since its
+last turn — that is one stall. Do not resume that agent a second time and
+do not send another nudge. Take the lead over directly: check
+`evidence/<slug>/` for whatever the agent already produced (walk output,
+vision manifest, packet), confirm with `ps aux` / background-process status
+whether anything is genuinely still running, and finish the lead yourself
+from that point with direct tool calls per `.claude/skills/process-lead/
+SKILL.md`. The only exception is concrete evidence of active progress (a
+real running process with recent file writes) — let that finish, but
+monitor it yourself rather than re-dispatching the agent. Record the
+takeover in the batch brief the same as any other lead; it still counts as
+worked, not Blocked, if you finished it.
+
 ## Step 3 — Verify, then the batch brief (one message)
 
 Spot-check before reporting: for each Lane 1/2 result, confirm the Notion

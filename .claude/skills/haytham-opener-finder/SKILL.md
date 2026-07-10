@@ -168,6 +168,13 @@ Lane 3: one-line reason, nothing else.
 
 Fetch the lead's Notion page first to get the current state. Then write the walk output to the page body in the exact format from `references/schema.md`. Update the Lane property and Finding Type property at the same time.
 
+If the write uses search-and-replace (`update_content`) rather than a full
+body rewrite, the fetch above is not optional — confirm the page's literal
+current formatting (Notion's enhanced-markdown escaping, e.g. `\$`,
+auto-linked domains) before assuming plain text. Escaped formatting →
+use `replace_content` instead. (Added Jul 10, 2026, after a failed
+search-and-replace write forced a recovery fetch.)
+
 **Coherence rules (added Jul 2, 2026, from broken rows):**
 - Lane 3 forces Tier 4 + Status Disqualified. Lane 1 or 2 can never carry Tier 4. Receipt: Arjuna O'Neal sat with Lane 1 + Tier 4 + Disqualified simultaneously, an unparseable state.
 - If the lead's email was derived from a source the walk itself flagged as broken or suspect, the Status stays at Researching and the flag goes in Notes as the FIRST line, not buried. Receipt: Dr. Robyn Silverman's row noted her email came from her own broken footer address and needed verifying, and she was cold-emailed at that address anyway.
