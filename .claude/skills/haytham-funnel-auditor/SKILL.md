@@ -26,6 +26,39 @@ They are short. Reading them is what stops the audit from coming out generic.
 
 ## The audit sequence
 
+### Step 0 — Vision-pass gate (check this before Step 1, every time)
+
+If the input includes screenshots that live under an evidence directory
+(`evidence/<slug>/`, produced by `main.py walk` or carried over from a prior
+process-lead / opener-finder run on this same lead), the same rule that
+gates those two skills gates this one: a crawl or a screenshot set with no
+confirmed eyes-on-it pass is a draft, not a finished audit.
+
+```bash
+python main.py vision check evidence/<slug>
+```
+
+- **INCOMPLETE → do not proceed to Step 1.** Run `python main.py vision list
+  evidence/<slug>` to see exactly which images are still unread, Read each
+  one, mark it immediately after (`python main.py vision mark
+  evidence/<slug> <path>`), and run `check` again. Repeat until it prints
+  `VISION PASS: COMPLETE`.
+- **The only exception** is a genuinely unreadable/corrupted image. In that
+  case only, proceed, but carry an explicit `⚠️ vision pass incomplete:
+  <path> — <reason>` line into the audit output. Never silently drop it and
+  never paraphrase it as "screenshots reviewed."
+- **Quote the literal `VISION PASS: ...` line** in the audit's Step 1
+  surface read, not a paraphrase like "screenshots reviewed."
+
+**If there is no evidence directory at all** — Haytham pasted screenshots,
+page copy, or notes directly in chat, which is common for this skill since
+it's often invoked ad hoc for Loom or call prep rather than through the full
+`/batch-audit` or `/process-lead` pipeline — this gate does not apply. Say
+so explicitly in the audit output: "no evidence directory — vision gate not
+applicable, working from directly-provided material." Don't silently skip
+past this; state it so it's clear the gate was considered and correctly
+doesn't apply, not missed.
+
 ### Step 1 — Surface read (2 minutes)
 
 Before any deep diagnosis, do one fast pass through everything provided. You are looking for the single most expensive leak: the place where the most qualified, most motivated buyer exits. That is the lead finding. Everything else is supporting detail.
