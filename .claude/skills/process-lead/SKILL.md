@@ -39,45 +39,81 @@ pastes a Notion URL), fetch the page first:
 
 1. `notion-fetch` the lead page. Properties are the intake of record; the
    page body may already hold an old walk (you will overwrite it fresh).
-2. Collect every image in the page body — these are the sourcing
+2. **Compute the slug now, once, the same way the crawler will:**
+   `python main.py slug "<Contact Name>"` (falls back to handle or URL if no
+   name yet). Use this exact slug for every evidence path below AND pass it
+   to Step 1's `walk` command via `--out evidence/<slug>`. This is not
+   optional — a hand-guessed slug is exactly what put a real lead's IG
+   screenshots in `evidence/momhoodmentor/ig/` while the crawler wrote its
+   packet to `evidence/lynsey-ward/`, two different folders the vision gate
+   (Step 1.5) can't reconcile, silently dropping the IG images out of the
+   completeness check entirely.
+3. Collect every image in the page body — these are the sourcing
    screenshots. The fetch returns signed file URLs (file.notion.so /
    secure.notion-static.com). Download each one now (`curl -o
    evidence/<slug>/ig/<n>.png "<signed url>"`) — the URLs expire, so don't
-   defer. Then **Read every downloaded image**.
-3. What to pull from the IG screenshots: last-post recency (activity floor),
+   defer.
+4. Run `python main.py vision init evidence/<slug>` — this registers every
+   file just downloaded as a required, unread image. Then **Read every
+   downloaded image, and immediately after each one, run
+   `python main.py vision mark evidence/<slug> ig/<n>.png`.** Do not batch
+   the marking to the end and do not read one image and assume the rest —
+   each image gets its own Read call and its own mark call, in that order,
+   before moving to the next.
+5. What to pull from the IG screenshots: last-post recency (activity floor),
    follower count if the property is empty, the bio promise vs. where the
    bio link actually goes, and SMYKM hook material (a recent post topic, a
-   named framework, a launch, a personal update).
+   named framework, a launch, a personal update). **Any SMYKM hook that
+   names a specific post's content, date, or engagement numbers is only
+   usable if that exact image is marked read** — see the hard rule at the
+   bottom of this file.
 
 No images attached and none pasted → proceed site-only, but carry the flag
 "IG evidence: none attached — site-only walk" into the Notion body and the
-final verdict so Haytham knows this call is weaker.
+final verdict so Haytham knows this call is weaker. Skip `vision init`/`mark`
+for the ig/ portion in this case; the site portion in Step 1.5 still applies.
 
 ## Step 1 — Machine walk
 
 ```bash
 pip install -q -r requirements.txt   # first run only
-python main.py walk <bio-link-url> --name "<Name>" --handle "<@handle>" --followers <N>
+python main.py walk <bio-link-url> --name "<Name>" --handle "<@handle>" --followers <N> --out evidence/<slug>
 ```
 
+Always pass `--out evidence/<slug>` using the exact slug from Step 0.2 — this
+is what guarantees the IG screenshots and the crawl's own screenshots end up
+in the same folder, which the vision gate below depends on.
+
 This produces `evidence/<slug>/packet.md`, `evidence.json`, per-page text
-files, and desktop+mobile screenshots of every funnel stop.
+files, desktop+mobile screenshots of every funnel stop, and (automatically,
+as the last step of the crawl) a refreshed `vision_manifest.json` that now
+also includes every site screenshot as a required, unread image.
 
 If the crawl errored on the bio page, that is itself a possible Tier A
 finding (verify: hard 404 vs bot wall vs permission wall — the screenshot
 tells you which) — don't abandon the lead.
 
-## Step 1.5 — The vision pass (mandatory, the quality core)
+## Step 1.5 — The vision pass (mandatory, machine-checked, not self-reported)
 
 The packet's machine checks are pattern-matchers; they misfire and they miss.
-You have eyes — use them the way Haytham does when he clicks through by hand.
+You have eyes — use them the way Haytham does when he clicks through by
+hand. This step used to be enforced by instruction alone ("read every
+image") and a real run reported "4 screenshots read" in its final verdict
+when only 1 of 4 had actually been opened. It's enforced by a script now,
+not by trusting your own summary.
 
 **Read, as images, the desktop screenshot of EVERY crawled page**, plus the
 mobile screenshot of the bio page and of every offer/checkout/booking page.
 Read the full text files of the sales/freebie pages — copy is where
-non-mechanical leaks live.
+non-mechanical leaks live. Run `python main.py vision list evidence/<slug>`
+first to see the exact list of paths this crawl requires.
 
-Two jobs, in this order:
+**After each image Read, immediately run
+`python main.py vision mark evidence/<slug> <path>`** (batch several paths
+in one call if you just read several in a row — same rule, no deferring to
+the end). Do this for every IG image from Step 0 too if you haven't already.
+
+Two analytical jobs while you read, in this order:
 
 1. **Confirm or kill every machine flag.** Each reconciliation entry, leak
    candidate, stale-date candidate, and availability hit in packet.md is a
@@ -95,14 +131,42 @@ Two jobs, in this order:
    a freebie button that goes nowhere. These are exactly the leaks Haytham
    catches manually — this pass is what replaces his click-through.
 
+**The hard gate — run before doing anything else in Step 2 or Step 4:**
+
+```bash
+python main.py vision check evidence/<slug>
+```
+
+This exits 0 and prints `VISION PASS: COMPLETE — X of X required images
+confirmed read` only when every required image has actually been marked.
+Otherwise it exits 1, prints `VISION PASS: INCOMPLETE — N of M...`, and
+lists exactly which paths are still unread.
+
+- **INCOMPLETE → do not proceed to Step 2 or Step 4.** Go back, Read the
+  listed images, mark them, and run the check again. Repeat until it passes.
+- **The only exception** is a genuinely unreadable/corrupted image (the file
+  won't open, or the screenshot is blank/broken past the point of being
+  informative). In that specific case only, you may proceed, but the exact
+  path and the reason must be written verbatim into the Evidence section as
+  `⚠️ vision pass incomplete: <path> — <reason>` — never silently dropped,
+  never smoothed into "vision pass complete."
+- **Paste the literal `vision check` output** (the `VISION PASS: ...` line)
+  into the Evidence section of the eventual Notion body and into the final
+  chat verdict. Never write a paraphrase like "4 screenshots read" — if the
+  check didn't print exactly that, the report can't claim it either.
+
 ## Step 2 — Floors (Gate 0, full version)
 
 The packet + vision pass give the machine half. Complete the rest:
 
-- **Activity floor**: IG screenshots first (post dates are usually visible),
-  then one web search on the lead's name + niche/handle to corroborate. Last
-  visible activity within ~3 weeks? While there, collect SMYKM hook material
-  (recent post, launch, named framework, personal update) — needed later.
+- **Activity floor**: IG screenshots first (post dates are usually visible) —
+  only images already marked read in `vision_manifest.json` count as having
+  been checked; an unmarked image cannot be the basis for "last post N days
+  ago." Then one web search on the lead's name + niche/handle to corroborate
+  — this search is required, not optional, even when the screenshot looks
+  clear. Last visible activity within ~3 weeks? While there, collect SMYKM
+  hook material (recent post, launch, named framework, personal update) —
+  needed later, subject to the same read-before-cited rule in Hard rules.
 - **Niche floor**: genuinely parenting or faith-based. Adjacent wellness
   without case-study fit = park.
 - **Audience floor**: ~1K followers or an equivalent real audience signal.
@@ -113,7 +177,8 @@ body) and stop. The floor exists to protect touches.
 
 ## Step 3 — Notion row
 
-Pipeline data source: `collection://c6209e29-55ef-4781-b735-73b2a254e34f`.
+Pipeline data source (MCP): `collection://c6209e29-55ef-4781-b735-73b2a254e34f`.
+Database ID (REST API): `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`.
 
 Dedup per the opener-finder's rule: no routine pipeline query — only run one
 targeted query if something feels off (name rings a bell, lead arrives with
@@ -123,6 +188,11 @@ Create the row with what's known: Contact Name, Profile URL, Site URL,
 Followers, Source, Email (if found — see Step 5), Status = Researching.
 
 ## Step 4 — The walk (judgment half)
+
+Do not start this step until Step 1.5's `vision check` printed `VISION
+PASS: COMPLETE` (or you've logged the unreadable-image exception). Pass
+that literal line into the opener-finder invocation — it will not run a
+lane classification without it.
 
 Now invoke the **haytham-opener-finder** skill logic with:
 - the evidence packet as Step A (the crawl + search layer, already done), and
@@ -181,7 +251,24 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
   and both filters is Lane 2 or Lane 3, not a manufactured leak.
 - A machine flag that failed visual confirmation is dead. It does not get
   resurrected as a hedge ("might also be…") in the email.
+- **The vision pass is a computed fact, not a claim.** `python main.py
+  vision check evidence/<slug>` is the only source of truth for "read every
+  image." A verdict, a Notion write, or a chat report that says "N
+  screenshots read" without that exact command having printed `VISION
+  PASS: COMPLETE` first is a false statement, full stop — this is what
+  actually happened on Lynsey Ward (reported "4 screenshots read," 1 image
+  had a Read call), and it is the one failure mode this file exists to
+  close.
+- **SMYKM hooks that cite specific IG post content (a quote, a date, an
+  engagement number, a post described as being about a specific topic) are
+  only usable if the image they came from shows `read: true` in
+  `vision_manifest.json`.** If it doesn't, do not surface that hook to the
+  email skill — either substitute a hook grounded in something confirmed
+  read (site copy, an About page bio line), or tell Haytham directly:
+  "possible hook on an unread image (ig/N.png) — need to read it or have
+  you confirm the post's content before it goes in a draft." A hook built
+  on an unread image must never reach a Gmail draft.
 - One lead's full run ends with: lane verdict, strongest finding, innocent
-  explanation, SMYKM hook + label, email address status, IG-evidence status,
-  rejected-flags count, and the Gmail-draft status. That's the complete
-  hand-off.
+  explanation, SMYKM hook + label, email address status, IG-evidence status
+  (**the literal `VISION PASS: ...` line**, not a paraphrase), rejected-flags
+  count, and the Gmail-draft status. That's the complete hand-off.

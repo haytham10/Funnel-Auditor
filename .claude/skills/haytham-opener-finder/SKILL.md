@@ -45,6 +45,27 @@ If, after both passes, some stop still has no observation from either source, le
 
 If you have neither a Notion page/site URL to crawl NOR any user-provided observations (just a bare lead name), tell Haytham you need at least a link to crawl or one stop's worth of notes before you can walk. Don't invent findings.
 
+**Vision-pass gate — check this before Step 1, every time.** "A crawl-only walk with no eyes on the screenshots is a draft, never a finished walk" used to rest entirely on self-report, and a real run said "4 screenshots read" in its final verdict when a transcript audit found only 1 Read call against those 4 images. That gap doesn't get caught by trying harder to remember to read things — it gets caught by a script that can't be talked past:
+
+```bash
+python main.py vision check evidence/<slug>
+```
+
+- **Invoked from process-lead:** it hands you the literal `VISION PASS: ...`
+  line from its own Step 1.5. Do not proceed to Step 1 (Gate 1) without it.
+- **Invoked standalone** (Haytham pasted a link or Notion page directly,
+  no process-lead run before you): after your own crawl in Step A, run
+  `python main.py vision init evidence/<slug>` then the `check` command
+  yourself, mark every image you read as you read it
+  (`python main.py vision mark evidence/<slug> <path>`), and do not begin
+  Step 1 until it prints `VISION PASS: COMPLETE`.
+- **If it prints INCOMPLETE and stays that way** (an image is genuinely
+  corrupted/unreadable, not just unread-yet): proceed only with an explicit
+  `⚠️ vision pass incomplete: <path> — <reason>` line carried into the
+  Evidence section below and into the final lane verdict. Never let a lane
+  classification, a Notion write, or a chat report claim "screenshots read"
+  as a paraphrase — quote the tool's exact line, complete or incomplete.
+
 Read `references/walk.md` and `references/schema.md` now, before doing anything else past this point.
 
 ---
@@ -117,6 +138,25 @@ Lane 1 only: state the single strongest finding as the opening angle. One senten
 **Hook type label (data collection, added Jul 2, 2026).** When an SMYKM hook exists, label it: WORK (her framework, content, testimonial, point of view), LIFE (birthday, personal post), or METRIC (numbers she owns). All five warm-reply hooks so far were WORK-anchored; the METRIC hook went hostile and the LIFE hook is silent at touch 4. Sample is too small to make this a rule, so the label exists to let the answer accumulate — after ~30-40 more labeled sends the pattern will be checkable.
 
 Also surface the SMYKM hook if one exists: something from their content, their story, their framework name — something only they would recognize. The Step A search is the primary source for this now — look there first for a recent post, a named framework, a launch, a personal update — rather than waiting for it to show up in the user's notes. Not required, but worth real effort before giving up on finding one.
+
+**Hard rule: a hook that cites specific IG post content must be read, not
+inferred.** If the hook depends on a specific post's date, quote, topic, or
+engagement numbers (e.g. "her June 30 post about X, 130 likes"), check
+`vision_manifest.json` — that exact image must show `read: true`
+(`python main.py vision check` will list it as unread if it isn't). If it
+isn't confirmed read:
+- Do not surface that hook. Substitute a hook grounded in something already
+  confirmed read (site copy, an About-page bio line, a framework name that
+  appears in her own site text), or
+- If no substitute exists, say so plainly to Haytham: "possible hook on an
+  unread image (ig/N.png) — read it or confirm the post's content before
+  using it," and leave the SMYKM line blank rather than guessing.
+
+A hook built on an unread image must never reach the email skill. This is
+not a style preference — it's what stopped a real Gmail draft from opening
+on a specific IG post ("As a licensed therapist, here are 5 things...",
+130 likes, comment-to-DM pricing) that, per the session's own tool-call
+log, was never actually viewed.
 
 Lane 2: note the warm-up angle or ask-the-number entry point. What specific piece of their content is the genuine entry?
 

@@ -53,7 +53,9 @@ Single pasted leads still go through `/process-lead` directly.
 - `.claude/skills/haytham-email-draft` — voice, mechanics, gate, logging rules.
 - `.claude/skills/haytham-funnel-auditor` — deep audit (Loom/call prep).
 
-Notion Lead Pipeline data source: `collection://c6209e29-55ef-4781-b735-73b2a254e34f`.
+Notion Lead Pipeline:
+- Data source ID (MCP): `collection://c6209e29-55ef-4781-b735-73b2a254e34f`
+- Database ID (REST API): `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`
 
 ## Environment notes
 

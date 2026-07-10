@@ -2,7 +2,8 @@
 
 ## Pipeline database
 
-Data source ID: `c6209e29-55ef-4781-b735-73b2a254e34f`
+- **Data source ID** (MCP `collection://`): `c6209e29-55ef-4781-b735-73b2a254e34f`
+- **Database ID** (REST API `/v1/databases/`): `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`
 
 ## Properties reference
 
@@ -42,8 +43,16 @@ One line per stop where something was found or ruled out. Skip clean, unremarkab
 Format: Stop X — [what's there] — [what it means]
 
 ## Evidence
-Two lines, always present (added Jul 2026 for the automated runs):
-- IG evidence: [N screenshots read from page attachments / pasted in chat] OR "none — site-only walk".
+Three lines, always present (updated Jul 2026 after a session reported "4
+screenshots read" when only 1 had a Read call against it — this section now
+requires the vision gate's own output, not a paraphrase of it):
+- IG evidence: [paste the literal `python main.py vision check evidence/<slug>`
+  output covering the ig/ images, e.g. "VISION PASS: COMPLETE — 4 of 4
+  required images confirmed read"] OR "none attached — site-only walk". If
+  the line says INCOMPLETE, write INCOMPLETE, plus which paths, plus the
+  reason if known — do not round up to "read."
+- Site vision pass: [paste the literal `vision check` output covering the
+  site screenshots] OR the same INCOMPLETE-with-detail treatment.
 - Machine flags rejected in the vision pass: [N — one-word reason each] OR "none rejected".
 
 ## Gate 1

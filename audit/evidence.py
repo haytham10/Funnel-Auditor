@@ -32,6 +32,8 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from bs4 import BeautifulSoup
+
 from audit.crawler import CrawlResult, CrawledPage
 from audit.checks import (
     check_pixels, check_forms, check_links, check_meta, check_speed, check_checkout,
@@ -41,7 +43,62 @@ from audit.extract import (
     extract_dates, extract_availability,
 )
 from audit.gates import evaluate_floors
-from audit.urls import same_site
+from audit.urls import same_site, slugify
+from audit import vision_gate
+from config import BOOKING_EMBED_HOSTS, JS_BUTTON_NOISE_RE
+
+_BOOKING_EMBED_RE = re.compile(
+    "|".join(re.escape(h) for h in BOOKING_EMBED_HOSTS), re.I
+)
+_JS_BUTTON_NOISE_RE = re.compile(JS_BUTTON_NOISE_RE, re.I)
+
+
+def _detect_booking_embed(html: str) -> str:
+    """Inline booking widgets (Calendly and friends) are a confirmed
+    screenshot blind spot: the widget's iframe loads async and its own
+    slot-availability fetch can land after the screenshot is taken, so a
+    real, working booking widget can show up as blank space in the
+    evidence screenshot. Flag the platform by name whenever its marker
+    (script src / data-url / iframe src) appears anywhere in the page HTML,
+    so a blank area near this page is read as 'screenshot unreliable here',
+    never as a confirmed missing-CTA finding."""
+    m = _BOOKING_EMBED_RE.search(html)
+    return m.group(0).lower() if m else ""
+
+
+def _interactive_blind_spots(html: str) -> dict:
+    """The Calendly miss was one instance of a bigger category: ANY iframe
+    (chat widgets, other schedulers, Stripe/PayPal payment elements on a
+    checkout page, maps, video) can carry real functionality a screenshot
+    isn't guaranteed to paint, and ANY button with no href is a JS-only
+    control whose destination a static crawl can't follow. Inventory both
+    directly from the rendered DOM — independent of whether anything
+    painted visually — so a blank-looking area always has a structural
+    cross-check instead of resting on pixels alone."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    iframes = []
+    for tag in soup.select("iframe[src]"):
+        src = (tag.get("src") or "").strip()
+        if not src or src.startswith("about:blank") or src.startswith("javascript"):
+            continue
+        iframes.append({"src": src, "known_booking_platform": bool(_BOOKING_EMBED_RE.search(src))})
+
+    js_only_buttons = []
+    for tag in soup.select("button"):
+        if tag.find_parent("a[href]"):
+            continue
+        text = tag.get_text(separator=" ", strip=True)
+        if not text or len(text) > 80:
+            continue
+        # Nav toggles and FAQ/accordion questions are near-universal UI
+        # chrome, not funnel-relevant destinations — flagging every one of
+        # them buries the buttons that actually matter in noise.
+        if _JS_BUTTON_NOISE_RE.search(text) or text.rstrip().endswith("?"):
+            continue
+        js_only_buttons.append(text[:60])
+
+    return {"iframes": iframes, "js_only_buttons": js_only_buttons[:20]}
 
 # How much page text goes inline in packet.md. 700 chars was cutting every
 # offer/course/checkout page off after its hero section — exactly the part
@@ -74,12 +131,11 @@ class PageEvidence:
     availability: list = field(default_factory=list)
     text: str = ""
     text_file: str = ""
+    booking_embed: str = ""
+    blind_spots: dict = field(default_factory=dict)
 
 
-def _slug(value: str) -> str:
-    value = re.sub(r"^https?://(www\.)?", "", value.strip().lower())
-    value = re.sub(r"[^\w]+", "-", value).strip("-")
-    return value[:60] or "lead"
+_slug = slugify  # kept as a local alias — this module's callers use _slug()
 
 
 # On bio-link platforms, "same host" links are other people's profiles and
@@ -114,6 +170,8 @@ def _analyze_page(page: CrawledPage, seed_url: str, lead_name: str) -> PageEvide
     ev.emails = extract_emails(html, url, seed_url=seed_url, lead_name=lead_name)
     ev.dates = extract_dates(ev.text, page_url=url)
     ev.availability = extract_availability(ev.text)
+    ev.booking_embed = _detect_booking_embed(html)
+    ev.blind_spots = _interactive_blind_spots(html)
     return ev
 
 
@@ -588,12 +646,25 @@ def build_evidence(
                 "dates": p.dates,
                 "availability": p.availability,
                 "checks": p.checks,
+                "booking_embed": p.booking_embed,
+                "blind_spots": p.blind_spots,
+                "cta_clicks": p.page.cta_clicks,
             }
             for p in pages
         ],
     }
     (out / "evidence.json").write_text(json.dumps(evidence, indent=2, default=str))
     (out / "packet.md").write_text(_render_packet(evidence))
+
+    # Vision-pass manifest — built from this same evidence.json plus whatever
+    # is already sitting in out/ig/ (IG screenshots are downloaded in the
+    # skill's Step 0, before this crawl runs). Re-running this after IG
+    # images arrive later is safe: init_manifest() preserves any images
+    # already marked read. See audit/vision_gate.py for why this exists —
+    # short version: a free-text "I read the screenshots" claim can't be
+    # checked, a manifest with a mark-per-file requirement can.
+    vision_gate.init_manifest(out)
+
     return out
 
 
@@ -610,6 +681,71 @@ def _render_packet(ev: dict) -> str:
     L.append("")
     L.append("> Machine half of the walk only. Human observations outrank everything here. "
              "Every flag below is a CANDIDATE — sting test and vitamin filter still apply.")
+
+    # Booking-embed screenshot warning — confirmed blind spot (see
+    # _detect_booking_embed). Surfaced at the top so it can't be missed.
+    embed_pages = [p for p in ev["pages"] if p.get("booking_embed")]
+    if embed_pages:
+        L.append("\n## ⚠️ SCREENSHOT RELIABILITY WARNING")
+        L.append("The following page(s) embed an inline booking widget "
+                 "(Calendly or similar). These widgets load async and can appear "
+                 "as blank space in the screenshot even when a real, working "
+                 "booking option is there. **Do not treat blank space on these "
+                 "pages as a missing-CTA finding without checking the raw page "
+                 "text/HTML for the widget marker first, and ideally opening the "
+                 "live page by hand.**")
+        for p in embed_pages:
+            L.append(f"- {p['url']} — embed marker: `{p['booking_embed']}`")
+
+    # CTA click-discovery — sales/course/booking pages only (see
+    # _discover_cta_destinations). These buttons were actually clicked, so
+    # their destination is CONFIRMED, not a guess — read this before
+    # treating any of them as an unverified blind spot below.
+    click_pages = [p for p in ev["pages"] if p.get("cta_clicks")]
+    if click_pages:
+        L.append("\n## CTA click-discovery (buttons actually clicked, destinations confirmed)")
+        for p in click_pages:
+            L.append(f"- {p['url']}:")
+            for c in p["cta_clicks"]:
+                dest = c["destination"]
+                if dest == "navigation":
+                    L.append(f"  - \"{c['button_text']}\" → navigates to {c['url']}")
+                elif dest == "embedded_widget":
+                    srcs = ", ".join(c.get("iframe_src") or []) or "unknown src"
+                    L.append(f"  - \"{c['button_text']}\" → reveals an embedded widget ({srcs})")
+                elif dest == "no_visible_change":
+                    L.append(f"  - \"{c['button_text']}\" → clicked, no visible change detected "
+                             "(could be a JS action a static check can't see, e.g. adding to a cart)")
+                elif dest == "skipped_unsafe":
+                    L.append(f"  - \"{c['button_text']}\" → NOT clicked (reads as a payment/order "
+                             "completion action — verify by hand)")
+
+    # Broader blind spots: any iframe (not just known booking platforms) and
+    # any JS-only button are both invisible to link extraction and NOT
+    # guaranteed to render in the screenshot. Same "verify before calling it
+    # missing" rule applies. Buttons already resolved by click-discovery
+    # above are excluded here — they're confirmed, not unverified.
+    other_iframe_pages = [
+        p for p in ev["pages"]
+        if any(not i["known_booking_platform"] for i in p.get("blind_spots", {}).get("iframes", []))
+    ]
+    js_button_pages = []
+    for p in ev["pages"]:
+        btns = p.get("blind_spots", {}).get("js_only_buttons", [])
+        clicked_text = {c["button_text"] for c in p.get("cta_clicks", [])}
+        remaining = [b for b in btns if b not in clicked_text]
+        if remaining:
+            js_button_pages.append((p, remaining))
+    if other_iframe_pages or js_button_pages:
+        L.append("\n## ⚠️ OTHER UNVERIFIED INTERACTIVE ELEMENTS")
+        L.append("Static crawl + screenshot can't fully verify these — read the raw page "
+                 "text/HTML or open the live page by hand before calling anything here a finding.")
+        for p in other_iframe_pages:
+            srcs = [i["src"] for i in p["blind_spots"]["iframes"] if not i["known_booking_platform"]]
+            L.append(f"- {p['url']} — unrecognized iframe(s): {', '.join(srcs[:3])}")
+        for p, remaining in js_button_pages:
+            L.append(f"- {p['url']} — {len(remaining)} JS-only button(s), destination not verified: "
+                     + ", ".join(f'"{b}"' for b in remaining[:5]))
 
     # Floors
     L.append("\n## Floor signals (Gate 0)")
@@ -719,6 +855,11 @@ def _render_packet(ev: dict) -> str:
             L.append("```")
         if p["screenshot_desktop"] or p["screenshot_mobile"]:
             L.append(f"Screenshots: {p['screenshot_desktop']} | {p['screenshot_mobile']}")
+        if p.get("booking_embed"):
+            L.append(f"⚠️ Contains an inline `{p['booking_embed']}` booking widget — "
+                     "screenshot may show this as blank space even when it's live and working. "
+                     "Do not call a nearby gap a missing CTA without verifying against the raw "
+                     "page text or the live page.")
         if p["text_file"]:
             L.append(f"Full text: {p['text_file']}")
 

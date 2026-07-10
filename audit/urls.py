@@ -64,3 +64,18 @@ def same_site(url_a: str, url_b: str) -> bool:
     """True when both URLs share a registrable domain — the lead's own site
     including subdomains (courses.her-site.com counts as hers)."""
     return registrable_domain(url_a) == registrable_domain(url_b)
+
+
+def slugify(value: str) -> str:
+    """The one slug function, shared by the CLI (evidence folder name), the
+    evidence packet builder, and the vision gate. Used to live duplicated in
+    main.py and evidence.py — a real lead (Lynsey Ward, Jul 2026) got its IG
+    screenshots and its site crawl written to two different evidence
+    directories (evidence/momhoodmentor/ vs evidence/lynsey-ward/) because
+    the two copies could independently drift, and a skill step guessed a
+    slug by hand instead of calling either one. One function, always called
+    the same way, is what keeps IG evidence and crawl evidence in the same
+    folder so the vision gate can see both."""
+    value = re.sub(r"^https?://(www\.)?", "", value.strip().lower())
+    value = re.sub(r"[^\w]+", "-", value).strip("-")
+    return value[:60] or "lead"

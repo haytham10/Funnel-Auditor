@@ -20,8 +20,8 @@ Anything else the system fills.
 
 ## Step 1 — Fetch the batch
 
-Query `collection://c6209e29-55ef-4781-b735-73b2a254e34f` for rows with
-Status = 'Researching' AND Site URL set, newest first. If Haytham named
+Query `collection://c6209e29-55ef-4781-b735-73b2a254e34f` (MCP data source) for rows with
+Status = 'Researching' AND Site URL set, newest first. (REST API database ID: `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`.) If Haytham named
 specific leads or said "today's", filter accordingly. Skip rows whose Notes
 first line says an email/address problem is waiting on HIS manual step —
 re-running the walk won't fix those.

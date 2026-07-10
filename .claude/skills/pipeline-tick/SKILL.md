@@ -8,7 +8,8 @@ description: The daily outreach ops loop over the Notion Lead Pipeline and Gmail
 Run the whole loop, then deliver one morning brief. Notion is the source of
 truth — never trust chat memory for pipeline state.
 
-Pipeline data source: `collection://c6209e29-55ef-4781-b735-73b2a254e34f`.
+Pipeline data source (MCP): `collection://c6209e29-55ef-4781-b735-73b2a254e34f`.
+Database ID (REST API): `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`.
 
 ## 1 — Reply detection (Gmail → Notion)
 

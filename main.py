@@ -12,7 +12,6 @@ text + screenshots) under ./evidence/<slug>/ — the machine half of the
 """
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -24,6 +23,8 @@ from rich.text import Text
 
 from config import EVIDENCE_DIR
 from audit.crawler import crawl, CrawlResult
+from audit.urls import slugify
+from audit import vision_gate
 
 console = Console()
 
@@ -98,12 +99,6 @@ def print_summary(result: CrawlResult) -> None:
     console.print()
 
 
-def _slugify(value: str) -> str:
-    value = re.sub(r"^https?://(www\.)?", "", value.strip().lower())
-    value = re.sub(r"[^\w]+", "-", value).strip("-")
-    return value[:60] or "lead"
-
-
 def _normalize_url(url: str) -> str:
     url = url.strip()
     return url if url.startswith("http") else "https://" + url
@@ -113,7 +108,7 @@ def cmd_walk(args: argparse.Namespace) -> None:
     from audit.evidence import build_evidence
 
     url = _normalize_url(args.url)
-    slug = _slugify(args.name or args.handle or url)
+    slug = slugify(args.name or args.handle or url)
     out_dir = Path(args.out) if args.out else Path(EVIDENCE_DIR) / slug
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -151,6 +146,30 @@ def cmd_crawl(args: argparse.Namespace) -> None:
     print_summary(result)
 
 
+def cmd_slug(args: argparse.Namespace) -> None:
+    print(slugify(args.value))
+
+
+def cmd_vision(args: argparse.Namespace) -> None:
+    evidence_dir = Path(args.evidence_dir)
+    if args.vision_command == "init":
+        vision_gate.init_manifest(evidence_dir)
+        vision_gate.print_check(evidence_dir)
+    elif args.vision_command == "mark":
+        marked, unknown = vision_gate.mark_read(evidence_dir, *args.paths)
+        for m in marked:
+            console.print(f"[green]marked read:[/green] {m}")
+        for u in unknown:
+            console.print(f"[red]not in manifest, NOT counted:[/red] {u} "
+                          f"— run `python main.py vision list {evidence_dir}` to see valid paths")
+        if unknown:
+            sys.exit(1)
+    elif args.vision_command == "check":
+        sys.exit(vision_gate.print_check(evidence_dir))
+    elif args.vision_command == "list":
+        sys.exit(vision_gate.print_list(evidence_dir))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="funnel-auditor")
     sub = parser.add_subparsers(dest="command")
@@ -167,12 +186,34 @@ def main() -> None:
     p_crawl.add_argument("url")
     p_crawl.set_defaults(func=cmd_crawl)
 
+    p_slug = sub.add_parser("slug", help="print the evidence-folder slug for a name/URL (matches `walk` exactly)")
+    p_slug.add_argument("value")
+    p_slug.set_defaults(func=cmd_slug)
+
+    p_vision = sub.add_parser("vision", help="vision-pass completeness gate (see audit/vision_gate.py)")
+    vision_sub = p_vision.add_subparsers(dest="vision_command", required=True)
+
+    v_init = vision_sub.add_parser("init", help="(re)build the manifest from evidence.json + ig/")
+    v_init.add_argument("evidence_dir")
+
+    v_mark = vision_sub.add_parser("mark", help="mark one or more image paths as read")
+    v_mark.add_argument("evidence_dir")
+    v_mark.add_argument("paths", nargs="+", help="e.g. ig/1.png screenshots/foo_desktop.png")
+
+    v_check = vision_sub.add_parser("check", help="pass/fail: every required image read? (exit 0/1)")
+    v_check.add_argument("evidence_dir")
+
+    v_list = vision_sub.add_parser("list", help="list every tracked image and its read status")
+    v_list.add_argument("evidence_dir")
+
+    p_vision.set_defaults(func=cmd_vision)
+
     argv = sys.argv[1:]
     if not argv:
         parser.print_help()
         sys.exit(1)
     # Bare URL → walk
-    if argv[0] not in ("walk", "crawl", "-h", "--help"):
+    if argv[0] not in ("walk", "crawl", "slug", "vision", "-h", "--help"):
         argv = ["walk"] + argv
 
     args = parser.parse_args(argv)
