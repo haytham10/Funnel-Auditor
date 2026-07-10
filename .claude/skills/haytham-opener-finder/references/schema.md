@@ -2,7 +2,8 @@
 
 ## Pipeline database
 
-Data source ID: `c6209e29-55ef-4781-b735-73b2a254e34f`
+- **Data source ID** (MCP `collection://`): `c6209e29-55ef-4781-b735-73b2a254e34f`
+- **Database ID** (REST API `/v1/databases/`): `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`
 
 ## Properties reference
 

@@ -177,7 +177,8 @@ body) and stop. The floor exists to protect touches.
 
 ## Step 3 — Notion row
 
-Pipeline data source: `collection://c6209e29-55ef-4781-b735-73b2a254e34f`.
+Pipeline data source (MCP): `collection://c6209e29-55ef-4781-b735-73b2a254e34f`.
+Database ID (REST API): `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`.
 
 Dedup per the opener-finder's rule: no routine pipeline query — only run one
 targeted query if something feels off (name rings a bell, lead arrives with
