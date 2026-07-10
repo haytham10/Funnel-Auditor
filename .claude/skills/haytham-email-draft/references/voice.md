@@ -41,6 +41,17 @@ From one business owner to another. Same trenches. Never the expert who found yo
 - **Never quote her words back to her.** Don't recite lines from her own content. She knows what's in her kit, her post, her page. Reference what she made without reciting it. ("as you said" energy is patronizing.)
 - **Good copy is never perfect.** The polish is the tell. When every sentence is smooth and crafted, it sounds like someone trying, and trying is the opposite of the seamless register. Leave a rough edge, a line that just stops, a word dropped on purpose. Don't sand it down.
 
+## No AI-sounding patterns
+
+Two more tells beyond the ones already named above (performing, robotic
+polish): no performed-reaction openers ("this stopped me in my tracks," a
+reaction narrated for effect rather than a real observation stated plainly)
+and no consultant-speak (a diagnostic tone that sounds like a framework
+talking, not a peer). The three-beat parallel structure ("not just X, but
+Y, and Z") is also an AI tell but it's covered in full, with examples, in
+`references/gate.md`'s kill list scan and `references/critical-failures.md`
+— no need to restate it here.
+
 ## The kill list — never, under any circumstance
 
 - "Stuck with me" / "sitting with me" / "sat with me" / "stayed with me" — any variant of a phrase performing that a piece of her content emotionally lingered. Point at what she said instead ("most parenting content stays at the surface, yours doesn't") rather than narrating your own reaction to it.

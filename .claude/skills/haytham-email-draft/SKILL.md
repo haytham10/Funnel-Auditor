@@ -31,7 +31,7 @@ Do these in sequence. Do not skip ahead to writing.
    likes and comment-to-DM pricing that, per the session's own tool log,
    was never actually read.
 
-3. **Read the reference files now, before drafting.** Read `references/voice.md` and `references/examples.md` every time. Read `references/mechanics.md` if this is a follow-up, a turn-two reply, or a warm thread (the sequencing rules live there). Read `references/drafting-craft.md` if the finding is abstract and you need to make it concrete and falsifiable. These are short and they are what stop the draft from coming out generic.
+3. **Read the reference files now, before drafting.** Read `references/voice.md`, `references/examples.md`, and `references/critical-failures.md` every time — the critical-failures file is mandatory corrections learned from repeated user corrections, not situational reading. Read `references/mechanics.md` if this is a follow-up, a turn-two reply, or a warm thread (the sequencing rules live there). Read `references/drafting-craft.md` if the finding is abstract and you need to make it concrete and falsifiable. These are short and they are what stop the draft from coming out generic.
 
 4. **See in the right order (this is the voice, not a style note).** Admire first: before the leak, see what they got right and feel it. Find the gap reluctantly: name it only because it genuinely helps. Help before sell: the email earns belief that you can help, it does not push a call. An email that diagnoses before it admires, or sells before it earns belief, is wrong no matter how clean the copy.
 
@@ -48,6 +48,7 @@ Do these in sequence. Do not skip ahead to writing.
    - Kill list: zero violations, zero em-dashes, zero quoted-back words
    - Three drafting rules on every line: visualize, falsify, bespoke
    - Mechanics: subject SMYKM-grade, no operator vocab, one CTA, conflict present, sentence case
+   - Critical failures per `references/critical-failures.md`: zero three-beat parallel structures (any three parallel clauses/verbs/negatives in one sentence, not just "not just X, but Y, and Z"), zero formulaic transitions, no math-breakdown-as-audit, subject echoed in the first body sentence, motivation stated without over-explaining, close is an open door not a bow
 
    If any check fails: identify the specific failure, rewrite only the failing element, run the full gate again from the top. Do not patch one line and assume the rest is fine. Keep iterating until every box clears.
 

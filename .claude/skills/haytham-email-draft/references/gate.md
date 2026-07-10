@@ -17,6 +17,7 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 - [ ] No quoting her own words back to her.
 - [ ] No em-dash anywhere. Not one.
 - [ ] If two metrics she owns are being contrasted (a big number and a small one, both hers), the small one is never named alongside the big one, not in the body and not in the subject line. Lead with the strength only. (See the Darlynn example in examples.md for what this looks like when it goes wrong.)
+- [ ] No three-beat parallel structure in any sentence ("not just X, but Y, and Z", or any three parallel clauses/verbs/negatives in one sentence — see references/critical-failures.md for examples of what this catches and doesn't).
 
 ## The three drafting rules (every line)
 
