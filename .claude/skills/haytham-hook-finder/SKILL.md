@@ -1,6 +1,6 @@
 ---
 name: haytham-hook-finder
-description: Pull real Instagram evidence for an Audit Ready lead and find the SMYKM hook — the one line only this person would recognize (their own framework, a real recent post, a personal update) — then write just that line to their Notion page. Use this skill WHENEVER Haytham says "find the hook," "SMYKM this," "hook Jane," "add a hook," or asks for a stronger opener on a lead that's already Audit Ready (Lane 1 or Lane 2) with a funnel walk on record. This is a separate, manually-triggered step from haytham-opener-finder — the walk assigns the lane, finding, and innocent explanation; this skill's only job is the hook, and it must come from real IG screenshots/vision evidence, never from a web-search proxy. It does not touch the lane, the finding, the innocent explanation, or draft any email.
+description: Pull real Instagram evidence for an Audit Ready lead and find the SMYKM hook — the one line only this person would recognize (their own framework, a real recent post, a personal update) — then write just that line to their Notion page. Use this skill WHENEVER Haytham says "find the hook," "SMYKM this," "hook Jane," "add a hook," asks for a stronger opener on a lead that's already Audit Ready (Lane 1 or Lane 2), or process-lead/batch-audit reports a lead "held — needs haytham-hook-finder." This is a separate, manually-triggered step from haytham-opener-finder — the walk assigns the lane, finding, and innocent explanation; this skill's only job is the hook, and it must come from real IG screenshots/vision evidence, never from a web-search proxy. It is a required gate, not an optional upgrade: haytham-email-draft will not draft for a lead until this skill resolves the hook line. It does not touch the lane, the finding, the innocent explanation, or draft any email.
 ---
 
 # Haytham Hook Finder — real IG evidence → SMYKM hook → one line in Notion
@@ -14,9 +14,14 @@ or a press mention a search happened to surface. That's what made the old
 hooks read generic: they were built from whatever was easiest to find, not
 from what was actually hers.
 
-This is optional and manual. A Lane 1 lead drafts fine without a hook
-(SMYKM opening B — direct finding opener, no transition needed). Only run
-this when Haytham wants the stronger version.
+This is manual, not automatic — Haytham triggers it by name — but it is
+**required** before `haytham-email-draft` will draft anything for this
+lead. `process-lead` and `haytham-email-draft` both hard-block on a
+`SMYKM hook:` line that still says "not run yet," so every Lane 1/2 lead
+sits waiting for this skill to run before it can get a Gmail draft — this
+isn't an optional upgrade Haytham reaches for on standout leads, it's a
+gate every lead has to clear. Once this skill resolves the line (a real
+hook, or a confirmed "no hook found"), the draft can go ahead.
 
 ---
 
@@ -140,10 +145,11 @@ those and must not rewrite them.
 ## Step 5 — Hand off
 
 Tell Haytham: the hook (or that none was found) and its type label, which
-image(s) it came from, and the vision-check status. Remind him that if a
-Gmail draft already exists for this lead without the hook,
-`haytham-email-draft` can rebuild the subject/opener around it — that's a
-separate ask; this skill doesn't draft or touch Gmail.
+image(s) it came from, and the vision-check status. This resolves the
+block on `haytham-email-draft` for this lead — say so explicitly ("hook
+line resolved, ready to draft") so he knows the next natural step is to
+ask for the Touch 1 draft. This skill still doesn't draft or touch Gmail
+itself; that's a separate ask.
 
 ---
 

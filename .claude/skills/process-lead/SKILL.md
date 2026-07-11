@@ -1,9 +1,9 @@
 ---
 name: process-lead
-description: Take a sourced Instagram lead from raw intake (name + bio link + follower count) all the way to a cold-email Gmail DRAFT. Use this skill WHENEVER Haytham pastes a new lead — a handle, a link-in-bio URL, a follower count, optionally notes or screenshots — or says "process this lead," "run this one," "new lead," or pastes several candidates from a sourcing session. It runs the machine funnel walk (Python), does the mandatory vision pass over the screenshots, enforces the Gate 0 floors, logs to the Notion pipeline, hands the evidence to the opener-finder, then the email-draft skill, and finishes with a Gmail DRAFT he reviews and sends by hand. It never sends anything and never touches Instagram.
+description: Take a sourced Instagram lead from raw intake (name + bio link + follower count) through the machine walk, vision pass, floors, and opener-finder walk, logging everything to Notion. Use this skill WHENEVER Haytham pastes a new lead — a handle, a link-in-bio URL, a follower count, optionally notes or screenshots — or says "process this lead," "run this one," "new lead," or pastes several candidates from a sourcing session. It runs the machine funnel walk (Python), does the mandatory vision pass over the screenshots, enforces the Gate 0 floors, logs to the Notion pipeline, and hands the evidence to the opener-finder. The Gmail DRAFT step is held until `haytham-hook-finder` has resolved the SMYKM hook line for this lead — it never drafts on a fresh "not run yet" hook. It never sends anything and never touches Instagram.
 ---
 
-# Process Lead — intake → walk → vision pass → Notion → opener → Gmail draft
+# Process Lead — intake → walk → vision pass → Notion → opener → (hook-finder) → Gmail draft
 
 One command per candidate. Haytham sources on Instagram by hand (that stays
 manual — no IG automation, ever); this skill takes over the moment he has a
@@ -206,11 +206,11 @@ visually-confirmed findings enter the filters. Write the page body and
 properties to Notion in the exact schema.md format, including the "IG
 evidence" and rejected-flags lines. The `SMYKM hook:` line gets written as
 the placeholder `not run yet — see haytham-hook-finder` — opener-finder no
-longer finds a hook itself (split Jul 11, 2026). This is not a gap: Step 6
-below drafts a perfectly good email without one. `haytham-hook-finder` is a
-separate, manual step Haytham can run afterward on this same lead if he
-wants a stronger opener — it reuses the IG evidence already downloaded in
-Step 0, no re-fetching needed.
+longer finds a hook itself (split Jul 11, 2026). **This placeholder blocks
+Step 6 below** — see that step for what happens next. `haytham-hook-finder`
+is a separate, manual step Haytham runs on this same lead to clear the
+block — it reuses the IG evidence already downloaded in Step 0, no
+re-fetching needed.
 
 ## Step 5 — Email address
 
@@ -226,14 +226,23 @@ Work the Email OS decision tree with what the packet harvested:
 If the email came from a source the walk flagged as broken/suspect, Status
 stays Researching and that flag goes in Notes as the FIRST line.
 
-## Step 6 — The draft → Gmail, automatically
+## Step 6 — The draft → Gmail, held until the hook is resolved
 
-Lane 1 or Lane 2 with a usable, non-suspect email address → invoke the
+**Check the `SMYKM hook:` line just written in Step 4 before doing anything
+else here.** If it still reads `not run yet — see haytham-hook-finder`,
+**stop — do not invoke haytham-email-draft, do not create a Gmail draft.**
+Append to Notes: `Hook not yet found — run haytham-hook-finder, then ask to
+draft this lead's email.` Report this lead's DRAFT status as "held — needs
+haytham-hook-finder" and move on. This applies to every fresh lead, since
+opener-finder always writes that placeholder — a Gmail draft only gets
+created once Haytham has explicitly run `haytham-hook-finder` on this lead
+(producing either a real hook or a confirmed "no hook found") and then asks
+for the draft.
+
+Only once the hook line reads `no hook found in IG evidence...` or holds an
+actual hook, and there's a usable, non-suspect email address, invoke the
 **haytham-email-draft** skill for the Touch 1 opener. Full silent loop,
-voice rules, gate — as that skill specifies. This runs whether or not
-`haytham-hook-finder` has touched the lead yet — a "not run yet" hook line
-means SMYKM opening B (direct finding opener), which is the normal draft
-shape, not a fallback.
+voice rules, gate — as that skill specifies.
 
 Then, without waiting for approval:
 - Pick the variant that came through the gate strongest and **create the
@@ -245,8 +254,9 @@ Then, without waiting for approval:
 - In the verdict, show the drafted variant in full plus the runner-up
   variants labeled, so he can swap in Gmail if he prefers another.
 
-Held instead of drafted (say which and why): suspect-source address, generic
-address when the finding is personal, or the email-draft gate never passed.
+Held instead of drafted (say which and why): hook not yet resolved,
+suspect-source address, generic address when the finding is personal, or
+the email-draft gate never passed.
 
 Logging ("log this" / pipeline-tick reply detection) still happens ONLY when
 Haytham confirms an email actually left. A Gmail draft is not a send.
@@ -269,13 +279,18 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
   had a Read call), and it is the one failure mode this file exists to
   close.
 - This flow does not find a SMYKM hook — that's `haytham-hook-finder`,
-  triggered manually by Haytham afterward if he wants one. If he runs it,
-  that skill enforces its own rule: a hook citing specific IG post content
-  (a quote, a date, an engagement number) is only usable if the image it
-  came from shows `read: true` in `vision_manifest.json`. This flow never
-  needs to construct or verify a hook itself.
+  triggered manually by Haytham. If he runs it, that skill enforces its own
+  rule: a hook citing specific IG post content (a quote, a date, an
+  engagement number) is only usable if the image it came from shows
+  `read: true` in `vision_manifest.json`. This flow never needs to
+  construct or verify a hook itself.
+- **Never invoke haytham-email-draft or create a Gmail draft while the
+  `SMYKM hook:` line still reads "not run yet."** That line means the hook
+  hasn't been looked for, not that none exists — a fresh lead always lands
+  here after Step 4. Hold the lead at Step 6 and tell Haytham to run
+  `haytham-hook-finder` first.
 - One lead's full run ends with: lane verdict, strongest finding, innocent
-  explanation, SMYKM hook status ("not run yet" is the normal default),
-  email address status, IG-evidence status (**the literal
-  `VISION PASS: ...` line**, not a paraphrase), rejected-flags count, and
-  the Gmail-draft status. That's the complete hand-off.
+  explanation, SMYKM hook status ("not run yet" means the draft is held,
+  not that it went out anyway), email address status, IG-evidence status
+  (**the literal `VISION PASS: ...` line**, not a paraphrase), rejected-flags
+  count, and the Gmail-draft status. That's the complete hand-off.

@@ -1,6 +1,6 @@
 ---
 name: lead-processor
-description: Works exactly ONE sourced lead end-to-end — machine walk, vision pass, Gate 0 floors, opener-finder walk, Notion write, email address, email draft, Gmail DRAFT. Spawned by the batch-audit skill (one agent per lead) or used directly for a single lead. Never sends email, never touches Instagram.
+description: Works exactly ONE sourced lead end-to-end — machine walk, vision pass, Gate 0 floors, opener-finder walk, Notion write, email address. Holds at the Gmail draft: it never finds a SMYKM hook itself, and the draft is held until Haytham runs haytham-hook-finder on this lead and resolves the hook line. Spawned by the batch-audit skill (one agent per lead) or used directly for a single lead. Never sends email, never touches Instagram.
 ---
 
 You process exactly one lead, start to finish. Your prompt gives you the
@@ -33,10 +33,14 @@ including every skill it chains into (`haytham-opener-finder`,
    properly and finish.
 4. Write the walk to the lead's Notion page in the exact schema. The row
    already exists — update it, never create a duplicate.
-5. Work the Email OS address tree. If Lane 1/2 with a usable, non-suspect
-   address: draft per the email-draft skill (full silent gate loop) and
-   create the Gmail DRAFT for the best variant automatically. Suspect or
-   missing address → no draft; flag it instead.
+5. Work the Email OS address tree. Then check the `SMYKM hook:` line you
+   just wrote in step 4 — it will read `not run yet — see
+   haytham-hook-finder`, since you never find a hook yourself (see hard
+   rules). **That means you do not draft.** Do not invoke the email-draft
+   skill and do not create a Gmail draft. Report DRAFT as "held — needs
+   haytham-hook-finder" and finish there. This applies to Lane 1/2 leads
+   with a good address too — a resolved address doesn't clear the hook
+   block.
 
 ## Hard rules (repeat offenders get batches killed)
 
@@ -52,11 +56,13 @@ including every skill it chains into (`haytham-opener-finder`,
   it says INCOMPLETE, that's what goes in your return block, not a rounded-up
   claim.
 - You do not find a SMYKM hook. `haytham-opener-finder` writes `SMYKM hook:
-  not run yet — see haytham-hook-finder` as a placeholder, and that is a
-  normal, complete outcome — draft with SMYKM opening B (direct finding
-  opener). `haytham-hook-finder` is a separate skill Haytham triggers by
-  hand later if he wants a stronger opener; don't run it yourself and don't
-  invent a hook to fill the line.
+  not run yet — see haytham-hook-finder` as a placeholder.
+  `haytham-hook-finder` is a separate skill Haytham triggers by hand later;
+  don't run it yourself and don't invent a hook to fill the line.
+- **Never invoke haytham-email-draft or create a Gmail draft while that
+  hook line still reads "not run yet."** Hold the lead there instead — see
+  step 5 above. Do not treat a good email address as license to draft
+  anyway; the hook block is independent of the address check.
 
 ## What you return (the whole point)
 
@@ -71,7 +77,9 @@ INNOCENT: <the innocent explanation, or "n/a">
 SMYKM: <always "not run yet — see haytham-hook-finder" from this flow; you
   do not find a hook yourself, see hard rules>
 EMAIL: <address + source, or "not found — <next manual step>">
-DRAFT: <"Gmail draft created — subject: …" | "held — <reason>" | "n/a (Lane 3)">
+DRAFT: <for Lane 1/2, always "held — needs haytham-hook-finder" (you never
+  draft on a fresh "not run yet" hook line, regardless of address status) |
+  "n/a (Lane 3)">
 IG EVIDENCE: <the literal `python main.py vision check` output line for the
   ig/ images, e.g. "VISION PASS: COMPLETE — 4 of 4 required images confirmed
   read" | "VISION PASS: INCOMPLETE — ..." with the unread paths | "none

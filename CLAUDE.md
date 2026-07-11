@@ -10,19 +10,22 @@ screenshots to the page body) → `/batch-audit` (scheduled Routine or "work
 the queue"; one lead-processor agent per lead, ~3 in parallel, cap 15) →
 per lead: machine walk → **mandatory vision pass over the screenshots** →
 floors → opener-finder (lane + finding + innocent explanation, stops there
-— no hook) → Notion write → email address → automatic Gmail DRAFT (SMYKM
-opening B, no hook, by default) → Haytham reviews in Gmail and sends by
-hand → `/pipeline-tick` (replies, due follow-ups auto-drafted, send queue)
+— no hook) → Notion write → email address → **held** (no Gmail draft yet)
+→ Haytham runs `haytham-hook-finder` on the lead (pulls real IG evidence,
+writes just the SMYKM hook line, or confirms none exists) → Haytham asks
+for the draft → automatic Gmail DRAFT (SMYKM opening A with the hook, or
+opening B if none was found) → Haytham reviews in Gmail and sends by hand
+→ `/pipeline-tick` (replies, due follow-ups auto-drafted, send queue)
 daily.
 
 Haytham's only manual jobs: sourcing (with IG screenshots attached),
-reviewing and sending drafts from Gmail, confirming sends for logging, and
-optionally triggering `haytham-hook-finder` on an Audit Ready lead when he
-wants a stronger opener than the finding alone (split from opener-finder
-Jul 11, 2026 — a hook built from a web search read generic; a real hook
-needs real IG evidence, so it's now a separate, manually-triggered skill,
-not part of the automatic chain). Single pasted leads still go through
-`/process-lead` directly.
+running `haytham-hook-finder` on each Audit Ready lead before it can draft
+(split from opener-finder Jul 11, 2026 — a hook built from a web search
+read generic; a real hook needs real IG evidence, so it's now a separate,
+manually-triggered skill that gates the draft rather than running inside
+the automatic chain), reviewing and sending drafts from Gmail, and
+confirming sends for logging. Single pasted leads still go through
+`/process-lead` directly, with the same hold.
 
 ## Hard rules (non-negotiable)
 
@@ -34,9 +37,15 @@ not part of the automatic chain). Single pasted leads still go through
   Machine check flags are candidates only — a flag that fails the vision
   pass (visual confirmation on the screenshot) is dead and stays dead.
 - Notion is the source of truth for pipeline state, not chat memory.
-- A Gmail draft is not a send. Drafts are created automatically; Status /
-  Touch # / Last Contacted / Email Thread Log move only after Haytham
-  confirms an email actually left.
+- A Gmail draft is not a send. Drafts are created automatically once the
+  lead is eligible; Status / Touch # / Last Contacted / Email Thread Log
+  move only after Haytham confirms an email actually left.
+- **No draft before a hook decision.** `haytham-email-draft` and
+  `process-lead` hard-block on a `SMYKM hook:` line that still reads "not
+  run yet" — every fresh lead lands there, so no Gmail draft gets created
+  until Haytham runs `haytham-hook-finder` on that lead and it resolves
+  the line (a real hook, or a confirmed "no hook found"). (Added Jul 11,
+  2026.)
 - **Before any Notion page update that uses search-and-replace
   (`update_content`), fetch the page first** to confirm the current literal
   content format — Notion's enhanced-markdown escaping (`\$`, auto-linked
@@ -58,10 +67,12 @@ not part of the automatic chain). Single pasted leads still go through
 - `audit/` — crawler (Playwright), checks, extraction, Gate 0 floors, packet
   builder.
 - `.claude/skills/process-lead` — the per-lead contract everything else
-  runs: walk → vision pass → floors → opener → automatic Gmail draft.
+  runs: walk → vision pass → floors → opener → **held** at the Gmail
+  draft until `haytham-hook-finder` resolves the hook.
 - `.claude/skills/batch-audit` — batch orchestrator: pulls Researching rows
   from Notion, spawns one `lead-processor` agent per lead (~3 parallel,
-  cap 15), verifies the writes landed, delivers one batch brief. Fired by
+  cap 15), verifies the writes landed, delivers one batch brief listing
+  which leads need `haytham-hook-finder` before they can draft. Fired by
   the lead-queue Routine or on demand.
 - `.claude/agents/lead-processor.md` — the per-lead subagent and its
   structured return block.
