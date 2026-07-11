@@ -1,6 +1,6 @@
 ---
 name: batch-audit
-description: Work a whole sourcing session's worth of leads in one run, pulled from Notion instead of pasted into chat, in parallel with one lead-processor agent per lead. Use WHENEVER Haytham says "batch audit," "work the queue," "I just finished sourcing," "fetch the new leads from Notion and work them," or names several leads already logged in the pipeline — and when the scheduled lead-queue Routine fires. It queries the Lead Pipeline for fresh Researching rows, runs the full process-lead flow on each (machine walk → vision pass → floors → opener-finder → Notion write → email address → Gmail DRAFT), and finishes with one batch brief. Gmail DRAFTS only — it never sends and never touches Instagram.
+description: Work a whole sourcing session's worth of leads in one run, pulled from Notion instead of pasted into chat, in parallel with one lead-processor agent per lead. Use WHENEVER Haytham says "batch audit," "work the queue," "I just finished sourcing," "fetch the new leads from Notion and work them," or names several leads already logged in the pipeline — and when the scheduled lead-queue Routine fires. It queries the Lead Pipeline for fresh Researching rows, runs the process-lead flow on each (machine walk → vision pass → floors → opener-finder → Notion write → email address), and finishes with one batch brief. Gmail drafts are held: no lead gets a draft in this run — that only happens after Haytham runs `haytham-hook-finder` on a lead and asks for the draft. It never sends and never touches Instagram.
 ---
 
 # Batch Audit — sourcing session → worked pipeline, in parallel
@@ -51,8 +51,10 @@ the row already exists — update, don't duplicate.
 Concurrency: keep **at most 3 agents running**; as one completes, launch the
 next. Each agent works one lead start-to-finish per the process-lead skill —
 machine walk, vision pass, floors, opener-finder walk + Notion write, email
-address, and the automatic Gmail DRAFT — and returns the structured LEAD
-block defined in the agent file.
+address — and holds at the Gmail draft (every lead comes back with the hook
+line "not run yet," and drafting is blocked until `haytham-hook-finder` runs
+on that lead). It returns the structured LEAD block defined in the agent
+file.
 
 Batch rules the orchestrator enforces:
 - A floor fail or Lane 3 is a fine outcome: parked properly (Tier 4,
@@ -81,22 +83,23 @@ worked, not Blocked, if you finished it.
 ## Step 3 — Verify, then the batch brief (one message)
 
 Spot-check before reporting: for each Lane 1/2 result, confirm the Notion
-page body actually carries the fresh walk (one `notion-fetch`, cheap), and
-confirm the Gmail drafts exist (`list_drafts` once, match subjects). An
-agent that claimed success but wrote nothing goes under Blocked, not Done.
+page body actually carries the fresh walk (one `notion-fetch`, cheap). No
+Gmail drafts are expected from this run — don't check `list_drafts` for
+them. An agent that claimed success but wrote nothing goes under Blocked,
+not Done.
 
 Then one brief, in this order:
 
 1. **Table**: lead / lane / tier / strongest finding in one line / email
-   status / Gmail draft? / IG evidence seen? / flags rejected.
-2. **Drafted**: per lead with a Gmail draft — the drafted subject + body in
-   full, plus labeled runner-up variants, each with its innocent explanation
-   noted. SMYKM hook will read "not run yet" for every lead in this batch —
-   that's expected, since `haytham-hook-finder` is a separate, manual step;
-   name it as available if Haytham wants a stronger opener on any of these
-   before sending. He edits or swaps in Gmail and sends by hand.
-3. **Held**: Lane 1/2 leads where the draft was held (suspect address,
-   gate never passed) with the specific reason.
+   status / IG evidence seen? / flags rejected.
+2. **Needs hook-finder**: every Lane 1/2 lead with a usable email address —
+   the walk finding + innocent explanation in full, one line each, ready to
+   draft the moment Haytham runs `haytham-hook-finder` on it and asks for
+   the draft. This replaces the old "Drafted" section: no Gmail drafts are
+   created in this run by design (see Step 2).
+3. **Held for other reasons**: Lane 1/2 leads where the draft is blocked by
+   something besides the hook — suspect address, gate never passed — with
+   the specific reason.
 4. **Parked**: Lane 3 leads with their one-line reasons.
 5. **Blocked**: rows needing a bio link, an email address, or a re-run after
    a crawl failure, each with the specific manual step.
@@ -118,3 +121,6 @@ Status = Outreach Sent must mean the email actually left.
   vision pass rejected stay rejected.
 - Notion is the source of truth; agents re-read the row before writing it.
 - Creating a Gmail draft never advances Status/Touch #/Last Contacted.
+- No agent creates a Gmail draft in this run. The hook line always reads
+  "not run yet" straight out of opener-finder, and drafting is blocked
+  until Haytham runs `haytham-hook-finder` on a lead — see Step 2.

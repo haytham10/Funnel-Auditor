@@ -17,18 +17,26 @@ Do these in sequence. Do not skip ahead to writing.
 
 2. **Confirm you have the input.** You need: the lead's name, the niche, the verified finding (the leak or observation), and enough of the funnel walk to write a concrete line. If the user gave you a Notion lead page or pasted the walk, you have it. If the finding is vague ("they have a funnel problem"), ask for the specific thing on the specific page before writing. A bespoke email is impossible without a bespoke finding.
 
-   **The hook is optional and comes from a separate skill now.**
+   **Hard gate: do not draft until the hook has actually been looked for.**
    `haytham-opener-finder` only produces the lane, finding, and innocent
-   explanation — it no longer finds a hook itself. The Notion page's
-   `SMYKM hook:` line will read one of three ways:
-   - `not run yet — see haytham-hook-finder` → normal, expected default.
-     Draft with **SMYKM opening B** (direct finding opener, no
-     transition needed). Do not treat this as a gap to apologize for or
-     block on; it's the default path, not a missing input.
+   explanation — it no longer finds a hook itself; that's
+   `haytham-hook-finder`'s job. Check the Notion page's `SMYKM hook:` line
+   before doing anything else:
+   - `not run yet — see haytham-hook-finder` → **STOP. Do not draft.** Tell
+     Haytham this lead needs `haytham-hook-finder` run first, and that you'll
+     draft as soon as that line is resolved. This is a hard block, not a
+     style note — do not proceed to Step 3 or write anything.
    - `no hook found in IG evidence — draft opens on the finding alone` →
-     `haytham-hook-finder` ran and came up empty. Same as above: opening B.
+     `haytham-hook-finder` already ran and came up empty. This is a
+     resolved state, not a missing input — proceed with **SMYKM opening B**
+     (direct finding opener, no transition needed).
    - `<hook text> — WORK|LIFE|METRIC` → a real hook was found. Use
      **SMYKM opening A** (elaborate the hook, then bridge to the finding).
+
+   If Haytham pastes a finding directly in chat with no Notion page behind
+   it (no hook line to check at all), ask him whether a hook already exists
+   for this lead before drafting — don't assume none does just because
+   nothing was pasted.
 
    **If that hook line cites specific IG post content** (a date, a quote,
    an engagement number, "her post about X"): `haytham-hook-finder`
@@ -114,6 +122,8 @@ Before calling update_properties, state the full property diff (all five fields,
 It does not log to Notion before the user approves. Draft is not send. Do not make Notion tool calls during or after drafting unless the user explicitly says "log this" and pastes the final text.
 
 It does not invent findings. If you do not have a verified, specific leak or observation, you stop and ask. A guessed finding produces a template email, and a template email is dead.
+
+It does not draft while the hook line still says "not run yet." Run `haytham-hook-finder` first (or confirm it already ran and came up empty) — see step 2 above.
 
 ## Quick reference: the shape
 

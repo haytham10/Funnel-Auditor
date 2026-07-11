@@ -48,7 +48,7 @@ Two-line paragraphs. She is reading distracted on her phone. Build conflict in: 
 ## SMYKM openings
 
 - **A — elaborate the human hook**, then bridge to the finding. Needs a transition line: "anyway, the reason I'm writing..." or "what actually made me reach out though..." Only available when `haytham-hook-finder` has already written a real hook to the lead's Notion page (see SKILL.md step 2) — it's an upgrade, not something to construct from memory or a guess.
-- **B — direct finding opener** (Lane 1, felt leak). No transition needed. **This is the default** — `haytham-opener-finder` no longer finds a hook itself, so most leads reach this skill with no hook at all. That's expected, not a gap.
+- **B — direct finding opener** (Lane 1, felt leak). No transition needed. Used once `haytham-hook-finder` has run and come up empty (`no hook found in IG evidence`) — a resolved state, not a shortcut. **Never draft in either opening while the Notion page's `SMYKM hook:` line still says "not run yet"** — that means the hook hasn't been looked for yet, not that one doesn't exist; see SKILL.md step 2 for the hard gate.
 
 For Lane 2 (no felt leak), pre-handle the one objection in their head before they can say it. One sentence.
 
