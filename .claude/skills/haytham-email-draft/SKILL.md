@@ -17,19 +17,30 @@ Do these in sequence. Do not skip ahead to writing.
 
 2. **Confirm you have the input.** You need: the lead's name, the niche, the verified finding (the leak or observation), and enough of the funnel walk to write a concrete line. If the user gave you a Notion lead page or pasted the walk, you have it. If the finding is vague ("they have a funnel problem"), ask for the specific thing on the specific page before writing. A bespoke email is impossible without a bespoke finding.
 
-   **If the SMYKM hook cites specific IG post content** (a date, a quote, an
-   engagement number, "her post about X") rather than something from her
-   site copy: confirm the opener-finder's hand-off actually verified it —
-   it should say the image was vision-pass-confirmed (`vision_manifest.json`
-   shows `read: true`), not just "N screenshots read" as a round-number
-   claim. If that confirmation isn't there, do not draft the hook as given.
-   Either ask the opener-finder step to confirm the image first, fall back
-   to a hook grounded in confirmed site copy, or ask Haytham directly to
-   confirm the post's content before it goes anywhere near a Gmail draft.
-   An email built on an unverified IG-post hook is exactly the failure this
-   check exists to catch — a real draft once opened on a specific post's
-   likes and comment-to-DM pricing that, per the session's own tool log,
-   was never actually read.
+   **The hook is optional and comes from a separate skill now.**
+   `haytham-opener-finder` only produces the lane, finding, and innocent
+   explanation — it no longer finds a hook itself. The Notion page's
+   `SMYKM hook:` line will read one of three ways:
+   - `not run yet — see haytham-hook-finder` → normal, expected default.
+     Draft with **SMYKM opening B** (direct finding opener, no
+     transition needed). Do not treat this as a gap to apologize for or
+     block on; it's the default path, not a missing input.
+   - `no hook found in IG evidence — draft opens on the finding alone` →
+     `haytham-hook-finder` ran and came up empty. Same as above: opening B.
+   - `<hook text> — WORK|LIFE|METRIC` → a real hook was found. Use
+     **SMYKM opening A** (elaborate the hook, then bridge to the finding).
+
+   **If that hook line cites specific IG post content** (a date, a quote,
+   an engagement number, "her post about X"): `haytham-hook-finder`
+   already gates on `vision_manifest.json` showing that exact image
+   `read: true` before writing it, so a hook present on the page has
+   already cleared that check. If you have independent reason to doubt it
+   (e.g. Haytham pasted a hook by hand in chat rather than through that
+   skill), verify the same way before using it, or fall back to opening B.
+   An email built on an unverified IG-post hook is exactly the failure
+   this check exists to catch — a real draft once opened on a specific
+   post's likes and comment-to-DM pricing that, per the session's own tool
+   log, was never actually read.
 
 3. **Read the reference files now, before drafting.** Read `references/voice.md`, `references/examples.md`, and `references/critical-failures.md` every time — the critical-failures file is mandatory corrections learned from repeated user corrections, not situational reading. Read `references/mechanics.md` if this is a follow-up, a turn-two reply, or a warm thread (the sequencing rules live there). Read `references/drafting-craft.md` if the finding is abstract and you need to make it concrete and falsifiable. These are short and they are what stop the draft from coming out generic.
 

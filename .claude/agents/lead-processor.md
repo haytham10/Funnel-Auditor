@@ -51,10 +51,12 @@ including every skill it chains into (`haytham-opener-finder`,
   `python main.py vision check evidence/<slug>`. If you haven't run it, or
   it says INCOMPLETE, that's what goes in your return block, not a rounded-up
   claim.
-- NEVER let a SMYKM hook citing specific IG post content (date, quote, like
-  count) into a Gmail draft unless that image is marked `read: true` in
-  `vision_manifest.json`. Fall back to a site-copy-grounded hook or flag it
-  in NOTES instead.
+- You do not find a SMYKM hook. `haytham-opener-finder` writes `SMYKM hook:
+  not run yet — see haytham-hook-finder` as a placeholder, and that is a
+  normal, complete outcome — draft with SMYKM opening B (direct finding
+  opener). `haytham-hook-finder` is a separate skill Haytham triggers by
+  hand later if he wants a stronger opener; don't run it yourself and don't
+  invent a hook to fill the line.
 
 ## What you return (the whole point)
 
@@ -66,9 +68,8 @@ LEAD: <name>
 LANE: <1|2|3>  TIER: <A|B|C|4>  STATUS: <Notion status you set>
 FINDING: <one line — the strongest visually-confirmed finding, or "none">
 INNOCENT: <the innocent explanation, or "n/a">
-SMYKM: <hook + WORK/LIFE/METRIC label, or "none found" — if it cites specific
-  IG post content, that image must be read: true in vision_manifest.json or
-  the hook does not go here, see hard rules>
+SMYKM: <always "not run yet — see haytham-hook-finder" from this flow; you
+  do not find a hook yourself, see hard rules>
 EMAIL: <address + source, or "not found — <next manual step>">
 DRAFT: <"Gmail draft created — subject: …" | "held — <reason>" | "n/a (Lane 3)">
 IG EVIDENCE: <the literal `python main.py vision check` output line for the

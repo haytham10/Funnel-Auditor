@@ -9,13 +9,20 @@ Manual IG sourcing (Haytham logs the row in Notion + attaches his IG
 screenshots to the page body) → `/batch-audit` (scheduled Routine or "work
 the queue"; one lead-processor agent per lead, ~3 in parallel, cap 15) →
 per lead: machine walk → **mandatory vision pass over the screenshots** →
-floors → opener-finder → Notion write → email address → automatic Gmail
-DRAFT → Haytham reviews in Gmail and sends by hand → `/pipeline-tick`
-(replies, due follow-ups auto-drafted, send queue) daily.
+floors → opener-finder (lane + finding + innocent explanation, stops there
+— no hook) → Notion write → email address → automatic Gmail DRAFT (SMYKM
+opening B, no hook, by default) → Haytham reviews in Gmail and sends by
+hand → `/pipeline-tick` (replies, due follow-ups auto-drafted, send queue)
+daily.
 
 Haytham's only manual jobs: sourcing (with IG screenshots attached),
-reviewing and sending drafts from Gmail, and confirming sends for logging.
-Single pasted leads still go through `/process-lead` directly.
+reviewing and sending drafts from Gmail, confirming sends for logging, and
+optionally triggering `haytham-hook-finder` on an Audit Ready lead when he
+wants a stronger opener than the finding alone (split from opener-finder
+Jul 11, 2026 — a hook built from a web search read generic; a real hook
+needs real IG evidence, so it's now a separate, manually-triggered skill,
+not part of the automatic chain). Single pasted leads still go through
+`/process-lead` directly.
 
 ## Hard rules (non-negotiable)
 
@@ -62,8 +69,15 @@ Single pasted leads still go through `/process-lead` directly.
   due follow-ups auto-draft to Gmail, never stacking on an unsent draft to
   the same address.
 - `.claude/skills/haytham-opener-finder` — the walk: Gate 1, 5 stops, filters,
-  lanes, Notion page body format.
-- `.claude/skills/haytham-email-draft` — voice, mechanics, gate, logging rules.
+  lanes, Notion page body format. Crawls via Firecrawl when run standalone
+  (not chained from process-lead's Python walk). Stops at the finding +
+  innocent explanation — does not find the SMYKM hook.
+- `.claude/skills/haytham-hook-finder` — separate, manually-triggered skill:
+  pulls real IG evidence for an Audit Ready lead and writes just the SMYKM
+  hook line to Notion. Never part of the automatic chain.
+- `.claude/skills/haytham-email-draft` — voice, mechanics, gate, logging
+  rules. Drafts with SMYKM opening B (no hook) by default; opening A only
+  once haytham-hook-finder has written a real hook.
 - `.claude/skills/haytham-funnel-auditor` — deep audit (Loom/call prep).
 
 Notion Lead Pipeline:
