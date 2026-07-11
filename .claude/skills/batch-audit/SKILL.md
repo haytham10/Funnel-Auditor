@@ -91,7 +91,10 @@ Then one brief, in this order:
    status / Gmail draft? / IG evidence seen? / flags rejected.
 2. **Drafted**: per lead with a Gmail draft — the drafted subject + body in
    full, plus labeled runner-up variants, each with its innocent explanation
-   + SMYKM hook noted. He edits or swaps in Gmail and sends by hand.
+   noted. SMYKM hook will read "not run yet" for every lead in this batch —
+   that's expected, since `haytham-hook-finder` is a separate, manual step;
+   name it as available if Haytham wants a stronger opener on any of these
+   before sending. He edits or swaps in Gmail and sends by hand.
 3. **Held**: Lane 1/2 leads where the draft was held (suspect address,
    gate never passed) with the specific reason.
 4. **Parked**: Lane 3 leads with their one-line reasons.

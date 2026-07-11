@@ -1,11 +1,11 @@
 ---
 name: haytham-opener-finder
-description: Walk a parenting/faith-based coach funnel, classify the lane, identify the strongest verified finding, and write the structured output directly to the lead's Notion page. Use this skill WHENEVER Haytham pastes a Notion lead page URL, a site link, screenshots, or notes from a funnel walk, or asks to audit/walk/qualify a coach lead, or says "walk this" or "what's the finding" or "what lane is this." This skill crawls the lead's Site URL and any linked pages plus runs a web search on the lead BEFORE looking at whatever Haytham pasted, then reconciles the two. It owns the full Gate 0 → Gate 1 → 5-stop walk → two filters → three lanes pipeline and writes the result to Notion in the exact page body format. Do NOT fetch the four framework docs from Notion — everything is baked in here.
+description: Walk a parenting/faith-based coach funnel, classify the lane, identify the strongest verified finding, and write the structured output directly to the lead's Notion page. Use this skill WHENEVER Haytham pastes a Notion lead page URL, a site link, screenshots, or notes from a funnel walk, or asks to audit/walk/qualify a coach lead, or says "walk this" or "what's the finding" or "what lane is this." This skill crawls the lead's Site URL and any linked pages (via Firecrawl) plus runs a search on the lead BEFORE looking at whatever Haytham pasted, then reconciles the two. It owns the full Gate 0 → Gate 1 → 5-stop walk → two filters → three lanes pipeline and writes the result to Notion in the exact page body format. It stops at the finding + innocent explanation — it does NOT find the SMYKM hook; that's a separate, manually-triggered step (`haytham-hook-finder`) that works from real IG evidence instead of a web-search proxy. Do NOT fetch the four framework docs from Notion — everything is baked in here.
 ---
 
 # Haytham Opener Finder
 
-Walk a coach funnel, classify the lane, surface the strongest finding, and write the result to the lead's Notion page. The output feeds directly into the email skill — a clean lane verdict and opening angle is everything the email skill needs as its input.
+Walk a coach funnel, classify the lane, surface the strongest finding, and write the result to the lead's Notion page. The output feeds directly into the email skill — a clean lane verdict, opening angle, and innocent explanation is everything the email skill needs to draft a Lane 1 opener (SMYKM opening B). A hook is a separate, optional upgrade — see "What this skill does NOT do."
 
 The whole point of this skill is speed and depth in one pass, run in the right order: machine first, human second. A live crawl and a search build the raw skeleton of the funnel — what's technically there. Haytham's own observations (screenshots, notes, what a page actually felt like to click through) are placed on top of that skeleton, and they win where the two disagree, because they catch what a crawl cannot see: friction, tone, dead ends behind logins, manual-vs-automated delivery. Never treat the crawl as the finished picture. It's the first draft the human read corrects.
 
@@ -16,8 +16,8 @@ The whole point of this skill is speed and depth in one pass, run in the right o
 Do this before opening any screenshots or notes in the prompt.
 
 1. **Get the Site URL and Profile URL.** If a Notion lead page URL or ID was given, fetch it first — Site URL and Profile URL live in its properties. If Haytham's prompt itself contains links (a sales page, a freebie link, a checkout), those count too.
-2. **Crawl.** `web_fetch` the Site URL and any other linked pages. Walk what's reachable stop by stop (see `references/walk.md`) and note, for each stop, what a crawl can actually see: bio link destination, freebie opt-in presence, sales page price/copy, checkout flow if unauthenticated, footer/social links for audience ownership.
-3. **Search.** Run one `web_search` on the lead's name plus niche or handle. This is for two things specifically: the Activity floor (see the floor, below — is she still active in the last ~3 weeks?) and any SMYKM hook material (recent posts, a launch, a framework she's named, a personal update).
+2. **Crawl.** Use **Firecrawl** (`firecrawl_scrape` for the Site URL and any other linked pages; `firecrawl_crawl`/`firecrawl_map` if a page needs its linked sub-pages discovered first) instead of the generic web-fetch tool — it handles bot walls and JS-rendered pages that a plain fetch chokes on. Walk what's reachable stop by stop (see `references/walk.md`) and note, for each stop, what a crawl can actually see: bio link destination, freebie opt-in presence, sales page price/copy, checkout flow if unauthenticated, footer/social links for audience ownership.
+3. **Search.** Run one `firecrawl_search` on the lead's name plus niche or handle. This is for the Activity floor only (see the floor, below — is she still active in the last ~3 weeks?). It is **not** the place to look for a SMYKM hook anymore — a hook built from site/press copy a search surfaces reads generic. Real hook material lives in real IG evidence, which is `haytham-hook-finder`'s job, run separately after this walk lands the lead as Audit Ready.
 4. **Mark gaps.** Some stops a crawl cannot reach at all: comment-for-freebie flows, DM-gated content, login-walled checkouts, anything requiring a real payment attempt. Flag these explicitly as "not visible from crawl" rather than guessing or leaving them blank. This is exactly what Step B exists to fill.
 
 Build a first-pass stop-by-stop skeleton from what steps 1-3 surfaced, with tier calls where confident and open flags where not. Do this whole step silently — don't narrate the crawl process to Haytham, just carry the result into Step B.
@@ -135,28 +135,7 @@ Lane 1 only: state the single strongest finding as the opening angle. One senten
 
 **The innocent explanation is a required second line (added Jul 2, 2026).** Alongside the finding, always output the plausible non-blame explanation for it: the calendar might just need a reset, the date might be stuck, the next round might not be set yet, the section might still be loading. The email skill turns this pair into the either/or closing question, and the pipeline evidence says that question is doing heavy lifting: all five cold openers that earned warm replies (Pam, Natavia, Louise, Helen, Amanda) closed with an either/or handing her a face-saving explanation, and the one opener that closed with a challenge and no exit (Darlynn) drew "Rude." This matches reactance research on feedback: delivery that questions competence triggers defensiveness, delivery that leaves the recipient autonomy keeps her receptive. If no innocent explanation exists for a finding, flag that to the user; it may mean the finding will read as an accusation no matter how it's phrased.
 
-**Hook type label (data collection, added Jul 2, 2026).** When an SMYKM hook exists, label it: WORK (her framework, content, testimonial, point of view), LIFE (birthday, personal post), or METRIC (numbers she owns). All five warm-reply hooks so far were WORK-anchored; the METRIC hook went hostile and the LIFE hook is silent at touch 4. Sample is too small to make this a rule, so the label exists to let the answer accumulate — after ~30-40 more labeled sends the pattern will be checkable.
-
-Also surface the SMYKM hook if one exists: something from their content, their story, their framework name — something only they would recognize. The Step A search is the primary source for this now — look there first for a recent post, a named framework, a launch, a personal update — rather than waiting for it to show up in the user's notes. Not required, but worth real effort before giving up on finding one.
-
-**Hard rule: a hook that cites specific IG post content must be read, not
-inferred.** If the hook depends on a specific post's date, quote, topic, or
-engagement numbers (e.g. "her June 30 post about X, 130 likes"), check
-`vision_manifest.json` — that exact image must show `read: true`
-(`python main.py vision check` will list it as unread if it isn't). If it
-isn't confirmed read:
-- Do not surface that hook. Substitute a hook grounded in something already
-  confirmed read (site copy, an About-page bio line, a framework name that
-  appears in her own site text), or
-- If no substitute exists, say so plainly to Haytham: "possible hook on an
-  unread image (ig/N.png) — read it or confirm the post's content before
-  using it," and leave the SMYKM line blank rather than guessing.
-
-A hook built on an unread image must never reach the email skill. This is
-not a style preference — it's what stopped a real Gmail draft from opening
-on a specific IG post ("As a licensed therapist, here are 5 things...",
-130 likes, comment-to-DM pricing) that, per the session's own tool-call
-log, was never actually viewed.
+**No SMYKM hook here (split Jul 11, 2026).** This step used to also surface a hook built from whatever the Step A search turned up — site copy, press mentions. That produced weak, generic hooks and made the downstream email drafts read generic too, because a real hook needs real IG evidence (a specific post, a framework she's named, a personal update), not a search proxy for it. This skill now stops at the finding + innocent explanation. Write "SMYKM hook: not run yet — see haytham-hook-finder" as the placeholder line in Step 6 below. Finding the actual hook is `haytham-hook-finder`'s job — a separate skill Haytham triggers manually on an Audit Ready lead when he wants a stronger opener than the finding alone. The email skill can draft perfectly well without one (SMYKM opening B, direct finding opener); the hook is an upgrade, not a blocker.
 
 Lane 2: note the warm-up angle or ask-the-number entry point. What specific piece of their content is the genuine entry?
 
@@ -184,7 +163,7 @@ search-and-replace write forced a recovery fetch.)
 
 The page body structure is strict — use it exactly. Don't improvise the format or the output won't be parseable later.
 
-After writing, confirm to the user: lane verdict, the single strongest finding in one line, the innocent explanation, and the SMYKM hook with its type label if found. That's all they need to hand to the email skill.
+After writing, confirm to the user: lane verdict, the single strongest finding in one line, and the innocent explanation. That's enough for the email skill to draft a Lane 1 opener today. Mention that the SMYKM hook line was written as "not run yet" and that `haytham-hook-finder` is available if he wants a stronger opener.
 
 ---
 
@@ -193,5 +172,6 @@ After writing, confirm to the user: lane verdict, the single strongest finding i
 - It does not stop at crawling. Site URL, linked pages, and one lead-name search happen automatically before the walk (Step A), but the human layer — Haytham's screenshots and notes, and in automated runs the mandatory vision pass over the crawler's screenshots — is what confirms, corrects, or fills in what the crawl can't reach: logins, DM flows, comment-gated freebies, real checkout attempts. A crawl-only walk with no eyes on the screenshots is a draft, never a finished walk.
 - It does not go exploring beyond what's linked. It fetches the Site URL, Profile URL, and any pages Haytham's prompt points to — it doesn't crawl arbitrary internal pages, attempt logins, or try to pay through a paid gate. Those stops rely on user observation.
 - It does not invent findings. If neither the crawl nor the user's observations support a finding at a given stop, say so and move on.
-- It does not draft the email. That's the email skill's job. This skill ends at the opening angle.
+- **It does not find the SMYKM hook.** That used to be folded into Step 5, built from whatever the Step A search surfaced — site copy, press mentions — and it made the hooks (and the email drafts built on them) read generic. A real hook needs real IG evidence, not a search proxy. That's now `haytham-hook-finder`, a separate skill Haytham triggers by hand on an Audit Ready lead. This skill writes a placeholder line and stops.
+- It does not draft the email. That's the email skill's job. This skill ends at the opening angle + innocent explanation.
 - It does not run Gate 0 (sourcing). The lead is already in the pipeline.

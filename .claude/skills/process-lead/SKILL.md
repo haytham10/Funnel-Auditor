@@ -201,10 +201,16 @@ Now invoke the **haytham-opener-finder** skill logic with:
   disagree, and Haytham's own typed notes outrank everything).
 
 Follow that skill exactly: Gate 1, 5-stop walk, sting test + vitamin filter,
-lane classification, opening angle + innocent explanation + SMYKM hook with
-WORK/LIFE/METRIC label. Only visually-confirmed findings enter the filters.
-Write the page body and properties to Notion in the exact schema.md format,
-including the "IG evidence" and rejected-flags lines.
+lane classification, opening angle + innocent explanation. Only
+visually-confirmed findings enter the filters. Write the page body and
+properties to Notion in the exact schema.md format, including the "IG
+evidence" and rejected-flags lines. The `SMYKM hook:` line gets written as
+the placeholder `not run yet — see haytham-hook-finder` — opener-finder no
+longer finds a hook itself (split Jul 11, 2026). This is not a gap: Step 6
+below drafts a perfectly good email without one. `haytham-hook-finder` is a
+separate, manual step Haytham can run afterward on this same lead if he
+wants a stronger opener — it reuses the IG evidence already downloaded in
+Step 0, no re-fetching needed.
 
 ## Step 5 — Email address
 
@@ -224,7 +230,10 @@ stays Researching and that flag goes in Notes as the FIRST line.
 
 Lane 1 or Lane 2 with a usable, non-suspect email address → invoke the
 **haytham-email-draft** skill for the Touch 1 opener. Full silent loop,
-voice rules, gate — as that skill specifies.
+voice rules, gate — as that skill specifies. This runs whether or not
+`haytham-hook-finder` has touched the lead yet — a "not run yet" hook line
+means SMYKM opening B (direct finding opener), which is the normal draft
+shape, not a fallback.
 
 Then, without waiting for approval:
 - Pick the variant that came through the gate strongest and **create the
@@ -259,16 +268,14 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
   actually happened on Lynsey Ward (reported "4 screenshots read," 1 image
   had a Read call), and it is the one failure mode this file exists to
   close.
-- **SMYKM hooks that cite specific IG post content (a quote, a date, an
-  engagement number, a post described as being about a specific topic) are
-  only usable if the image they came from shows `read: true` in
-  `vision_manifest.json`.** If it doesn't, do not surface that hook to the
-  email skill — either substitute a hook grounded in something confirmed
-  read (site copy, an About page bio line), or tell Haytham directly:
-  "possible hook on an unread image (ig/N.png) — need to read it or have
-  you confirm the post's content before it goes in a draft." A hook built
-  on an unread image must never reach a Gmail draft.
+- This flow does not find a SMYKM hook — that's `haytham-hook-finder`,
+  triggered manually by Haytham afterward if he wants one. If he runs it,
+  that skill enforces its own rule: a hook citing specific IG post content
+  (a quote, a date, an engagement number) is only usable if the image it
+  came from shows `read: true` in `vision_manifest.json`. This flow never
+  needs to construct or verify a hook itself.
 - One lead's full run ends with: lane verdict, strongest finding, innocent
-  explanation, SMYKM hook + label, email address status, IG-evidence status
-  (**the literal `VISION PASS: ...` line**, not a paraphrase), rejected-flags
-  count, and the Gmail-draft status. That's the complete hand-off.
+  explanation, SMYKM hook status ("not run yet" is the normal default),
+  email address status, IG-evidence status (**the literal
+  `VISION PASS: ...` line**, not a paraphrase), rejected-flags count, and
+  the Gmail-draft status. That's the complete hand-off.

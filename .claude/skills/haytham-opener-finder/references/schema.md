@@ -63,13 +63,15 @@ Three lines max.
 - Lane verdict + one-phrase reason.
 - The opening angle (Lane 1) or warm-up/ask-the-number entry (Lane 2). Omit entirely if Lane 3.
 - Innocent explanation (Lane 1, required): the plausible non-blame reason for the finding, one phrase. Feeds the either/or closing question in the email.
-- SMYKM hook on its own line if found, labeled with type: WORK / LIFE / METRIC.
+- SMYKM hook on its own line, labeled with type: WORK / LIFE / METRIC. `haytham-opener-finder` no longer finds this itself (split Jul 11, 2026) — it writes `SMYKM hook: not run yet — see haytham-hook-finder` here. `haytham-hook-finder` is the only skill that overwrites this one line, from real IG evidence, when Haytham runs it. Every other line in this section belongs to opener-finder; hook-finder must never touch them.
 
 ## Email Thread Log
 (Leave this section blank on a fresh walk — the email skill and the user fill it in after sends.)
 ```
 
 ---
+
+Both real examples below predate the Jul 11, 2026 opener-finder/hook-finder split and show a hook filled in at walk time — under the current schema, opener-finder writes `SMYKM hook: not run yet — see haytham-hook-finder` instead, and a hook line like Ghadir's below only appears after `haytham-hook-finder` runs.
 
 ## Real example (Ghadir Salah Aldine — Lane 1)
 
