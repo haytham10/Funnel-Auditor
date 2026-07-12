@@ -13,7 +13,10 @@ The whole point of this skill is speed and depth in one pass, run in the right o
 
 ## Step A — Gather live signal first (always, before reading anything Haytham pasted)
 
-Do this before opening any screenshots or notes in the prompt.
+Do this before opening any screenshots or notes in the prompt. (See
+`.claude/skills/firecrawl` for the full MCP tool reference — which
+Firecrawl tool to use when, and what this repo does and doesn't use it
+for.)
 
 1. **Get the Site URL and Profile URL.** If a Notion lead page URL or ID was given, fetch it first — Site URL and Profile URL live in its properties. If Haytham's prompt itself contains links (a sales page, a freebie link, a checkout), those count too.
 2. **Crawl.** Use **Firecrawl** (`firecrawl_scrape` for the Site URL and any other linked pages; `firecrawl_crawl`/`firecrawl_map` if a page needs its linked sub-pages discovered first) instead of the generic web-fetch tool — it handles bot walls and JS-rendered pages that a plain fetch chokes on. Walk what's reachable stop by stop (see `references/walk.md`) and note, for each stop, what a crawl can actually see: bio link destination, freebie opt-in presence, sales page price/copy, checkout flow if unauthenticated, footer/social links for audience ownership.
