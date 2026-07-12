@@ -83,6 +83,9 @@ confirming sends for logging. Single pasted leads still go through
   lanes, Notion page body format. Crawls via Firecrawl when run standalone
   (not chained from process-lead's Python walk). Stops at the finding +
   innocent explanation — does not find the SMYKM hook.
+- `.claude/skills/firecrawl` — MCP tool reference (scrape/crawl/map/search)
+  for opener-finder's standalone Step A. Already connected in-session; no
+  install or API key needed here.
 - `.claude/skills/haytham-hook-finder` — separate, manually-triggered skill:
   pulls real IG evidence for an Audit Ready lead and writes just the SMYKM
   hook line to Notion. Never part of the automatic chain.
