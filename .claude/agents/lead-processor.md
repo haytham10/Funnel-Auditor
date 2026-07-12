@@ -17,18 +17,23 @@ including every skill it chains into (`haytham-opener-finder`,
    the intake, and any images attached to the page body are Haytham's IG
    screenshots (download them per the process-lead skill; they are your
    human-layer evidence).
-2. Run the machine walk (`python main.py walk … --out evidence/<slug>`,
-   slug from `python main.py slug "<name>"`), then do the FULL vision pass:
-   read the screenshots with your own eyes before trusting any machine
-   flag, marking each one via `python main.py vision mark evidence/<slug>
-   <path>` as you go. A machine flag you could not visually confirm is not
-   a finding. **Do not proceed past this step until `python main.py vision
-   check evidence/<slug>` prints `VISION PASS: COMPLETE`** — this is a
-   parallel batch run, which means nobody is reading your transcript
-   turn-by-turn the way a single-lead chat session gets read; the check
-   command is the only thing standing between "I read the screenshots" and
-   it actually being true. If it's still INCOMPLETE for an unreadable
-   image, say so explicitly in NOTES below — don't round up.
+2. Run the machine walk (Firecrawl-primary per process-lead's Step 1: fetch
+   via `firecrawl_scrape`, discover next URLs via `python main.py
+   discover-links`/`discover-checkout`, then `python main.py ingest
+   evidence/<slug>/manifest.json --out evidence/<slug>`; slug from `python
+   main.py slug "<name>"`. Fall back to `python main.py walk … --out
+   evidence/<slug>` for a lead Firecrawl can't handle — say so in NOTES),
+   then do the FULL vision pass: read the screenshots with your own eyes
+   before trusting any machine flag, marking each one via `python main.py
+   vision mark evidence/<slug> <path>` as you go. A machine flag you could
+   not visually confirm is not a finding. **Do not proceed past this step
+   until `python main.py vision check evidence/<slug>` prints `VISION
+   PASS: COMPLETE`** — this is a parallel batch run, which means nobody is
+   reading your transcript turn-by-turn the way a single-lead chat session
+   gets read; the check command is the only thing standing between "I read
+   the screenshots" and it actually being true. If it's still INCOMPLETE
+   for an unreadable image, say so explicitly in NOTES below — don't round
+   up.
 3. Enforce the floors. A floor fail or Lane 3 is a fine outcome — park it
    properly and finish.
 4. Write the walk to the lead's Notion page in the exact schema. The row

@@ -8,10 +8,26 @@ Usage:
 
 `walk` produces the full evidence packet (evidence.json + packet.md + page
 text + screenshots) under ./evidence/<slug>/ — the machine half of the
-5-stop funnel walk, ready to hand to the opener-finder skill.
+5-stop funnel walk, ready to hand to the opener-finder skill. It drives a
+real Playwright/Chromium browser and is the fallback fetch path.
+
+The primary fetch path (Firecrawl, driven by the calling skill rather than
+this CLI) uses four narrower commands instead of `walk`, so the scope,
+priority, and analysis logic stay in one place regardless of which layer
+did the fetching:
+
+    python main.py discover-links <html-file> <url> [--platform NAME]
+    python main.py discover-checkout <html-file> <url>
+    python main.py screenshot-name <url> <suffix>
+    python main.py ingest <manifest.json> [--name] [--handle] [--followers] [--out DIR]
+
+See `.claude/skills/process-lead/SKILL.md` Step 1 for the orchestration
+that calls these, and the module docstrings in `audit/crawler.py` /
+`audit/evidence.py` for what each wraps.
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -22,7 +38,10 @@ from rich import box
 from rich.text import Text
 
 from config import EVIDENCE_DIR
-from audit.crawler import crawl, CrawlResult
+from audit.crawler import (
+    crawl, CrawlResult, CrawledPage,
+    detect_platform, extract_links, extract_checkout_links, _safe_filename,
+)
 from audit.urls import slugify
 from audit import vision_gate
 
@@ -150,6 +169,110 @@ def cmd_slug(args: argparse.Namespace) -> None:
     print(slugify(args.value))
 
 
+def cmd_discover_links(args: argparse.Namespace) -> None:
+    """Wraps extract_links() + detect_platform() for a page whose HTML was
+    fetched by something other than this process (Firecrawl, driven by a
+    skill). Prints JSON so the caller can decide what to fetch next —
+    scope/priority rules stay defined here, once, regardless of fetcher."""
+    html = Path(args.html_file).read_text()
+    url = _normalize_url(args.url)
+    platform = args.platform or detect_platform(url)
+    funnel_links, noise_links, external_refs = extract_links(html, url, platform)
+    print(json.dumps({
+        "platform": platform,
+        "funnel_links": funnel_links,
+        "noise_links": noise_links,
+        "external_refs": external_refs,
+    }, indent=2))
+
+
+def cmd_discover_checkout(args: argparse.Namespace) -> None:
+    """Wraps extract_checkout_links() — the Stop 4 checkout-hop discovery,
+    same scope rules as discover-links, for a page fetched elsewhere."""
+    html = Path(args.html_file).read_text()
+    url = _normalize_url(args.url)
+    print(json.dumps(extract_checkout_links(html, url), indent=2))
+
+
+def cmd_screenshot_name(args: argparse.Namespace) -> None:
+    """Prints the exact filename crawl() would have used for this URL +
+    suffix (desktop/mobile), so a screenshot fetched by something other
+    than Playwright lands under evidence/<slug>/screenshots/ with a name
+    the packet renderer and vision-gate path matching already expect."""
+    print(f"{_safe_filename(_normalize_url(args.url))}_{args.suffix}.png")
+
+
+def _page_from_manifest(entry: dict, manifest_dir: Path) -> CrawledPage:
+    html = ""
+    html_file = entry.get("html_file")
+    if html_file:
+        html = (manifest_dir / html_file).read_text()
+    return CrawledPage(
+        url=entry["url"],
+        title=entry.get("title", ""),
+        link_type=entry["link_type"],
+        load_time_ms=entry.get("load_time_ms", 0.0),
+        screenshot_desktop=entry.get("screenshot_desktop", ""),
+        screenshot_mobile=entry.get("screenshot_mobile", ""),
+        depth=entry.get("depth", 0),
+        source_url=entry.get("source_url", ""),
+        error=entry.get("error", ""),
+        http_status=entry.get("http_status", 0),
+        external=entry.get("external", False),
+        html=html,
+        cta_clicks=entry.get("cta_clicks", []),
+    )
+
+
+def cmd_ingest(args: argparse.Namespace) -> None:
+    """Reads a manifest JSON describing pages fetched by something other
+    than this process's own crawl() (Firecrawl, driven by a skill),
+    reconstructs a CrawlResult exactly as crawl() would have produced, and
+    runs it through the UNCHANGED build_evidence() — identical output
+    contract to `main.py walk`, regardless of which layer did the fetch."""
+    from audit.evidence import build_evidence
+
+    manifest_path = Path(args.manifest)
+    manifest_dir = manifest_path.parent
+    manifest = json.loads(manifest_path.read_text())
+
+    pages = [_page_from_manifest(p, manifest_dir) for p in manifest["pages"]]
+    result = CrawlResult(
+        seed_url=manifest["seed_url"],
+        platform=manifest.get("platform", "direct"),
+        pages=pages,
+        funnel_links=manifest.get("funnel_links", []),
+        noise_links=manifest.get("noise_links", []),
+        external_refs=manifest.get("external_refs", []),
+    )
+
+    slug = slugify(args.name or args.handle or result.seed_url)
+    out_dir = Path(args.out) if args.out else Path(EVIDENCE_DIR) / slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    console.print(f"\n[bold cyan]Ingesting pre-fetched pages:[/bold cyan] {result.seed_url}")
+    console.print(f"[dim]Evidence packet → {out_dir}[/dim]\n")
+
+    print_summary(result)
+
+    with console.status("[bold green]Building evidence packet…[/bold green]", spinner="dots"):
+        packet_dir = build_evidence(
+            result,
+            out_dir,
+            lead_name=args.name or "",
+            handle=args.handle or "",
+            followers=args.followers,
+        )
+
+    console.print(Panel.fit(
+        f"[bold green]Evidence packet ready[/bold green]\n"
+        f"[bold]{packet_dir / 'packet.md'}[/bold]\n"
+        f"{packet_dir / 'evidence.json'}",
+        border_style="green",
+    ))
+    console.print()
+
+
 def cmd_vision(args: argparse.Namespace) -> None:
     evidence_dir = Path(args.evidence_dir)
     if args.vision_command == "init":
@@ -190,6 +313,30 @@ def main() -> None:
     p_slug.add_argument("value")
     p_slug.set_defaults(func=cmd_slug)
 
+    p_disc_links = sub.add_parser("discover-links", help="classify a pre-fetched page's links (scope/priority, no fetching)")
+    p_disc_links.add_argument("html_file")
+    p_disc_links.add_argument("url")
+    p_disc_links.add_argument("--platform", help="skip auto-detection (bio-link platform name, or omit)")
+    p_disc_links.set_defaults(func=cmd_discover_links)
+
+    p_disc_checkout = sub.add_parser("discover-checkout", help="find checkout/buy links on a pre-fetched sales/course page")
+    p_disc_checkout.add_argument("html_file")
+    p_disc_checkout.add_argument("url")
+    p_disc_checkout.set_defaults(func=cmd_discover_checkout)
+
+    p_ss_name = sub.add_parser("screenshot-name", help="print the exact filename a screenshot should be saved as")
+    p_ss_name.add_argument("url")
+    p_ss_name.add_argument("suffix", choices=["desktop", "mobile"])
+    p_ss_name.set_defaults(func=cmd_screenshot_name)
+
+    p_ingest = sub.add_parser("ingest", help="build the evidence packet from a manifest of pre-fetched pages (Firecrawl path)")
+    p_ingest.add_argument("manifest", help="path to the manifest JSON (see main.py module docstring)")
+    p_ingest.add_argument("--name", help="lead's name (used for the evidence folder + packet header)")
+    p_ingest.add_argument("--handle", help="IG handle, e.g. @coachjane")
+    p_ingest.add_argument("--followers", type=int, help="IG follower count (audience floor input)")
+    p_ingest.add_argument("--out", help="output dir (default: ./evidence/<slug>/)")
+    p_ingest.set_defaults(func=cmd_ingest)
+
     p_vision = sub.add_parser("vision", help="vision-pass completeness gate (see audit/vision_gate.py)")
     vision_sub = p_vision.add_subparsers(dest="vision_command", required=True)
 
@@ -213,7 +360,11 @@ def main() -> None:
         parser.print_help()
         sys.exit(1)
     # Bare URL → walk
-    if argv[0] not in ("walk", "crawl", "slug", "vision", "-h", "--help"):
+    if argv[0] not in (
+        "walk", "crawl", "slug", "vision",
+        "discover-links", "discover-checkout", "screenshot-name", "ingest",
+        "-h", "--help",
+    ):
         argv = ["walk"] + argv
 
     args = parser.parse_args(argv)

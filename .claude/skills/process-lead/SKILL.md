@@ -1,6 +1,6 @@
 ---
 name: process-lead
-description: Take a sourced Instagram lead from raw intake (name + bio link + follower count) through the machine walk, vision pass, floors, and opener-finder walk, logging everything to Notion. Use this skill WHENEVER Haytham pastes a new lead — a handle, a link-in-bio URL, a follower count, optionally notes or screenshots — or says "process this lead," "run this one," "new lead," or pastes several candidates from a sourcing session. It runs the machine funnel walk (Python), does the mandatory vision pass over the screenshots, enforces the Gate 0 floors, logs to the Notion pipeline, and hands the evidence to the opener-finder. The Gmail DRAFT step is held until `haytham-hook-finder` has resolved the SMYKM hook line for this lead — it never drafts on a fresh "not run yet" hook. It never sends anything and never touches Instagram.
+description: Take a sourced Instagram lead from raw intake (name + bio link + follower count) through the machine walk, vision pass, floors, and opener-finder walk, logging everything to Notion. Use this skill WHENEVER Haytham pastes a new lead — a handle, a link-in-bio URL, a follower count, optionally notes or screenshots — or says "process this lead," "run this one," "new lead," or pastes several candidates from a sourcing session. It runs the machine funnel walk (Firecrawl-primary fetch, Python-owned scope/analysis, Playwright fallback), does the mandatory vision pass over the screenshots, enforces the Gate 0 floors, logs to the Notion pipeline, and hands the evidence to the opener-finder. The Gmail DRAFT step is held until `haytham-hook-finder` has resolved the SMYKM hook line for this lead — it never drafts on a fresh "not run yet" hook. It never sends anything and never touches Instagram.
 ---
 
 # Process Lead — intake → walk → vision pass → Notion → opener → (hook-finder) → Gmail draft
@@ -41,11 +41,13 @@ pastes a Notion URL), fetch the page first:
    page body may already hold an old walk (you will overwrite it fresh).
 2. **Compute the slug now, once, the same way the crawler will:**
    `python main.py slug "<Contact Name>"` (falls back to handle or URL if no
-   name yet). Use this exact slug for every evidence path below AND pass it
-   to Step 1's `walk` command via `--out evidence/<slug>`. This is not
-   optional — a hand-guessed slug is exactly what put a real lead's IG
-   screenshots in `evidence/momhoodmentor/ig/` while the crawler wrote its
-   packet to `evidence/lynsey-ward/`, two different folders the vision gate
+   name yet). Use this exact slug for every evidence path below — the
+   Firecrawl fetch loop's screenshots/manifest, `discover-links`'s HTML
+   files, `ingest --out evidence/<slug>`, and (if you fall back) `walk
+   --out evidence/<slug>`. This is not optional — a hand-guessed slug is
+   exactly what put a real lead's IG screenshots in
+   `evidence/momhoodmentor/ig/` while the crawler wrote its packet to
+   `evidence/lynsey-ward/`, two different folders the vision gate
    (Step 1.5) can't reconcile, silently dropping the IG images out of the
    completeness check entirely.
 3. Collect every image in the page body — these are the sourcing
@@ -73,21 +75,92 @@ No images attached and none pasted → proceed site-only, but carry the flag
 final verdict so Haytham knows this call is weaker. Skip `vision init`/`mark`
 for the ig/ portion in this case; the site portion in Step 1.5 still applies.
 
-## Step 1 — Machine walk
+## Step 1 — Machine walk (Firecrawl-primary)
 
 ```bash
 pip install -q -r requirements.txt   # first run only
+```
+
+Firecrawl (the MCP tools already connected this session) is the primary
+fetcher — cheaper, faster, and better at bot walls/JS-rendered pages than
+the local Playwright browser. Python still owns every decision about
+scope, priority, and analysis; you're only driving the fetch. See
+`.claude/skills/firecrawl` for the tool reference. Always use the exact
+slug from Step 0.2 for every path below — same reason as before: IG
+screenshots and the crawl's own screenshots must land in the same folder.
+
+**1. Fetch the bio-link URL.** `firecrawl_scrape` with `formats: ["html",
+"screenshot"]`, `screenshotOptions: {fullPage: true}` (default desktop
+viewport). Save the HTML to `evidence/<slug>/_firecrawl_raw/1.html`. Save
+the screenshot to `evidence/<slug>/screenshots/<name>` using the exact
+filename from `python main.py screenshot-name <url> desktop` — never
+hand-guess the filename, the packet renderer and vision-gate matching
+depend on it being exact.
+
+**2. Mobile screenshot, only for required stop types.** If this stop's
+link_type will be `bio_page`, `sales`, `course`, `checkout`, or `booking`
+(`REQUIRED_MOBILE_TYPES` — same scope as the mobile-screenshot rule
+below), run a second `firecrawl_scrape` with `mobile: true, formats:
+["screenshot"]`, save it via `python main.py screenshot-name <url>
+mobile`. Skip this call for stops outside that list. On booking/checkout
+stops, pass `waitFor: 4000` or so — approximates the old iframe-attach
+wait for Calendly-style embeds that load async.
+
+**3. Discover what to fetch next.** `python main.py discover-links
+evidence/<slug>/_firecrawl_raw/1.html <url>` — prints JSON
+(`funnel_links`, already scope-classified and priority-sorted;
+`noise_links`; `external_refs`; detected `platform`). This is the single
+source of truth for scope/priority — don't reimplement or second-guess it.
+
+**4. Loop.** Fetch each `funnel_links` entry the same way (steps 1-2),
+capped at `MAX_PAGES` (16). Then the checkout-hop pass: for every page
+fetched so far, `python main.py discover-checkout
+evidence/<slug>/_firecrawl_raw/<n>.html <page-url>`, fetch what it
+returns, capped at `MAX_CHECKOUT_HOPS` (6) total.
+
+**5. Approximate load time.** Time each `firecrawl_scrape` call yourself
+(wall clock around the tool call) and use that as `load_time_ms` in the
+manifest — it's Firecrawl's round-trip time, not raw browser nav timing,
+so `speed.py`'s fast/moderate/slow buckets may skew a little slow. Not
+worth optimizing further; it's a soft signal, not a gate.
+
+**6. Assemble the manifest and ingest.** Build
+`evidence/<slug>/manifest.json` — one entry per fetched page (`url,
+title, link_type, load_time_ms, screenshot_desktop, screenshot_mobile,
+depth, source_url, error, http_status, external, html_file, cta_clicks:
+[]`) plus the accumulated `seed_url, platform, funnel_links, noise_links,
+external_refs`. Then:
+
+```bash
+python main.py ingest evidence/<slug>/manifest.json --name "<Name>" --handle "<@handle>" --followers <N> --out evidence/<slug>
+```
+
+This produces `evidence/<slug>/packet.md`, `evidence.json`, per-page text
+files, and a refreshed `vision_manifest.json` — byte-identical contract to
+the old `python main.py walk`, regardless of which layer fetched the
+pages.
+
+**Known gap — CTA click-discovery.** The JS-button click-discovery and
+booking-widget-interaction logic (clicking buttons on Stan-style bio
+aggregators and sales/course/booking pages to find hidden destinations)
+needs a live, interactive browser session, which a stateless Firecrawl
+scrape can't replicate. `cta_clicks` is always `[]` for Firecrawl-fetched
+pages — `packet.md` will read "not run (Firecrawl-fetched)" rather than
+silently claim a clean result. This is expected, not a bug.
+
+**Fallback to Playwright.** If Firecrawl fails outright on a page after
+retry (persistent block even with `proxy: stealth`), or the platform is a
+bio-link aggregator with no anchor-discoverable products (exactly the
+condition the click-discovery logic exists for), fall back to the
+original path for this one lead instead of fighting it further:
+
+```bash
 python main.py walk <bio-link-url> --name "<Name>" --handle "<@handle>" --followers <N> --out evidence/<slug>
 ```
 
-Always pass `--out evidence/<slug>` using the exact slug from Step 0.2 — this
-is what guarantees the IG screenshots and the crawl's own screenshots end up
-in the same folder, which the vision gate below depends on.
-
-This produces `evidence/<slug>/packet.md`, `evidence.json`, per-page text
-files, desktop+mobile screenshots of every funnel stop, and (automatically,
-as the last step of the crawl) a refreshed `vision_manifest.json` that now
-also includes every site screenshot as a required, unread image.
+Say so plainly in NOTES when you fall back — this keeps click-discovery
+reachable for the leads that actually need it, rather than losing it
+silently.
 
 If the crawl errored on the bio page, that is itself a possible Tier A
 finding (verify: hard 404 vs bot wall vs permission wall — the screenshot

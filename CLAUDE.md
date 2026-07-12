@@ -8,7 +8,8 @@ parenting/faith-based coach leads, plus the Claude skills that orchestrate it.
 Manual IG sourcing (Haytham logs the row in Notion + attaches his IG
 screenshots to the page body) → `/batch-audit` (scheduled Routine or "work
 the queue"; one lead-processor agent per lead, ~3 in parallel, cap 15) →
-per lead: machine walk → **mandatory vision pass over the screenshots** →
+per lead: machine walk (Firecrawl-primary fetch, Playwright fallback) →
+**mandatory vision pass over the screenshots** →
 floors → opener-finder (lane + finding + innocent explanation, stops there
 — no hook) → Notion write → email address → **held** (no Gmail draft yet)
 → Haytham runs `haytham-hook-finder` on the lead (pulls real IG evidence,
@@ -62,13 +63,24 @@ confirming sends for logging. Single pasted leads still go through
 
 ## Key pieces
 
-- `main.py walk <url> --name --handle --followers` — crawl + evidence packet
-  under `evidence/<slug>/` (packet.md, evidence.json, page text, screenshots).
-- `audit/` — crawler (Playwright), checks, extraction, Gate 0 floors, packet
-  builder.
+- `main.py discover-links` / `discover-checkout` / `screenshot-name` /
+  `ingest` — the Firecrawl-primary fetch path (added Jul 12, 2026): Claude
+  fetches via Firecrawl MCP tools, these commands classify links (scope/
+  priority) and build the evidence packet from pre-fetched content. Python
+  owns all scope/analysis logic regardless of which layer fetched the page.
+- `main.py walk <url> --name --handle --followers` — the original
+  Playwright crawl + evidence packet under `evidence/<slug>/` (packet.md,
+  evidence.json, page text, screenshots). Kept as the documented fallback
+  for leads Firecrawl can't handle (persistent bot walls, or JS-button
+  click-discovery on bio-link aggregators / sales-course-booking pages —
+  a stateless scrape can't click things).
+- `audit/` — checks, extraction, Gate 0 floors, packet builder; all fetch-
+  layer-agnostic (works identically whether fed by Playwright or Firecrawl).
+  `crawler.py` still holds the Playwright fallback + the link/checkout
+  classification logic both fetch paths share.
 - `.claude/skills/process-lead` — the per-lead contract everything else
-  runs: walk → vision pass → floors → opener → **held** at the Gmail
-  draft until `haytham-hook-finder` resolves the hook.
+  runs: walk (Firecrawl-primary) → vision pass → floors → opener → **held**
+  at the Gmail draft until `haytham-hook-finder` resolves the hook.
 - `.claude/skills/batch-audit` — batch orchestrator: pulls Researching rows
   from Notion, spawns one `lead-processor` agent per lead (~3 parallel,
   cap 15), verifies the writes landed, delivers one batch brief listing
@@ -81,11 +93,11 @@ confirming sends for logging. Single pasted leads still go through
   the same address.
 - `.claude/skills/haytham-opener-finder` — the walk: Gate 1, 5 stops, filters,
   lanes, Notion page body format. Crawls via Firecrawl when run standalone
-  (not chained from process-lead's Python walk). Stops at the finding +
-  innocent explanation — does not find the SMYKM hook.
+  (not chained from process-lead's walk). Stops at the finding + innocent
+  explanation — does not find the SMYKM hook.
 - `.claude/skills/firecrawl` — MCP tool reference (scrape/crawl/map/search)
-  for opener-finder's standalone Step A. Already connected in-session; no
-  install or API key needed here.
+  for process-lead's Step 1 (primary) and opener-finder's standalone Step A.
+  Already connected in-session; no install or API key needed here.
 - `.claude/skills/haytham-hook-finder` — separate, manually-triggered skill:
   pulls real IG evidence for an Audit Ready lead and writes just the SMYKM
   hook line to Notion. Never part of the automatic chain.
@@ -100,8 +112,13 @@ Notion Lead Pipeline:
 
 ## Environment notes
 
-- Managed cloud sessions: Chromium lives at `/opt/pw-browsers/chromium` (the
-  crawler auto-detects it; override with `FUNNEL_AUDITOR_CHROMIUM`). The MITM
-  egress proxy resets Chromium's post-quantum TLS handshake — the crawler
-  writes a Chromium enterprise policy to disable PQ/ECH automatically.
-- Local (WSL): `pip install -r requirements.txt && playwright install chromium`.
+- Firecrawl MCP server is the primary fetcher — already connected in
+  managed sessions, no setup needed.
+- Chromium/Playwright is only needed for the `main.py walk` fallback path.
+  Managed cloud sessions: Chromium lives at `/opt/pw-browsers/chromium`
+  (the crawler auto-detects it; override with `FUNNEL_AUDITOR_CHROMIUM`).
+  The MITM egress proxy resets Chromium's post-quantum TLS handshake — the
+  crawler writes a Chromium enterprise policy to disable PQ/ECH
+  automatically.
+- Local (WSL): `pip install -r requirements.txt && playwright install chromium`
+  (only needed if you expect to exercise the Playwright fallback).
