@@ -1,16 +1,23 @@
 ---
 name: source-leads
-description: Fill the UAE Lead CRM's top of funnel, web-natively. Two modes matching the two-day sprint — sourcing (volume collection of raw candidates into the CRM as Sourced, no judgment) and qualifying (mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape only — it never touches Instagram, never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
+description: Fill and keep filling the UAE Lead CRM's top of funnel, web-natively. Three modes — sourcing (Day-1 bootstrap: volume collection of raw candidates into the CRM as Sourced, no judgment), qualifying (Day-2 bootstrap: mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified), and top-up (the everyday tap: a small, lightweight, repeatable sourcing run you can fire any day for the life of the track). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape only — it never touches Instagram, never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
 ---
 
-# Source Leads — the two-day sprint, as a skill
+# Source Leads — the sourcing engine, as a skill
+
+Three modes, two jobs. The **sprint** (Modes 1 + 2) is a one-time
+bootstrap that fills an empty CRM: Day 1 sources ONLY, Day 2 qualifies
+ONLY. The **top-up** (Mode 3) is the everyday tap that keeps the pipeline
+alive after the bootstrap — a small, repeatable sourcing run you fire on
+demand for the life of the track.
 
 The two-day sprint (docs/uae-track/03): **Day 1 sources ONLY, Day 2
 qualifies ONLY.** Separating them is the point — mixing sourcing and
-qualifying is what makes both slow. This skill runs either mode; run the
-one Haytham asked for and do not drift into the other. If he asks for
-"the sprint" without a mode, ask which day this is — that's the one
-decision that changes everything downstream.
+qualifying is what makes both slow. Run the one mode Haytham asked for and
+do not drift into another. If he asks for "the sprint" without a day, ask
+which day this is — that's the one decision that changes everything
+downstream. If he asks to "top up," "source me N," or "find more" once the
+CRM already has leads in it, that's Mode 3, not a sprint.
 
 **CRM (all writes):** `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`
 (REST API database ID: `5a9fc583160046d1a64c4e65cc804229`).
@@ -120,6 +127,59 @@ per run, matching the 12-15 walks/day the send ceiling implies.
 
 ---
 
+## MODE 3 — TOP-UP (the everyday tap)
+
+The sprint is a one-time bootstrap. Top-up is what keeps the track alive
+after it: a small, lightweight sourcing run you fire any day — "source me
+20," "top up," "find more coaches," "grab some from LinkedIn." Mechanically
+it IS sourcing mode (Mode 1) — same channels, same `Sourced` logging, same
+"no judgment, no funnel walks" discipline — shrunk and made repeatable.
+Everything in Mode 1's "What gets logged" and "The run report" applies.
+Only the four things below differ.
+
+**1. Volume: small by default.** Default target ~15-20 raw names, or
+whatever N Haytham names. This is a top-up, not a sprint — do not mine
+60-70. The Walk Queue drains at ~12-15/day; a top-up exists to refill a
+day or two of that, not to overflow it.
+
+**2. Source the flow, not the stock.** This is the anti-exhaustion rule
+and the reason top-up stays useful for a year. The UAE / English / solo
+market has a FINITE stock of coaches — re-mine the same ICF directory
+every week and it dries up in a month. So top-up biases to what is NEW
+since last time: recently-added directory entries, podcast episodes from
+the last few weeks, "just launched / now enrolling / new cohort" LinkedIn
+posts, fresh platform footprints. Use recency in the searches (recent
+posts, recent episodes, current launches). The sprint mined the
+back-catalog once; top-up skims the new arrivals. A top-up run that just
+re-scrapes the same back-catalog and leans on dedup to discard it has
+drifted — you are burning fetches to find nothing new.
+
+**3. Rotate to the stalest channel (no new schema needed).** Unless
+Haytham names a channel, pick the one worked least recently, derived from
+data already in the CRM: for each Source Channel, the most recent row's
+Created time is when that channel was last worked. Start with the channel
+whose most-recent row is oldest (or a channel with zero rows). One SQL
+query up front gets this. Name the channel you chose and why in the
+report. If Haytham named a channel ("top up from podcasts"), work that one
+and skip the rotation logic.
+
+**4. Dedup against EVERY status, Disqualified included.** Same one-time
+dedup pull as Mode 1, but be explicit: skip a name/site already in the CRM
+in ANY status — Sourced, Qualifying, Disqualified, anything. A coach you
+already killed must not come back as a fresh Sourced row. (Future hook,
+not built yet: leads that failed Gate 0 only on activity or audience — not
+niche or geography — are recheck-later candidates, since a dormant coach
+may relaunch; a hard niche/geo Disqualified is dead for good.)
+
+**The top-up report:** how many logged, which channel(s) worked and why
+that channel was picked (staleness or named), how many candidates were
+seen-but-skipped as already-in-CRM duplicates (the dedup rate is the early
+warning that a channel is drying up — call it out if it's high), the new
+`Sourced` count, and the reminder that these need Day-2 qualifying (Mode 2)
+before they reach the Walk Queue.
+
+---
+
 ## Hard rules
 
 - **Never touch instagram.com.** Sourcing died there once; this whole
@@ -127,9 +187,10 @@ per run, matching the 12-15 walks/day the send ceiling implies.
 - **Never log in to, act as, or automate anything through Haytham's
   accounts on any platform.** Read-only public fetching via Firecrawl is
   the ceiling. LinkedIn especially: public pages only.
-- One mode per run. Sourcing runs do not qualify; qualifying runs do not
-  source. (Lateral discovery inside a sourcing run is sourcing, not
-  qualifying.)
+- One mode per run. Sourcing and top-up runs do not qualify; qualifying
+  runs do not source. (Lateral discovery inside a sourcing or top-up run
+  is still sourcing, not qualifying.) Top-up is sourcing-shaped: it logs
+  `Sourced` rows that Mode 2 qualifies later — it never walks or gates.
 - No funnel walks in either mode. The walk is batch-audit's job, on
   Qualifying rows, with the vision gate. A qualifying-mode fetch that
   turns into a 10-page crawl has drifted — stop it.
