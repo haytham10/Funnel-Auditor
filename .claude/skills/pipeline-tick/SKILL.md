@@ -3,7 +3,16 @@ name: pipeline-tick
 description: The daily outreach ops loop over the Notion Lead Pipeline and Gmail. Use WHENEVER Haytham says "tick," "morning brief," "what's due," "check the pipeline," "any replies," or when a scheduled Routine fires this skill. It detects replies in Gmail and syncs pipeline state, surfaces and drafts the follow-up touches that are due, flags dormant leads ready for a revival bump, and hands over today's send queue. It creates Gmail DRAFTS only — it never sends, and it never advances Touch #/status for an email that hasn't actually been sent.
 ---
 
-# Pipeline Tick — replies, due touches, send queue
+# Pipeline Tick — replies, due touches, send queue (PARENTING TRACK ONLY)
+
+**Scope (Jul 13, 2026): this skill covers the parenting track only, and
+that track is live-threads-only — no new leads get sourced into it.** The
+active pipeline is the UAE track, which has its own daily loop
+(`uae-tick`) over its own CRM. If Haytham says "tick" without naming a
+track, the UAE tick is the default; run this one when he says "parenting
+tick," when a parenting-thread reply needs handling, or on its own
+schedule. Section 3's send queue below will naturally be empty or near
+empty — that's correct, not broken. Never write a UAE lead into this DB.
 
 Run the whole loop, then deliver one morning brief. Notion is the source of
 truth — never trust chat memory for pipeline state.
