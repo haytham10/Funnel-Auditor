@@ -108,6 +108,8 @@ Known patterns:
 - Calendar showing limited slots (could be intentional scarcity, not a broken calendar — ask)
 - Stan store with no freebie (may be intentional model — check for paid ladder before flagging)
 - Strong funnel with no email list but a working paid-call model (email list is a vitamin here)
+- **A single screenshot's broken-image icon is not proof of a broken site** (added Jul 13, 2026, after a false Lane 1 finding on Jen Lumanlan). Lazy-load image widgets (e.g. Ontraport's `opt-lazy-img`, and similar patterns on other builders) swap `data-src` into `src` on a JS/scroll trigger — if the screenshot is captured before that swap finishes, it catches a transient placeholder, not a real defect. Before calling a broken image a finding: fetch the image URL directly (`curl -o /dev/null -w "%{http_code}"`) or re-capture the screenshot; if the URL loads fine, the finding is dead.
+- **A machine "dead link" claim needs a live re-check, not just a screenshot glance** (added Jul 13, 2026, after a false Lane 1 finding on Crystal Haitsma). `audit/checks/links.py` used to only retry a failed HEAD request with GET on 403/405/429/999, never on a bare 404 — but redirect/proxy endpoints (Kajabi's `resource_redirect/*` confirmed, likely others) commonly 404 a bare HEAD while resolving 200 on GET. Fixed in the checker (now retries GET on 404 too), but treat any "dead link" list as a candidate, not a fact, until you've independently confirmed at least one with a live GET (`curl -I` then `curl -L` on the same URL) — a screenshot alone can't confirm a link is dead, only that a page loaded.
 
 ---
 

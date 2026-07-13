@@ -58,8 +58,11 @@ def check_links(html: str, base_url: str) -> dict:
         checked.add(absolute)
 
         status = _status(absolute, "HEAD")
-        if status in (403, 405, 429, 999):
-            # Many hosts reject HEAD or gate bots — retry once as GET
+        if status in (403, 404, 405, 429, 999):
+            # Many hosts reject HEAD outright or gate bots on it — redirect/
+            # proxy endpoints (e.g. Kajabi's resource_redirect/*) commonly
+            # 404 a bare HEAD while resolving fine on GET. Retry once as GET
+            # before trusting any of these statuses.
             status = _status(absolute, "GET")
 
         if status in _DEAD_STATUSES:
