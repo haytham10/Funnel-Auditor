@@ -28,7 +28,7 @@ Under 8 words. No end punctuation. No ALL CAPS. Sentence case. Human, not clever
 
 ## Niche lingo swap (never use operator vocabulary)
 
-- "clients" / "leads" -> whoever she actually serves, in her words (parenting track: parents, moms, families; UAE track: read her site and use HER noun for them — founders, professionals, women in leadership, whatever she calls them)
+- "clients" / "leads" -> parents, moms, families
 - "funnel" -> never say it; describe it in their terms
 - "sequence" / "email sequence" -> never say it
 - "email capture" / "opt-in" / "conversion" / "optimize" -> never say it
@@ -48,7 +48,7 @@ Two-line paragraphs. She is reading distracted on her phone. Build conflict in: 
 ## SMYKM openings
 
 - **A — elaborate the human hook**, then bridge to the finding. Needs a transition line: "anyway, the reason I'm writing..." or "what actually made me reach out though..." Only available when `haytham-hook-finder` has already written a real hook to the lead's Notion page (see SKILL.md step 2) — it's an upgrade, not something to construct from memory or a guess.
-- **B — direct finding opener** (Lane 1, felt leak). No transition needed. Used once `haytham-hook-finder` has run and come up empty (`no hook found in IG evidence` on parenting-track rows, `no hook found in public evidence` on UAE rows) — a resolved state, not a shortcut. **Never draft in either opening while the Notion page's `SMYKM hook:` line still says "not run yet"** — that means the hook hasn't been looked for yet, not that one doesn't exist; see SKILL.md step 2 for the hard gate.
+- **B — direct finding opener** (Lane 1, felt leak). No transition needed. Used once `haytham-hook-finder` has run and come up empty (`no hook found in IG evidence`) — a resolved state, not a shortcut. **Never draft in either opening while the Notion page's `SMYKM hook:` line still says "not run yet"** — that means the hook hasn't been looked for yet, not that one doesn't exist; see SKILL.md step 2 for the hard gate.
 
 For Lane 2 (no felt leak), pre-handle the one objection in their head before they can say it. One sentence.
 
@@ -79,15 +79,13 @@ The soft-exit reflex is the biggest conversion killer. Send the offer.
 
 ## Money emails (the priced close)
 
-**UAE-track leads only: no money email exists until price discovery has run.** The discovery question goes out first (its own email type — see `references/uae-track.md`), the answer gets logged verbatim, and `python main.py crm-gate offer` must print PASS before a priced offer is drafted. This ordering is the entire point of the UAE track. Parenting-track warm threads are exempt (grandfathered mid-thread), but if a parenting thread is at the money moment and was never asked, asking first is still the better move.
-
 This replaces the old "ask for a call, then negotiate" pattern entirely. Louise and Helen both stalled on vague scheduling asks with no price attached before either lead had a number to react to — do not repeat that shape. (Both threads later recovered once a flat price finally landed; see the Louise and Helen receipts in examples.md.) When it's time to close (after a Loom, or when a warm thread has earned it), the next email states a flat price and a payment path in the same message. No "do you have time" asks. No Calendly link as the close move.
 
 **The offer (Grand Slam Offer v2, Jul 2 — read this before any money email):**
 
 *Track A — The 48-Hour Rescue* (micro coaches, current pipeline, sub-10K audience, price-sensitive):
 - One-liner: everything found gets fixed and live within 48 hours, she checks it herself, she only pays when it works.
-- Price: $200 flat (or local equivalent — roughly £150; UAE leads always get 735 AED, never the dollar figure, never both currencies in one breath — see references/uae-track.md). The number never moves. (An earlier doc said 550 AED; that was a conversion error and would have been a silent 25% discount. 735 is the number.)
+- Price: $200 flat (or local equivalent — roughly £150 / 550 AED). The number never moves.
 - Payment: default ask is half upfront to book the slot. If she hesitates on any upfront payment, fall back to full pay-after ("you check it, it works, then you pay") — this is a designed fallback, not the opener.
 - Guarantee, stated boldly and unprompted: if anything touched isn't working when she checks it, she pays nothing and keeps every fix.
 - Scarcity (true, because solo): one slot at a time.
@@ -115,7 +113,7 @@ Pam, Louise, and Helen all fixed the flagged issue themselves the same day and c
 
 When a warm lead objects to a deposit structure ("I wouldn't pay anyone in advance," "do job view pay"), this is a term objection, not a rejection of the project. Don't argue for the deposit or explain why it protects you. Accept the term and move the protection from money-first to speed-first instead: keep the scope exactly the same size, but reframe payment to land after delivery and verification ("you check it, it works, you pay"). The goal is closing the deal on her terms while keeping the work small enough that fast, unpaid delivery is low-risk for you.
 
-Real receipt, current price: Helen's Touch 5, sent unprompted before any objection even arrived — "If half upfront is what's holding this up, happy to flip it. I get it all live first, you check it works, then you pay. Want me to start on that basis?" Louise's Touch 7 used the identical move. Neither has a confirmed reply yet, but this is the current shape and current price (£150 / 735 AED, both Track A) to draft from, not the older $400 version. The one confirmed acceptance on record is older ("No worries, that works fine... you check it, it works, and you pay the $400. Want me to start today?" — accepted and moved forward at the pre-GSO v2 price): the substance of the move (accept the term, keep scope the same, flip payment to land after delivery) is timeless even though that specific number is out of date.
+Real receipt, current price: Helen's Touch 5, sent unprompted before any objection even arrived — "If half upfront is what's holding this up, happy to flip it. I get it all live first, you check it works, then you pay. Want me to start on that basis?" Louise's Touch 7 used the identical move. Neither has a confirmed reply yet, but this is the current shape and current price (£150 / 550 AED, both Track A) to draft from, not the older $400 version. The one confirmed acceptance on record is older ("No worries, that works fine... you check it, it works, and you pay the $400. Want me to start today?" — accepted and moved forward at the pre-GSO v2 price): the substance of the move (accept the term, keep scope the same, flip payment to land after delivery) is timeless even though that specific number is out of date.
 
 ## Trust-verification questions (warm, mid-negotiation)
 

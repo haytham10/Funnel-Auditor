@@ -313,7 +313,7 @@ A full audit was run, a 2.5-minute Loom was recorded covering four findings (a d
 >
 > Haytham
 
-**Still no reply. Touch 6 — the scheduling ask finally becomes a priced close.** (The 550 AED in this sent email was a conversion error later caught, quoted here verbatim because it went out that way. Track A is $200 = 735 AED — never draft from this number, only from the shape.)
+**Still no reply. Touch 6 — the scheduling ask finally becomes a priced close, current Track A pricing:**
 
 > Hey Louise
 >
@@ -344,7 +344,7 @@ Why it works:
 - **Touch 2's reveal is honest first, not salesy first.** "I'm not a parent looking for the masterclasses" clears confusion before anything else. The Loom offer comes after, framed as easier-to-show, not as a pitch.
 - **Holding the strongest finding back from the Loom and saving it for the call (or, when the call stalls, for a bump) is a deliberate sequencing choice.** It gives Touch 5 something real to say instead of a dead "just checking in," and keeps one card in reserve for the eventual call.
 - **The close ask never hardens into a specific time slot.** "Do you have time over the next week or so" stays broad per the close-timing rule, instead of asking for an exact day that's easy to decline.
-- **Touches 6-7 show the same fix in a second thread.** Five touches of goodwill finally resolve into a flat number (the sent email said 550 AED — a conversion error; Track A is 735 AED, see mechanics.md), then the very next touch offers the pay-after flip before she's asked for it, unprompted. Same move as Helen's Touch 4-5 above; see that "why it works" for the full reasoning, it applies here too.
+- **Touches 6-7 show the same fix in a second thread.** Five touches of goodwill finally resolve into a flat number (550 AED, current Track A price), then the very next touch offers the pay-after flip before she's asked for it, unprompted. Same move as Helen's Touch 4-5 above; see that "why it works" for the full reasoning, it applies here too.
 
 ---
 

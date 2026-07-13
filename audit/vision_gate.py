@@ -28,9 +28,8 @@ Manifest file: evidence/<slug>/vision_manifest.json
 
 Requirement rules (mirror process-lead Step 1.5 / opener-finder Step B,
 word for word — if those change, update REQUIRED_MOBILE_TYPES to match):
-- every file under ig/ and hook/           -> required (all of Haytham's
-  pasted evidence — legacy IG sourcing screenshots and UAE-track hook
-  evidence alike; there's no "skim the evidence" tier)
+- every file under ig/                     -> required (all of Haytham's
+  sourcing screenshots; there's no "skim the IG evidence" tier)
 - every crawled page's screenshot_desktop  -> required
 - a page's screenshot_mobile               -> required only when the page's
   link_type is the bio page or an offer/checkout/booking page — this is the
@@ -51,7 +50,7 @@ MANIFEST_NAME = "vision_manifest.json"
 @dataclass
 class ImageRecord:
     path: str          # relative to the evidence dir, e.g. "ig/1.png"
-    category: str       # ig_screenshot | hook_evidence | site_desktop | site_mobile
+    category: str       # ig_screenshot | site_desktop | site_mobile
     required: bool
     read: bool = False
     read_at: str | None = None
@@ -79,21 +78,14 @@ def _save(evidence_dir: Path, data: dict) -> None:
 
 
 def _scan_ig_images(evidence_dir: Path) -> list[ImageRecord]:
-    """Pasted-evidence folders: ig/ (legacy parenting-track sourcing
-    screenshots) and hook/ (UAE-track hook evidence Haytham pastes —
-    LinkedIn posts, podcast pages, About screenshots). Every file in
-    either folder is required — there's no "skim the evidence" tier."""
-    records: list[ImageRecord] = []
-    for folder, category in (("ig", "ig_screenshot"), ("hook", "hook_evidence")):
-        d = evidence_dir / folder
-        if not d.is_dir():
-            continue
-        records.extend(
-            ImageRecord(path=f"{folder}/{f.name}", category=category, required=True)
-            for f in sorted(d.iterdir())
-            if f.suffix.lower() in IMAGE_EXTS
-        )
-    return records
+    ig_dir = evidence_dir / "ig"
+    if not ig_dir.is_dir():
+        return []
+    return [
+        ImageRecord(path=f"ig/{f.name}", category="ig_screenshot", required=True)
+        for f in sorted(ig_dir.iterdir())
+        if f.suffix.lower() in IMAGE_EXTS
+    ]
 
 
 def _rel(evidence_dir: Path, path_str: str) -> str:

@@ -48,21 +48,10 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 - [ ] If she objected to a term (price, deposit, timing), does the draft accept the term and adjust the structure around it, rather than arguing to keep the original term?
 - [ ] If she asked logistics or trust questions, does the draft answer all of them directly before anything else?
 
-## Price discovery email specific (UAE track only — see references/uae-track.md)
-
-- [ ] Is the thread actually warm (she replied), and is this going out BEFORE any price of ours is on the table? If a price already went out and she stalled, this is NOT a discovery email — it's silence handling. Stop.
-- [ ] Exactly one question, answerable in one line, producing a number or an obstacle?
-- [ ] Zero mention of our price, our tracks, or our packages anywhere in the email?
-- [ ] If it's the flip shape ("what were you expecting it to cost?"), does it carry the explicit promise that the exact number comes next message?
-- [ ] Does it read like a person deciding what to quote, not a survey or a negotiation trick?
-- [ ] Is this the FIRST discovery question in the thread? One thread gets one. A dodge is data (Refused to name), not an invitation to re-ask.
-
 ## Money email specific (any priced close, Track A or Track B)
 
-- [ ] UAE lead: did `python main.py crm-gate offer` print PASS on a fresh row dump? No PASS, no money email — the verbatim answer and anchor must be logged first. (Parenting live threads are exempt.)
 - [ ] Does the draft state a flat price in the first close attempt — not a vague ask for time, not "do you have a minute to chat"?
-- [ ] Is the price the correct track number ($200 / £150 for Track A, $700 for Track B; UAE leads get 735 AED / 2,575 AED, AED only, never both currencies) and not a number invented or negotiated down before she's even objected?
-- [ ] UAE lead with a Below anchor logged: does the draft lead even harder with the risk reversal (her anchor says risk is the objection), while the number stays exactly the track price?
+- [ ] Is the price the correct track number ($200 / local equivalent for Track A, $700 for Track B) and not a number invented or negotiated down before she's even objected?
 - [ ] Is the guarantee stated boldly and unprompted, before any objection, not held back for if she pushes?
 - [ ] Is there exactly one CTA — the price plus one concrete next step (payment link, "want me to start today")? Not a price plus a scheduling ask, that's two CTAs.
 - [ ] Free-value cap: has this thread already had one finding plus at most one Loom? If more free diagnosis is about to be given before any price is on the table, stop — that is the gratitude-trap mistake, not a money email.
