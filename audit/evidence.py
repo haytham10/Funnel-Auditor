@@ -284,7 +284,7 @@ def _leak_candidates(pages: list[PageEvidence], seed_url: str) -> list[dict]:
         if blog_dates and re.search(r"/(blog|news|articles)(/|$)", p.page.url, re.I):
             newest = min(blog_dates, key=lambda d: d["days_past"])
             add("-", "C", f"Blog looks quiet — newest post ~{newest['days_past']} days old", p.page.url,
-                "Soft activity signal only. Cross-check against her social activity before reading anything into it.")
+                "Soft activity signal only. Cross-check against her IG activity before reading anything into it.")
             break
 
     if own_pages and not any_capture:
@@ -865,7 +865,7 @@ def _render_packet(ev: dict) -> str:
 
     # Blind spots
     L.append("\n## Not visible from this crawl (fill by hand / Claude search)")
-    L.append("- Social/list activity + engagement (activity floor) — verify via web search")
+    L.append("- IG activity + engagement (activity floor) — verify via web search")
     L.append("- Comment-for-freebie and DM-gated flows; manual vs automated delivery")
     L.append("- Anything behind a login or a real payment attempt")
     L.append("- Email delivery + follow-up sequence (ghost test: opt in, wait 48h)")

@@ -1,90 +1,129 @@
-# UAE CRM Schema + Page Body Format
+# Pipeline Schema + Page Body Format
 
-## Pipeline database (UAE Lead CRM)
+## Pipeline database
 
-- **Data source ID** (MCP `collection://`): `5efbdd9b-1e19-468c-96db-f94a525846e0`
-- **Database ID** (REST API `/v1/databases/`): `5a9fc583160046d1a64c4e65cc804229`
-- Full operating spec (views, lifecycle, SQL, gates): `docs/uae-track/01-crm-operating-spec.md`
-
-**NEVER write to the old parenting DB** (`c6209e29-55ef-4781-b735-73b2a254e34f`). It runs live threads only, no new leads.
+- **Data source ID** (MCP `collection://`): `c6209e29-55ef-4781-b735-73b2a254e34f`
+- **Database ID** (REST API `/v1/databases/`): `78b26ebe-5b4f-4ff2-884a-3ccf369d00e6`
 
 ## Properties reference
 
-Usually already set at sourcing/qualifying time: Contact Name, Site URL, Profile URL, Source Channel, City (maybe), Email (maybe).
+The user fills manually (already set when the skill runs): Contact Name, Email, Site URL, Profile URL.
 
-The walk fills / updates:
+The skill fills everything else from the walk observations and screenshots:
 
 | Property | Type | What to set |
 |---|---|---|
-| City | select | Dubai / Abu Dhabi / Sharjah / Other UAE / Unconfirmed. Gate 0 needs a confirmed UAE base — "Unconfirmed" means Gate 0 can't pass yet. |
-| Coach Type | multi_select | Business / Life / Fitness / Career / Mindset / Leadership / Health / Other |
-| Platform | select | Kajabi / Teachable / Thinkific / Podia / Skool / GHL / Systeme / WordPress / Squarespace / Wix / Other / Unknown. Infer from page design, URL, or checkout style. |
-| Audience Size | number | Largest owned or social channel. Floor is 1,500. Leave blank if not visible. |
-| Gate 0 | select | Pass / Fail. Set from the four floors (UAE-based, funnel exists, 30-day activity, 1,500 audience). |
-| Gate 1 | select | Pass / Fail. The solo-operator test. |
+| Business Name | text | Brand name if different from person name. Extract from bio, site header, or handle. |
+| Niche | multi_select | One or more of: Conscious Parenting, Gentle Parenting, Sleep, Screen Time, Faith-based, Special Needs, Postpartum, Educator, Mom Mental Health, Other |
+| Followers | number | IG follower count if visible in screenshots or notes. Leave blank if not visible. |
+| Platform | select | Kajabi, Skool, Shopify, Teachable, Thinkific, Podia, Squarespace, WordPress, GHL, Other, Unknown. Infer from page design, URL, or checkout style. |
+| Main Offer | text | One line. Primary paid product + price if known. |
+| Source | select | Lateral Discovery, Hashtag, Podcast, Google Search, Comments, Referral, Directory, Other. Set from context if known, otherwise leave blank. |
+| Tier | select | Tier 1: Start here (committed buyer + felt leak, real audience), Tier 2: Qualify first (committed but no leak or smaller signal), Tier 3: Long play (warm-up only, no near-term close), Tier 4: Skip (hobbyist/gatekeeper) |
+| Notes | text | One line. Strongest finding or one-line flag. Full detail goes in the body. |
 | Lane | select | "Lane 1: Felt leak" / "Lane 2: No leak" / "Lane 3: Skip" |
-| Finding Verified | checkbox | **Check ONLY for Lane 1 with a visually-confirmed finding.** This is the hard send gate. Lane 2/3 never carry it. |
-| Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Prefer "Dead/stale element" for time-bound breakage (stale cohort/webinar dates, empty calendars, dead links, expired events, placeholders) — most warm repliers in the old track lived there. |
-| Status | select | "Audit Ready" if Lane 1 + both gates Pass + Finding Verified. "Qualifying" (unchanged) if Lane 2 — warm-up hold. "Disqualified" if Lane 3 or any gate fail. |
-| Est. Value | select | "Track A ($200)" default / "Track B ($700)" when real launch or sales volume is visible / "Unknown". |
-| Notes | text | One line. Strongest finding, warm-up angle, or one-line flag. Full detail goes in the body. Email-source problems go FIRST. |
+| Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Other". Prefer "Dead/stale element" for time-bound breakage (stale dates, empty calendars, dead links, expired events, placeholders) — most warm repliers to date live in that category. |
+| Status | select | "Audit Ready" if Lane 1 or 2. "Disqualified" if Lane 3. |
+| Est. Value | select | $300-600, $1.2k-2.5k, $2k-3.5k/mo, Retainer, Unknown. Infer from offer type and scope. |
 
-Sequence, Touch #, Last Contacted, Next Action, Price Discovery Answer, Discovery Anchor, Lost Reason — leave alone. Those belong to the email skill, uae-tick, and Haytham during outreach.
-
-`SMYKM Hook` (the property): leave for `haytham-hook-finder`. The walk only writes the placeholder line in the page body.
+Sequence, Touch #, Last Contacted, Next Action, Lost Reason — leave blank. Those are set by the email skill and the user during outreach.
 
 ## Page body structure (exact format, always in this order)
 
-Every lead page body follows this structure. Write it fresh — don't append to existing content unless a walk is already there and you're adding to the email thread log.
+Every lead page body follows this structure. Write it fresh — don't append to existing content unless a walk is already there and you're adding the email thread log.
+
+---
 
 ```
 ## Overview
-One short paragraph. Name, business, coach type, city, platform, main offer,
-audience. Human context that doesn't fit in a field.
+One short paragraph. Name, business, niche, platform, main offer. Human context that doesn't fit in a field.
 
 ## Funnel Walk
 One line per stop where something was found or ruled out. Skip clean, unremarkable stops.
-Format: Stop X (name) — [what's there] — [what it means]
+Format: Stop X — [what's there] — [what it means]
 
 ## Evidence
-Three lines, always present (the vision gate's own output, never a paraphrase):
-- Site vision pass: [paste the literal `python main.py vision check evidence/<slug>`
-  output, e.g. "VISION PASS: COMPLETE — 6 of 6 required images confirmed read"].
-  If the line says INCOMPLETE, write INCOMPLETE, plus which paths, plus the
+Three lines, always present (updated Jul 2026 after a session reported "4
+screenshots read" when only 1 had a Read call against it — this section now
+requires the vision gate's own output, not a paraphrase of it):
+- IG evidence: [paste the literal `python main.py vision check evidence/<slug>`
+  output covering the ig/ images, e.g. "VISION PASS: COMPLETE — 4 of 4
+  required images confirmed read"] OR "none attached — site-only walk". If
+  the line says INCOMPLETE, write INCOMPLETE, plus which paths, plus the
   reason if known — do not round up to "read."
-- Pasted evidence: [what Haytham pasted/attached, one line] OR "none — crawl-only walk".
+- Site vision pass: [paste the literal `vision check` output covering the
+  site screenshots] OR the same INCOMPLETE-with-detail treatment.
 - Machine flags rejected in the vision pass: [N — one-word reason each] OR "none rejected".
 
-## Gates
-Gate 0: Pass/Fail — one line per floor that mattered (UAE base, funnel, activity, audience).
-Gate 1: Pass/Fail — solo-operator signals or gatekeeper flags, one to two lines.
+## Gate 1
+Solo-operator signals or gatekeeper flags. One to two lines.
 
-## Lane + Finding
+## Lane + Opening Angle
 Three lines max.
 - Lane verdict + one-phrase reason.
-- The one verified finding (Lane 1) or warm-up angle (Lane 2). Omit entirely if Lane 3.
-- Innocent explanation (Lane 1, required): the plausible non-blame reason for the
-  finding, one phrase. Feeds the either/or closing question in the email.
-
-## SMYKM Hook
-SMYKM hook: not run yet — see haytham-hook-finder
-(`haytham-hook-finder` is the only skill that overwrites this line, from real
-public evidence — LinkedIn, podcast, YouTube, About page — with the source cited.
-Every other line in this body belongs to opener-finder; hook-finder must never
-touch them.)
+- The opening angle (Lane 1) or warm-up/ask-the-number entry (Lane 2). Omit entirely if Lane 3.
+- Innocent explanation (Lane 1, required): the plausible non-blame reason for the finding, one phrase. Feeds the either/or closing question in the email.
+- SMYKM hook on its own line, labeled with type: WORK / LIFE / METRIC. `haytham-opener-finder` no longer finds this itself (split Jul 11, 2026) — it writes `SMYKM hook: not run yet — see haytham-hook-finder` here. `haytham-hook-finder` is the only skill that overwrites this one line, from real IG evidence, when Haytham runs it. Every other line in this section belongs to opener-finder; hook-finder must never touch them.
 
 ## Email Thread Log
-(Leave blank on a fresh walk — the email skill and Haytham fill it after sends.)
-
-## Price Discovery
-(Leave blank on a fresh walk — filled when the discovery question goes out.
-Question sent: [date] / Their answer (VERBATIM): "..." / Anchor: [option].)
+(Leave this section blank on a fresh walk — the email skill and the user fill it in after sends.)
 ```
+
+---
+
+Both real examples below predate the Jul 11, 2026 opener-finder/hook-finder split and show a hook filled in at walk time — under the current schema, opener-finder writes `SMYKM hook: not run yet — see haytham-hook-finder` instead, and a hook line like Ghadir's below only appears after `haytham-hook-finder` runs.
+
+## Real example (Ghadir Salah Aldine — Lane 1)
+
+```
+## Overview
+Ghadir Salah Aldine (@coach_ghadirsalahaldine). Parent Coach ICF-ACC, Family & Educational Consultant, NLP Practitioner, Behavior Modification specialist. 54.8K followers, 1,282 posts. Arabic-speaking audience. Helped 500+ families. Runs her own inbox — replies manually.
+
+## Funnel Walk
+Stop 1 (Bio): one Linktree link.
+Stop 2 (Linktree): single link "Online Consultation Form" plus social icons. No freebie, no resources, nothing else.
+Stop 3 (Jotform): full intake form. Fields: full name (prefix/first/middle/last), birth date, gender, full home address, mobile, email, occupation, appointment booking with calendar, main problem, contributing factors, free-text question, signature, CAPTCHA. No price anywhere. No paid offer visible anywhere in the funnel.
+
+## Gate 1
+ICF-ACC certified, NLP practitioner, 1,282 posts, 500+ families in bio. Solo operator — own face, own kids, replies manually. No team signals.
+
+## Lane + Opening Angle
+Lane 1 — felt friction leak. 54.8K parents trust her enough to click. The one path to reach her is a form that asks for home address and a signature before they've spoken to her. Most close the tab. She never hears from them.
+SMYKM hook: birthday post (Jun 14) — Hello 35, a new chapter is beginning — two cakes photo. Used the new chapter framing as the natural transition into the finding.
+
+## Email Thread Log
+(empty — filled after sends)
+```
+
+---
+
+## Real example (Catherine Divaris — Lane 2)
+
+```
+## Overview
+Catherine Divaris (@catherinedivaris), "The Maternal Arc | Mom Potential." 10.7K, mid-size, runs her own inbox. Niche: nervous-system / mental-load for moms, neuroscience-backed. 15+ years mental health and OT background. IVF twin mom. Strong consistent content engine.
+
+## Funnel Walk
+Stan store (stan.store/mompotential) well built: multiple free lead magnets (Nervous System Checklist, Mental Load Reset, Loving Kindness script, Holiday Calm guide) + workshop waitlist with email capture + paid offers ($11 Holiday Calm Playbook, 1:1 Capacity Call). Organized free to paid ladder.
+1:1 booking page (Capacity Call): only 2 available slots showing in June (24 and 25). Reads as almost fully booked from the outside. Unconfirmed whether intentional or stale calendar.
+
+## Gate 1
+Runs own inbox. Replies personally to comments. ✅
+
+## Lane + Opening Angle
+Lane 2 — no felt structural leak. Strong funnel, strong buyer profile. Opened on the booking scarcity observation as a specific, checkable question.
+Opening angle: her 1:1 booking page only shows 2 slots left in June — from the outside it looks almost fully booked. Not asserting a leak, asking whether it's intentional or stale.
+
+## Email Thread Log
+(empty — filled after sends)
+```
+
+---
 
 ## Writing rules for the page body
 
 - Stop-by-stop format: "Stop X (Name): [what's there] — [what it means]." Skip stops that were clean and unremarkable.
 - Lane verdict in one phrase. Opening angle in one to two sentences max.
+- SMYKM hook on its own line if found. Label it clearly.
 - No editorializing, no hedging, no "it might be worth considering." State what's there and what it means.
-- The Email Thread Log and Price Discovery sections are always left blank by this skill.
-- The Evidence section requires the vision gate's literal output line. A body that says "screenshots read" without that line is a false statement.
+- The Email Thread Log section is always left blank by this skill. The user fills it in after sends.
