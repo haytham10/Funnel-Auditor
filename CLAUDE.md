@@ -57,10 +57,17 @@ recording the turn-two artifact, and confirming sends for logging.
 
 ## Hard rules (non-negotiable)
 
-- **Never automate anything against Instagram** — the rule outlives the
-  banned account. And never log in to, act as, or automate anything
-  through Haytham's own accounts on ANY platform (LinkedIn included).
-  Read-only public fetching via Firecrawl is the ceiling.
+- **Never log in to, act as, or automate anything through Haytham's own
+  accounts on ANY platform** (Instagram and LinkedIn included) — acting as
+  him through his own Instagram is exactly what got the parenting account
+  permanently banned, and the rule outlives that account. This is an
+  identity / account-safety rule, NOT a blanket platform ban: read-only
+  public data pulled through a no-login third-party tool — Firecrawl, or an
+  Apify-style actor that takes a username or URL with no account required —
+  is allowed for enrichment and SMYKM hook-finding, Instagram the same as
+  LinkedIn, YouTube, and podcasts. (Sourcing is a separate question:
+  Instagram is not a cold-sourcing channel for the UAE track, which stays
+  web-native by design — see `docs/uae-track/03-targeting-and-sourcing.md`.)
 - **Never send an email.** The system ends at Gmail drafts. Sending is
   human.
 - **Never invent findings.** No verified finding → no opener. Lane 2/3

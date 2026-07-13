@@ -1,6 +1,6 @@
 ---
 name: batch-audit
-description: Work a whole batch of UAE leads in one run, pulled from the UAE Lead CRM's Walk Queue instead of pasted into chat, in parallel with one lead-processor agent per lead. Use WHENEVER Haytham says "batch audit," "work the queue," "work the walk queue," "run the walks," or names several leads already logged in the CRM — and when a scheduled Routine fires it. It queries the UAE Lead CRM for Qualifying rows ready for a walk, runs the process-lead flow on each (machine walk → vision pass → Gate 0 floors → opener-finder → Notion write → email address), and finishes with one batch brief. Gmail drafts are held: no lead gets a draft in this run — that only happens after Haytham runs `haytham-hook-finder` on a lead and asks for the draft. It never sends, never touches Instagram, and never automates anything through Haytham's own platform accounts.
+description: Work a whole batch of UAE leads in one run, pulled from the UAE Lead CRM's Walk Queue instead of pasted into chat, in parallel with one lead-processor agent per lead. Use WHENEVER Haytham says "batch audit," "work the queue," "work the walk queue," "run the walks," or names several leads already logged in the CRM — and when a scheduled Routine fires it. It queries the UAE Lead CRM for Qualifying rows ready for a walk, runs the process-lead flow on each (machine walk → vision pass → Gate 0 floors → opener-finder → Notion write → email address), and finishes with one batch brief. Gmail drafts are held: no lead gets a draft in this run — that only happens after Haytham runs `haytham-hook-finder` on a lead and asks for the draft. It never sends, and never logs in to or automates anything through Haytham's own platform accounts.
 ---
 
 # Batch Audit — walk queue → worked pipeline, in parallel
@@ -127,9 +127,11 @@ actually left.
 ## Hard rules
 
 - Never send an email. Gmail drafts only.
-- Never fetch or automate anything on instagram.com, and never log in to
-  or act as Haytham on any platform. Read-only public fetching via
-  Firecrawl is the ceiling. Rows without a Site URL wait for him.
+- Never log in to or act as Haytham on any platform (Instagram and
+  LinkedIn included) — the account-safety rule the IG ban was about, not a
+  blanket ban on Instagram as data. Read-only public data through a
+  no-login third-party tool is fine on any platform. Rows without a Site
+  URL wait for him.
 - Never invent findings to make a batch look productive — a batch of six
   with two real openers beats six manufactured ones. Machine flags the
   vision pass rejected stay rejected, and `Finding Verified` never gets

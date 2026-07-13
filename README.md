@@ -87,7 +87,9 @@ comment-gated freebies, ghost test).
 
 ## Guardrails
 
-- No Instagram automation of any kind, ever.
+- No logging in to or acting through Haytham's own accounts, on Instagram
+  or any platform — that account-safety rule is what the IG ban was about.
+  (Read-only public data is a separate matter; see `CLAUDE.md` hard rules.)
 - No email is ever sent by the system — Gmail drafts only.
 - No invented findings — a clean funnel is Lane 2, not an opener.
 - Notion is the single source of truth; the Bible/Email OS rules for status

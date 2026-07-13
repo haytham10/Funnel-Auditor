@@ -1,6 +1,6 @@
 ---
 name: process-lead
-description: Take a sourced UAE coach lead (name + site URL, usually from the UAE Lead CRM's Walk Queue) through the machine walk, vision pass, Gate 0 floors, and opener-finder walk, logging everything to the UAE Lead CRM. Use this skill WHENEVER Haytham pastes a new lead — a name, a site URL, a LinkedIn profile, optionally notes or screenshots — or says "process this lead," "run this one," "walk this one," "new lead," or pastes several candidates. It runs the machine funnel walk (Firecrawl-primary fetch, Python-owned scope/analysis, Playwright fallback), does the mandatory vision pass over the screenshots, enforces the UAE Gate 0 floors, logs to the UAE CRM, and hands the evidence to the opener-finder. The Gmail DRAFT step is held until `haytham-hook-finder` has resolved the SMYKM hook line for this lead — it never drafts on a fresh "not run yet" hook. It never sends anything, never touches Instagram, and never automates anything through Haytham's own platform accounts.
+description: Take a sourced UAE coach lead (name + site URL, usually from the UAE Lead CRM's Walk Queue) through the machine walk, vision pass, Gate 0 floors, and opener-finder walk, logging everything to the UAE Lead CRM. Use this skill WHENEVER Haytham pastes a new lead — a name, a site URL, a LinkedIn profile, optionally notes or screenshots — or says "process this lead," "run this one," "walk this one," "new lead," or pastes several candidates. It runs the machine funnel walk (Firecrawl-primary fetch, Python-owned scope/analysis, Playwright fallback), does the mandatory vision pass over the screenshots, enforces the UAE Gate 0 floors, logs to the UAE CRM, and hands the evidence to the opener-finder. The Gmail DRAFT step is held until `haytham-hook-finder` has resolved the SMYKM hook line for this lead — it never drafts on a fresh "not run yet" hook. It never sends anything, and never logs in to or automates anything through Haytham's own platform accounts.
 ---
 
 # Process Lead — intake → walk → vision pass → Notion → opener → (hook-finder) → Gmail draft
@@ -29,7 +29,7 @@ parallelizes with one lead-processor agent per lead.)
 If only a LinkedIn profile URL is given with no site URL: fetch the public
 profile via Firecrawl (read-only; never log in, never act as Haytham) and
 run a web search for the person — if that surfaces their site, use it.
-Otherwise ask for the site link. Never touch instagram.com.
+Otherwise ask for the site link. Never log in anywhere or act as Haytham to do it.
 
 ## Step 0 — Pull the lead's Notion page + any pasted evidence
 
@@ -265,7 +265,8 @@ it is the hard send gate. The `SMYKM hook:` line gets written as the
 placeholder `not run yet — see haytham-hook-finder`. **This placeholder
 blocks Step 6 below.** `haytham-hook-finder` is a separate, manual step
 Haytham runs on this same lead to clear the block — its evidence sources
-are LinkedIn, podcasts, YouTube, and the About page now, not IG.
+are LinkedIn, podcasts, YouTube, the About page, and read-only no-login
+Instagram data (via a third-party actor, never logged in as Haytham).
 
 ## Step 5 — Email address
 
@@ -324,10 +325,13 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
 ## Hard rules
 
 - Never send an email. Gmail drafts only. Sending is Haytham's hand.
-- Never fetch, scrape, or automate anything on instagram.com — the rule
-  outlives the banned account. And never log in to, act as, or automate
-  anything through Haytham's own accounts on any platform (LinkedIn
-  included). Read-only public fetching via Firecrawl is the ceiling.
+- Never log in to, act as, or automate anything through Haytham's own
+  accounts on any platform (Instagram and LinkedIn included) — that
+  identity / account-safety rule is what the IG ban was about, and it
+  outlives the banned account. It is NOT a blanket ban on Instagram as
+  data: read-only public data through a no-login third-party tool is fine,
+  Instagram the same as the rest. (This skill walks funnels and does not
+  hook-find; IG enrichment lives in `haytham-hook-finder`.)
 - Never invent findings; a walk with nothing that survives the vision pass
   and both filters is Lane 2 or Lane 3, not a manufactured leak.
 - A machine flag that failed visual confirmation is dead. It does not get

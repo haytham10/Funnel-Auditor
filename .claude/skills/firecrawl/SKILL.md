@@ -72,8 +72,13 @@ install, no API key, no browser auth flow. Reach for these tools directly:
   interactive session that a stateless scrape can't replicate. Process-lead
   falls back to `python main.py walk` (Playwright) for leads that need it
   — see that skill's known-gap note.
-- **Never Instagram, and never logged-in anything.** Firecrawl must never
-  be pointed at instagram.com (the hard rule in `CLAUDE.md` outlives the
-  banned account), and it never authenticates as Haytham anywhere —
-  read-only public fetching is the ceiling on every platform, LinkedIn
-  included.
+- **Never logged-in anything, and Firecrawl is not the Instagram tool.**
+  Firecrawl never authenticates as Haytham anywhere — read-only public
+  fetching is the ceiling on every platform, LinkedIn included. On
+  Instagram the account-safety rule still holds (never log in or act as
+  Haytham — that's what got the IG account banned), but it is NOT a blanket
+  ban on Instagram as data: read-only public IG data is allowed, pulled
+  through a no-login third-party actor (an Apify-style actor), not through
+  Firecrawl (see `haytham-hook-finder`). So don't point Firecrawl at
+  instagram.com — use the no-login actor for that — and never log in
+  anywhere.

@@ -14,9 +14,13 @@ never from whatever was easiest to find. That's what made the old
 search-based hooks read generic: they were built from site marketing copy
 and press blurbs, not from what was actually hers.
 
-**The evidence base changed (Jul 13, 2026).** The IG account is permanently
-gone (banned Jun 22, 2026), and this track's leads live on different
-platforms anyway. Hook evidence for UAE leads comes from, in rough order of
+**The evidence base changed (Jul 13, 2026).** Haytham's own IG account is
+permanently gone (banned Jun 22, 2026), so there is no browsing Instagram
+as him — but that was an account-safety loss, not a ban on Instagram as a
+data source. Read-only public IG data pulled through a no-login third-party
+tool (an Apify-style actor that takes a username or URL, no account
+required) is fair game for hooks, exactly like LinkedIn, YouTube, and
+podcasts. Hook evidence for UAE leads comes from, in rough order of
 strength:
 
 1. **LinkedIn posts** — the UAE-specific unlock; UAE professionals actually
@@ -28,8 +32,14 @@ strength:
 3. **YouTube** — her own channel or guest appearances. Titles, descriptions,
    and what she says in them.
 4. **Her own About page** — her story in her words: the career she left,
-   the origin story, the framework name. Weakest of the four (it's still
-   site copy), but her About-page STORY is hers in a way a headline isn't.
+   the origin story, the framework name. Weakest of the site sources (it's
+   still site copy), but her About-page STORY is hers in a way a headline
+   isn't.
+5. **Instagram (read-only, no-login pull only)** — a specific recent post,
+   a caption, a Reel topic, a personal update she posted publicly. Pull it
+   through a no-login third-party actor (username or URL in, public data
+   out); never log in, never browse as Haytham, never use his account. Same
+   citation discipline as every source above.
 
 This is manual, not automatic — Haytham triggers it by name — but it is
 **required** before `haytham-email-draft` will draft anything for this
@@ -71,6 +81,13 @@ skill first; don't run a hook search on a lead with no lane verdict yet.
      name. Fetch the episode or speaker pages that come back.
    - `firecrawl_scrape` her About page and any YouTube channel/video pages
      the search surfaces.
+   - **Instagram, read-only and no-login only:** if she has a public IG
+     profile, pull her recent public posts through a no-login third-party
+     actor (an Apify-style actor that takes the username/URL, no account
+     required). This is enrichment data, the same as the sources above —
+     never log in, never use Haytham's account, never browse as him. If no
+     such no-login tool is wired up in this session, skip IG rather than
+     logging in anywhere; the other four sources stand on their own.
 4. **If LinkedIn is walled and the search comes up thin**, ask Haytham to
    paste screenshots of her recent LinkedIn posts (he can browse by hand —
    sourcing was always the manual half). Save each pasted/attached image to
@@ -182,8 +199,11 @@ Gmail itself; that's a separate ask.
 - It does not run automatically after opener-finder. Haytham triggers it by
   name, per lead.
 - It does not log in to, act as, or automate anything through Haytham's
-  accounts on any platform. Read-only public fetching via Firecrawl only.
-  And it still never fetches instagram.com — that rule outlives the ban.
+  accounts on any platform — that's the account-safety rule, and acting as
+  him through his own IG is what got that account banned. Read-only public
+  data is fine, Instagram included, as long as it comes through a no-login
+  third-party tool (an Apify-style actor, or Firecrawl for the web sources);
+  logging in as him anywhere is not.
 - It does not invent a hook. No cited, confirmed evidence supporting one →
   say so and resolve the line as "no hook found."
 - It does not build a hook from generic site marketing copy, a press blurb,

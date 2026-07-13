@@ -1,6 +1,6 @@
 ---
 name: source-leads
-description: Fill and keep filling the UAE Lead CRM's top of funnel, web-natively. Three modes — sourcing (Day-1 bootstrap: volume collection of raw candidates into the CRM as Sourced, no judgment), qualifying (Day-2 bootstrap: mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified), and top-up (the everyday tap: a small, lightweight, repeatable sourcing run you can fire any day for the life of the track). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape only — it never touches Instagram, never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
+description: Fill and keep filling the UAE Lead CRM's top of funnel, web-natively. Three modes — sourcing (Day-1 bootstrap: volume collection of raw candidates into the CRM as Sourced, no judgment), qualifying (Day-2 bootstrap: mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified), and top-up (the everyday tap: a small, lightweight, repeatable sourcing run you can fire any day for the life of the track). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape only — it never sources from Instagram (not a cold-sourcing channel for this track), never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
 ---
 
 # Source Leads — the sourcing engine, as a skill
@@ -182,8 +182,12 @@ before they reach the Walk Queue.
 
 ## Hard rules
 
-- **Never touch instagram.com.** Sourcing died there once; this whole
-  skill exists because of it.
+- **Never source from Instagram.** Sourcing died there once — browsing as
+  Haytham got the account banned — and this whole skill exists because of
+  it. This is a *sourcing* exclusion only; it does not touch the separate
+  enrichment rule, where read-only no-login IG data is a valid hook source
+  (see `haytham-hook-finder`). What is banned is logging in or acting as
+  Haytham, on IG or anywhere.
 - **Never log in to, act as, or automate anything through Haytham's
   accounts on any platform.** Read-only public fetching via Firecrawl is
   the ceiling. LinkedIn especially: public pages only.

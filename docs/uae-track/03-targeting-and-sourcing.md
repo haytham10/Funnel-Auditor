@@ -76,9 +76,9 @@ Polish correlates with no openable leak. This is a pattern, not a law. Messy-fun
 
 ## The IG problem, and the fix
 
-The parenting pipeline sourced through personal IG browsing. That channel is gone (account permanently banned Jun 22, 2026). Everything below is web-native.
+The parenting pipeline sourced through personal IG browsing — logging in and browsing as Haytham. That is gone (his account was permanently banned Jun 22, 2026), so **Instagram is not a cold-sourcing channel for this track. Sourcing is web-native, full stop** — everything below is the web-native channel set.
 
-This also changes hook-finding: **SMYKM evidence for UAE leads comes from LinkedIn posts, podcast appearances, YouTube, and their own site's About page.** Not IG screenshots.
+That is a *sourcing* exclusion, and it is separate from enrichment. Once a lead is sourced and being worked, **SMYKM hook evidence for UAE leads comes primarily from LinkedIn posts, podcast appearances, YouTube, and their own site's About page** — and read-only public Instagram data pulled through a no-login third-party tool (an Apify-style actor, no account required) is a fair enrichment source too, the same as the others. The banned account was an identity/account-safety loss; it never made Instagram off-limits as public read-only data. What stays banned is logging in or acting as Haytham on any platform. See `CLAUDE.md` hard rules and `haytham-hook-finder`.
 
 ## Channel 1 — Coach directories (highest density, start here)
 
@@ -97,7 +97,7 @@ This is the single best channel for Gate 0, because a platform footprint IS proo
 
 ## Channel 3 — LinkedIn (the UAE-specific unlock)
 
-UAE professionals live on LinkedIn far more than US coaches do. This is both a sourcing channel AND the primary SMYKM hook-evidence source now that IG is gone.
+UAE professionals live on LinkedIn far more than US coaches do. This is both a sourcing channel AND the primary SMYKM hook-evidence source now that browsing IG as Haytham is gone (read-only, no-login IG data is still a valid enrichment source — see the note above).
 
 Look for: coaches posting regularly, coaches announcing programs or cohorts, coaches with a profile link pointing to a real funnel.
 
