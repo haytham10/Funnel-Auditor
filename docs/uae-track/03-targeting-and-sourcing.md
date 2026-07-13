@@ -125,6 +125,27 @@ Once a good lead is found, the people they collaborate with, get interviewed by,
 
 The `source-leads` skill runs both modes (`.claude/skills/source-leads`).
 
+## After the bootstrap — top-up (keeping the tap on)
+
+The two-day sprint is a one-time bootstrap for an empty CRM. It is not the
+whole life of the feature. Once leads exist, sourcing continues as **top-up**:
+a small, on-demand run ("source me 20," "find more coaches") that adds ~15-20
+fresh `Sourced` rows any day, then gets qualified by the Day-2 mechanics like
+any other batch. Same channels, same gates, just smaller and repeatable.
+
+Two rules keep top-up from drying up in a small market:
+
+- **Source the flow, not the stock.** The UAE / English / solo pool is finite.
+  Do not re-mine the same back-catalog — bias to what is new since last time
+  (recent directory additions, recent podcast episodes, current launches and
+  cohort announcements). The sprint mines the stock once; top-up skims the flow.
+- **Rotate to the stalest channel.** Which channel was worked least recently is
+  derivable for free from the CRM — the most recent Created time per Source
+  Channel. Top-up defaults to the channel that has gone longest without a fresh
+  row. A rising dedup rate on a channel is the early warning it is drying up.
+
+Top-up is Mode 3 in the `source-leads` skill.
+
 ---
 
 ## After the sprint — the funnel walk

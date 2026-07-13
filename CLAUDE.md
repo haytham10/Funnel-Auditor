@@ -116,8 +116,11 @@ recording the turn-two artifact, and confirming sends for logging.
   builder; all fetch-layer-agnostic. `crawler.py` still holds the
   Playwright fallback + the link/checkout classification logic both fetch
   paths share.
-- `.claude/skills/source-leads` — the sourcing sprint: Day 1 volume
-  sourcing over 5 web channels, Day 2 mechanical qualifying.
+- `.claude/skills/source-leads` — the sourcing engine: the one-time Day 1
+  volume sourcing / Day 2 mechanical qualifying sprint (bootstrap), plus
+  top-up, the everyday on-demand tap that keeps the CRM filled for the
+  life of the track (small runs, recency-biased to source the flow not the
+  stock, rotating to the stalest channel).
 - `.claude/skills/process-lead` — the per-lead contract: walk → vision
   pass → floors → opener → **held** at the Gmail draft until
   `haytham-hook-finder` resolves the hook.
