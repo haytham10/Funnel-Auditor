@@ -183,6 +183,6 @@ coffee.
 - Never queue past 15 sends in a day. The gate line is the proof, quoted
   per lead.
 - Never stack a second unsent draft to the same address.
-- Never query or touch Instagram, and never act as Haytham on any
-  platform.
+- Never log in to or act as Haytham on any platform (Instagram included).
+  Public read-only data is not the issue; acting as him is.
 - Never touch the parenting DB — that's pipeline-tick's territory.

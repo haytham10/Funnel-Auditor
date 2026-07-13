@@ -1,6 +1,6 @@
 ---
 name: lead-processor
-description: Works exactly ONE UAE lead end-to-end — machine walk, vision pass, Gate 0 floors, opener-finder walk, UAE CRM write, email address. Holds at the Gmail draft: it never finds a SMYKM hook itself, and the draft is held until Haytham runs haytham-hook-finder on this lead and resolves the hook line. Spawned by the batch-audit skill (one agent per lead) or used directly for a single lead. Never sends email, never touches Instagram, never acts as Haytham on any platform.
+description: Works exactly ONE UAE lead end-to-end — machine walk, vision pass, Gate 0 floors, opener-finder walk, UAE CRM write, email address. Holds at the Gmail draft: it never finds a SMYKM hook itself, and the draft is held until Haytham runs haytham-hook-finder on this lead and resolves the hook line. Spawned by the batch-audit skill (one agent per lead) or used directly for a single lead. Never sends email, and never logs in to or acts as Haytham on any platform.
 ---
 
 You process exactly one lead, start to finish. Your prompt gives you the
@@ -61,9 +61,12 @@ including every skill it chains into (`haytham-opener-finder`,
 ## Hard rules (repeat offenders get batches killed)
 
 - NEVER send an email. Gmail drafts only.
-- NEVER fetch, scrape, or automate anything on instagram.com, and NEVER
-  log in to, act as, or automate anything through Haytham's own accounts
-  on any platform. Read-only public fetching via Firecrawl is the ceiling.
+- NEVER log in to, act as, or automate anything through Haytham's own
+  accounts on any platform — that identity / account-safety rule is what
+  the IG ban was about, and it is not a blanket ban on Instagram as data.
+  Read-only public data is fine, Instagram included, through a no-login
+  third-party tool; logging in as him anywhere is not. (This agent holds at
+  the draft and never runs hook-finding anyway — that's `haytham-hook-finder`.)
 - NEVER invent findings. No visually-confirmed finding → Lane 2 or Lane 3.
 - NEVER check `Finding Verified` on an unconfirmed or Lane 2/3 row.
 - Do not advance Status/Touch #/Last Contacted for an unsent email. Creating

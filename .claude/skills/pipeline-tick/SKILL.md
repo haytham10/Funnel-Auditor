@@ -91,4 +91,4 @@ this before coffee.
   logging) are the ONLY Notion writes this skill makes without approval —
   they record reality, they don't create outreach.
 - Never stack a second unsent draft to the same address.
-- Never query or touch Instagram.
+- Never log in to or act as Haytham on any platform (Instagram included).
