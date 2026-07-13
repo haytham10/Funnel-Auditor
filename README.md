@@ -77,7 +77,7 @@ comment-gated freebies, ghost test).
   opener-finder → email draft → Gmail draft on approval.
 - `batch-audit` — batch front-end: fetches fresh Researching rows from
   Notion after a sourcing session and runs the process-lead flow on each
-  (≤8 per run), delivering one batch brief + all drafts for approval.
+  (≤15 per run), delivering one batch brief + all drafts for approval.
 - `pipeline-tick` — daily ops: reply detection (Gmail → Notion sync), due
   follow-ups drafted, dormant revivals, send queue sorted sub-12K first,
   hygiene flags.
