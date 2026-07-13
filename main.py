@@ -293,6 +293,18 @@ def cmd_vision(args: argparse.Namespace) -> None:
         sys.exit(vision_gate.print_list(evidence_dir))
 
 
+def cmd_crm_gate(args) -> None:
+    from audit import crm_gate
+    if args.gate == "offer":
+        sys.exit(crm_gate.print_offer(args.row_json))
+    if args.sends_today is None:
+        print("CRM GATE (send): FAIL — --sends-today is required. Run the daily "
+              "send-count query against the CRM first; this gate validates what "
+              "it's handed, it can't count Notion itself.")
+        sys.exit(2)
+    sys.exit(crm_gate.print_send(args.row_json, args.sends_today))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="funnel-auditor")
     sub = parser.add_subparsers(dest="command")
@@ -340,7 +352,7 @@ def main() -> None:
     p_vision = sub.add_parser("vision", help="vision-pass completeness gate (see audit/vision_gate.py)")
     vision_sub = p_vision.add_subparsers(dest="vision_command", required=True)
 
-    v_init = vision_sub.add_parser("init", help="(re)build the manifest from evidence.json + ig/")
+    v_init = vision_sub.add_parser("init", help="(re)build the manifest from evidence.json + ig/ + hook/")
     v_init.add_argument("evidence_dir")
 
     v_mark = vision_sub.add_parser("mark", help="mark one or more image paths as read")
@@ -355,13 +367,24 @@ def main() -> None:
 
     p_vision.set_defaults(func=cmd_vision)
 
+    p_crm = sub.add_parser(
+        "crm-gate",
+        help="UAE CRM transition gates: offer (price discovery before any priced offer) "
+             "/ send (finding verified + daily cap) — see audit/crm_gate.py",
+    )
+    p_crm.add_argument("gate", choices=["offer", "send"])
+    p_crm.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
+    p_crm.add_argument("--sends-today", type=int,
+                       help="(send gate) cold sends already logged today, from the daily send-count query")
+    p_crm.set_defaults(func=cmd_crm_gate)
+
     argv = sys.argv[1:]
     if not argv:
         parser.print_help()
         sys.exit(1)
     # Bare URL → walk
     if argv[0] not in (
-        "walk", "crawl", "slug", "vision",
+        "walk", "crawl", "slug", "vision", "crm-gate",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",
     ):

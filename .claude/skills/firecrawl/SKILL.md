@@ -40,10 +40,13 @@ install, no API key, no browser auth flow. Reach for these tools directly:
   scope/priority rules (same-site vs. noise vs. external-platform), which
   `firecrawl_map`'s generic URL discovery doesn't know about.
 - `firecrawl_search` — search the web for the lead's name, niche, or
-  handle. In this repo it's used strictly for the **Activity floor** (last
-  visible activity within ~3 weeks) — never as a proxy for the SMYKM hook.
-  Hook material has to come from real IG evidence; that's
-  `haytham-hook-finder`'s job, not a search result.
+  city. In this repo it serves the **Activity floor** (activity in the
+  last 30 days), the UAE-residency check, `source-leads`'s channel
+  sweeps, and `haytham-hook-finder`'s evidence gathering (LinkedIn posts,
+  podcast appearances, YouTube — fetched and cited, per that skill's
+  rules). It is never a license to fabricate: a hook or finding built
+  from a search-result snippet that was never actually fetched and read
+  is invented, not evidenced.
 
 ## When this applies
 
@@ -69,6 +72,8 @@ install, no API key, no browser auth flow. Reach for these tools directly:
   interactive session that a stateless scrape can't replicate. Process-lead
   falls back to `python main.py walk` (Playwright) for leads that need it
   — see that skill's known-gap note.
-- **Never Instagram.** Firecrawl crawls the lead's Site URL and linked
-  pages only. It must never be pointed at instagram.com — IG evidence
-  stays screenshot-only, per the hard rule in `CLAUDE.md`.
+- **Never Instagram, and never logged-in anything.** Firecrawl must never
+  be pointed at instagram.com (the hard rule in `CLAUDE.md` outlives the
+  banned account), and it never authenticates as Haytham anywhere —
+  read-only public fetching is the ceiling on every platform, LinkedIn
+  included.

@@ -1,20 +1,22 @@
 """
 Gate 0 floor evaluation — the machine-checkable half.
 
-The floor (from the opener-finder skill, Jul 2 2026):
-- Audience floor:  ~1K followers or equivalent real audience signal
-- Activity floor:  last visible activity within ~3 weeks
-- Niche floor:     parenting or faith-based, genuinely
-- Plus the sourcing gate: is there an actual offer/funnel behind the bio link?
+UAE track (Jul 13, 2026 — see docs/uae-track/03-targeting-and-sourcing.md).
+All four Gate 0 checks must be true; any hard fail = Disqualified:
+- UAE-based:       physically in the UAE, not just serving the region
+- Funnel floor:    a live sales page, checkout, course, or paid digital offer
+- Activity floor:  posted, emailed, or launched something in the last 30 days
+- Audience floor:  1,500+ on their largest owned or social channel
 
-A crawler can settle the funnel-existence questions and take follower count
-as input. Activity and niche need a web search + judgment — those come back
-as NEEDS_REVIEW for the Claude layer, never guessed here.
+A crawler can settle the funnel-existence question and take audience size
+as input. UAE residency and activity need a web search + judgment — those
+come back as NEEDS_REVIEW for the Claude layer, never guessed here.
 """
 
 from dataclasses import dataclass, field
 
-AUDIENCE_FLOOR = 1000
+AUDIENCE_FLOOR = 1500
+ACTIVITY_WINDOW_DAYS = 30
 
 PASS, FAIL, NEEDS_REVIEW = "pass", "fail", "needs_review"
 
@@ -54,55 +56,58 @@ def evaluate_floors(
 ) -> FloorResult:
     result = FloorResult()
 
-    # --- Bio link alive (sourcing gate: dead first click) ---
+    # --- Entry link alive (sourcing gate: dead first click) ---
     if bio_link_alive:
-        result.verdicts.append(FloorVerdict("bio_link_alive", PASS, "Bio link loaded"))
+        result.verdicts.append(FloorVerdict("bio_link_alive", PASS, "Entry link loaded"))
     else:
-        # A dead bio link is not a disqualifier — it's a Tier A finding candidate.
+        # A dead entry link is not a disqualifier — it's a Tier A finding candidate.
         result.verdicts.append(FloorVerdict(
             "bio_link_alive", NEEDS_REVIEW,
-            f"Bio link failed to load ({bio_link_error[:120]}). Verify logged-out by hand: "
+            f"Entry link failed to load ({bio_link_error[:120]}). Verify logged-out by hand: "
             "hard 404 = Tier A opener candidate, permission wall = not openable.",
         ))
 
-    # --- Offer/funnel behind the link ---
+    # --- Funnel floor: a paid offer behind the link (Gate 0 hard requirement) ---
     if offer_evidence:
         result.verdicts.append(FloorVerdict(
-            "offer_present", PASS, "; ".join(offer_evidence[:3]),
+            "funnel_floor", PASS, "; ".join(offer_evidence[:3]),
         ))
     else:
         result.verdicts.append(FloorVerdict(
-            "offer_present", NEEDS_REVIEW,
-            "No paid offer or checkout visible from the crawl. Could be DM-gated or "
-            "login-walled — confirm by hand before dropping. If genuinely nothing: hobbyist floor, Lane 3.",
+            "funnel_floor", NEEDS_REVIEW,
+            "No paid offer or checkout visible from the crawl. Could be login-walled — "
+            "confirm by hand before dropping. If genuinely nothing: call-only coach, "
+            "nothing to fix, Gate 0 fail → Disqualified.",
         ))
 
     # --- Audience floor ---
     if followers is None:
         result.verdicts.append(FloorVerdict(
             "audience_floor", NEEDS_REVIEW,
-            f"Follower count not supplied. Floor is ~{AUDIENCE_FLOOR:,} or an equivalent "
-            "real audience signal (podcast, list, community).",
+            f"Audience size not supplied. UAE floor is {AUDIENCE_FLOOR:,} on their largest "
+            "owned or social channel (a 2K UAE-focused list is worth what 8K is in the US).",
         ))
     elif followers >= AUDIENCE_FLOOR:
         result.verdicts.append(FloorVerdict(
-            "audience_floor", PASS, f"{followers:,} followers",
+            "audience_floor", PASS, f"{followers:,} on largest channel",
         ))
     else:
         result.verdicts.append(FloorVerdict(
             "audience_floor", FAIL,
-            f"{followers:,} followers — under the ~{AUDIENCE_FLOOR:,} floor. Lane 3 unless "
-            "there's an equivalent audience signal (podcast, list, active community).",
+            f"{followers:,} — under the {AUDIENCE_FLOOR:,} UAE floor. Gate 0 fail unless "
+            "a larger owned channel (list, podcast, community) clears it.",
         ))
 
-    # --- Activity + niche: not machine-checkable ---
+    # --- Activity + UAE residency: not machine-checkable ---
     result.verdicts.append(FloorVerdict(
         "activity_floor", NEEDS_REVIEW,
-        "Verify via web search: last post/visible activity within ~3 weeks.",
+        f"Verify via web search: posted, emailed, or launched something in the last "
+        f"{ACTIVITY_WINDOW_DAYS} days. Dormant operators do not buy.",
     ))
     result.verdicts.append(FloorVerdict(
-        "niche_floor", NEEDS_REVIEW,
-        "Verify: genuinely parenting or faith-based. Adjacent wellness without case-study fit = park.",
+        "uae_based", NEEDS_REVIEW,
+        "Verify: physically based in Dubai, Abu Dhabi, Sharjah, or elsewhere in the UAE. "
+        "'Serves clients in the region' does not count.",
     ))
 
     # --- Context signal, not a gate ---
