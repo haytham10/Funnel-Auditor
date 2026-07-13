@@ -1,6 +1,6 @@
 ---
 name: haytham-email-draft
-description: Draft cold outreach emails, follow-ups, warm replies, money emails (priced close offers), price/deposit-objection replies, trust-verification replies, and past-client reactivation emails in Haytham's voice and framework for parenting/faith-based coach leads. Use this skill WHENEVER drafting any outreach email, follow-up touch, turn-two reply, warm-thread message, priced close, objection reply, or re-engagement email to a coach lead or past client, even if the user just pastes a funnel finding and says "write the email" or "draft this one" without naming the framework. Also use when the user asks to fix, tighten, or rewrite an existing draft of one of these emails. This skill carries the full framework (Voice, Email OS, SMYKM, Drafting Doc, Grand Slam Offer v2) and real sent examples, so there is no need to fetch them from Notion.
+description: Draft cold outreach emails, follow-ups, warm replies, price discovery replies (UAE track), money emails (priced close offers), price/deposit-objection replies, trust-verification replies, and past-client reactivation emails in Haytham's voice and framework, for both tracks — UAE coach leads (the active pipeline) and parenting/faith-based coach leads (live threads only). Use this skill WHENEVER drafting any outreach email, follow-up touch, turn-two reply, warm-thread message, price discovery question, priced close, objection reply, or re-engagement email to a coach lead or past client, even if the user just pastes a funnel finding and says "write the email" or "draft this one" without naming the framework. Also use when the user asks to fix, tighten, or rewrite an existing draft of one of these emails. This skill carries the full framework (Voice, Email OS, SMYKM, Drafting Doc, Grand Slam Offer v2, UAE pricing + price discovery) and real sent examples, so there is no need to fetch them from Notion.
 ---
 
 # Haytham Email Draft
@@ -13,7 +13,14 @@ The whole problem this skill solves: the draft has to be right on the first try,
 
 Do these in sequence. Do not skip ahead to writing.
 
-1. **Identify the email type first.** Before touching the input, name which of these this is: (a) cold Touch 1 opener, (b) cold follow-up (Touch 2-4), (c) warm bump/follow-up, (d) turn-two reply (they engaged, offering the Loom), (e) money email (a priced close), (f) objection reply (price, deposit, or trust/logistics question), or (g) past-client reactivation. This determines which sections of mechanics.md and gate.md apply. A money email and a cold opener are different products; don't draft one using the other's rules.
+1. **Identify the track, then the email type.** Which CRM does this lead live in?
+   - **UAE Lead CRM** (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`) — the active pipeline. Read `references/uae-track.md` before drafting anything for these leads: prices are quoted in AED (Track A 735, Track B 2,575, never a discount), the lifecycle differs, and one extra email type exists.
+   - **Parenting Lead Pipeline** (`c6209e29-55ef-4781-b735-73b2a254e34f`) — live threads only, no new cold leads. Existing rules apply unchanged.
+   Never log a lead into the other track's DB.
+
+   Then name which of these the email is: (a) cold Touch 1 opener, (b) cold follow-up (Touch 2-4), (c) warm bump/follow-up, (d) turn-two reply (they engaged, offering the Loom), (e) **price discovery reply (UAE track only — the question that goes out BEFORE any priced offer, never after a stall; see references/uae-track.md)**, (f) money email (a priced close), (g) objection reply (price, deposit, or trust/logistics question), or (h) past-client reactivation. This determines which sections of mechanics.md, gate.md, and uae-track.md apply. A money email and a cold opener are different products; don't draft one using the other's rules.
+
+   **UAE money-email hard gate:** for a UAE lead, a money email may not even be drafted until `python main.py crm-gate offer <row.json>` (row fetched fresh from Notion) prints PASS — verbatim discovery answer logged, anchor set. FAIL → stop, tell Haytham which piece is missing (usually: the discovery question hasn't gone out, or her answer was never logged). Quote the gate's literal output line either way.
 
 2. **Confirm you have the input.** You need: the lead's name, the niche, the verified finding (the leak or observation), and enough of the funnel walk to write a concrete line. If the user gave you a Notion lead page or pasted the walk, you have it. If the finding is vague ("they have a funnel problem"), ask for the specific thing on the specific page before writing. A bespoke email is impossible without a bespoke finding.
 
@@ -26,10 +33,12 @@ Do these in sequence. Do not skip ahead to writing.
      Haytham this lead needs `haytham-hook-finder` run first, and that you'll
      draft as soon as that line is resolved. This is a hard block, not a
      style note — do not proceed to Step 3 or write anything.
-   - `no hook found in IG evidence — draft opens on the finding alone` →
-     `haytham-hook-finder` already ran and came up empty. This is a
-     resolved state, not a missing input — proceed with **SMYKM opening B**
-     (direct finding opener, no transition needed).
+   - `no hook found in IG evidence — draft opens on the finding alone`
+     (parenting rows) or `no hook found in public evidence — draft opens
+     on the finding alone` (UAE rows) → `haytham-hook-finder` already ran
+     and came up empty. This is a resolved state, not a missing input —
+     proceed with **SMYKM opening B** (direct finding opener, no
+     transition needed).
    - `<hook text> — WORK|LIFE|METRIC` → a real hook was found. Use
      **SMYKM opening A** (elaborate the hook, then bridge to the finding).
 
@@ -80,6 +89,17 @@ Do these in sequence. Do not skip ahead to writing.
 9. **Wait for approval before logging anything.** Do not write to Notion after delivering the composer. The user picks a variant, tweaks if needed, then says "log" or "log this." If the user pastes edited final text, log that exact text. If the user says "log" without pasting anything, log the drafted variant as written (whichever variant they indicated), verbatim.
 
 ## Logging format (only after the user says "log this")
+
+**Log to the lead's own CRM, never the other one.** UAE leads follow the
+UAE lifecycle in `references/uae-track.md` (no "Loom Sent" status; the
+artifact logs in the thread with an `Artifact:` line; Price Discovery
+Sent and Offer Sent are their own statuses, and Offer Sent additionally
+requires the `crm-gate offer` PASS). Parenting live threads follow the
+status rules below unchanged. Touch #, Sequence, Last Contacted, and
+Next Action mechanics are identical in both tracks. On a UAE cold Touch 1
+log, also confirm the send passed `crm-gate send` (finding verified +
+under the daily cap) — uae-tick normally ran it at queue time; if this
+send bypassed the queue, run it now before logging.
 
 Before appending, fetch the lead's Notion page to confirm the current
 literal body format — if you're appending via search-and-replace
