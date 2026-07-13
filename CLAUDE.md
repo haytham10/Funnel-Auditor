@@ -24,6 +24,17 @@ files are the method; **Notion is the source of truth for live state.**
 When you need to know what is actually happening, query the CRM, not the
 docs.
 
+## Branching (read before opening a PR)
+
+**UAE-track work bases off and merges back into the `uae-track` branch, NOT
+the repo's git default branch.** The git default
+(`claude/festive-heisenberg-6y2l94`) is the old parenting pipeline; merging
+UAE-track work there drags the whole UAE track onto it (a squash replays
+the full diff between branches, not just your change). Cut new UAE-track
+branches from `uae-track`, and set every UAE-track PR's base to
+`uae-track`. Only parenting-track (live-threads-only) work targets the git
+default.
+
 ## The UAE pipeline in one line
 
 `source-leads` (Day 1: 5 web channels → CRM as Sourced; Day 2: mechanical
