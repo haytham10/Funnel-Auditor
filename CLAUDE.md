@@ -26,14 +26,19 @@ docs.
 
 ## Branching (read before opening a PR)
 
-**UAE-track work bases off and merges back into the `uae-track` branch, NOT
-the repo's git default branch.** The git default
-(`claude/festive-heisenberg-6y2l94`) is the old parenting pipeline; merging
-UAE-track work there drags the whole UAE track onto it (a squash replays
-the full diff between branches, not just your change). Cut new UAE-track
-branches from `uae-track`, and set every UAE-track PR's base to
-`uae-track`. Only parenting-track (live-threads-only) work targets the git
-default.
+**`uae-track` is the repo's git default branch** (changed 2026-07-14; it was
+previously the parenting branch `claude/festive-heisenberg-6y2l94`).
+UAE-track work is therefore the default path: cut new branches from
+`uae-track`, and let UAE-track PRs take the default base.
+
+**The hazard is now on the parenting side.** Parenting-track
+(live-threads-only) work must set its PR base to
+`claude/festive-heisenberg-6y2l94` **explicitly** — it will not be chosen
+for you. Letting a parenting PR take the default base merges it into the
+UAE track; letting a UAE PR target the parenting branch drags the whole UAE
+track onto it (a squash replays the full diff between branches, not just
+your change). Either direction crosses the two tracks, which is the thing
+this repo is built to keep separate.
 
 ## The UAE pipeline in one line
 
