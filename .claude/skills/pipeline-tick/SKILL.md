@@ -41,9 +41,25 @@ Last Contacted.
 Query rows where Next Action ≤ today and Status not in (Won, Lost,
 Disqualified).
 
-For each due row, identify the touch type from Sequence + Touch # + Status
-(cold Touch 2/3/4, warm bump, dormant back-from-the-dead) and draft it with
-the **haytham-email-draft** skill — full loop, correct email type, mechanics
+**The leash (2026-07-14 — this track shares the UAE track's one domain,
+and its bump batches were the biggest spam signal in the sent log):**
+
+- **Max 5 parenting sends per day**, inside the shared ceiling — never in
+  addition to it. Warm threads and scheduled dormant revivals only.
+- **No bare cold bumps, ever.** A cold-thread follow-up that adds nothing
+  new is dead on this track — the 19-bumps-in-two-minutes batches to
+  never-replied threads are over. A cold touch goes out only if it
+  carries something real (the same carry standard as the UAE gate: a new
+  observation, the Loom offer, or a closing disambiguating question);
+  otherwise the thread goes Dormant with a revival date and waits.
+- **Never more than 10 sends in one sitting, and never a same-minute
+  batch** — spread them. Burst-sending from one inbox is a pattern
+  filters key on, independent of volume.
+
+For each due row that survives the leash, identify the touch type from
+Sequence + Touch # + Status (warm bump, dormant back-from-the-dead, cold
+Touch 2/3/4 WITH a real carrier) and draft it with the
+**haytham-email-draft** skill — full loop, correct email type, mechanics
 cadence.
 
 Then create the Gmail DRAFT automatically for the strongest variant — with
@@ -70,7 +86,9 @@ counts against the same daily ceiling (`python main.py send-cap status`,
 fails closed to 20). uae-tick's Gmail sent-count picks these up
 automatically; if today's UAE queue is already at the ceiling, parenting
 sends displace it one-for-one — say so in the brief rather than silently
-stacking past it.
+stacking past it. The 5/day parenting leash applies on top: the UAE
+track is the active pipeline, and this track's live threads never
+out-consume it.
 
 Flag any Audit Ready row with no Email as "needs address" with its Notes line.
 

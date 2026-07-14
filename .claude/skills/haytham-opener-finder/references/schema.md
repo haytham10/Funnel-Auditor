@@ -79,6 +79,16 @@ PROPERTY in compact form (`N. UNUSED | finding`) — the property is what the
 send gate parses, the body section is what a human (and the drafting skill)
 reads.
 
+## Loom Skeleton
+(Lane 1 only — omit for Lane 2/3.)
+Three lines, written at walk time while the funnel is fresh in context, so a
+"yes, show me" reply turns into a recorded walkthrough in 30 minutes instead
+of a re-research session (slow artifact delivery was the old track's #1
+controllable failure):
+- Show: [the exact page/element to put on screen, with URL — where the finding lives]
+- Fix: [the one change to walk through, in her platform's terms]
+- Done state: [what she'd see working when it's fixed — the before/after in one phrase]
+
 ## SMYKM Hook
 SMYKM hook: not run yet — see haytham-hook-finder
 (`haytham-hook-finder` is the only skill that overwrites this line, from real

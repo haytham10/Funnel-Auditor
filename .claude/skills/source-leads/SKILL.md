@@ -68,11 +68,21 @@ in any status. Never create a duplicate row.
 
 ### What gets logged per candidate (Status = Sourced)
 
-Contact Name, Site URL (the funnel entry point — the one field the rest
-of the machine cannot work without), Profile URL, City if stated,
-Coach Type best guess, Platform if obvious, Audience Size if visible for
-free, Source Channel, Status = `Sourced`. Nothing else. No page body, no
-notes essays. Speed is the deliverable.
+Contact Name, Site URL, Profile URL, City if stated, Coach Type best
+guess, Platform if obvious, Audience Size if visible for free, Source
+Channel, Status = `Sourced`. Nothing else. No page body, no notes
+essays. Speed is the deliverable.
+
+**Site URL is required to log the row (2026-07-14).** It is the one
+field the rest of the machine cannot work without, and the first
+bootstrap proved the failure mode: 78 rows landed as name-only shells (0
+site URLs), which just moved the entire enrichment cost into qualifying
+and left the Walk Queue empty. A candidate whose site you can't find in
+one obvious hop (their directory entry's link, their LinkedIn contact
+section as rendered, one `firecrawl_search` on the name) does NOT get a
+CRM row — list them at the end of the run report under "seen, no site
+found" so the name isn't lost, and move on. Grab the audience number
+whenever it's visible at zero extra cost; never guess it.
 
 Create rows in batches (notion-create-pages takes multiples), not one
 call per lead.
@@ -122,8 +132,10 @@ own story, single-person About = Pass.
 
 **The run report:** sourced → qualified funnel math (N raw, N gate-0
 fails by floor, N gate-1 fails, N at Qualifying), the Walk Queue count,
-and the reminder of what's next: batch-audit works the Walk Queue at ~15
-per run, matching the 12-15 walks/day the send ceiling implies.
+and the reminder of what's next: batch-audit works the Walk Queue at up
+to 20 per run — walks/day must keep pace with the send ceiling
+(`python main.py send-cap status`, ramping 20 → 25 → 30), since every
+opener under it needs a walked, verified finding behind it.
 
 ---
 
@@ -139,7 +151,7 @@ Only the four things below differ.
 
 **1. Volume: small by default.** Default target ~15-20 raw names, or
 whatever N Haytham names. This is a top-up, not a sprint — do not mine
-60-70. The Walk Queue drains at ~12-15/day; a top-up exists to refill a
+60-70. The Walk Queue drains at up to ~20/day (the send ceiling's pace); a top-up exists to refill a
 day or two of that, not to overflow it.
 
 **2. Source the flow, not the stock.** This is the anti-exhaustion rule

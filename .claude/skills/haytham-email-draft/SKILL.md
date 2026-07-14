@@ -124,7 +124,7 @@ At the same time, update ALL of these properties together in one call, not just 
 - **Touch #**: increment by 1 from whatever it currently is, on every send — opener, follow-up, warm bump, turn-two reply, money email, objection reply, reactivation. Never leave it unchanged after a send.
 - **Sequence**: "Cold" until she replies for the first time. The moment any reply lands, flip to "Warm" on that touch and it stays "Warm" from then on, even through objection replies or a money email later in the same thread.
 - **Status**: reflects where the thread actually stands right now, updated on every send, not just the first:
-  - First send on a lead: "Audit Ready" → "Outreach Sent".
+  - First send on a lead: "Audit Ready" / "Draft Ready" / "Scheduled" → "Outreach Sent". (UAE track: "Draft Ready" = draft created in Gmail, set at draft time — the one status a draft is allowed to set; "Scheduled" = Haytham scheduled the send in Gmail. Both are pre-send states; "Outreach Sent" means the message actually departed, and Last Contacted is the real departure date, not the draft date.)
   - Cold follow-up (Touch 2-3 on the UAE track — there is no UAE Touch 4 — or a legacy parenting Touch 2-4, still no reply): stays "Outreach Sent".
   - She replies for the first time: → "Reply Received" (this is also the Sequence flip point).
   - A Loom gets sent (turn-two default move): → "Loom Sent".
@@ -141,7 +141,7 @@ Before calling update_properties, state the full property diff (all five fields,
 
 ## What this skill does NOT do
 
-It does not log to Notion before the user approves. Draft is not send. Do not make Notion tool calls during or after drafting unless the user explicitly says "log this" and pastes the final text.
+It does not log to Notion before the user approves. Draft is not send. Do not make Notion tool calls during or after drafting unless the user explicitly says "log this" and pastes the final text. (One exception, UAE track: when a Gmail draft is actually created, setting Status = "Draft Ready" is allowed and expected — it mirrors Gmail state without claiming a send. Touch #, Last Contacted, Next Action, the Email Thread Log, and the Findings Bank still move only on a confirmed send.)
 
 It does not invent findings. If you do not have a verified, specific leak or observation, you stop and ask. A guessed finding produces a template email, and a template email is dead.
 
