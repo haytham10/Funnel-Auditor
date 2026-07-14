@@ -19,6 +19,7 @@ The walk fills / updates:
 | City | select | Dubai / Abu Dhabi / Sharjah / Other UAE / Unconfirmed. Gate 0 needs a confirmed UAE base — "Unconfirmed" means Gate 0 can't pass yet. |
 | Coach Type | multi_select | Business / Life / Fitness / Career / Mindset / Leadership / Health / Other |
 | Platform | select | Kajabi / Teachable / Thinkific / Podia / Skool / GHL / Systeme / WordPress / Squarespace / Wix / Other / Unknown. Infer from page design, URL, or checkout style. |
+| Phone Number | phone_number | Decision-maker phone / WhatsApp if publicly listed on the site (footer, contact page) or profile. Optional, leave blank if not visible. Enables the WhatsApp pivot on warm trust-verification threads. |
 | Audience Size | number | Largest owned or social channel. Floor is 1,500. Leave blank if not visible. |
 | Gate 0 | select | Pass / Fail. Set from the four floors (UAE-based, funnel exists, 30-day activity, 1,500 audience). |
 | Gate 1 | select | Pass / Fail. The solo-operator test. |
