@@ -18,7 +18,7 @@ Do these in sequence. Do not skip ahead to writing.
    - **Parenting Lead Pipeline** (`c6209e29-55ef-4781-b735-73b2a254e34f`) — live threads only, no new cold leads. Existing rules apply unchanged.
    Never log a lead into the other track's DB.
 
-   Then name which of these the email is: (a) cold Touch 1 opener, (b) cold follow-up (Touch 2-4), (c) warm bump/follow-up, (d) turn-two reply (they engaged, offering the Loom), (e) **price discovery reply (UAE track only — the question that goes out BEFORE any priced offer, never after a stall; see references/uae-track.md)**, (f) money email (a priced close), (g) objection reply (price, deposit, or trust/logistics question), or (h) past-client reactivation. This determines which sections of mechanics.md, gate.md, and uae-track.md apply. A money email and a cold opener are different products; don't draft one using the other's rules.
+   Then name which of these the email is: (a) cold Touch 1 opener, (b) cold follow-up (Touch 2-3 on the UAE track, each carrying a declared payload — see references/uae-track.md; legacy parenting threads ran 2-4), (c) warm bump/follow-up, (d) turn-two reply (they engaged, offering the Loom), (e) **price discovery reply (UAE track only — the question that goes out BEFORE any priced offer, never after a stall; see references/uae-track.md)**, (f) money email (a priced close), (g) objection reply (price, deposit, or trust/logistics question), or (h) past-client reactivation. This determines which sections of mechanics.md, gate.md, and uae-track.md apply. A money email and a cold opener are different products; don't draft one using the other's rules.
 
    **UAE money-email hard gate:** for a UAE lead, a money email may not even be drafted until `python main.py crm-gate offer <row.json>` (row fetched fresh from Notion) prints PASS — verbatim discovery answer logged, anchor set. FAIL → stop, tell Haytham which piece is missing (usually: the discovery question hasn't gone out, or her answer was never logged). Quote the gate's literal output line either way.
 
@@ -98,8 +98,9 @@ requires the `crm-gate offer` PASS). Parenting live threads follow the
 status rules below unchanged. Touch #, Sequence, Last Contacted, and
 Next Action mechanics are identical in both tracks. On a UAE cold Touch 1
 log, also confirm the send passed `crm-gate send` (finding verified +
-under the daily cap) — uae-tick normally ran it at queue time; if this
-send bypassed the queue, run it now before logging.
+follow-ups-first headroom under the inbox ceiling + the touch 2/3 carrier
+check) — uae-tick normally ran it at queue time; if this send bypassed
+the queue, run it now before logging.
 
 Before appending, fetch the lead's Notion page to confirm the current
 literal body format — if you're appending via search-and-replace
@@ -124,16 +125,17 @@ At the same time, update ALL of these properties together in one call, not just 
 - **Sequence**: "Cold" until she replies for the first time. The moment any reply lands, flip to "Warm" on that touch and it stays "Warm" from then on, even through objection replies or a money email later in the same thread.
 - **Status**: reflects where the thread actually stands right now, updated on every send, not just the first:
   - First send on a lead: "Audit Ready" → "Outreach Sent".
-  - Cold follow-up (Touch 2-4, still no reply): stays "Outreach Sent".
+  - Cold follow-up (Touch 2-3 on the UAE track — there is no UAE Touch 4 — or a legacy parenting Touch 2-4, still no reply): stays "Outreach Sent".
   - She replies for the first time: → "Reply Received" (this is also the Sequence flip point).
   - A Loom gets sent (turn-two default move): → "Loom Sent".
   - A call gets booked: → "Call Booked".
-  - Cold sequence completes (Touch 4) with no reply: → "Dormant" (not "Lost"). Set Next Action to a "back from the dead" bump 2-3 weeks out. This is a cooldown-and-reopen lead, not a dead one — do not close the file on a thread that never got a first reply. (Corrected Jul 6, 2026 — the old "Touch 4 no reply → Lost" rule was the exact bug that buried ~22 real leads early; see The Bible Rule 8 scoping note. "Dormant" is a new pipeline status added specifically for this.)
+  - Cold sequence completes (Touch 3 on the UAE track; Touch 4 on legacy parenting threads) with no reply: → "Dormant" (not "Lost"). Set Next Action to a "back from the dead" bump 2-3 weeks out. This is a cooldown-and-reopen lead, not a dead one — do not close the file on a thread that never got a first reply. (Corrected Jul 6, 2026 — the old "Touch 4 no reply → Lost" rule was the exact bug that buried ~22 real leads early; see The Bible Rule 8 scoping note. "Dormant" is a new pipeline status added specifically for this.)
   - She explicitly declines, or a warm thread (already replied at least once) goes cold through touch 8-10 with nothing further: → "Lost" (also set Lost Reason). "Lost" is reserved for an explicit no or a genuinely exhausted warm sequence — never for a cold thread that simply never got a first reply.
   - Payment confirmed / project starts: → "Won".
   If the send doesn't match any transition above (e.g. a warm bump that isn't a stage change), leave Status as-is, but still state that you checked it.
 - **Last Contacted**: today, on every send.
-- **Next Action**: the date depends on what was just sent, not just cold Touch 1 timing — check references/mechanics.md sequencing rules: cold Touch 1 → day 3-4, Touch 2 → day 6-7, Touch 3 → day 8-9, Touch 4 → no fifth cold touch, but set Next Action 2-3 weeks out for a back-from-the-dead bump rather than clearing it (see Status rule above). Warm thread (any touch after her first reply) → 2-3 days out, up to 8-10 touches. Turn-two, objection reply, or money email → set Next Action to whenever you'd expect to check back if she doesn't respond, using the warm cadence.
+- **Next Action**: the date depends on what was just sent, not just cold Touch 1 timing — check references/mechanics.md sequencing rules. UAE cold cadence: Touch 1 → +3 days (Touch 2 lands day 3), Touch 2 → +6 days (Touch 3 lands day 9), Touch 3 → no fourth cold touch, set Next Action 2-3 weeks out for the back-from-the-dead bump rather than clearing it (see Status rule above). Warm thread (any touch after her first reply) → 2-3 days out, up to 8-10 touches. Turn-two, objection reply, or money email → set Next Action to whenever you'd expect to check back if she doesn't respond, using the warm cadence.
+- **Findings Bank** (UAE cold follow-up that carried a banked finding): flip that entry's line from `UNUSED` to `USED-TN` in the `Findings Bank` property in the same update. Draft time never touches the bank; confirmed-send logging is the only thing that spends an entry.
 
 Before calling update_properties, state the full property diff (all five fields, old value → new value) so a missed field, or a Status that didn't actually change when it should have, is visible before the call, not after.
 

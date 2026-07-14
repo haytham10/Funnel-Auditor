@@ -80,11 +80,26 @@ recording the turn-two artifact, and confirming sends for logging.
   vision pass is dead and stays dead. `Finding Verified` gets checked only
   on a visually-confirmed Lane 1 finding; it is the send gate, and
   checking it to make a lead sendable corrupts the track's data.
-- **No send without `Finding Verified`, and never more than 15 cold sends
-  a day** (target band 12-15; one inbox, one domain, no backup). Enforced:
-  `python main.py crm-gate send <row.json> --sends-today N`. The
-  bottleneck is findings, not sends — 12-15 sends/day means 12-15 funnel
-  walks/day.
+- **No send without `Finding Verified`, and never past the daily ceiling
+  on TOTAL sends leaving the inbox** — openers, follow-ups, warm replies,
+  both tracks; deliverability doesn't care what kind of email it was (one
+  inbox, one domain, no backup). The ceiling lives in `send_cap.json` and
+  ramps 20 → 25 → 30, one step per 7+ days, raised only by Haytham's
+  explicit call and only if deliverability held (`python main.py send-cap
+  status|set`; missing/invalid state fails closed to 20). **30 is the hard
+  cap for one inbox — more volume means more inboxes, never a bigger
+  number.** Follow-ups due today eat the budget first; new openers get
+  what's left. Enforced per send: `python main.py crm-gate send <row.json>
+  --sends-today N --touch T` (+ `--followups-due M` on touch 1, `--carries
+  X` on touch 2/3). The bottleneck is findings, not sends — opener
+  headroom means that many funnel walks/day.
+- **The cold sequence is three touches (day 0, 3, 9), then Dormant — and
+  touches 2-3 must each carry something new:** the next unused banked
+  finding, the Loom offer, or the disambiguating question. A bare bump is
+  a wasted send and a spam signal. Enforced by the same gate (`--carries`;
+  a `second-finding` claim is checked against the row's `Findings Bank`).
+  The walk banks every verified finding, ranked, instead of discarding the
+  ones it doesn't use — touch 1 takes #1, later touches draw the next.
 - **Price discovery before any priced offer, never after a stall.** A
   lead cannot reach Offer Sent without a VERBATIM `Price Discovery
   Answer` and a `Discovery Anchor`. Enforced: `python main.py crm-gate
@@ -134,9 +149,15 @@ recording the turn-two artifact, and confirming sends for logging.
   screenshot" is a computed fact, not a claim.
 - `main.py crm-gate offer|send` — the UAE transition gates (see
   `audit/crm_gate.py`): offer = verbatim discovery answer + anchor before
-  any priced offer; send = Finding Verified + address + daily cap. Skills
-  dump the fresh Notion row to JSON, run the gate, and quote its literal
-  output line. Same trust model as the vision gate.
+  any priced offer; send = Finding Verified + address + follow-ups-first
+  headroom under the inbox ceiling + a declared carrier on touch 2/3
+  (checked against `Findings Bank` when it claims a second finding).
+  Skills dump the fresh Notion row to JSON, run the gate, and quote its
+  literal output line. Same trust model as the vision gate.
+- `main.py send-cap status|set` — the inbox ceiling (see
+  `audit/send_cap.py`): current cap + the built-in ramp reminder once a
+  step has held 7 days. `set` moves one step (20/25/30) and is Haytham's
+  command, never a skill's; state is `send_cap.json`, failing closed to 20.
 - `audit/` — checks, extraction, Gate 0 floors (`gates.py`, UAE:
   audience 1,500 / activity 30 days / funnel present / UAE-based), packet
   builder; all fetch-layer-agnostic. `crawler.py` still holds the

@@ -70,6 +70,7 @@ SQLite table name is the data source URL, quoted:
 | `Lane` | select | `Lane 1: Felt leak` `Lane 2: No leak` `Lane 3: Skip` |
 | `Finding Verified` | checkbox | **HARD GATE.** `__YES__` / `__NO__` in SQL. |
 | `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` |
+| `Findings Bank` | text | Every verified finding from the walk, ranked strongest first, one per line: `1. USED-T1 \| finding` / `2. UNUSED \| finding`. #1 is the opener; touches 2-3 draw the next UNUSED entry. Written by the walk; statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property. |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
 | `Status` | select | see lifecycle below |
 | `Sequence` | select | `Cold` `Warm` |
@@ -117,11 +118,11 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 | Sourced → Qualifying | Name + site captured |
 | Qualifying → Audit Ready | `Gate 0` = Pass, `Gate 1` = Pass, funnel walk done, `Lane` set, `Finding Verified` = checked |
 | Qualifying → Disqualified | Either gate = Fail. Set and move on, do not linger. |
-| Audit Ready → Outreach Sent | Touch #1 sent. Set `Last Contacted`, `Next Action`, `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send` must print PASS first.** |
+| Audit Ready → Outreach Sent | Touch #1 sent. Set `Last Contacted`, `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must print PASS first.** |
 | Outreach Sent → Reply Received | They replied. Set `Sequence` = Warm |
 | Reply Received → Price Discovery Sent | **MANDATORY STEP.** Discovery question sent. |
 | Price Discovery Sent → Offer Sent | Their answer logged verbatim in `Price Discovery Answer`, `Discovery Anchor` set. **Gate: `crm-gate offer` must print PASS first.** |
-| Any → Dormant | 4 cold touches, no reply. |
+| Any → Dormant | 3 cold touches (day 0, 3, 9), no reply. There is no touch 4. Set Next Action to a revival bump 2-3 weeks out. |
 | Any → Lost | Explicit no, or ghost after reply. Always set `Lost Reason`. |
 
 ---
@@ -129,11 +130,12 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 ## 4. Hard rules (do not violate)
 
 1. **No send without `Finding Verified` = checked.** The finding produces the reply rate. A thin finding burns the lead and the domain. Enforced by `python main.py crm-gate send`.
-2. **12-15 cold sends/day maximum.** One inbox, one domain. This is a deliverability ceiling. Enforced by the same gate (`--sends-today`, hard cap 15).
+2. **Never past the daily ceiling on TOTAL sends leaving the inbox** (openers + follow-ups + warm replies, both tracks — one inbox, one domain). The ceiling lives in `send_cap.json` (fails closed to 20) and ramps 20 → 25 → 30 only by Haytham's explicit `python main.py send-cap set` after 7+ days of deliverability holding; **30 is the hard cap for one inbox — more volume means more inboxes.** Follow-ups due today eat the budget first; openers get what's left. Enforced by `crm-gate send --sends-today N --touch T [--followups-due M]`.
 3. **Price discovery happens BEFORE the priced offer**, not after a stall. This is the entire point of the track. Enforced by `python main.py crm-gate offer`.
 4. **`Price Discovery Answer` is logged verbatim.** Not summarized.
 5. **The price never moves.** Per Grand Slam Offer v2. A low anchor is market data, not an instruction to discount. Objections get bonuses or restructured terms.
 6. **Never write UAE leads into the parenting DB.**
+7. **The cold sequence is 3 touches (day 0, 3, 9), then Dormant — and touches 2-3 must carry something new:** the next UNUSED `Findings Bank` entry, the Loom offer, or the disambiguating question. A bare bump doesn't pass the gate (`--carries`, second-finding claims checked against the bank).
 
 ---
 
@@ -186,13 +188,27 @@ WHERE "Status" IN ('Reply Received','Price Discovery Sent','Offer Sent')
 ```
 
 ### Daily send-count check (deliverability guard)
+
+The ceiling and the count are two separate reads:
+
+- **The ceiling:** `python main.py send-cap status` — quote its literal
+  line. It ramps 20 → 25 → 30 by Haytham's hand only and fails closed
+  to 20 (see `audit/send_cap.py`).
+- **The count:** TOTAL sends that left the inbox today, not just UAE
+  openers. Primary source is Gmail's sent mail (`in:sent after:<today>`,
+  count messages — warm replies and parenting-track sends included).
+  Cross-check against the CRM:
+
 ```sql
 SELECT date("date:Last Contacted:start") AS d, COUNT(*) AS sends
 FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
 WHERE "date:Last Contacted:start" IS NOT NULL
 GROUP BY d ORDER BY d DESC LIMIT 14
 ```
-Any day over 15 is a deliverability risk. Flag it.
+
+The SQL undercounts by design (one row per lead, UAE only) — when the
+two disagree, Gmail wins. Any day over the ceiling is a deliverability
+risk. Flag it.
 
 ### The transition gates (run before the transitions they guard)
 
@@ -203,8 +219,13 @@ JSON file, then:
 # Before setting Offer Sent, or drafting any priced offer:
 python main.py crm-gate offer /path/to/row.json
 
-# Before queueing/logging any cold send (today's count from the SQL above):
-python main.py crm-gate send /path/to/row.json --sends-today N
+# Before queueing/logging any cold send. --sends-today is the Gmail total
+# for today; --touch is 1, 2, or 3 (there is no touch 4).
+#   Touch 1 opener — follow-ups due today eat the budget first:
+python main.py crm-gate send /path/to/row.json --sends-today N --touch 1 --followups-due M
+#   Touch 2/3 follow-up — must declare the new thing it carries
+#   (second-finding is verified against the row's Findings Bank):
+python main.py crm-gate send /path/to/row.json --sends-today N --touch 2 --carries second-finding
 ```
 
 Exit 0 + a literal `CRM GATE (...): PASS` line, or exit 1 with the reasons.
@@ -238,7 +259,12 @@ Gate 0: pass/fail + why
 Gate 1: pass/fail + why
 
 ## Lane + Finding
-Lane assignment. The one verified finding. The innocent explanation.
+Lane assignment. The strongest verified finding (bank #1). The innocent explanation.
+
+## Findings Bank
+Every verified finding that survived both filters, ranked strongest first,
+with each one's innocent explanation. Mirrored compactly into the
+`Findings Bank` property (`N. UNUSED | finding`) for the send gate to parse.
 
 ## SMYKM Hook
 One line, with the source it came from.

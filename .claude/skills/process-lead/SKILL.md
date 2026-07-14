@@ -228,7 +228,7 @@ link, funnel floor, audience floor). Complete the rest by judgment:
 
 Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line
 reason in Notes (properties only, no body), and stop. The floor exists to
-protect walks and touches — at 12-15 sends/day, walks are the bottleneck
+protect walks and touches — every opener under the send ceiling needs a verified finding, so walks are the bottleneck
 by design.
 
 ## Step 3 — Notion row
@@ -257,7 +257,11 @@ Now invoke the **haytham-opener-finder** skill logic with:
 
 Follow that skill exactly: Gate 1, 5-stop walk, sting test + vitamin
 filter, lane classification, opening angle + innocent explanation. Only
-visually-confirmed findings enter the filters. Write the page body and
+visually-confirmed findings enter the filters. Bank every finding that
+survives both filters, ranked strongest first — the body's Findings Bank
+section plus the `Findings Bank` property (`N. UNUSED | finding` lines the
+send gate parses); #1 is the opener, the rest is Touch 2/3 material that
+must not be discarded. Write the page body and
 properties to the UAE CRM in the exact schema.md format, including the
 Evidence section with the literal vision-check line. `Finding Verified`
 gets checked ONLY for a Lane 1 lead with a visually-confirmed finding —
@@ -301,9 +305,12 @@ invoke the **haytham-email-draft** skill for the Touch 1 opener (it reads
 `references/uae-track.md` for this track's rules). Full silent loop, voice
 rules, gate — as that skill specifies. Additionally, before creating the
 draft, dump the fresh row to JSON and run `python main.py crm-gate send
-<row.json> --sends-today N` (N from the daily send-count query) — a FAIL
-means the lead isn't actually sendable (finding unverified, no address, or
-the daily cap is reached) and the draft holds with that reason.
+<row.json> --sends-today N --touch 1 --followups-due M` (N = today's TOTAL
+sends out of the inbox, from Gmail's sent count; M = follow-ups still owed
+today — they eat the budget before any opener; uae-tick owns both numbers
+on a normal day) — a FAIL means the lead isn't actually sendable (finding
+unverified, no address, or no opener headroom left under the ceiling) and
+the draft holds with that reason.
 
 Then, without waiting for approval:
 - Pick the variant that came through the gate strongest and **create the

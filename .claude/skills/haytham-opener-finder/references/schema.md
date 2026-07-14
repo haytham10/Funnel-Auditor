@@ -25,7 +25,8 @@ The walk fills / updates:
 | Gate 1 | select | Pass / Fail. The solo-operator test. |
 | Lane | select | "Lane 1: Felt leak" / "Lane 2: No leak" / "Lane 3: Skip" |
 | Finding Verified | checkbox | **Check ONLY for Lane 1 with a visually-confirmed finding.** This is the hard send gate. Lane 2/3 never carry it. |
-| Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Prefer "Dead/stale element" for time-bound breakage (stale cohort/webinar dates, empty calendars, dead links, expired events, placeholders) — most warm repliers in the old track lived there. |
+| Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Prefer "Dead/stale element" for time-bound breakage (stale cohort/webinar dates, empty calendars, dead links, expired events, placeholders) — most warm repliers in the old track lived there. Set from bank #1. |
+| Findings Bank | text | **Lane 1 only.** Every visually-confirmed finding that survived both filters, ranked strongest first, one compact line each, all UNUSED on a fresh walk: `1. UNUSED \| <finding, one felt-cost phrase>`. The send gate parses these lines (`crm-gate send --carries second-finding` needs an UNUSED entry past #1), so keep the exact `N. UNUSED \| text` shape. Never mark anything USED here — only confirmed-send logging flips statuses. Lane 2/3: leave empty. |
 | Status | select | "Audit Ready" if Lane 1 + both gates Pass + Finding Verified. "Qualifying" (unchanged) if Lane 2 — warm-up hold. "Disqualified" if Lane 3 or any gate fail. |
 | Est. Value | select | "Track A ($200)" default / "Track B ($700)" when real launch or sales volume is visible / "Unknown". |
 | Notes | text | One line. Strongest finding, warm-up angle, or one-line flag. Full detail goes in the body. Email-source problems go FIRST. |
@@ -63,9 +64,20 @@ Gate 1: Pass/Fail — solo-operator signals or gatekeeper flags, one to two line
 ## Lane + Finding
 Three lines max.
 - Lane verdict + one-phrase reason.
-- The one verified finding (Lane 1) or warm-up angle (Lane 2). Omit entirely if Lane 3.
+- The strongest verified finding (Lane 1 — bank #1) or warm-up angle (Lane 2). Omit entirely if Lane 3.
 - Innocent explanation (Lane 1, required): the plausible non-blame reason for the
   finding, one phrase. Feeds the either/or closing question in the email.
+
+## Findings Bank
+(Lane 1 only — omit the section body for Lane 2/3, write "(empty — no verified
+findings banked)".)
+Every visually-confirmed finding that survived both filters, ranked strongest
+first. One numbered line each: the finding as a felt cost, then its innocent
+explanation after " — innocent: ". #1 restates the Lane + Finding opener; #2
+onward is Touch 2/3 material. Mirror the same ranking into the `Findings Bank`
+PROPERTY in compact form (`N. UNUSED | finding`) — the property is what the
+send gate parses, the body section is what a human (and the drafting skill)
+reads.
 
 ## SMYKM Hook
 SMYKM hook: not run yet — see haytham-hook-finder
