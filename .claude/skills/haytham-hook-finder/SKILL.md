@@ -91,27 +91,36 @@ Drafts only — sending stays his hand, from Gmail.
    The Profile URL property is usually the LinkedIn profile — start there.
 2. Compute the slug the same way the rest of the pipeline does:
    `python main.py slug "<Contact Name>"`.
-3. **Fetch public sources via Firecrawl, read-only:**
-   - `firecrawl_scrape` the Profile URL. LinkedIn walls most content behind
-     login — whatever renders publicly (headline, About, featured posts)
-     counts; whatever doesn't, doesn't. **Never log in, never use Haytham's
-     account or credentials, never automate anything through his LinkedIn.**
-     A read-only public fetch through Firecrawl's infrastructure is fine;
-     anything acting AS Haytham on a platform is not — that's the exact
-     class of automation that got the IG account banned.
-   - `firecrawl_search` on her name + "podcast" / "interview" / her program
-     name. Fetch the episode or speaker pages that come back.
-   - `firecrawl_scrape` her About page and any YouTube channel/video pages
-     the search surfaces.
-   - **Instagram, read-only and no-login only:** if she has a public IG
-     profile, pull her recent public posts through a no-login third-party
-     actor (an Apify-style actor that takes the username/URL, no account
-     required). This is enrichment data, the same as the sources above —
-     never log in, never use Haytham's account, never browse as him. If no
-     such no-login tool is wired up in this session, skip IG rather than
-     logging in anywhere; the other four sources stand on their own.
-4. **If LinkedIn is walled and the search comes up thin**, ask Haytham to
-   paste screenshots of her recent LinkedIn posts (he can browse by hand —
+3. **Fetch public sources — the right tool per source:**
+   - **LinkedIn (the strongest UAE source), via the Apify actor layer.**
+     Firecrawl hard-refuses LinkedIn, so this is how LinkedIn evidence gets
+     fetched at all: `python main.py apify li-posts "<Profile URL>" --max 5`
+     for her recent posts (text + date, no cookies), and
+     `python main.py apify li-profile "<Profile URL>"` when you need the
+     About/career story. **Posts first** — a recent post is the strongest
+     hook; only pull the profile when the posts are thin and you need the
+     story (it also costs more).
+   - **Instagram, read-only, via the same layer:**
+     `python main.py apify ig "<IG URL>" --newer-than "60 days"` for recent
+     posts with captions (`--mode details` for follower/bio metadata;
+     `python main.py apify ig-post "<post URL>"` to dig into one post).
+   - **Podcasts / YouTube / About page — Firecrawl:** `firecrawl_search` on
+     her name + "podcast" / "interview" / her program name, then
+     `firecrawl_scrape` the episode, speaker, YouTube, and About pages that
+     come back. These are open web, so Firecrawl is the cheaper, connected
+     path (and the About-page STORY is still hers).
+   - Every one of these is read-only public data through no-login
+     infrastructure. **Never log in, never use Haytham's account or
+     credentials, never act AS him on any platform** — that's the exact
+     account-safety rule the IG ban came from. An Apify actor that takes a
+     URL and returns public data is allowed, the same as Firecrawl; acting
+     as Haytham is not.
+   - The actor layer is `audit/apify.py` (see `docs/uae-track/apify-actors.md`).
+     If a command prints `{"error": "APIFY_TOKEN is not set"}`, the token
+     isn't on this runner — fall back to Step 4 (ask Haytham for
+     screenshots) rather than skipping the source silently.
+4. **If the actor layer can't run (no token) or LinkedIn/IG comes up thin**,
+   ask Haytham to paste screenshots of her recent LinkedIn posts (he can browse by hand —
    sourcing was always the manual half). Save each pasted/attached image to
    `evidence/<slug>/hook/<n>.png`, then
    `python main.py vision init evidence/<slug>` and

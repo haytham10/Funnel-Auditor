@@ -16,8 +16,8 @@ Checks, cheapest first:
   4. DNS: MX records for the domain (falls back to an A/AAAA record, which
      RFC 5321 says can accept mail). Resolution order: dnspython if
      installed, else the system `nslookup`, else socket A-record only.
-     No DNS path available → WARN inconclusive, with the Apify
-     email-checker actor named as the fallback verifier.
+     No DNS path available → WARN inconclusive, with
+     `python main.py apify verify-email <addr>` named as the fallback verifier.
   5. Role-account local part (info@, hello@, ...) → WARN, mirrors the
      Email OS rule (generic only if nothing better).
   6. --name match: local part contains a token of the lead's name → noted
@@ -149,11 +149,11 @@ def check_email(address: str, lead_name: str = "") -> tuple[str, list[str]]:
         verdict = "WARN"
     elif method == "A-only":
         details.append("domain resolves; MX not checkable from this machine — "
-                       "verify via the Apify email-checker actor before Touch 1")
+                       "verify via `python main.py apify verify-email <addr>` before Touch 1")
         verdict = "WARN"
     else:
         details.append(f"domain {domain} resolves but shows no mail setup — "
-                       "verify via the Apify email-checker actor before sending")
+                       "verify via `python main.py apify verify-email <addr>` before sending")
         verdict = "WARN"
 
     if local in _ROLE_LOCALS:
