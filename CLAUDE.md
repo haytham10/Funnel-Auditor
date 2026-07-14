@@ -95,7 +95,10 @@ recording the turn-two artifact, and confirming sends for logging.
   discount — objections get bonuses or restructured terms (GSO v2).
 - **Copy rules, every generated email:** no em-dashes, ever. No operator
   jargon ("funnel", "conversion", "audit", "sequence"). Proper
-  capitalization. No sign-off or name at the end. No weak closers ("no
+  capitalization. **Sign off "Haytham" at the end** (changed Jul 14, 2026:
+  the Gmail auto-signature was taken down, so the body must carry the name;
+  the old rule here said no sign-off, which would now ship unsigned mail).
+  No weak closers ("no
   pressure / no rush / whenever timing's right") anywhere, including
   silence-breakers.
 - **Two CRMs, never crossed.** UAE leads live ONLY in the UAE Lead CRM;

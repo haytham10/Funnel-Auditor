@@ -151,6 +151,6 @@ It does not draft while the hook line still says "not run yet." Run `haytham-hoo
 - Line 1: the finding or the human hook, stated flat. No warm-up, no "I was browsing."
 - The cost: what the gap is costing them, in something they can picture.
 - The close: one real question they can answer in one line. An open door, not a bow.
-- Sign off: none. Haytham has a signature configured in Gmail (name + Website link), so the draft body ends at the close, no name or sign-off needed.
+- Sign off: "Haytham" on its own line at the end. **Required** (changed Jul 14, 2026 — the Gmail auto-signature was taken down, so nothing supplies the name any more; an unsigned email now goes out genuinely unsigned). The rule was previously "no sign-off," which is why the older worked examples in `references/examples.md` and this line disagreed for a while — the examples were right, the rule was stale.
 
 The references hold the detail. Read them. The single most common failure is drafting from memory of these rules instead of reading them fresh, which is exactly how the generic version slips back in.
