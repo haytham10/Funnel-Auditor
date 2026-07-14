@@ -22,6 +22,12 @@ YYYY-MM-DD — [bounce|spam-flag|test-score|over-ceiling|note] — detail
 
 ## Log
 
+- 2026-07-14 — bounce — shelley@shelleybosworthofficial.com (UAE lead
+  Shelley Bosworth, Touch 1) hard-bounced (address not found). Cause was a
+  wrong-address guess, not domain reputation: a corrected resend to
+  shelley@shelleybosworthcoaching.com delivered the same minute and is the
+  address logged in the CRM. This is the double-send the email-check gate
+  now prevents. Not a reputation signal for the 07-21 ramp check.
 - 2026-07-14 — test-score — MailGenius + mail-tester + cyberpersons +
   mailchecker seed sends went out (6 test messages in the sent log,
   15:32-16:00 UTC). Scores not yet recorded — Haytham to fill in.
