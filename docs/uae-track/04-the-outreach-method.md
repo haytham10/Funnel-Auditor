@@ -170,7 +170,19 @@ The old pipeline's real failure: after a priced offer went quiet, the same offer
 
 Direct binary questions, no soft exit attached. That gets a real answer or a real close. Another polished bump gets another silent week.
 
-**On email, touch counts are generous.** 4 cold touches, then 8-10 warm touches over weeks. Most replies land at touches 4-8 over 3-6 weeks. Do not mark things Lost at touch 3 within 10 days. That killed real leads in the old pipeline.
+**On email, the persistence lives in the warm sequence and the revival, not in extra cold touches.** The UAE cold sequence is 3 touches (day 0, 3, 9), then Dormant with a revival bump 2-3 weeks out; warm threads get 8-10 touches over weeks. The old pipeline's data (most replies at touches 4-8 over 3-6 weeks) is warm-thread data — the lesson it carries is "never mark a lead Lost early," not "send a fourth cold bump." A cold no-reply is never Lost; it parks as Dormant and comes back with a new angle.
+
+## THE COLD SEQUENCE (three touches, each earns its place)
+
+Day 0, day 3, day 9, then Dormant. Same subject, same thread. There is no touch 4 — a fourth bare bump into silence is a spam signal, not persistence.
+
+Touches 2 and 3 must each carry exactly one NEW thing (enforced at the gate, `crm-gate send --carries …`):
+
+- **The next banked finding** — the walk banks every finding that survives both filters, ranked; touch 1 takes #1, later touches draw the next UNUSED entry. Named as a felt cost with its innocent explanation, fix left vague — naming a second cost is not the Adrienne mistake, teaching a second fix is.
+- **The Loom offer** — "want me to record a quick walkthrough showing what I'd fix? easier to show than explain." An offer, never a link, on a cold thread.
+- **The disambiguating question** — the direct binary ("Should I stop following up, or is this still on your radar?"). The natural touch 3 closer.
+
+A follow-up that carries none of these is a wasted send eating the day's budget. It doesn't go out.
 
 ---
 

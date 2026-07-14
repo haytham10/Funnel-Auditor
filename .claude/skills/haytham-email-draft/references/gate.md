@@ -36,11 +36,14 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 - [ ] Proper capitalization throughout, every sentence starts capitalized, "I" capitalized, normal grammar. Two-line paragraphs.
 - [ ] Close is an open door, a real one-line-answerable question, not a neat bow.
 
-## Cold follow-up specific (Touch 2, 3, 4 on a never-replied thread)
+## Cold follow-up specific (Touch 2 or 3 on a never-replied thread — there is no touch 4)
 
-- [ ] Does this touch introduce a brand new finding she hasn't heard yet? If yes, stop — that's the Adrienne mistake (three separate free diagnoses across three touches, zero replies). A cold follow-up bumps the touch-1 finding, it doesn't widen it.
-- [ ] Is the bump referencing the same finding from a new angle (time passing, a natural consequence, a short assumed-true question) rather than restating it verbatim?
-- [ ] If there's a genuinely new issue worth mentioning, is it being held for the Loom or "The Next Three" bonus instead of given away here?
+- [ ] Does the draft carry exactly ONE new thing: the next UNUSED entry from the row's `Findings Bank`, the Loom offer, or the disambiguating question? A draft that only bumps (time passing, "still there?", a re-ask) fails — a bare bump is a wasted send and a spam signal.
+- [ ] Does what the draft carries MATCH what `crm-gate send --touch N --carries …` was told (and did it print PASS on a fresh row dump)? Declaring loom-offer and drafting a bare bump is lying to the gate.
+- [ ] If it carries a second finding: is it from the bank (never invented at draft time), named as a felt cost with its innocent explanation, fix left vague? Naming a second cost is fine; teaching a second fix is the Adrienne mistake (three complete free diagnoses, zero replies). Full fixes stay in the Loom or "The Next Three" after a price is on the table.
+- [ ] If it carries the Loom offer: one line, an offer not a link, no price.
+- [ ] If it carries the disambiguating question: direct binary, no soft exit ("Should I stop following up, or is this still on your radar?").
+- [ ] Same subject, same thread as touch 1.
 
 ## Warm thread / turn-two specific (skip this section on a cold Touch 1)
 

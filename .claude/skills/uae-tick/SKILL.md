@@ -21,7 +21,20 @@ Full lifecycle, gates, and SQL: `docs/uae-track/01-crm-operating-spec.md`.
 Email rules for everything drafted here: `haytham-email-draft` +
 `references/uae-track.md`.
 
-## 0 — Today's send count (compute first, everything else uses it)
+## 0 — Ceiling + today's send count (compute first, everything else uses it)
+
+**The ceiling:** run `python main.py send-cap status` and quote its
+literal lines in the brief. It ramps 20 → 25 → 30 and fails closed to 20;
+when a step has held 7 days it prints the RAMP REMINDER — surface it at
+the top of the brief. **Raising the cap is Haytham's call, gated on
+deliverability having actually held; this skill NEVER runs `send-cap
+set`.**
+
+**The count:** TOTAL sends that left the inbox today, not just UAE
+openers — warm replies and parenting-track sends burn the same domain.
+Primary source is Gmail: search `in:sent after:<today YYYY/MM/DD>` and
+count the messages. Cross-check with the CRM (undercounts by design —
+one row per lead, UAE only; Gmail wins on disagreement):
 
 ```sql
 SELECT COUNT(*) AS sends
@@ -29,12 +42,14 @@ FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
 WHERE date("date:Last Contacted:start") = date('now')
 ```
 
-Remaining headroom today = **15 − sends** (the 12-15/day band is the
-target, 15 is the hard ceiling — one inbox, one domain, no backup). Every
-draft this tick queues for TODAY must fit inside that headroom, enforced
-per lead by `python main.py crm-gate send <row.json> --sends-today N`.
-Also run the 14-day history query from the operating spec and flag any
-day over 15 as a deliverability risk.
+**The budget, in this order — follow-ups first:** count today's
+still-unsent follow-ups from steps 1-3 (warm replies owed, discovery
+questions due, cold Touch 2/3 due) = F. New-opener headroom = ceiling −
+sends so far − F. Openers get what's LEFT — never what follow-ups need.
+There is no separate opener quota; it falls out of this arithmetic.
+Enforced per lead by the gate invocations in steps 3 and 4. Also run the
+14-day history query from the operating spec and flag any day over the
+ceiling as a deliverability risk.
 
 ## 1 — Reply detection (Gmail → Notion)
 
@@ -94,13 +109,25 @@ Query rows where Next Action ≤ today and Status not in (Won, Lost,
 Disqualified).
 
 For each due row, identify the touch type from Sequence + Touch # + Status
-(cold Touch 2/3/4, warm bump, dormant back-from-the-dead, post-offer
+(cold Touch 2/3, warm bump, dormant back-from-the-dead, post-offer
 silence handling) and draft it with the **haytham-email-draft** skill —
-full loop, correct email type, mechanics cadence (cold: Touch 2 day 3-4,
-Touch 3 day 6-7, Touch 4 day 8-9, then Dormant with a 2-3 week revival
-date, never Lost for a cold no-reply; warm: every 2-3 days, up to 8-10
+full loop, correct email type, mechanics cadence (cold: Touch 2 day 3,
+Touch 3 day 9, then Dormant with a 2-3 week revival date, never Lost for
+a cold no-reply, never a Touch 4; warm: every 2-3 days, up to 8-10
 touches). Post-offer silence gets the disambiguating questions from
 uae-track.md, never a re-send of the offer and never a weak closer.
+
+**Cold Touch 2/3 must carry something new, and the gate checks it.**
+Before drafting, pick the carrier honestly: `second-finding` only if the
+row's `Findings Bank` has an UNUSED entry past #1 (the gate verifies);
+otherwise `loom-offer` (natural Touch 2) or `disambiguating-question`
+(natural Touch 3 closer). Dump the fresh row to JSON and run
+`python main.py crm-gate send <row.json> --sends-today <Gmail total incl.
+already-queued drafts> --touch 2|3 --carries <carrier>` — quote the
+literal gate line per queued follow-up, and make the draft actually carry
+what was declared (gate.md checks). FAIL on the carrier means the
+follow-up doesn't go out today as a bare bump; it gets a real payload or
+it waits.
 
 Then create the Gmail DRAFT automatically for the strongest variant — with
 one guard: check Gmail drafts first (`list_drafts`), and if an unsent
@@ -122,10 +149,12 @@ happen (per the email-draft skill's rules).
 
 Query Status = Audit Ready with an Email set (the 📤 Send Queue view).
 For each candidate, in order: dump the fresh row to JSON and run
-`python main.py crm-gate send <row.json> --sends-today <count incl.
-today's already-queued drafts>`. Only PASS rows enter today's queue, and
-the queue stops at the headroom from step 0. Quote one gate line per
-queued lead.
+`python main.py crm-gate send <row.json> --sends-today <Gmail total incl.
+today's already-queued drafts> --touch 1 --followups-due <F from step 0,
+minus follow-ups already queued>`. Only PASS rows enter today's queue —
+the gate itself holds openers behind the follow-ups still owed, so a FAIL
+on headroom means the opener rolls to tomorrow, not that a follow-up gets
+bumped. Quote one gate line per queued lead.
 
 Present as "ready to send today." Remember these still need the hook
 line resolved before a draft exists — split the queue into "draft
@@ -145,10 +174,16 @@ line.
 - Audit Ready without `Finding Verified` checked, or `Finding Verified`
   checked on a Lane 2/3 row (both incoherent).
 - Status Outreach Sent with Touch # = 0.
+- Any Cold row with Touch # ≥ 4 — the cold sequence is three touches;
+  a fourth means the cadence rules were bypassed.
+- An Outreach Sent row whose Email Thread Log shows a follow-up that
+  carried a banked finding, but the `Findings Bank` entry still says
+  UNUSED (the send-confirmation logging missed the flip).
 - Stale warm threads: Sequence = Warm, no touch in > 4 days (the
   stalled-threads SQL in the operating spec).
 - Qualifying rows older than a week with no walk in the page body.
-- Any day in the last 14 with more than 15 sends.
+- Any day in the last 14 over the send ceiling (Gmail count vs
+  `send-cap status`).
 
 ## 6 — The scoreboard (weekly, two minutes, by LEAD never by message)
 
@@ -180,8 +215,13 @@ coffee.
   never tidy her grammar.
 - Never draft a money email unprompted, and never while `crm-gate offer`
   says FAIL.
-- Never queue past 15 sends in a day. The gate line is the proof, quoted
-  per lead.
+- Never queue past the day's ceiling (`send-cap status`, fails closed to
+  20), and always follow-ups before new openers. The gate line is the
+  proof, quoted per lead.
+- Never run `send-cap set`. Surface the ramp reminder; raising the cap is
+  Haytham's call, made by him, gated on deliverability actually holding.
+- Never queue a cold Touch 2/3 without a PASS on its `--carries` check,
+  and never declare a carrier the draft doesn't actually contain.
 - Never stack a second unsent draft to the same address.
 - Never log in to or act as Haytham on any platform (Instagram included).
   Public read-only data is not the issue; acting as him is.

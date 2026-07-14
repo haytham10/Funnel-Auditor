@@ -87,7 +87,7 @@ No automatic dedup query here — querying the pipeline on every single walk was
 - **Activity floor:** posted, emailed, or launched something within the last **30 days**. Check this against the Step A search results, not secondhand notes.
 - **Audience floor:** **1,500+** on their largest owned or social channel. UAE audiences run smaller; a 2K UAE-focused list is worth what 8K is in the US.
 
-Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line reason in Notes, and stop. Do not linger. The floor exists to protect walks and touches, which are the scarcest resources at 12-15 sends/day.
+Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line reason in Notes, and stop. Do not linger. The floor exists to protect walks and touches, which are the scarcest resources — every opener under the daily send ceiling needs a verified finding behind it.
 
 ---
 
@@ -133,6 +133,8 @@ Sort into exactly one lane:
 
 **Lane 1 — OPEN (felt leak + committed buyer).** At least one flagged finding survives both filters. Use the single strongest one as the opener. Don't stack multiple findings in one email. This is the only lane that produces a cold send in this track — the send gate requires a verified finding.
 
+**Bank everything that survived, not just the winner.** Every visually-confirmed finding that passes both filters goes into the lead's Findings Bank, ranked strongest first (tier first, then sting). #1 is the opener; #2 onward is what cold Touch 2/3 draws on (`crm-gate send --carries second-finding` checks the bank, so a discarded finding is a follow-up that can't happen). Unverified candidates and filter-fails never enter the bank — it holds openable findings only, just ranked.
+
 **Lane 2 — WARM-UP (committed buyer, no felt leak).** No finding survives both filters, but the lead is clearly a committed operator (paid ladder, multiple offers, email capture, active engagement). Most Gate 1 survivors land here and that is NORMAL — a felt leak on a real buyer runs roughly 20-25%. Note the warm-up angle (a genuine peer entry anchored to something specific and real they're doing right now). **A Lane 2 lead does not get `Finding Verified` and does not reach Audit Ready** — it holds at Qualifying as a long-play/warm-up lead. The hard gate is deliberate: no send without a verified finding.
 
 **Lane 3 — SKIP (not a buyer).** Hobbyist floor, no income signal, MLM, or gatekeeper. Set Status = Disqualified. No opener. A felt leak on a non-buyer is still a skip — leak does not equal buyer.
@@ -143,7 +145,7 @@ Sort into exactly one lane:
 
 ## Step 5 — The opening angle
 
-Lane 1 only: state the single strongest finding as the opening angle. One sentence, concrete, falsifiable, bespoke to this page. Frame as felt cost. This is what feeds into the email skill — the email skill takes this line and builds from it.
+Lane 1 only: state the single strongest finding (bank #1) as the opening angle. One sentence, concrete, falsifiable, bespoke to this page. Frame as felt cost. This is what feeds into the email skill — the email skill takes this line and builds from it. Every other banked finding gets the same treatment in miniature (one felt-cost line + its innocent explanation) in the page body's Findings Bank section — it's follow-up material and deserves to be usable when Touch 2 needs it.
 
 **The innocent explanation is a required second line.** Alongside the finding, always output the plausible non-blame explanation for it: the calendar might just need a reset, the cohort date might be stuck from last round, the replay link might still be mid-migration, the section might still be loading. The email skill turns this pair into the either/or closing question, and the pipeline evidence says that question is doing heavy lifting: all five cold openers that earned warm replies in the old track closed with an either/or handing her a face-saving explanation, and the one opener that closed with a challenge and no exit drew "Rude." This matches reactance research on feedback: delivery that questions competence triggers defensiveness, delivery that leaves the recipient autonomy keeps her receptive. If no innocent explanation exists for a finding, flag that to Haytham; it may mean the finding will read as an accusation no matter how it's phrased.
 
@@ -162,6 +164,7 @@ Fetch the lead's Notion page first to get the current state. Then write the walk
 - **`Finding Verified` gets checked ONLY for a Lane 1 lead whose finding you visually confirmed** (vision pass or Haytham's own observation) from a clean state. This checkbox is the hard send gate (`python main.py crm-gate send` fails without it). Checking it on a thin or unconfirmed finding is the exact failure this track exists to avoid.
 - **Status:** Lane 1 with gates passed + finding verified → `Audit Ready`. Lane 2 → stays `Qualifying` (warm-up hold, Notes carries the angle). Lane 3 or any gate fail → `Disqualified`.
 - **Est. Value:** `Track A ($200)` by default; `Track B ($700)` only when real launch or sales volume is visible; `Unknown` if you can't tell.
+- **`Findings Bank` (property):** the ranked verified findings in compact machine-parseable lines, `1. UNUSED | <finding>` (one per line, all UNUSED on a fresh walk — send-confirmation logging is what flips them to `USED-TN` later). The send gate parses this property, so the format matters. Lane 2/3: leave empty.
 
 If the write uses search-and-replace (`update_content`) rather than a full
 body rewrite, the fetch above is not optional — confirm the page's literal
@@ -174,7 +177,7 @@ use `replace_content` instead.
 - If the lead's email was derived from a source the walk itself flagged as broken or suspect, the Status stays at Qualifying and the flag goes in Notes as the FIRST line, not buried.
 - Finding Type: prefer `Dead/stale element` for time-bound breakage (stale cohort/webinar dates, empty calendars, dead links, expired events, placeholder content) — in the old track this category contained most of the warm repliers. `Broken booking flow` and `No visible pricing` exist as their own options now; use them when they're the finding.
 
-After writing, confirm to Haytham: lane verdict, the single strongest finding in one line, the innocent explanation, and whether `Finding Verified` was checked. That's enough for the email skill to draft a Lane 1 opener today. Mention that the SMYKM hook line was written as "not run yet" and that `haytham-hook-finder` must resolve it before the draft can be created.
+After writing, confirm to Haytham: lane verdict, the single strongest finding in one line, the innocent explanation, how many findings were banked (e.g. "banked 3 — Touch 2/3 have material"), and whether `Finding Verified` was checked. That's enough for the email skill to draft a Lane 1 opener today. Mention that the SMYKM hook line was written as "not run yet" and that `haytham-hook-finder` must resolve it before the draft can be created.
 
 ---
 

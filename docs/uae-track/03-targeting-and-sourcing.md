@@ -154,7 +154,7 @@ Only leads that pass both gates get a walk. The walk assigns the Lane, produces 
 
 **This is the bottleneck and it is supposed to be.**
 
-At 12-15 sends a day, roughly 12-15 verified findings a day is the real daily workload. Plan the day around the walks, not the sends.
+Every new opener needs a verified finding, so the day's opener headroom (the send ceiling minus follow-ups due — 20/day ramping to 30, see `send-cap status`) is the real daily walk workload. Plan the day around the walks, not the sends.
 
 ## The hard gate
 

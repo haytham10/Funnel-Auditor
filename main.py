@@ -38,17 +38,17 @@ from rich import box
 from rich.text import Text
 
 from config import EVIDENCE_DIR
-from audit.crawler import (
-    crawl, CrawlResult, CrawledPage,
-    detect_platform, extract_links, extract_checkout_links, _safe_filename,
-)
 from audit.urls import slugify
 from audit import vision_gate
+
+# audit.crawler (Playwright/bs4 stack) is imported lazily inside the commands
+# that fetch or parse pages, so the gate commands (crm-gate, send-cap, vision)
+# keep working on machines without the crawl dependencies installed.
 
 console = Console()
 
 
-def print_summary(result: CrawlResult) -> None:
+def print_summary(result: "CrawlResult") -> None:
     console.print()
     console.print(
         Panel.fit(
@@ -124,6 +124,7 @@ def _normalize_url(url: str) -> str:
 
 
 def cmd_walk(args: argparse.Namespace) -> None:
+    from audit.crawler import crawl
     from audit.evidence import build_evidence
 
     url = _normalize_url(args.url)
@@ -158,6 +159,8 @@ def cmd_walk(args: argparse.Namespace) -> None:
 
 
 def cmd_crawl(args: argparse.Namespace) -> None:
+    from audit.crawler import crawl
+
     url = _normalize_url(args.url)
     console.print(f"\n[bold cyan]Starting crawl:[/bold cyan] {url}\n")
     with console.status("[bold green]Crawling funnel…[/bold green]", spinner="dots"):
@@ -174,6 +177,8 @@ def cmd_discover_links(args: argparse.Namespace) -> None:
     fetched by something other than this process (Firecrawl, driven by a
     skill). Prints JSON so the caller can decide what to fetch next —
     scope/priority rules stay defined here, once, regardless of fetcher."""
+    from audit.crawler import detect_platform, extract_links
+
     html = Path(args.html_file).read_text()
     url = _normalize_url(args.url)
     platform = args.platform or detect_platform(url)
@@ -189,6 +194,8 @@ def cmd_discover_links(args: argparse.Namespace) -> None:
 def cmd_discover_checkout(args: argparse.Namespace) -> None:
     """Wraps extract_checkout_links() — the Stop 4 checkout-hop discovery,
     same scope rules as discover-links, for a page fetched elsewhere."""
+    from audit.crawler import extract_checkout_links
+
     html = Path(args.html_file).read_text()
     url = _normalize_url(args.url)
     print(json.dumps(extract_checkout_links(html, url), indent=2))
@@ -199,10 +206,14 @@ def cmd_screenshot_name(args: argparse.Namespace) -> None:
     suffix (desktop/mobile), so a screenshot fetched by something other
     than Playwright lands under evidence/<slug>/screenshots/ with a name
     the packet renderer and vision-gate path matching already expect."""
+    from audit.crawler import _safe_filename
+
     print(f"{_safe_filename(_normalize_url(args.url))}_{args.suffix}.png")
 
 
-def _page_from_manifest(entry: dict, manifest_dir: Path) -> CrawledPage:
+def _page_from_manifest(entry: dict, manifest_dir: Path) -> "CrawledPage":
+    from audit.crawler import CrawledPage
+
     html = ""
     html_file = entry.get("html_file")
     if html_file:
@@ -230,6 +241,7 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     reconstructs a CrawlResult exactly as crawl() would have produced, and
     runs it through the UNCHANGED build_evidence() — identical output
     contract to `main.py walk`, regardless of which layer did the fetch."""
+    from audit.crawler import CrawlResult
     from audit.evidence import build_evidence
 
     manifest_path = Path(args.manifest)
@@ -298,11 +310,38 @@ def cmd_crm_gate(args) -> None:
     if args.gate == "offer":
         sys.exit(crm_gate.print_offer(args.row_json))
     if args.sends_today is None:
-        print("CRM GATE (send): FAIL — --sends-today is required. Run the daily "
-              "send-count query against the CRM first; this gate validates what "
-              "it's handed, it can't count Notion itself.")
+        print("CRM GATE (send): FAIL — --sends-today is required: TOTAL sends already "
+              "out of the inbox today (all touch types, warm included, both tracks — "
+              "count Gmail's sent mail, cross-check the CRM). This gate validates "
+              "what it's handed, it can't count Gmail itself.")
         sys.exit(2)
-    sys.exit(crm_gate.print_send(args.row_json, args.sends_today))
+    if args.touch is None:
+        print("CRM GATE (send): FAIL — --touch is required (1, 2, or 3). Openers and "
+              "follow-ups budget differently: follow-ups due today eat the budget "
+              "first, openers get what's left.")
+        sys.exit(2)
+    if args.touch == 1 and args.followups_due is None:
+        print("CRM GATE (send): FAIL — --followups-due is required for a touch 1 "
+              "opener: count today's still-unsent follow-ups (warm replies owed, "
+              "discovery questions due, cold touch 2/3 due) and hand the number over. "
+              "They eat the budget before any new open does.")
+        sys.exit(2)
+    if args.touch >= 2 and args.carries is None:
+        print("CRM GATE (send): FAIL — --carries is required for touch 2/3 "
+              "(second-finding | loom-offer | disambiguating-question). A follow-up "
+              "that just bumps is a wasted send and a spam signal; declare what new "
+              "thing this one carries.")
+        sys.exit(2)
+    sys.exit(crm_gate.print_send(
+        args.row_json, args.sends_today, args.touch, args.followups_due, args.carries,
+    ))
+
+
+def cmd_send_cap(args) -> None:
+    from audit import send_cap
+    if args.cap_command == "status":
+        sys.exit(send_cap.print_status())
+    sys.exit(send_cap.print_set(args.value))
 
 
 def main() -> None:
@@ -370,13 +409,36 @@ def main() -> None:
     p_crm = sub.add_parser(
         "crm-gate",
         help="UAE CRM transition gates: offer (price discovery before any priced offer) "
-             "/ send (finding verified + daily cap) — see audit/crm_gate.py",
+             "/ send (finding verified + follow-ups-first daily ceiling + touch 2/3 "
+             "carrier check) — see audit/crm_gate.py",
     )
     p_crm.add_argument("gate", choices=["offer", "send"])
     p_crm.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
     p_crm.add_argument("--sends-today", type=int,
-                       help="(send gate) cold sends already logged today, from the daily send-count query")
+                       help="(send gate) TOTAL sends already out of the inbox today — all touch "
+                            "types, warm included, both tracks (Gmail sent count)")
+    p_crm.add_argument("--touch", type=int,
+                       help="(send gate) which cold touch this send is: 1, 2, or 3 (the sequence "
+                            "is three touches, day 0/3/9, then Dormant)")
+    p_crm.add_argument("--followups-due", type=int,
+                       help="(send gate, touch 1) follow-ups still owed today — they eat the "
+                            "budget before any opener")
+    p_crm.add_argument("--carries", choices=["second-finding", "loom-offer", "disambiguating-question"],
+                       help="(send gate, touch 2/3) the new thing this follow-up carries; "
+                            "second-finding is checked against the row's Findings Bank")
     p_crm.set_defaults(func=cmd_crm_gate)
+
+    p_cap = sub.add_parser(
+        "send-cap",
+        help="daily send ceiling (TOTAL sends leaving the inbox): status shows the cap "
+             "+ ramp reminder; set moves it one step (20 → 25 → 30, Haytham's call only) "
+             "— see audit/send_cap.py",
+    )
+    cap_sub = p_cap.add_subparsers(dest="cap_command", required=True)
+    cap_sub.add_parser("status", help="print the current ceiling, days at this step, and the ramp reminder")
+    c_set = cap_sub.add_parser("set", help="move the ceiling to a ramp step (20/25/30) — Haytham's call, never a skill's")
+    c_set.add_argument("value", type=int)
+    p_cap.set_defaults(func=cmd_send_cap)
 
     argv = sys.argv[1:]
     if not argv:
@@ -384,7 +446,7 @@ def main() -> None:
         sys.exit(1)
     # Bare URL → walk
     if argv[0] not in (
-        "walk", "crawl", "slug", "vision", "crm-gate",
+        "walk", "crawl", "slug", "vision", "crm-gate", "send-cap",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",
     ):

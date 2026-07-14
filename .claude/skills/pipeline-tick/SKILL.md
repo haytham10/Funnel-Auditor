@@ -65,6 +65,13 @@ Query Status = Audit Ready with an Email set. Sort sub-12K followers first
 (the warm-reply band so far), then Tier. Present as "ready to send today" —
 Email OS daily input is 3 cold sends + 1 follow-up.
 
+Every send from this track leaves the same inbox as the UAE track and
+counts against the same daily ceiling (`python main.py send-cap status`,
+fails closed to 20). uae-tick's Gmail sent-count picks these up
+automatically; if today's UAE queue is already at the ceiling, parenting
+sends displace it one-for-one — say so in the brief rather than silently
+stacking past it.
+
 Flag any Audit Ready row with no Email as "needs address" with its Notes line.
 
 ## 4 — Hygiene flags (report, don't auto-fix)

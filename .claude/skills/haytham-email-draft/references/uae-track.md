@@ -40,9 +40,12 @@ Received and is logged in the page body's Email Thread Log with an
 send, as always):
 
 - First send: Audit Ready → Outreach Sent (Touch # = 1, Sequence = Cold).
-- Cold follow-ups (Touch 2-4, no reply): stays Outreach Sent. After Touch
-  4 with no reply → Dormant, Next Action set 2-3 weeks out. Same cadence
-  as ever: Touch 2 day 3-4, Touch 3 day 6-7, Touch 4 day 8-9.
+  The opener carries the #1 finding from the row's `Findings Bank`.
+- Cold follow-ups (Touch 2-3, no reply): stays Outreach Sent. Cadence:
+  Touch 2 day 3, Touch 3 day 9. After Touch 3 with no reply → Dormant,
+  Next Action set 2-3 weeks out. **There is no Touch 4 on this track.**
+  Each follow-up must carry something new — see "What each cold touch
+  carries" below.
 - She replies: → Reply Received, Sequence = Warm.
 - The discovery question goes out: → Price Discovery Sent.
 - Her answer is logged (verbatim + anchor set) and the priced offer goes
@@ -50,6 +53,31 @@ send, as always):
   before the offer email is even drafted.**
 - Call booked / paid: → Call Booked / Won. Explicit no or warm-thread
   ghost after 8-10 touches: → Lost with Lost Reason.
+
+---
+
+## What each cold touch carries (the follow-up payload rule)
+
+A cold follow-up that just bumps is a wasted send and a spam signal — it
+eats the day's inbox budget and gives the reader nothing. Every touch on
+this track carries a payload, and the send gate enforces it
+(`python main.py crm-gate send <row.json> --sends-today N --touch T
+--carries X` must print PASS before a follow-up enters the queue):
+
+- **Touch 1:** the strongest verified finding — `Findings Bank` #1.
+- **Touch 2 (day 3) and Touch 3 (day 9):** exactly one of
+  - `second-finding` — the next UNUSED `Findings Bank` entry (the gate
+    checks it exists; never invent one at draft time). Named as a felt
+    cost with its innocent explanation, fix left vague — naming a second
+    cost is not the Adrienne mistake, teaching a second fix is.
+  - `loom-offer` — one line, an offer not a link, no price.
+  - `disambiguating-question` — direct binary, no soft exit ("Should I
+    stop following up, or is this still on your radar?"). The natural
+    Touch 3 closer.
+
+The draft must actually carry what the gate was told (gate.md checks
+this). After Haytham confirms the send, the logging step flips the used
+bank entry to `USED-TN` in the `Findings Bank` property.
 
 ---
 
@@ -155,8 +183,15 @@ yes to.
 
 ## The daily ceiling
 
-12-15 cold sends per day across the whole inbox, hard cap 15, enforced at
-queue time by `python main.py crm-gate send <row.json> --sends-today N`.
-This skill drafts; the uae-tick skill owns the daily count. If a draft
-request would obviously blow past the cap (a batch of 20 "for today"),
-say so and draft for the queue, not for the day.
+One number for the whole inbox: TOTAL sends leaving it today — openers,
+follow-ups, warm replies, both tracks. The ceiling lives in
+`send_cap.json` and ramps 20 → 25 → 30 by Haytham's explicit call only
+(`python main.py send-cap status` shows the current cap and the ramp
+reminder; missing or invalid state fails closed to 20; 30 is the hard cap
+for one inbox — more volume means more inboxes). Follow-ups due today eat
+the budget first, new openers get what's left — enforced at queue time by
+`python main.py crm-gate send <row.json> --sends-today N --touch T
+[--followups-due M | --carries X]`. This skill drafts; the uae-tick skill
+owns the daily count. If a draft request would obviously blow past the
+ceiling (a batch of 30 "for today"), say so and draft for the queue, not
+for the day.

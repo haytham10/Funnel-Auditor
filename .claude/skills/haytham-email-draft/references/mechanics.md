@@ -54,20 +54,20 @@ For Lane 2 (no felt leak), pre-handle the one objection in their head before the
 
 ## Follow-up sequences
 
-**Cold (never replied):**
-- Touch 1: opener, one finding.
-- Touch 2: day 3-4 (or 48h test variant), same subject/thread.
-- Touch 3: day 6-7, same subject/thread.
-- Touch 4: day 8-9, final. "closing your file on this, let me know if timing changes"
-- After 4 with no reply: park (Status → "Dormant", not "Lost" — see SKILL.md). No fifth cold touch. Set a "back from the dead" bump 2-3 weeks out with a new angle, not another "just checking in." A dormant thread with a real Tier A/Lane 1 finding is an asset sitting in the pipeline, not a dead lead — reopening it costs nothing and Email OS's own numbers say most positive replies still haven't had a real chance to land by touch 4.
+**Cold (never replied) — UAE track (the parenting track has no cold sequences left; its old 4-touch cadence is history):**
+- Touch 1: opener, one finding — the #1 entry in the lead's Findings Bank.
+- Touch 2: day 3, same subject/thread. Must carry something new (below).
+- Touch 3: day 9, same subject/thread, final. Must carry something new; the disambiguating question is the natural closer here.
+- After 3 with no reply: park (Status → "Dormant", not "Lost" — see SKILL.md). No fourth cold touch. Set a "back from the dead" bump 2-3 weeks out with a new angle, not another "just checking in." A dormant thread with a real Tier A/Lane 1 finding is an asset sitting in the pipeline, not a dead lead — reopening it costs nothing.
 
-70-80% of positive replies come at touch 3-4. Do not stop at touch 1.
+Do not stop at touch 1 — but a follow-up has to earn its place. Each cold send eats the day's inbox budget; a bare bump is a wasted send and a spam signal.
 
-**The free-value cap applies here too, not just to money emails.** Touch 1 gets exactly one finding. Touch 2 and touch 3 do NOT introduce a second or third finding — that repeats the exact mistake that killed the Adrienne thread (touch 2 added the broken merge field, touch 3 added the missing price, and by touch 3 she'd been handed three separate diagnoses for free with nothing owed). A follow-up that teaches them something new they can fix themselves for free is a follow-up working against you. It should bump the same finding, not widen the diagnosis.
+**What touches 2 and 3 must carry (enforced: `crm-gate send --touch N --carries …` blocks the queue slot without it).** Exactly one new thing per follow-up:
+- **The next banked finding.** The walk banks every finding that survived both filters, ranked, in the row's `Findings Bank`; the gate checks an UNUSED entry past #1 actually exists (never invent one at draft time). Name it as a felt cost with its innocent explanation and KEEP THE FIX VAGUE — same rule as touch 1. Naming a second cost is not the Adrienne mistake; teaching a second fix is (her thread died because touch 2 and 3 handed over three complete free diagnoses with nothing owed). The open loop is what pulls the reply.
+- **The Loom offer.** One line, no price, no link on a cold thread: offer the walkthrough, don't attach it.
+- **The disambiguating question.** Direct binary, no soft exit: "Should I stop following up, or is this still on your radar?"
 
-**What a good bump actually is** (this is the Heba shape, the tighter of the two real threads, still no reply but the correct structure): reference the same finding again from a new angle that doesn't require new information — time passing ("the webinar ran two days ago, still sitting there?"), a natural consequence of the original finding ("every visitor" instead of "you"), or a one-line question that assumes the finding is still true. Under 7 words is fine for touch 3 if the finding is already fully stated. The bump's job is to stay present in the inbox without spending anything new.
-
-**If you're tempted to add a second finding in touch 2 or 3:** stop. That's a signal there's more than one real issue on the site, which is good intel — but it belongs in "The Next Three" bonus after a price is on the table (see money emails below), or as material for the eventual Loom, not as a second free gift in a cold thread that hasn't converted the first one yet.
+The old "bump the same finding from a new angle" shape (the Heba thread) is retired as a follow-up on this track — time-passing framing is still good seasoning on top of a carrier, but it no longer qualifies as the payload. Anything beyond the banked findings still belongs in "The Next Three" bonus after a price is on the table, or in the Loom — a cold thread never gets taught fixes for free.
 
 **Warm (replied once):** follow up every 2-3 days, up to 8-10 touches. Short one-liners, pattern interrupts, a relevant result. Never repeat the same message. 80% of warm meetings come between follow-up 5-9. Follow-ups: under 7 words when possible. You are bumping, not re-pitching.
 
