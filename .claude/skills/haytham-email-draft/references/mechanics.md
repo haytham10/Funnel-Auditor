@@ -41,7 +41,7 @@ Test: does it sound like a coach-adjacent human noticing something, or a consult
 - Line 1: the finding or the SMYKM human hook, stated flat. No "I was browsing."
 - The cost: what the gap costs them right now, in something they can picture.
 - The close: one question or one concrete offer, never both.
-- Sign off: none. Gmail signature handles name + Website link automatically.
+- Sign off: "Haytham" on its own line. Required (Jul 14, 2026: the Gmail auto-signature was removed, so the body must carry the name itself). Every worked example in examples.md ends this way.
 
 Two-line paragraphs. She is reading distracted on her phone. Build conflict in: what's there vs what's missing. The hidden "but" is the turn.
 
