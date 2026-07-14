@@ -53,12 +53,34 @@ found"), the draft can go ahead.
 
 ---
 
-## Input
+## Input — single lead, or the whole batch
 
 A Notion lead page (URL or ID) or a name Haytham names. The lead must
 already be Audit Ready with a funnel walk written by
 `haytham-opener-finder` — if it isn't, say so and point Haytham to that
 skill first; don't run a hook search on a lead with no lane verdict yet.
+
+**Batch mode (2026-07-14).** When Haytham says "hook the queue," "hook
+them all," "batch hooks," or names several leads: query the CRM for
+every `Audit Ready` row whose `SMYKM Hook` property is empty (hook line
+still "not run yet") and run Steps 1-4 on each, one lead at a time, same
+evidence discipline per lead — batch mode changes the invocation
+overhead, never the citation bar. Then present ONE review table: lead /
+hook (or "no hook found") / type label / cited source. Every hook line
+is written to Notion as it resolves (Step 4 per lead, as always); the
+table is his single review pass instead of sixteen separate asks.
+
+**Auto-draft on approval (the round-trip killer).** End the batch (or
+single-lead) hand-off with: "hooks resolved — say the word and the
+drafts get created in this same session." When Haytham approves ("draft
+them," "go," or per-lead picks/edits — an edited hook gets written back
+to Notion first), immediately run the full Touch 1 draft flow for each
+approved lead in this same session: `haytham-email-draft` (full loop,
+UAE rules), `python main.py email-check` + `python main.py crm-gate
+send … --touch 1 --followups-due M` per lead (quote both lines), create
+the Gmail DRAFT for each PASS, and set Status = `Draft Ready`. Held
+leads (gate FAIL, email-check FAIL, no address) get named with reasons.
+Drafts only — sending stays his hand, from Gmail.
 
 ---
 
@@ -184,11 +206,13 @@ skill has no opinion on any of those and must not rewrite them.
 ## Step 5 — Hand off
 
 Tell Haytham: the hook (or that none was found), its type label, and its
-exact source (URL or image path) with the read/fetch status. This resolves
-the block on `haytham-email-draft` for this lead — say so explicitly
-("hook line resolved, ready to draft") so he knows the next natural step
-is to ask for the Touch 1 draft. This skill still doesn't draft or touch
-Gmail itself; that's a separate ask.
+exact source (URL or image path) with the read/fetch status — in batch
+mode, the one review table. This resolves the block on
+`haytham-email-draft` — close with "say the word and the drafts get
+created in this same session." On his approval, the auto-draft flow in
+the Input section runs right here (email-check + crm-gate per lead,
+Gmail DRAFTS, Status = Draft Ready); the hook search itself never
+drafts without that approval.
 
 ---
 
@@ -209,4 +233,6 @@ Gmail itself; that's a separate ask.
 - It does not build a hook from generic site marketing copy, a press blurb,
   or a directory listing. If that's all that exists, that's a "no hook
   found" — the finding-only opener (SMYKM opening B) is the honest draft.
-- It does not draft or send email, and it does not touch Gmail.
+- It does not send email, ever. It touches Gmail only in the
+  auto-draft-on-approval flow (creating DRAFTS after Haytham explicitly
+  approves the resolved hooks), never during the hook search itself.

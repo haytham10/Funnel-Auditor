@@ -72,7 +72,7 @@ SQLite table name is the data source URL, quoted:
 | `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` |
 | `Findings Bank` | text | Every verified finding from the walk, ranked strongest first, one per line: `1. USED-T1 \| finding` / `2. UNUSED \| finding`. #1 is the opener; touches 2-3 draw the next UNUSED entry. Written by the walk; statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property. |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
-| `Status` | select | see lifecycle below |
+| `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14) |
 | `Sequence` | select | `Cold` `Warm` |
 | `Touch #` | number | Increment on every send incl. follow-ups. |
 | `Last Contacted` | date | |
@@ -99,11 +99,24 @@ Same pattern for `Last Contacted`.
 ## 3. Lifecycle (Status)
 
 ```
-Sourced → Qualifying → Audit Ready → Outreach Sent → Reply Received
-  → Price Discovery Sent → Offer Sent → Call Booked → Won
+Sourced → Qualifying → Audit Ready → Draft Ready → (Scheduled) → Outreach Sent
+  → Reply Received → Price Discovery Sent → Offer Sent → Call Booked → Won
 ```
 
 Terminal / off-ramps: `Lost`, `Dormant`, `Disqualified`
+
+**`Draft Ready` and `Scheduled` (added 2026-07-14) make Gmail state
+queryable.** `Draft Ready` = hook resolved + a Touch 1 draft sitting in
+Gmail awaiting Haytham's send. `Scheduled` = Haytham scheduled the send in
+Gmail and it has not departed yet — the message is in neither `in:sent`
+nor drafts, which is why this state exists: without it, scheduled sends
+are invisible to the daily count and get logged with future dates. Both
+are optional pass-throughs (a hand-sent draft can jump Draft Ready →
+Outreach Sent directly; Scheduled only appears when he actually schedules).
+`Outreach Sent` means the message ACTUALLY departed — it must have a
+matching message in Gmail's sent mail, and uae-tick reconciles this every
+morning (Scheduled rows whose message has departed get flipped to
+Outreach Sent with the real departure date).
 
 **The turn-two artifact has no Status of its own.** The artifact offer and
 its delivery (the recorded walkthrough of their live page) happen inside
@@ -118,7 +131,9 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 | Sourced → Qualifying | Name + site captured |
 | Qualifying → Audit Ready | `Gate 0` = Pass, `Gate 1` = Pass, funnel walk done, `Lane` set, `Finding Verified` = checked |
 | Qualifying → Disqualified | Either gate = Fail. Set and move on, do not linger. |
-| Audit Ready → Outreach Sent | Touch #1 sent. Set `Last Contacted`, `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must print PASS first.** |
+| Audit Ready → Draft Ready | SMYKM hook line resolved (hook-finder ran), `crm-gate send` PASS, `email-check` not FAIL, Gmail draft created. Sets nothing else — a draft is not a send. |
+| Draft Ready → Scheduled | Haytham scheduled the send in Gmail (tick detects it in the scheduled queue, or he says so). |
+| Audit Ready / Draft Ready / Scheduled → Outreach Sent | Touch #1 ACTUALLY departed (matching message in Gmail sent mail). Set `Last Contacted` (real departure date), `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must have printed PASS at queue time.** |
 | Outreach Sent → Reply Received | They replied. Set `Sequence` = Warm |
 | Reply Received → Price Discovery Sent | **MANDATORY STEP.** Discovery question sent. |
 | Price Discovery Sent → Offer Sent | Their answer logged verbatim in `Price Discovery Answer`, `Discovery Anchor` set. **Gate: `crm-gate offer` must print PASS first.** |
@@ -144,7 +159,9 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 - No operator jargon: never "funnel", "conversion", "audit", "sequence".
 - **No em-dashes anywhere, ever.**
 - Proper capitalization. Capitalize every sentence start and always capitalize "I".
-- No sign-off or name at the end of email drafts (Gmail auto-signature handles it).
+- **Sign off "Haytham" at the end of every email** (changed Jul 14, 2026: the
+  Gmail auto-signature was taken down, so the body must carry the name — the
+  old "no sign-off" rule would now ship unsigned mail).
 - One finding per opener, never stacked.
 - SMYKM hook must be specific and falsifiable, never a performed reaction.
 - Casual register, human on the first try. Tone comes from word choice and rhythm, not dropped capitalization.
@@ -194,10 +211,15 @@ The ceiling and the count are two separate reads:
 - **The ceiling:** `python main.py send-cap status` — quote its literal
   line. It ramps 20 → 25 → 30 by Haytham's hand only and fails closed
   to 20 (see `audit/send_cap.py`).
-- **The count:** TOTAL sends that left the inbox today, not just UAE
-  openers. Primary source is Gmail's sent mail (`in:sent after:<today>`,
-  count messages — warm replies and parenting-track sends included).
-  Cross-check against the CRM:
+- **The count:** TOTAL sends that left or WILL leave the inbox today, not
+  just UAE openers. "Today" is the **Dubai calendar day** (UTC+4 — the
+  same day boundary `send_cap.py` uses; compute the date string once and
+  use it everywhere). Two Gmail reads, added together:
+  `in:sent after:<today>` (messages that departed, warm replies +
+  parenting + deliverability tests included — they all burn the domain)
+  **plus** `in:scheduled` messages due today (scheduled sends sit in
+  neither sent nor drafts until they depart, and missing them overshoots
+  the ceiling by exactly their count). Cross-check against the CRM:
 
 ```sql
 SELECT date("date:Last Contacted:start") AS d, COUNT(*) AS sends

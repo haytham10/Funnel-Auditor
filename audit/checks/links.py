@@ -1,17 +1,39 @@
-"""Broken internal link detection via HEAD (with GET fallback) requests."""
+"""Broken internal link detection via HEAD (with GET fallback) requests.
+
+Checked concurrently (the requests are independent I/O waits) and cached
+per process: a 16-page crawl of one site sees the same nav/footer links on
+every page, and re-checking them serially with a 10s timeout each was the
+single largest time cost in a walk. The cache is process-lifetime, which
+equals crawl-lifetime for both fetch paths (`walk` and `ingest` are each
+one process).
+"""
 
 import urllib.request
 import urllib.error
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
 
 _TIMEOUT = 10
+_MAX_WORKERS = 8
+# New (uncached) links checked per page. Nav + footer + body CTAs fit well
+# inside this; past it we're checking blog-roll pagination, not the funnel.
+_MAX_NEW_LINKS_PER_PAGE = 25
 
 # Only these read as genuinely dead. Bot walls (403/999), method rejections
 # (405), and rate limits (429) are NOT evidence of a dead link.
 _DEAD_STATUSES = {0, 404, 410}
+
+# Statuses that warrant a GET retry after HEAD: hosts that reject HEAD
+# outright or gate bots on it (Kajabi's resource_redirect/* 404s a bare
+# HEAD while resolving fine on GET).
+_RETRY_AS_GET = {403, 404, 405, 429, 999}
+
+_status_cache: dict[str, int] = {}
+_cache_lock = Lock()
 
 
 def _same_host(url: str, base_url: str) -> bool:
@@ -36,11 +58,19 @@ def _status(url: str, method: str = "HEAD") -> int:
         return 0
 
 
+def _resolve_status(url: str) -> int:
+    status = _status(url, "HEAD")
+    if status in _RETRY_AS_GET:
+        status = _status(url, "GET")
+    return status
+
+
 def check_links(html: str, base_url: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
     broken: list[dict] = []
     unverifiable: list[dict] = []
-    checked: set[str] = set()
+    to_check: list[str] = []
+    seen: set[str] = set()
 
     for tag in soup.find_all("a", href=True):
         href = tag["href"].strip()
@@ -53,25 +83,34 @@ def check_links(html: str, base_url: str) -> dict:
             continue
         if not _same_host(absolute, base_url):
             continue
-        if absolute in checked:
+        if absolute in seen:
             continue
-        checked.add(absolute)
+        seen.add(absolute)
+        to_check.append(absolute)
 
-        status = _status(absolute, "HEAD")
-        if status in (403, 404, 405, 429, 999):
-            # Many hosts reject HEAD outright or gate bots on it — redirect/
-            # proxy endpoints (e.g. Kajabi's resource_redirect/*) commonly
-            # 404 a bare HEAD while resolving fine on GET. Retry once as GET
-            # before trusting any of these statuses.
-            status = _status(absolute, "GET")
+    with _cache_lock:
+        cached = {u: _status_cache[u] for u in to_check if u in _status_cache}
+    fresh = [u for u in to_check if u not in cached][:_MAX_NEW_LINKS_PER_PAGE]
 
+    results: dict[str, int] = dict(cached)
+    if fresh:
+        with ThreadPoolExecutor(max_workers=min(_MAX_WORKERS, len(fresh))) as pool:
+            for url, status in zip(fresh, pool.map(_resolve_status, fresh)):
+                results[url] = status
+        with _cache_lock:
+            _status_cache.update({u: results[u] for u in fresh})
+
+    for url in to_check:
+        status = results.get(url)
+        if status is None:
+            continue  # past the per-page cap this pass; caught on a later page or not at all
         if status in _DEAD_STATUSES:
-            broken.append({"url": absolute, "status": status})
+            broken.append({"url": url, "status": status})
         elif status in (403, 429, 999):
-            unverifiable.append({"url": absolute, "status": status})
+            unverifiable.append({"url": url, "status": status})
 
     return {
         "broken": broken,
         "unverifiable": unverifiable,
-        "total_checked": len(checked),
+        "total_checked": len(results),
     }

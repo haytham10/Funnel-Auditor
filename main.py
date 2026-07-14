@@ -344,6 +344,57 @@ def cmd_send_cap(args) -> None:
     sys.exit(send_cap.print_set(args.value))
 
 
+def cmd_email_check(args) -> None:
+    from audit import email_check
+    sys.exit(email_check.print_check(args.address, args.name or ""))
+
+
+def cmd_cta_probe(args) -> None:
+    """Single-page Playwright pass: load ONE page and run the JS-button
+    click-discovery on it. Exists for the Firecrawl fetch path, where
+    cta_clicks is always [] — when the packet shows unverified js_only_buttons
+    on an offer page, this resolves just that page instead of re-walking the
+    whole funnel with `main.py walk`. Prints the cta_clicks JSON."""
+    from audit.crawler import (
+        crawl as _unused_guard,  # noqa: F401 — fail fast if the crawl stack is missing
+    )
+    from audit import crawler
+
+    url = _normalize_url(args.url)
+    import os
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as pw:
+        launch_kwargs: dict = {
+            "headless": True,
+            "args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+        }
+        exe = os.environ.get("FUNNEL_AUDITOR_CHROMIUM")
+        if not exe and os.path.exists("/opt/pw-browsers/chromium"):
+            exe = "/opt/pw-browsers/chromium"
+        if exe:
+            launch_kwargs["executable_path"] = exe
+        proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+        proxied = bool(proxy_url and "127.0.0.1" in proxy_url)
+        if proxied:
+            launch_kwargs["proxy"] = {"server": proxy_url}
+            crawler._ensure_mitm_friendly_tls()
+        browser = pw.chromium.launch(**launch_kwargs)
+        context = browser.new_context(ignore_https_errors=proxied)
+        page = context.new_page()
+        page.set_viewport_size({"width": 1280, "height": 800})
+        try:
+            crawler._goto_with_fallback(page, url)
+        except Exception as exc:
+            print(json.dumps({"url": url, "error": str(exc)[:200], "cta_clicks": []}, indent=2))
+            browser.close()
+            sys.exit(1)
+        crawler._wait_for_embeds(page)
+        clicks = crawler._discover_cta_destinations(page, url, args.type)
+        browser.close()
+    print(json.dumps({"url": url, "link_type": args.type, "cta_clicks": clicks}, indent=2))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="funnel-auditor")
     sub = parser.add_subparsers(dest="command")
@@ -440,6 +491,26 @@ def main() -> None:
     c_set.add_argument("value", type=int)
     p_cap.set_defaults(func=cmd_send_cap)
 
+    p_email = sub.add_parser(
+        "email-check",
+        help="pre-send address check: syntax + MX + typo/disposable/role flags "
+             "(FAIL = don't send; WARN inconclusive = verify via the Apify email "
+             "checker) — see audit/email_check.py",
+    )
+    p_email.add_argument("address")
+    p_email.add_argument("--name", help="lead's name — flags whether the local part matches")
+    p_email.set_defaults(func=cmd_email_check)
+
+    p_probe = sub.add_parser(
+        "cta-probe",
+        help="single-page Playwright JS-button click-discovery, for resolving one "
+             "Firecrawl-fetched page's unverified buttons without re-walking the funnel",
+    )
+    p_probe.add_argument("url")
+    p_probe.add_argument("--type", default="sales", choices=["sales", "course", "booking"],
+                         help="the page's link_type (click scope excludes checkout pages by design)")
+    p_probe.set_defaults(func=cmd_cta_probe)
+
     argv = sys.argv[1:]
     if not argv:
         parser.print_help()
@@ -447,6 +518,7 @@ def main() -> None:
     # Bare URL → walk
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap",
+        "email-check", "cta-probe",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",
     ):

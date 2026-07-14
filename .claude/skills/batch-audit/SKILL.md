@@ -35,17 +35,17 @@ won't fix those.
 Also list rows with NO Site URL at the end as "need the site link" —
 never try to fill it from anything but a public web search.
 
-Cap a single run at **15 leads** — that's a full day of sends at the
-deliverability ceiling, so a bigger batch of walks has nowhere to go
-anyway. More than 15 in the queue: work the first 15 and name what's left
-for the next run.
+Cap a single run at **20 leads** — a full day of sends at the ramp's
+first ceiling step, so a bigger batch of walks has nowhere to go anyway.
+More than 20 in the queue: work the first 20 and name what's left for
+the next run.
 
 State the batch in one line ("Working 6: Jane, Maria, …") and start. Do
 not wait for confirmation — he handed the batch over by logging it. If
 the run came from a scheduled Routine and the queue is empty, say "Walk
 queue empty — nothing qualified since last run" and stop.
 
-## Step 2 — One lead-processor agent per lead, ~3 at a time
+## Step 2 — One lead-processor agent per lead, ~5 at a time
 
 Run `pip install -q -r requirements.txt` once before spawning anything.
 
@@ -55,7 +55,7 @@ start cold: the lead's Notion page URL/ID, Contact Name, Site URL, Profile
 URL, Audience Size, City, Source Channel, plus any batch-specific note
 Haytham gave. Tell it the row already exists — update, don't duplicate.
 
-Concurrency: keep **at most 3 agents running**; as one completes, launch
+Concurrency: keep **at most 5 agents running**; as one completes, launch
 the next. Each agent works one lead start-to-finish per the process-lead
 skill — machine walk, vision pass, floors, opener-finder walk + Notion
 write, email address — and holds at the Gmail draft (every lead comes back

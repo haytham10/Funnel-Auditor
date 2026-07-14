@@ -30,17 +30,38 @@ the top of the brief. **Raising the cap is Haytham's call, gated on
 deliverability having actually held; this skill NEVER runs `send-cap
 set`.**
 
-**The count:** TOTAL sends that left the inbox today, not just UAE
-openers — warm replies and parenting-track sends burn the same domain.
-Primary source is Gmail: search `in:sent after:<today YYYY/MM/DD>` and
-count the messages. Cross-check with the CRM (undercounts by design —
-one row per lead, UAE only; Gmail wins on disagreement):
+**The day:** "today" is the **Dubai calendar day** (UTC+4, no DST) — the
+same boundary `send_cap.py` uses. This tick fires at 02:53 UTC = 06:53
+Dubai; compute the Dubai date string once and use it in every Gmail
+search and SQL comparison below. Never mix server-local, UTC, and
+Gmail-account days.
+
+**The count:** TOTAL sends that left or WILL leave the inbox today, not
+just UAE openers — warm replies, parenting-track sends, and
+deliverability-test sends all burn the same domain. Two Gmail reads,
+added together:
+
+1. `in:sent after:<today YYYY/MM/DD>` — messages that departed.
+2. `in:scheduled` — messages Haytham scheduled that are due today.
+   **Scheduled sends sit in neither sent mail nor drafts until they
+   depart; skipping this read overshoots the ceiling by exactly their
+   count.** (He schedules sends sometimes — this is a normal state, not
+   an anomaly.)
+
+Cross-check with the CRM (undercounts by design — one row per lead, UAE
+only; Gmail wins on disagreement):
 
 ```sql
 SELECT COUNT(*) AS sends
 FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
-WHERE date("date:Last Contacted:start") = date('now')
+WHERE date("date:Last Contacted:start") = date('now', '+4 hours')
 ```
+
+**The deliverability log:** skim `docs/deliverability-log.md` (bounces,
+spam-folder hits, test scores). If step 1 below finds a bounce or a
+lead's reply mentions spam, append a dated line to that log in the same
+run — the ramp decision reads this file, so it only works if it stays
+current.
 
 **The budget, in this order — follow-ups first:** count today's
 still-unsent follow-ups from steps 1-3 (warm replies owed, discovery
@@ -51,12 +72,38 @@ Enforced per lead by the gate invocations in steps 3 and 4. Also run the
 14-day history query from the operating spec and flag any day over the
 ceiling as a deliverability risk.
 
+## 0.5 — Gmail-state reconciliation (Scheduled / Draft Ready → reality)
+
+The CRM's `Scheduled` and `Draft Ready` statuses mirror Gmail state, so
+verify them against Gmail every morning:
+
+- **Scheduled rows:** if the message now appears in `in:sent`, flip the
+  row to `Outreach Sent` with the REAL departure date as `Last Contacted`
+  (+ `Touch #`, `Next Action` +3 days, Email Thread Log entry — the full
+  send logging). If it's still in the scheduled queue, leave it. If it's
+  in neither (he cancelled it), flip back to `Draft Ready` or
+  `Audit Ready` per what Gmail shows and say so in the brief.
+- **Draft Ready rows:** confirm an unsent draft to that address still
+  exists (`list_drafts`). Draft gone + nothing in sent = he deleted it —
+  flip back to `Audit Ready` and flag. Draft gone + message in sent =
+  it departed; do the full send logging.
+
+These reconciliation flips record reality (like reply detection) and are
+allowed without approval.
+
 ## 1 — Reply detection (Gmail → Notion)
+
+**One inbox sweep, not one search per lead** (per-lead searches grow
+linearly with threads out and were 16+ Gmail calls per tick by day two).
+Run a single `in:inbox after:<last tick's Dubai date>` search, match
+sender addresses against the CRM's Email column (one SQL pull), and only
+fetch the full thread for matches. A lead who last replied before the
+sweep window is caught by the Last Contacted cross-check below.
 
 Query the CRM for rows with Touch # ≥ 1 and Status in
 (Outreach Sent, Reply Received, Price Discovery Sent, Offer Sent,
-Call Booked, Dormant). For each row with an Email, search Gmail for
-threads with that address since Last Contacted.
+Call Booked, Dormant) — this is both the match list for the sweep and
+the stall check. For any matched row, fetch the Gmail thread and sync.
 
 - New reply found and Notion doesn't reflect it → update: Status = Reply
   Received (or the later stage that actually applies), Sequence = Warm,
@@ -147,18 +194,30 @@ happen (per the email-draft skill's rules).
 
 ## 4 — Send queue (Touch 1 openers)
 
-Query Status = Audit Ready with an Email set (the 📤 Send Queue view).
-For each candidate, in order: dump the fresh row to JSON and run
-`python main.py crm-gate send <row.json> --sends-today <Gmail total incl.
-today's already-queued drafts> --touch 1 --followups-due <F from step 0,
-minus follow-ups already queued>`. Only PASS rows enter today's queue —
-the gate itself holds openers behind the follow-ups still owed, so a FAIL
-on headroom means the opener rolls to tomorrow, not that a follow-up gets
-bumped. Quote one gate line per queued lead.
+Query Status in (Audit Ready, Draft Ready) with an Email set (the 📤
+Send Queue view). For each candidate, in order:
 
-Present as "ready to send today." Remember these still need the hook
-line resolved before a draft exists — split the queue into "draft
-sitting in Gmail, ready to send" vs "needs haytham-hook-finder first."
+1. `python main.py email-check <address> --name "<name>"` — quote the
+   line. FAIL = the address is unusable (typo/dead domain/no-reply):
+   flag "needs a real address" and skip the gate. WARN inconclusive =
+   verify via the Apify email-checker actor before it enters the queue.
+2. Dump the fresh row to JSON and run `python main.py crm-gate send
+   <row.json> --sends-today <Gmail total incl. today's already-queued
+   drafts> --touch 1 --followups-due <F from step 0, minus follow-ups
+   already queued>`. Only PASS rows enter today's queue — the gate
+   itself holds openers behind the follow-ups still owed, so a FAIL on
+   headroom means the opener rolls to tomorrow, not that a follow-up
+   gets bumped. Quote one gate line per queued lead.
+
+Present as "ready to send today," split by status: `Draft Ready` (draft
+sitting in Gmail — send it) vs `Audit Ready` (still needs
+haytham-hook-finder before a draft can exist).
+
+**Pacing:** hand the queue over in batches of **at most 10**, spread
+across the day (e.g. morning / midday / late afternoon) — 20 sends in a
+two-minute burst is a spam-filter signature even under the ceiling.
+Scheduled sending is fine and counts via step 0's scheduled read; the
+batch shape applies to it too.
 
 If the send queue is empty or thin: say so, and point at the Walk Queue
 count — the bottleneck is findings, not sends; the fix is walks
@@ -174,6 +233,11 @@ line.
 - Audit Ready without `Finding Verified` checked, or `Finding Verified`
   checked on a Lane 2/3 row (both incoherent).
 - Status Outreach Sent with Touch # = 0.
+- **Outreach Sent with no matching message in Gmail's sent mail** — the
+  status means the email actually left; no matching send = a logging
+  error or a scheduled send logged as departed (should be `Scheduled`).
+- **`Last Contacted` in the future** on any row not at `Scheduled` — a
+  future date on a "sent" row is a logging error, full stop.
 - Any Cold row with Touch # ≥ 4 — the cold sequence is three touches;
   a fourth means the cadence rules were bypassed.
 - An Outreach Sent row whose Email Thread Log shows a follow-up that
@@ -194,6 +258,13 @@ unique leads replied (reply rate by lead), discovery answers collected
 lead, never by message-row — counting rows once inflated the old
 pipeline's numbers and it mattered.
 
+**Attribution splits (what the old track learned only after 125 leads):**
+break replies out by `Finding Type`, `Source Channel`, and `Lane` — one
+GROUP BY each over the replied rows vs sent rows. The old track's lesson
+was that `Dead/stale element` carried most warm replies; this track
+should confirm or kill that within 30 leads instead of 125, and the
+channel split is what decides where top-up sourcing spends its fetches.
+
 ## The brief
 
 One message, in this order: replies (verbatim, with the suggested next
@@ -206,11 +277,13 @@ coffee.
 
 ## Hard rules
 
-- Drafts only. Never send. Never auto-advance Touch #, Status, Last
-  Contacted, or Next Action for an unsent email — creating a Gmail draft
-  is not a send.
-- Reply-detection and discovery-answer logging are the only unprompted
-  Notion writes.
+- Drafts only. Never send. Never advance Touch #, Last Contacted, Next
+  Action, or set Status = Outreach Sent for an email that hasn't actually
+  departed — creating a Gmail draft is not a send. (Setting `Draft Ready`
+  at draft time and the step 0.5 reconciliation flips are the sanctioned
+  exceptions: they mirror Gmail reality, they don't claim a send.)
+- Reply-detection, discovery-answer logging, and the step 0.5
+  Gmail-state reconciliation are the only unprompted Notion writes.
 - `Price Discovery Answer` is verbatim or it is nothing. Never paraphrase,
   never tidy her grammar.
 - Never draft a money email unprompted, and never while `crm-gate offer`

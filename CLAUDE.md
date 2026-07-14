@@ -42,23 +42,30 @@ this repo is built to keep separate.
 
 ## The UAE pipeline in one line
 
-`source-leads` (Day 1: 5 web channels → CRM as Sourced; Day 2: mechanical
-Gate 0/1 → Qualifying) → `/batch-audit` (one lead-processor agent per
-lead, ~3 parallel, cap 15) → per lead: machine walk (Firecrawl-primary
-fetch, Playwright fallback) → **mandatory vision pass** → UAE Gate 0
-floors → opener-finder (lane + finding + innocent explanation; `Finding
-Verified` checked only on a visually-confirmed Lane 1 finding) → CRM
-write → email address → **held** (no Gmail draft yet) → Haytham runs
-`haytham-hook-finder` (real public evidence: LinkedIn, podcasts, YouTube,
-About page) → Haytham asks for the draft → Gmail DRAFT (SMYKM opening A
-or B) → Haytham sends by hand → reply → turn-two artifact →
-**price discovery question** (answer logged VERBATIM + anchor set) →
-priced offer (735 AED Track A / 2,575 AED Track B, gated by
-`crm-gate offer`) → close. `uae-tick` runs the daily loop.
+`source-leads` (Day 1: 5 web channels → CRM as Sourced, Site URL required
+per row; Day 2: mechanical Gate 0/1 → Qualifying) → `/batch-audit` (one
+lead-processor agent per lead, ~5 parallel, cap 20) → per lead: machine
+walk (Firecrawl-primary fetch, parallel scrapes, Playwright fallback;
+`cta-probe` for single-page JS-button resolution) → **mandatory vision
+pass** → UAE Gate 0 floors → opener-finder (lane + finding + innocent
+explanation + findings bank + 3-line Loom skeleton; `Finding Verified`
+checked only on a visually-confirmed Lane 1 finding) → CRM write → email
+address (checked by `main.py email-check`; FAIL never enters the CRM) →
+**held** (no Gmail draft yet) → Haytham runs `haytham-hook-finder`
+(single lead or batch mode over all Audit Ready; real public evidence:
+LinkedIn, podcasts, YouTube, About page) → he approves the hooks → Gmail
+DRAFTS created in the same session (SMYKM opening A or B), Status =
+`Draft Ready` → Haytham sends by hand (or schedules — Status
+`Scheduled`) → tick reconciles Gmail reality → `Outreach Sent` → reply →
+turn-two artifact → **price discovery question** (answer logged VERBATIM
++ anchor set) → priced offer (735 AED Track A / 2,575 AED Track B, gated
+by `crm-gate offer`) → close. `uae-tick` runs the daily loop; the send-day
+is the Dubai calendar day everywhere.
 
-Haytham's manual jobs: picking the sprint day, running
-`haytham-hook-finder` per lead, reviewing and sending drafts from Gmail,
-recording the turn-two artifact, and confirming sends for logging.
+Haytham's manual jobs: picking the sprint day, reviewing hook batches,
+reviewing and sending (or scheduling) drafts from Gmail, recording the
+turn-two artifact, confirming sends for logging, and appending test
+scores to `docs/deliverability-log.md`.
 
 ## Hard rules (non-negotiable)
 
@@ -158,6 +165,15 @@ recording the turn-two artifact, and confirming sends for logging.
   `audit/send_cap.py`): current cap + the built-in ramp reminder once a
   step has held 7 days. `set` moves one step (20/25/30) and is Haytham's
   command, never a skill's; state is `send_cap.json`, failing closed to 20.
+  The ramp decision's evidence lives in `docs/deliverability-log.md`
+  (uae-tick appends bounces/spam flags; Haytham appends test scores).
+- `main.py email-check <address> [--name]` — pre-send address gate
+  (`audit/email_check.py`): syntax + MX + typo/disposable/no-reply flags.
+  FAIL = the address never enters the CRM or a queue; WARN inconclusive =
+  verify via the Apify email-checker actor first.
+- `main.py cta-probe <url> --type sales|course|booking` — single-page
+  Playwright JS-button click-discovery, for resolving one Firecrawl-fetched
+  page's unverified buttons without re-walking the whole funnel.
 - `audit/` — checks, extraction, Gate 0 floors (`gates.py`, UAE:
   audience 1,500 / activity 30 days / funnel present / UAE-based), packet
   builder; all fetch-layer-agnostic. `crawler.py` still holds the
@@ -172,7 +188,7 @@ recording the turn-two artifact, and confirming sends for logging.
   pass → floors → opener → **held** at the Gmail draft until
   `haytham-hook-finder` resolves the hook.
 - `.claude/skills/batch-audit` + `.claude/agents/lead-processor.md` —
-  batch orchestrator over the Walk Queue (~3 parallel, cap 15) and the
+  batch orchestrator over the Walk Queue (~5 parallel, cap 20) and the
   per-lead subagent with its structured return block.
 - `.claude/skills/haytham-opener-finder` — Gate 0/1, the 5-stop walk
   (widened for webinar funnels, call-booking flows, cohort launches),

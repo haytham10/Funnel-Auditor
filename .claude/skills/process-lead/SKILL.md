@@ -92,9 +92,13 @@ evidence/<slug>/_firecrawl_raw/1.html <url>` — prints JSON
 `noise_links`; `external_refs`; detected `platform`). This is the single
 source of truth for scope/priority — don't reimplement or second-guess it.
 
-**4. Loop.** Fetch each `funnel_links` entry the same way (steps 1-2),
-capped at `MAX_PAGES` (16). Then the checkout-hop pass: for every page
-fetched so far, `python main.py discover-checkout
+**4. Loop — fetch in parallel.** Fetch each `funnel_links` entry the same
+way (steps 1-2), capped at `MAX_PAGES` (16). The scrapes are independent:
+**issue 3-4 `firecrawl_scrape` calls per round in parallel** instead of
+one at a time — this roughly halves a walk's wall-clock and changes
+nothing else (discovery stays sequential per round, since each round's
+links come from the last round's HTML). Then the checkout-hop pass: for
+every page fetched so far, `python main.py discover-checkout
 evidence/<slug>/_firecrawl_raw/<n>.html <page-url>`, fetch what it
 returns, capped at `MAX_CHECKOUT_HOPS` (6) total.
 
@@ -120,13 +124,16 @@ files, and a refreshed `vision_manifest.json` — byte-identical contract to
 the old `python main.py walk`, regardless of which layer fetched the
 pages.
 
-**Known gap — CTA click-discovery.** The JS-button click-discovery and
-booking-widget-interaction logic (clicking buttons on bio-link aggregators
-and sales/course/booking pages to find hidden destinations) needs a live,
-interactive browser session, which a stateless Firecrawl scrape can't
-replicate. `cta_clicks` is always `[]` for Firecrawl-fetched pages —
-`packet.md` will read "not run (Firecrawl-fetched)" rather than silently
-claim a clean result. This is expected, not a bug.
+**Known gap — CTA click-discovery, and the single-page fix.** The
+JS-button click-discovery logic needs a live browser session, which a
+stateless Firecrawl scrape can't replicate — `cta_clicks` is always `[]`
+for Firecrawl-fetched pages. When the packet's "unverified interactive
+elements" section flags JS-only buttons on a sales/course/booking page
+that matter to the lane call, don't re-walk the whole funnel: run
+`python main.py cta-probe <that-page-url> --type sales|course|booking`
+to click-resolve just that one page (Playwright, one page, prints the
+cta_clicks JSON). Quote what it resolved in the Evidence section. Pages
+where the buttons are obvious chrome don't need it.
 
 **Fallback to Playwright.** If Firecrawl fails outright on a page after
 retry (persistent block even with `proxy: stealth`), or the platform is a
@@ -283,6 +290,15 @@ Work the Email OS decision tree with what the packet harvested:
    or pattern-guess+verify needed" and leave Status = Qualifying. The
    freebie opt-in and verification are Haytham's manual steps.
 
+**Whatever the tree picks, check it before it enters the CRM:**
+`python main.py email-check <address> --name "<Contact Name>"` — quote
+the line in the verdict. FAIL (typo domain, dead domain, no-reply inbox,
+disposable) = the address is unusable: keep hunting or fall to step 4;
+never log a FAIL address into the Email property. WARN inconclusive =
+log it, but Notes first line says "address unverified — run the Apify
+email-checker before Touch 1." One verified address per lead — never
+send the same opener to two guessed spellings.
+
 If the email came from a source the walk flagged as broken/suspect, Status
 stays Qualifying and that flag goes in Notes as the FIRST line.
 
@@ -316,9 +332,13 @@ Then, without waiting for approval:
 - Pick the variant that came through the gate strongest and **create the
   Gmail DRAFT** (never send) to the lead's address with that subject and
   body. Haytham reviews, edits, and sends from Gmail by hand.
-- Append one line to the lead's Notes: `Gmail draft ready (Touch 1) —
-  "<subject>" — <date>`. Do NOT touch Status, Touch #, Last Contacted, or
-  the Email Thread Log — those record sends, and nothing has been sent.
+- Set Status = `Draft Ready` (the status that means "hook resolved, draft
+  sitting in Gmail") and append one line to the lead's Notes: `Gmail
+  draft ready (Touch 1) — "<subject>" — <date>`. Do NOT touch Touch #,
+  Last Contacted, or the Email Thread Log — those record sends, and
+  nothing has been sent. (`Outreach Sent` is set only when the message
+  actually departs; uae-tick reconciles Draft Ready/Scheduled rows
+  against Gmail every morning.)
 - In the verdict, show the drafted variant in full plus the runner-up
   variants labeled, so he can swap in Gmail if he prefers another.
 

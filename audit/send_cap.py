@@ -31,8 +31,21 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+
+# The send-day is the DUBAI calendar day (UTC+4, no DST), everywhere: the
+# inbox's audience lives there, the tick fires at 02:53 UTC (06:53 Dubai),
+# and mixing server-local, UTC, and Gmail-account days put up to 4 hours of
+# disagreement exactly inside the window the tick runs in. Anything that
+# counts or dates sends uses this, never date.today().
+DUBAI_TZ = timezone(timedelta(hours=4))
+
+
+def today() -> date:
+    """Today's date in Dubai — the canonical send-day for the whole system."""
+    return datetime.now(DUBAI_TZ).date()
+
 
 RAMP_STEPS = (20, 25, 30)
 HARD_MAX = 30
@@ -53,7 +66,7 @@ class CapState:
     def days_at_cap(self) -> int | None:
         if self.set_on is None:
             return None
-        return (date.today() - self.set_on).days
+        return (today() - self.set_on).days
 
     @property
     def step_index(self) -> int:
@@ -175,9 +188,9 @@ def set_cap(new_cap: int, path: str | Path = STATE_FILE) -> tuple[bool, list[str
     if state.valid:
         history.append({"cap": state.cap, "set_on": str(state.set_on)})
     path.write_text(json.dumps(
-        {"cap": new_cap, "set_on": str(date.today()), "history": history}, indent=2,
+        {"cap": new_cap, "set_on": str(today()), "history": history}, indent=2,
     ) + "\n")
-    lines = [f"SEND CAP: set to {new_cap}/day on {date.today()}. Each step is Haytham's call, "
+    lines = [f"SEND CAP: set to {new_cap}/day on {today()}. Each step is Haytham's call, "
              "gated on deliverability having actually held — never raised by a skill on its own."]
     lines += status_lines(load_cap(path))[1:]
     return True, lines

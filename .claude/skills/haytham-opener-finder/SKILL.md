@@ -149,6 +149,14 @@ Lane 1 only: state the single strongest finding (bank #1) as the opening angle. 
 
 **The innocent explanation is a required second line.** Alongside the finding, always output the plausible non-blame explanation for it: the calendar might just need a reset, the cohort date might be stuck from last round, the replay link might still be mid-migration, the section might still be loading. The email skill turns this pair into the either/or closing question, and the pipeline evidence says that question is doing heavy lifting: all five cold openers that earned warm replies in the old track closed with an either/or handing her a face-saving explanation, and the one opener that closed with a challenge and no exit drew "Rude." This matches reactance research on feedback: delivery that questions competence triggers defensiveness, delivery that leaves the recipient autonomy keeps her receptive. If no innocent explanation exists for a finding, flag that to Haytham; it may mean the finding will read as an accusation no matter how it's phrased.
 
+**The Loom skeleton (Lane 1, required).** While the funnel is still fresh in
+context, write the three-line artifact outline into the page body's Loom
+Skeleton section (see schema.md): Show (the exact page/element + URL), Fix
+(the one change, in her platform's terms), Done state (what working looks
+like). It costs nothing now and turns a "yes, show me" reply into a
+30-minute delivery instead of a re-research session — slow artifact delivery
+was the old track's #1 controllable failure.
+
 **No SMYKM hook here.** This skill stops at the finding + innocent explanation. Write `SMYKM hook: not run yet — see haytham-hook-finder` as the placeholder line in Step 6 below. Finding the actual hook is `haytham-hook-finder`'s job — a separate skill Haytham triggers manually on an Audit Ready lead, working from real public evidence (LinkedIn posts, podcast appearances, YouTube, the About page). The email skill can draft perfectly well without one (SMYKM opening B, direct finding opener); the hook is an upgrade, not a blocker — but the hook line must be RESOLVED (real hook or confirmed "no hook found") before any draft goes out.
 
 Lane 2: note the warm-up angle. What specific piece of their content or current activity is the genuine entry?

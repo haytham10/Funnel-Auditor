@@ -52,7 +52,10 @@ including every skill it chains into (`haytham-opener-finder`,
    ranked, in the body's Findings Bank section AND the `Findings Bank`
    property (`N. UNUSED | finding` — the send gate parses these lines);
    #1 is the opener, the rest is what cold Touch 2/3 draws on.
-5. Work the Email OS address tree. Then check the `SMYKM hook:` line you
+5. Work the Email OS address tree, and check whatever it picks with
+   `python main.py email-check <address> --name "<name>"` before logging
+   it (FAIL = unusable, never enters the Email property; quote the line
+   in your return block's EMAIL field). Then check the `SMYKM hook:` line you
    just wrote in step 4 — it will read `not run yet — see
    haytham-hook-finder`, since you never find a hook yourself (see hard
    rules). **That means you do not draft.** Do not invoke the email-draft
@@ -98,6 +101,7 @@ LEAD: <name>
 GATES: <Gate 0 Pass|Fail> / <Gate 1 Pass|Fail>  LANE: <1|2|3>  STATUS: <Notion status you set>
 FINDING: <one line — the strongest visually-confirmed finding, or "none">
 BANKED: <how many findings entered the Findings Bank (0 for Lane 2/3), e.g. "3 — Touch 2/3 have material">
+LOOM: <Lane 1: "skeleton written" (the 3-line Show/Fix/Done outline in the page body) | "n/a">
 FINDING VERIFIED: <checked | unchecked — must match the Notion property you set>
 INNOCENT: <the innocent explanation, or "n/a">
 SMYKM: <always "not run yet — see haytham-hook-finder" from this flow; you
