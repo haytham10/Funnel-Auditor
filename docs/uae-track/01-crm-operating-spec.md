@@ -1,7 +1,7 @@
 # UAE Lead CRM — Operating Spec
 
 Machine-readable reference for operating the UAE Coach Pipeline CRM via the Notion MCP.
-Written for Claude Code. Last updated 2026-07-13.
+Written for Claude Code. Last updated 2026-07-14.
 
 > Adopted into the repo 2026-07-13 with corrections confirmed by Haytham:
 > - **The AED price is 735, not 550.** $200 is canonical; 550 AED (~$150) was a
@@ -57,6 +57,7 @@ SQLite table name is the data source URL, quoted:
 | --- | --- | --- |
 | `Contact Name` | title | |
 | `Email` | email | Required before any send. |
+| `Phone Number` | phone_number | Decision-maker phone / WhatsApp if publicly listed. Optional; enables the WhatsApp pivot on warm trust-verification threads. |
 | `Site URL` | url | Funnel entry point. |
 | `Profile URL` | url | LinkedIn / wherever found. |
 | `City` | select | `Dubai` `Abu Dhabi` `Sharjah` `Other UAE` `Unconfirmed` |
