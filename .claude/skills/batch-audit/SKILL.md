@@ -49,11 +49,24 @@ queue empty — nothing qualified since last run" and stop.
 
 Run `pip install -q -r requirements.txt` once before spawning anything.
 
+**Check the Apify quota once, before spawning anything (added Jul 15,
+2026, after a batch where several agents each separately burned tool
+calls discovering the same exhausted monthly quota):** `python main.py
+apify limits`. Apify's free/starter tier caps on a small monthly USD
+budget (`current.monthlyUsageUsd` vs `limits.maxMonthlyUsageUsd`), not a
+per-actor credit — one lead's LinkedIn/IG lookups can burn a meaningful
+slice of it. If `near_cap` is `true` (or a call errors), tell every
+lead-processor agent in its prompt: "Apify is at/near its monthly cap
+this run — do not call `python main.py apify <anything>` for audience
+confirmation; note 'Apify unavailable this run' and proceed on
+Firecrawl/web-search signal alone." One check, not one per lead.
+
 For each lead, spawn a **lead-processor** agent (`.claude/agents/
 lead-processor.md`). Its prompt must contain everything it needs — agents
 start cold: the lead's Notion page URL/ID, Contact Name, Site URL, Profile
-URL, Audience Size, City, Source Channel, plus any batch-specific note
-Haytham gave. Tell it the row already exists — update, don't duplicate.
+URL, Audience Size, City, Source Channel, the Apify-quota note above, plus
+any batch-specific note Haytham gave. Tell it the row already exists —
+update, don't duplicate.
 
 Concurrency: keep **at most 5 agents running**; as one completes, launch
 the next. Each agent works one lead start-to-finish per the process-lead

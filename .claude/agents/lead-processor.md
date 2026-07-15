@@ -89,6 +89,13 @@ including every skill it chains into (`haytham-opener-finder`,
 - **Never invoke haytham-email-draft or create a Gmail draft while that
   hook line still reads "not run yet."** Hold the lead there instead — see
   step 5 above.
+- **Apify is capped to one attempt, if used at all.** If your prompt
+  didn't already tell you Apify is at/near its monthly cap for this run,
+  and the audience floor genuinely needs it (process-lead Step 2), make
+  at most one call. An error (quota, timeout, anything) means "audience
+  unconfirmed — Apify unavailable" in Notes, not a retry against a second
+  actor. Never call `apify verify-email` during this walk to resolve a
+  WARN address early — that's deferred to Touch 1 (process-lead Step 5).
 - Never write into the parenting DB.
 
 ## What you return (the whole point)
