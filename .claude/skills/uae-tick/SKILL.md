@@ -79,14 +79,20 @@ verify them against Gmail every morning:
 
 - **Scheduled rows:** if the message now appears in `in:sent`, flip the
   row to `Outreach Sent` with the REAL departure date as `Last Contacted`
-  (+ `Touch #`, `Next Action` +3 days, Email Thread Log entry — the full
-  send logging). If it's still in the scheduled queue, leave it. If it's
-  in neither (he cancelled it), flip back to `Draft Ready` or
-  `Audit Ready` per what Gmail shows and say so in the brief.
+  (+ `Touch #`, `Next Action` +3 days, Email Thread Log entry, **the
+  Touch-1 `Findings Bank` flip `1. UNUSED` → `1. USED-T1` when the row has
+  a bank, and clearing the pre-send `Notes` markers — `run
+  haytham-hook-finder` / `then ask to draft` / `HELD ... log on send`** —
+  i.e. the FULL confirmed-send checklist in `haytham-email-draft` SKILL.md,
+  every field, not just the dates). If it's still in the scheduled queue,
+  leave it. If it's in neither (he cancelled it), flip back to
+  `Draft Ready` or `Audit Ready` per what Gmail shows and say so in the
+  brief.
 - **Draft Ready rows:** confirm an unsent draft to that address still
   exists (`list_drafts`). Draft gone + nothing in sent = he deleted it —
   flip back to `Audit Ready` and flag. Draft gone + message in sent =
-  it departed; do the full send logging.
+  it departed; do the full send logging (same complete checklist: bank
+  flip + Notes clear included, not just the dates).
 
 These reconciliation flips record reality (like reply detection) and are
 allowed without approval.
@@ -240,9 +246,17 @@ line.
   future date on a "sent" row is a logging error, full stop.
 - Any Cold row with Touch # ≥ 4 — the cold sequence is three touches;
   a fourth means the cadence rules were bypassed.
-- An Outreach Sent row whose Email Thread Log shows a follow-up that
-  carried a banked finding, but the `Findings Bank` entry still says
-  UNUSED (the send-confirmation logging missed the flip).
+- An Outreach Sent (or later) row that carries a `Findings Bank` whose
+  spent entry still says `UNUSED` — Touch 1 spends #1, so ANY sent row with
+  a bank whose `1.` reads `UNUSED` is a missed flip; a follow-up that
+  carried a banked finding leaving its entry `UNUSED` is the same bug.
+  (Confirmed-send logging missed the `USED-TN` flip — see
+  `haytham-email-draft`. This is the highest-frequency drift; the bank flip
+  on Touch 1 was historically skipped.)
+- An Outreach Sent (or later) row whose `Notes` still carry a pre-send
+  workflow marker — `run haytham-hook-finder`, `then ask to draft`, or
+  `HELD ... log on send` — the send resolved it and confirmed-send logging
+  should have cleared it.
 - Stale warm threads: Sequence = Warm, no touch in > 4 days (the
   stalled-threads SQL in the operating spec).
 - Qualifying rows older than a week with no walk in the page body.
