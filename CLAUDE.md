@@ -170,7 +170,16 @@ scores to `docs/deliverability-log.md`.
 - `main.py email-check <address> [--name]` — pre-send address gate
   (`audit/email_check.py`): syntax + MX + typo/disposable/no-reply flags.
   FAIL = the address never enters the CRM or a queue; WARN inconclusive =
-  verify via the Apify email-checker actor first.
+  verify via `main.py apify verify-email <addr>` first.
+- `main.py apify <li-posts|li-profile|ig|ig-post|verify-email|search|actors>`
+  — the no-login third-party fetch layer (`audit/apify.py`,
+  `docs/uae-track/apify-actors.md`): read-only public LinkedIn/Instagram
+  data for SMYKM hooks (the two platforms Firecrawl can't reach), email
+  verification, and Google SERP, through vetted Apify actors that take a
+  URL and need no account. Reads `APIFY_TOKEN` from the environment (an env
+  secret, never in code); discovery works without it, runs need it, missing
+  token fails closed. Posts-first on LinkedIn, cost-aware on IG. Podcasts /
+  YouTube / About pages stay on Firecrawl.
 - `main.py cta-probe <url> --type sales|course|booking` — single-page
   Playwright JS-button click-discovery, for resolving one Firecrawl-fetched
   page's unverified buttons without re-walking the whole funnel.
@@ -222,6 +231,12 @@ scores to `docs/deliverability-log.md`.
 
 - Firecrawl MCP server is the primary fetcher — already connected in
   managed sessions, no setup needed.
+- Apify actor layer (`main.py apify`, `audit/apify.py`) is the no-login
+  fetch path for LinkedIn/Instagram (which Firecrawl can't reach), email
+  verification, and Google SERP. It needs `APIFY_TOKEN` set as an
+  environment secret on the runner (never in code); without it, discovery
+  still works but runs fail closed with a clear message. See
+  `docs/uae-track/apify-actors.md`.
 - Chromium/Playwright is only needed for the `main.py walk` fallback path.
   Managed cloud sessions: Chromium lives at `/opt/pw-browsers/chromium`
   (the crawler auto-detects it; override with `FUNNEL_AUDITOR_CHROMIUM`).

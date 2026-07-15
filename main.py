@@ -395,6 +395,41 @@ def cmd_cta_probe(args) -> None:
     print(json.dumps({"url": url, "link_type": args.type, "cta_clicks": clicks}, indent=2))
 
 
+def cmd_apify(args) -> None:
+    """No-login third-party fetch layer — LinkedIn/Instagram hooks, email
+    verification, Google SERP (see audit/apify.py). Prints JSON to stdout
+    for the calling skill; errors print {"error": ...} and exit non-zero."""
+    from audit import apify
+
+    cmd = args.apify_command
+    try:
+        if cmd == "actors":
+            out = apify.discover_actors(args.query, args.limit)
+        elif cmd == "ig":
+            out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
+                                  limit=args.limit, raw=args.raw)
+        elif cmd == "ig-post":
+            out = apify.instagram_post(args.url, raw=args.raw)
+        elif cmd == "li-posts":
+            out = apify.linkedin_posts(args.url, max_posts=args.max, since=args.since,
+                                       raw=args.raw)
+        elif cmd == "li-profile":
+            out = apify.linkedin_profile(args.url, with_email=args.email, raw=args.raw)
+        elif cmd == "verify-email":
+            out = apify.verify_emails(args.addresses, raw=args.raw)
+        elif cmd == "search":
+            out = apify.google_search(args.query, pages=args.pages, site=args.site,
+                                      country=args.country, raw=args.raw)
+        else:
+            parser_error = f"apify: unknown subcommand {cmd!r}"
+            print(json.dumps({"error": parser_error}))
+            sys.exit(2)
+    except apify.ApifyError as exc:
+        print(json.dumps({"error": str(exc)}, indent=2))
+        sys.exit(1)
+    print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="funnel-auditor")
     sub = parser.add_subparsers(dest="command")
@@ -511,6 +546,59 @@ def main() -> None:
                          help="the page's link_type (click scope excludes checkout pages by design)")
     p_probe.set_defaults(func=cmd_cta_probe)
 
+    p_apify = sub.add_parser(
+        "apify",
+        help="no-login third-party fetch layer: LinkedIn/Instagram hook evidence, "
+             "email verification, Google SERP (see audit/apify.py). Reads APIFY_TOKEN "
+             "from the environment.",
+    )
+    apify_sub = p_apify.add_subparsers(dest="apify_command", required=True)
+
+    a_actors = apify_sub.add_parser("actors", help="search the public Apify Store (no token needed)")
+    a_actors.add_argument("query")
+    a_actors.add_argument("--limit", type=int, default=6)
+
+    a_ig = apify_sub.add_parser("ig", help="Instagram profile: recent posts w/ captions, or profile details")
+    a_ig.add_argument("url")
+    a_ig.add_argument("--mode", default="posts",
+                      choices=["posts", "details", "reels", "comments", "mentions"],
+                      help="posts = feed w/ captions; details = follower/bio metadata")
+    a_ig.add_argument("--newer-than", dest="newer_than",
+                      help="recency filter, e.g. '7 days', '2 months', or 2026-07-01")
+    a_ig.add_argument("--limit", type=int, default=12)
+    a_ig.add_argument("--raw", action="store_true", help="skip field trimming")
+
+    a_igp = apify_sub.add_parser("ig-post", help="full detail on one Instagram post (caption + top comments)")
+    a_igp.add_argument("url")
+    a_igp.add_argument("--raw", action="store_true")
+
+    a_lip = apify_sub.add_parser("li-posts", help="recent LinkedIn posts (no cookies) — primary hook source")
+    a_lip.add_argument("url")
+    a_lip.add_argument("--max", type=int, default=5, help="max posts (default 5)")
+    a_lip.add_argument("--since",
+                       choices=["any", "1h", "24h", "week", "month", "3months", "6months", "year"],
+                       help="recency window, e.g. week, month")
+    a_lip.add_argument("--raw", action="store_true")
+
+    a_lipr = apify_sub.add_parser("li-profile", help="LinkedIn profile enrichment (headline/about/experience)")
+    a_lipr.add_argument("url")
+    a_lipr.add_argument("--email", action="store_true",
+                        help="use the email-search mode ($10/1k) to find an address — no-email leads only")
+    a_lipr.add_argument("--raw", action="store_true")
+
+    a_ver = apify_sub.add_parser("verify-email", help="verify one or more addresses before they enter the CRM")
+    a_ver.add_argument("addresses", nargs="+")
+    a_ver.add_argument("--raw", action="store_true")
+
+    a_search = apify_sub.add_parser("search", help="Google SERP for one query")
+    a_search.add_argument("query")
+    a_search.add_argument("--pages", type=int, default=1)
+    a_search.add_argument("--site", help="scope to a domain, e.g. linkedin.com")
+    a_search.add_argument("--country", default="ae", help="country bias (default ae); pass '' to disable")
+    a_search.add_argument("--raw", action="store_true")
+
+    p_apify.set_defaults(func=cmd_apify)
+
     argv = sys.argv[1:]
     if not argv:
         parser.print_help()
@@ -518,7 +606,7 @@ def main() -> None:
     # Bare URL → walk
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap",
-        "email-check", "cta-probe",
+        "email-check", "cta-probe", "apify",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",
     ):
