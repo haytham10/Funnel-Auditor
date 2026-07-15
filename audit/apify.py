@@ -147,6 +147,54 @@ def run_actor(
     return data if isinstance(data, list) else [data]
 
 
+def account_limits() -> dict:
+    """Current monthly usage vs. plan limits (`GET /v2/users/me/limits`) —
+    the same figures shown on the account's Limits page. Costs nothing to
+    call and needs no actor run.
+
+    Added after a batch-audit run (evening prep, Jul 15 2026) burned extra
+    tool calls when several lead-processor agents each independently
+    discovered a dead monthly quota by running actors into it one at a
+    time. This lets an orchestrator check once, up front, and skip Apify
+    entirely for the rest of a batch instead of every subagent re-learning
+    the same fact the expensive way.
+
+    Returns the raw `limits`/`current` blocks plus a computed
+    `pct_of_usd_cap` and `near_cap` (>=90% of `maxMonthlyUsageUsd`) — the
+    single plan-agnostic signal, since the USD budget is what actually caps
+    a free/starter account regardless of which actor is being run.
+    """
+    try:
+        resp = requests.get(
+            f"{APIFY_BASE}/users/me/limits",
+            headers=_auth_headers(),
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise ApifyError(f"network error reaching Apify: {exc}") from exc
+    if resp.status_code == 401:
+        raise ApifyError("401 Unauthorized — APIFY_TOKEN is missing or invalid.")
+    if not resp.ok:
+        raise ApifyError(f"{resp.status_code} from Apify: {resp.text[:400]}")
+    try:
+        data = resp.json().get("data", {})
+    except ValueError as exc:
+        raise ApifyError(f"non-JSON response from Apify: {resp.text[:200]}") from exc
+
+    limits = data.get("limits", {}) or {}
+    current = data.get("current", {}) or {}
+    usd_cap = limits.get("maxMonthlyUsageUsd") or 0
+    usd_used = current.get("monthlyUsageUsd") or 0
+    pct = round(100 * usd_used / usd_cap, 1) if usd_cap else None
+    return {
+        "monthly_usage_cycle": data.get("monthlyUsageCycle", {}),
+        "limits": limits,
+        "current": current,
+        "pct_of_usd_cap": pct,
+        "near_cap": pct is not None and pct >= 90,
+    }
+
+
 def discover_actors(query: str, limit: int = 6) -> list[dict]:
     """Search the public Apify Store (no token needed). Returns a ranked,
     trimmed list — how the actor set was chosen in the first place."""

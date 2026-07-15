@@ -232,6 +232,13 @@ link, funnel floor, audience floor). Complete the rest by judgment:
   offer exists (the crawl usually settles this). Call-only with nothing
   digital = fail.
 - **Audience floor**: **1,500+** on their largest owned or social channel.
+  If the crawl and one web search don't surface a number, **one** Apify
+  lookup is fine (`apify ig --mode details` or `apify li-profile`,
+  whichever channel is largest — never both) — but only if `python main.py
+  apify limits` hasn't already been flagged `near_cap` for this run. One
+  attempt, no retry-storm: if it errors (quota, timeout, anything), write
+  "audience unconfirmed — Apify unavailable" in Notes and judge on the
+  strongest number you already have rather than trying a second actor.
 
 Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line
 reason in Notes (properties only, no body), and stop. The floor exists to
@@ -296,8 +303,11 @@ the line in the verdict. FAIL (typo domain, dead domain, no-reply inbox,
 disposable) = the address is unusable: keep hunting or fall to step 4;
 never log a FAIL address into the Email property. WARN inconclusive =
 log it, but Notes first line says "address unverified — run the Apify
-email-checker before Touch 1." One verified address per lead — never
-send the same opener to two guessed spellings.
+email-checker before Touch 1." **Do not run `python main.py apify
+verify-email` here to resolve it early** — that's deferred to Touch 1
+time (uae-tick owns it) specifically so a walk-phase batch doesn't spend
+Apify calls on addresses that may never get a send. One verified address
+per lead — never send the same opener to two guessed spellings.
 
 If the email came from a source the walk flagged as broken/suspect, Status
 stays Qualifying and that flag goes in Notes as the FIRST line.

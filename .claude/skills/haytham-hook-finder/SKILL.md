@@ -86,6 +86,11 @@ Drafts only — sending stays his hand, from Gmail.
 
 ## Step 1 — Gather real evidence (fetch it, cite it, never invent it)
 
+0. **Batch mode only:** before running Step 1-4 on the first lead, run
+   `python main.py apify limits` once (no cost). If `near_cap` is true,
+   say so up front and fall back to Step 4 (Haytham pastes screenshots)
+   for every lead in the batch instead of letting each one discover the
+   same exhausted quota individually.
 1. Fetch the lead's Notion page. Confirm the lane + Status, and note the
    current `SMYKM hook:` line (should read "not run yet" on a fresh lead).
    The Profile URL property is usually the LinkedIn profile — start there.

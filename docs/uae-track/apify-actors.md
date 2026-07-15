@@ -43,6 +43,25 @@ checkout probes) stays on **Firecrawl** — cheaper and already connected.
 Adding actors is surface area and cost, not capability. If a new need is
 genuinely web-unreachable, add it here deliberately, not by reflex.
 
+## Check the quota once, not per lead
+
+`python main.py apify limits` — no token cost, no actor run. Prints
+current usage vs. plan limits (`GET /v2/users/me/limits`). The free/starter
+tier caps on a small **monthly USD budget**
+(`current.monthlyUsageUsd` / `limits.maxMonthlyUsageUsd`), not a
+per-actor credit count, so a handful of LinkedIn/IG lookups across a
+batch can burn through it fast. The response includes `pct_of_usd_cap`
+and `near_cap` (`true` at ≥90%) for a quick read.
+
+**batch-audit checks this once, up front**, before spawning any
+lead-processor agents — if `near_cap` is true, every agent gets told to
+skip Apify for the run instead of each one separately discovering an
+exhausted quota by running into it (which is exactly what happened Jul
+15, 2026: several agents in the same evening-prep batch each burned tool
+calls hitting the same dead quota one actor call at a time). Any
+solo-invoked lead-processor or hook-finder run should do the same check
+first rather than assume the quota is open.
+
 ## Cost discipline (Instagram and the email-search mode are the pricey ones)
 
 - **LinkedIn: posts-first.** `li-posts` is where a recent-post hook comes

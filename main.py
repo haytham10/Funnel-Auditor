@@ -403,7 +403,9 @@ def cmd_apify(args) -> None:
 
     cmd = args.apify_command
     try:
-        if cmd == "actors":
+        if cmd == "limits":
+            out = apify.account_limits()
+        elif cmd == "actors":
             out = apify.discover_actors(args.query, args.limit)
         elif cmd == "ig":
             out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
@@ -553,6 +555,12 @@ def main() -> None:
              "from the environment.",
     )
     apify_sub = p_apify.add_subparsers(dest="apify_command", required=True)
+
+    apify_sub.add_parser(
+        "limits",
+        help="current monthly usage vs. plan limits — check ONCE before a batch "
+             "so a dead quota isn't rediscovered by every lead independently",
+    )
 
     a_actors = apify_sub.add_parser("actors", help="search the public Apify Store (no token needed)")
     a_actors.add_argument("query")
