@@ -29,6 +29,7 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 
 - [ ] Subject under 8 words, sentence case, no end punctuation, SMYKM-specific to this person.
 - [ ] No Loom or Calendly link in email 1.
+- [ ] No bare domain or email address in the body (Gmail auto-links it into a google.com/url redirect that reads as spam). Describe the site instead; intended proof links get an explicit https:// scheme. Enforced by the create_draft PreToolUse hook.
 - [ ] One CTA only — one question or one offer, never both.
 - [ ] Niche lingo: no operator vocabulary (funnel, sequence, opt-in, conversion, leads, optimize, audit).
 - [ ] Conflict present: what's there vs what's missing.
