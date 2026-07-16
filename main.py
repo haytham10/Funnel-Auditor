@@ -412,6 +412,42 @@ def cmd_cta_probe(args) -> None:
     print(json.dumps({"url": url, "link_type": args.type, "cta_clicks": clicks}, indent=2))
 
 
+def cmd_gmail_gethaytham(args) -> None:
+    """Direct Gmail API path for haytham@gethaytham.com — see
+    audit/gmail_gethaytham.py's module docstring for why this exists
+    instead of a second Claude connector (Google's Gmail MCP endpoint only
+    binds one account and auto-mate.one already claimed it). Prints JSON to
+    stdout for the calling skill; errors print {"error": ...} and exit
+    non-zero, same contract as `apify`."""
+    from audit import gmail_gethaytham as gg
+
+    cmd = args.gg_command
+    try:
+        if cmd == "search":
+            out = gg.search_threads(args.query, max_results=args.max)
+        elif cmd == "thread":
+            out = gg.get_thread(args.thread_id)
+        elif cmd == "message":
+            out = gg.get_message(args.message_id)
+        elif cmd == "labels":
+            out = gg.list_labels()
+        elif cmd == "draft":
+            body = sys.stdin.read() if args.body == "-" else args.body
+            out = gg.create_draft(
+                args.to, args.subject, body,
+                thread_id=args.thread_id, in_reply_to=args.in_reply_to,
+            )
+        elif cmd == "drafts":
+            out = gg.list_drafts()
+        else:
+            print(json.dumps({"error": f"gmail-gethaytham: unknown subcommand {cmd!r}"}))
+            sys.exit(2)
+    except gg.GmailGethaythamError as exc:
+        print(json.dumps({"error": str(exc)}, indent=2))
+        sys.exit(1)
+    print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+
+
 def cmd_apify(args) -> None:
     """No-login third-party fetch layer — LinkedIn/Instagram hooks, email
     verification, Google SERP (see audit/apify.py). Prints JSON to stdout
@@ -653,6 +689,39 @@ def main() -> None:
 
     p_apify.set_defaults(func=cmd_apify)
 
+    p_gg = sub.add_parser(
+        "gmail-gethaytham",
+        help="direct Gmail API for haytham@gethaytham.com (the second UAE send "
+             "inbox) — no Claude connector involved, since Google's Gmail MCP "
+             "endpoint only binds one account and auto-mate.one already claimed "
+             "it. Reads GETHAYTHAM_GMAIL_CLIENT_ID / _CLIENT_SECRET / "
+             "_REFRESH_TOKEN from the environment — see audit/gmail_gethaytham.py.",
+    )
+    gg_sub = p_gg.add_subparsers(dest="gg_command", required=True)
+
+    gg_search = gg_sub.add_parser("search", help="search threads (Gmail query syntax)")
+    gg_search.add_argument("query")
+    gg_search.add_argument("--max", type=int, default=10)
+
+    gg_thread = gg_sub.add_parser("thread", help="fetch one thread, full format")
+    gg_thread.add_argument("thread_id")
+
+    gg_message = gg_sub.add_parser("message", help="fetch one message, full format")
+    gg_message.add_argument("message_id")
+
+    gg_sub.add_parser("labels", help="list labels")
+
+    gg_draft = gg_sub.add_parser("draft", help="create a Gmail DRAFT (never sends)")
+    gg_draft.add_argument("to")
+    gg_draft.add_argument("subject")
+    gg_draft.add_argument("body", help="plain-text body, or '-' to read from stdin")
+    gg_draft.add_argument("--thread-id", help="keep this draft in an existing thread")
+    gg_draft.add_argument("--in-reply-to", help="Message-Id header of the message being replied to")
+
+    gg_sub.add_parser("drafts", help="list existing drafts")
+
+    p_gg.set_defaults(func=cmd_gmail_gethaytham)
+
     argv = sys.argv[1:]
     if not argv:
         parser.print_help()
@@ -660,7 +729,7 @@ def main() -> None:
     # Bare URL → walk
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap",
-        "email-check", "email-verify", "cta-probe", "apify",
+        "email-check", "email-verify", "cta-probe", "apify", "gmail-gethaytham",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",
     ):
