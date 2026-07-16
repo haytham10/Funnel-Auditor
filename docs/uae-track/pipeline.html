@@ -1,0 +1,531 @@
+<title>The UAE Pipeline</title>
+<style>
+  :root {
+    --bg: #eceff2;
+    --surface: #ffffff;
+    --surface-2: #f4f6f8;
+    --ink: #161c21;
+    --ink-soft: #5c6873;
+    --ink-faint: #8b97a1;
+    --hair: #d9dfe4;
+    --hair-strong: #c3cbd2;
+    --machine: #0c877c;
+    --machine-ink: #076057;
+    --machine-soft: #e3f1ef;
+    --human: #ab6f16;
+    --human-ink: #8a5808;
+    --human-soft: #f6ecd9;
+    --kill: #b0473e;
+    --kill-soft: #f4e2e0;
+    --shadow: 0 1px 2px rgba(20,30,40,.05), 0 8px 24px -12px rgba(20,30,40,.18);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1114;
+      --surface: #131b20;
+      --surface-2: #0e161a;
+      --ink: #e5edf1;
+      --ink-soft: #97a4ae;
+      --ink-faint: #64717b;
+      --hair: #253138;
+      --hair-strong: #33424b;
+      --machine: #2cb6a5;
+      --machine-ink: #6fded0;
+      --machine-soft: #0f2320;
+      --human: #d79f4c;
+      --human-ink: #f0c987;
+      --human-soft: #251c0e;
+      --kill: #d47268;
+      --kill-soft: #291613;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eceff2; --surface: #ffffff; --surface-2: #f4f6f8;
+    --ink: #161c21; --ink-soft: #5c6873; --ink-faint: #8b97a1;
+    --hair: #d9dfe4; --hair-strong: #c3cbd2;
+    --machine: #0c877c; --machine-ink: #076057; --machine-soft: #e3f1ef;
+    --human: #ab6f16; --human-ink: #8a5808; --human-soft: #f6ecd9;
+    --kill: #b0473e; --kill-soft: #f4e2e0;
+    --shadow: 0 1px 2px rgba(20,30,40,.05), 0 8px 24px -12px rgba(20,30,40,.18);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1114; --surface: #131b20; --surface-2: #0e161a;
+    --ink: #e5edf1; --ink-soft: #97a4ae; --ink-faint: #64717b;
+    --hair: #253138; --hair-strong: #33424b;
+    --machine: #2cb6a5; --machine-ink: #6fded0; --machine-soft: #0f2320;
+    --human: #d79f4c; --human-ink: #f0c987; --human-soft: #251c0e;
+    --kill: #d47268; --kill-soft: #291613;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: clamp(28px, 5vw, 64px) clamp(18px, 4vw, 40px) 80px;
+  }
+
+  /* ---- header ---- */
+  header { margin-bottom: 40px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(30px, 5.5vw, 46px);
+    line-height: 1.04;
+    letter-spacing: -.025em;
+    font-weight: 760;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: clamp(15px, 2vw, 17px);
+    color: var(--ink-soft);
+    max-width: 60ch;
+    margin: 0;
+  }
+  .lede b { color: var(--ink); font-weight: 640; }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--hair);
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .dot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .dot.m { background: var(--machine); }
+  .dot.h { background: var(--human); }
+  .dot.k { background: var(--kill); }
+
+  /* ---- lifecycle strip ---- */
+  .lifecycle {
+    margin: 34px 0 44px;
+    padding: 18px 20px;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+  .lifecycle .cap {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 12px;
+  }
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px 4px;
+  }
+  .status {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--hair-strong);
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .status.term { border-color: var(--machine); color: var(--machine-ink); background: var(--machine-soft); }
+  .status.kill { border-color: var(--kill); color: var(--kill); background: var(--kill-soft); }
+  .arrow { color: var(--ink-faint); font-size: 13px; padding: 0 1px; }
+
+  /* ---- phases & spine ---- */
+  .phase { margin-bottom: 34px; }
+  .phase-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .phase-head h2 {
+    font-size: 13px;
+    font-family: var(--mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 0;
+    font-weight: 600;
+  }
+  .phase-head .rule { flex: 1; height: 1px; background: var(--hair); }
+  .phase-head .n { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+
+  .spine { display: flex; flex-direction: column; gap: 10px; }
+
+  .stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .stage .num {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 18px;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    background: var(--surface-2);
+    border-right: 1px solid var(--hair);
+  }
+  .stage .body { padding: 16px 18px 17px; }
+  .stage.human { border-left: 3px solid var(--human); }
+  .stage.machine { border-left: 3px solid var(--machine); }
+
+  .stage .top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 7px;
+  }
+  .stage h3 {
+    font-size: 17px;
+    letter-spacing: -.01em;
+    margin: 0;
+    font-weight: 660;
+  }
+  .actor {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2.5px 8px;
+    border-radius: 5px;
+    font-weight: 600;
+  }
+  .actor.m { color: var(--machine-ink); background: var(--machine-soft); }
+  .actor.h { color: var(--human-ink); background: var(--human-soft); }
+  .stage p { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 62ch; }
+  .stage p code, .inline-code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--hair);
+    padding: 1px 5px;
+    border-radius: 5px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-top: 12px;
+    align-items: center;
+  }
+  .skill {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--machine-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stage.human .skill { color: var(--human-ink); }
+  .skill::before { content: "▸"; color: var(--ink-faint); }
+  .produces {
+    font-size: 12px;
+    color: var(--ink-faint);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+  }
+  .produces .status { font-size: 11.5px; padding: 2.5px 8px; }
+
+  /* ---- split callout ---- */
+  .split {
+    margin: 0 0 10px;
+    padding: 13px 16px;
+    background: var(--machine-soft);
+    border: 1px dashed var(--machine);
+    border-radius: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .split .tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--machine);
+    padding: 3px 8px;
+    border-radius: 5px;
+    flex: none;
+    margin-top: 1px;
+  }
+  .split p { margin: 0; font-size: 13.5px; color: var(--machine-ink); }
+  .split p b { color: var(--ink); }
+  .split .was {
+    font-family: var(--mono);
+    text-decoration: line-through;
+    text-decoration-color: var(--kill);
+    opacity: .8;
+  }
+
+  /* ---- footer notes ---- */
+  .notes {
+    margin-top: 44px;
+    padding-top: 26px;
+    border-top: 1px solid var(--hair);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 20px;
+  }
+  .note h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-family: var(--mono);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .note p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+  .note code { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+
+  @media (max-width: 520px) {
+    .stage { grid-template-columns: 34px 1fr; }
+    .stage .num { padding-top: 16px; font-size: 12px; }
+  }
+
+  /* entrance */
+  @media (prefers-reduced-motion: no-preference) {
+    .stage, .lifecycle, .split { animation: rise .5s cubic-bezier(.2,.7,.3,1) both; }
+    .spine .stage:nth-child(2) { animation-delay: .04s; }
+    .spine .stage:nth-child(3) { animation-delay: .08s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  }
+  a { color: var(--machine-ink); }
+  :focus-visible { outline: 2px solid var(--machine); outline-offset: 2px; border-radius: 4px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">UAE Track · Machine Layer</p>
+    <h1>How a lead moves through the pipeline</h1>
+    <p class="lede">One coach, sourced from the open web, walked to a verified funnel finding, handed to Haytham, and closed in AED. The machine runs every stage but <b>two</b> — the hook approval and the send, the deliberate human gates.</p>
+    <div class="legend">
+      <span><i class="dot m"></i> Machine runs it</span>
+      <span><i class="dot h"></i> Haytham, by hand</span>
+      <span><i class="dot k"></i> Off-ramp / kill</span>
+    </div>
+  </header>
+
+  <div class="lifecycle">
+    <div class="cap">CRM status, start to close</div>
+    <div class="flow">
+      <span class="status">Sourced</span><span class="arrow">→</span>
+      <span class="status">Qualifying</span><span class="arrow">→</span>
+      <span class="status term">Audit Ready</span><span class="arrow">→</span>
+      <span class="status">Draft Ready</span><span class="arrow">→</span>
+      <span class="status">Outreach Sent</span><span class="arrow">→</span>
+      <span class="status">Replied</span><span class="arrow">→</span>
+      <span class="status">Offer Sent</span><span class="arrow">→</span>
+      <span class="status">Closed</span>
+      <span class="arrow" style="padding-left:10px">·</span>
+      <span class="status kill">Disqualified</span>
+    </div>
+  </div>
+
+  <!-- PHASE 1 -->
+  <section class="phase">
+    <div class="phase-head">
+      <h2>Fill the funnel</h2><div class="rule"></div><span class="n">01–02</span>
+    </div>
+
+    <div class="split">
+      <span class="tag">New this session</span>
+      <p>The top of funnel used to be <span class="was">one skill, three modes</span>. It's now <b>two skills</b>, one job each — a physical boundary instead of a hand-enforced rule. Collecting names and gating names are different operations, so they're different skills.</p>
+    </div>
+
+    <div class="spine">
+      <article class="stage machine">
+        <div class="num">01</div>
+        <div class="body">
+          <div class="top">
+            <h3>Source</h3><span class="actor m">Machine</span>
+          </div>
+          <p>Five web channels via Firecrawl + Apify — directories, Google platform footprints, LinkedIn, podcasts, lateral. Collect name and Site URL. No judgment. Runs at bootstrap volume once, then top-up forever.</p>
+          <div class="meta">
+            <span class="skill">source-leads</span>
+            <span class="produces">produces <span class="status">Sourced</span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="stage machine">
+        <div class="num">02</div>
+        <div class="body">
+          <div class="top">
+            <h3>Qualify</h3><span class="actor m">Machine</span>
+          </div>
+          <p>Mechanical triage over the raw rows, ~2 fetches each. <b>Gate 0</b> — UAE-based, real funnel, active in 30 days, 1,500+ audience. <b>Gate 1</b> — solo operator, no gatekeeper. Passes move up; fails are killed.</p>
+          <div class="meta">
+            <span class="skill">qualify-leads</span>
+            <span class="produces">produces <span class="status">Qualifying</span> / <span class="status kill">Disqualified</span></span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- PHASE 2 -->
+  <section class="phase">
+    <div class="phase-head">
+      <h2>Walk the survivors</h2><div class="rule"></div><span class="n">03</span>
+    </div>
+    <div class="spine">
+      <article class="stage machine">
+        <div class="num">03</div>
+        <div class="body">
+          <div class="top">
+            <h3>Audit the funnel</h3><span class="actor m">Machine</span>
+          </div>
+          <p>The real work, one agent per lead. Machine walk (Firecrawl-primary) → mandatory vision pass → Gate 0 confirm → opener-finder assigns the lane and the strongest verified finding, banking the rest. Email shape and deliverability both checked. Held at the draft — no email written yet.</p>
+          <div class="meta">
+            <span class="skill">batch-audit → lead-processor</span>
+            <span class="produces">reaches <span class="status term">Audit Ready</span></span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- PHASE 3 -->
+  <section class="phase">
+    <div class="phase-head">
+      <h2>Reach out</h2><div class="rule"></div><span class="n">04–06</span>
+    </div>
+    <div class="spine">
+      <article class="stage human">
+        <div class="num">04</div>
+        <div class="body">
+          <div class="top">
+            <h3>Find the hook</h3><span class="actor h">Haytham</span>
+          </div>
+          <p>Real public evidence — a LinkedIn post, a podcast, their own About page — resolves the one line only this person would recognize. Fabrication is not allowed, and no draft gets written until this line is real.</p>
+          <div class="meta">
+            <span class="skill">haytham-hook-finder</span>
+            <span class="produces">gates the draft</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="stage machine">
+        <div class="num">05</div>
+        <div class="body">
+          <div class="top">
+            <h3>Draft the email</h3><span class="actor m">Machine</span>
+          </div>
+          <p>A Gmail draft in Haytham's voice, built on the verified finding and the approved hook. Signed off, no operator jargon, no em-dashes. A draft is never a send.</p>
+          <div class="meta">
+            <span class="skill">haytham-email-draft</span>
+            <span class="produces">produces <span class="status">Draft Ready</span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="stage human">
+        <div class="num">06</div>
+        <div class="body">
+          <div class="top">
+            <h3>Send</h3><span class="actor h">Haytham</span>
+          </div>
+          <p>Haytham reviews and sends by hand, or schedules. The system ends at the draft — sending is human, always, and never past the daily inbox ceiling.</p>
+          <div class="meta">
+            <span class="skill">manual · reconciled by uae-tick</span>
+            <span class="produces">produces <span class="status">Outreach Sent</span></span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- PHASE 4 -->
+  <section class="phase">
+    <div class="phase-head">
+      <h2>Convert</h2><div class="rule"></div><span class="n">07–08</span>
+    </div>
+    <div class="spine">
+      <article class="stage machine">
+        <div class="num">07</div>
+        <div class="body">
+          <div class="top">
+            <h3>Reply &amp; discover price</h3><span class="actor m">Machine</span>
+          </div>
+          <p>The tick detects the reply and logs the turn-two artifact. Then the load-bearing step this whole track exists for: the price discovery question, its answer recorded <b>verbatim</b> with an anchor — before any priced offer, never after a stall.</p>
+          <div class="meta">
+            <span class="skill">uae-tick</span>
+            <span class="produces">reaches <span class="status">Replied</span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="stage machine">
+        <div class="num">08</div>
+        <div class="body">
+          <div class="top">
+            <h3>Offer &amp; close</h3><span class="actor m">Machine</span>
+          </div>
+          <p>The priced offer — 735 AED Track A or 2,575 AED Track B, the price quoted natively, never discounted. Gated on a verbatim discovery answer: no answer, no money email.</p>
+          <div class="meta">
+            <span class="skill">haytham-email-draft · crm-gate offer</span>
+            <span class="produces">reaches <span class="status">Offer Sent</span> → <span class="status term">Closed</span></span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="notes">
+    <div class="note">
+      <h4>The daily loop</h4>
+      <p><code>uae-tick</code> runs the whole thing each Dubai day — replies, due touches, the gated send queue, the weekly scoreboard.</p>
+    </div>
+    <div class="note">
+      <h4>Two hard send gates</h4>
+      <p>Nothing leaves without <code>Finding Verified</code> <b>and</b> <code>Email Verified</code>. Both, every send.</p>
+    </div>
+    <div class="note">
+      <h4>The real bottleneck</h4>
+      <p>Findings, not sends. The inbox ceiling ramps 20 → 25 → 30; that's the number of funnel walks the day actually needs.</p>
+    </div>
+  </div>
+</div>
