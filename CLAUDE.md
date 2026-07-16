@@ -4,7 +4,8 @@ This repo is the machine layer of Haytham's cold-outreach system, plus the
 Claude skills that orchestrate it. Two tracks run in parallel:
 
 - **UAE track (active — all new leads go here).** UAE-based solo coaches
-  and course creators with real funnels. Sourced web-natively, worked
+  and course creators with real funnels. Sourced dynamically through
+  no-login web tools, worked
   through the UAE Lead CRM, priced in AED, with one deliberately new step:
   **price discovery before any priced offer.**
 - **Parenting track (live threads only).** The original
@@ -42,8 +43,9 @@ this repo is built to keep separate.
 
 ## The UAE pipeline in one line
 
-`source-leads` (5 web channels → CRM as Sourced, Site URL required per row)
-→ `qualify-leads` (mechanical Gate 0/1 over Sourced → Qualifying) →
+`source-leads` (dynamic sourcing across whatever vein produces → CRM as
+Sourced, a reachable link + audience size per row) → `qualify-leads`
+(mechanical Gate 0/1 over Sourced → Qualifying) →
 `/batch-audit` (one
 lead-processor agent per lead, ~5 parallel, cap 20) → per lead:
 **pre-flight qualification first** (the cheap floors — UAE-base, gatekeeper,
@@ -85,10 +87,13 @@ scores to `docs/deliverability-log.md`.
   identity / account-safety rule, NOT a blanket platform ban: read-only
   public data pulled through a no-login third-party tool — Firecrawl, or an
   Apify-style actor that takes a username or URL with no account required —
-  is allowed for enrichment and SMYKM hook-finding, Instagram the same as
-  LinkedIn, YouTube, and podcasts. (Sourcing is a separate question:
-  Instagram is not a cold-sourcing channel for the UAE track, which stays
-  web-native by design — see `docs/uae-track/03-targeting-and-sourcing.md`.)
+  is allowed for enrichment and SMYKM hook-finding AND for sourcing,
+  Instagram the same as LinkedIn, YouTube, and podcasts. (Sourcing is
+  dynamic and channel-agnostic — work whatever vein produces UAE solo
+  coaches with an audience and a way to get paid, Instagram/link-in-bio
+  included, through no-login read-only tools only; the ban is on logging in
+  or acting as Haytham, not on the platform. See
+  `docs/uae-track/03-targeting-and-sourcing.md`.)
 - **Never send an email.** The system ends at Gmail drafts. Sending is
   human.
 - **Never invent findings.** No verified finding → no opener. Lane 2/3
@@ -233,11 +238,14 @@ scores to `docs/deliverability-log.md`.
   Playwright fallback + the link/checkout classification logic both fetch
   paths share.
 - `.claude/skills/source-leads` — the sourcing engine, collect-only: works
-  the 5 web channels into the CRM as `Sourced` rows (Site URL required),
-  no gating. Two volume profiles — a one-time bootstrap fill (60-70 names)
-  and top-up, the everyday on-demand tap that keeps the CRM filled for the
-  life of the track (small runs, recency-biased to source the flow not the
-  stock, rotating to the stalest channel).
+  dynamically across whatever vein produces UAE solo coaches with an
+  audience and a way to get paid (platform + link-in-bio footprints,
+  directories, LinkedIn, podcasts/events, no-login IG actor, lateral),
+  logging `Sourced` rows (a reachable link + audience size, no gating). The
+  channel is not the point and there is no fixed rotation — follow what's
+  producing, drop what's dry. Two volume profiles — a one-time bootstrap
+  fill (60-70 names) and top-up, the everyday on-demand tap (small runs,
+  recency-biased to source the flow not the stock).
 - `.claude/skills/qualify-leads` — the mechanical gate, the step between
   sourcing and the walk: runs Gate 0 (UAE-based / funnel / 30-day activity
   / 1,500 audience) + Gate 1 (solo) over `Sourced` rows, ~2 fetches each,
