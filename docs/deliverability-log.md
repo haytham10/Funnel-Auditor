@@ -22,6 +22,23 @@ YYYY-MM-DD — [bounce|spam-flag|test-score|over-ceiling|note] — detail
 
 ## Log
 
+- 2026-07-16 — bounce — chiara@theholisticboutique.com (UAE lead Chiara
+  Ghinolfi, Touch 1) hard-bounced (mailer-daemon 550 5.1.1 "Address not
+  found") despite email-check PASS at send time. Row reverted to
+  Qualifying pending a re-verified or alternate address; Touch #/Findings
+  Bank not spent since the message never reached a live inbox. Second
+  hard bounce this week on an address that passed email-check — worth
+  weighing against the 07-21 ramp check.
+- 2026-07-16 — bounce — adil@themancaveproject.com (UAE lead Adil Hussain,
+  Touch 1) hard-bounced (mailer-daemon 550 5.1.1 "Address not found")
+  despite email-check PASS at send time. Row reverted to Qualifying
+  pending a re-verified or alternate address; Touch #/Findings Bank not
+  spent.
+- 2026-07-16 — note — contact@dubaifrenchtuitions.com (UAE lead Murielle
+  Larrière, Touch 1, sent 07-15) is showing a Gmail "Delivery incomplete
+  — temporary problem, will retry 47 more hours" notice as of 07-16
+  06:00 UTC. Not a hard bounce yet; flagging in case it resolves to one
+  before the next tick.
 - 2026-07-14 — bounce — shelley@shelleybosworthofficial.com (UAE lead
   Shelley Bosworth, Touch 1) hard-bounced (address not found). Cause was a
   wrong-address guess, not domain reputation: a corrected resend to
