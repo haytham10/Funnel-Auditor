@@ -227,14 +227,30 @@ back-catalog once; top-up skims the new arrivals. A top-up run that just
 re-scrapes the same back-catalog and leans on dedup to discard it has
 drifted — you are burning fetches to find nothing new.
 
-**3. Rotate to the stalest channel (no new schema needed).** Unless
-Haytham names a channel, pick the one worked least recently, derived from
-data already in the CRM: for each Source Channel, the most recent row's
-Created time is when that channel was last worked. Start with the channel
-whose most-recent row is oldest (or a channel with zero rows). One SQL
-query up front gets this. Name the channel you chose and why in the
-report. If Haytham named a channel ("top up from podcasts"), work that one
-and skip the rotation logic.
+**3. Default to the Google footprint channel; rotate WITHIN it.** Unless
+Haytham names a channel, a top-up works **Google footprint (channel 2)**
+by default — it's one of the two best channels, a hit here is pre-passed
+on the funnel floor, and it has enough internal variety to be the everyday
+default without drying up: 7 platforms (kajabi/teachable/thinkific/podia/
+systeme/kartra/skool) × 4 geos (Dubai/Abu Dhabi/Sharjah/UAE) × both query
+shapes (subdomain + footer signature) = a large rotation surface. So the
+staleness logic moves DOWN a level: instead of picking the stalest
+*channel*, pick the stalest **platform × geo combo** inside footprint —
+the combos whose most-recent `Sourced` row (by Created time, or by the
+Platform/City it produced) is oldest, or that have never been run. Lean to
+the footer-signature shape and recency (rule 2) so each pass skims new
+custom-domain arrivals, not the back-catalog.
+
+**When to leave footprint for the day:** if footprint's dedup rate comes
+back high (rule 4 — most hits already in the CRM), that combo set is
+drying for now. Fall back to the old channel-level staleness rotation:
+pick the stalest OTHER channel (directories, LinkedIn, podcasts/events,
+lateral) by each channel's most-recent row Created time, and work that
+instead. Footprint is the default, not a cage — a drying signal means
+rotate out.
+
+If Haytham names a channel ("top up from podcasts"), work that one and
+skip all of this.
 
 **4. Dedup against EVERY status, Disqualified included.** Same one-time
 dedup pull as Mode 1, but be explicit: skip a name/site already in the CRM
@@ -244,12 +260,14 @@ not built yet: leads that failed Gate 0 only on activity or audience — not
 niche or geography — are recheck-later candidates, since a dormant coach
 may relaunch; a hard niche/geo Disqualified is dead for good.)
 
-**The top-up report:** how many logged, which channel(s) worked and why
-that channel was picked (staleness or named), how many candidates were
-seen-but-skipped as already-in-CRM duplicates (the dedup rate is the early
-warning that a channel is drying up — call it out if it's high), the new
-`Sourced` count, and the reminder that these need Day-2 qualifying (Mode 2)
-before they reach the Walk Queue.
+**The top-up report:** how many logged, which channel worked and why
+(footprint by default — name the platform × geo combos run; or the stalest
+other channel if footprint was drying or Haytham named one), how many
+candidates were seen-but-skipped as already-in-CRM duplicates (the dedup
+rate is the early warning that a channel or combo is drying up — call it
+out if it's high, since that's the trigger to rotate off footprint), the
+new `Sourced` count, and the reminder that these need Day-2 qualifying
+(Mode 2) before they reach the Walk Queue.
 
 ---
 
