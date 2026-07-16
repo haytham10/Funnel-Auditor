@@ -130,19 +130,23 @@ def check_send(
     followups_due: int | None = None,
     carries: str | None = None,
     cap_state: send_cap.CapState | None = None,
+    inbox: str | None = None,
 ) -> tuple[bool, list[str], list[str]]:
     """Gate for queueing/logging any cold send on this lead.
 
-    sends_today   — TOTAL sends already out of the inbox today (all touch
+    sends_today   — TOTAL sends already out of THIS inbox today (all touch
                     types, warm included, both tracks — Gmail sent count).
     touch         — which cold touch this send is (1, 2, or 3).
     followups_due — touch 1 only: follow-ups still owed today; they eat
                     the budget before any opener does.
     carries       — touch 2/3 only: the new thing this follow-up carries.
+    inbox         — which sending inbox this send leaves from; its ceiling
+                    is independent (default: the primary inbox). Ignored
+                    when cap_state is passed in directly.
 
     Returns (ok, problems, notes) — notes are PASS-line detail.
     """
-    cap_state = cap_state or send_cap.load_cap()
+    cap_state = cap_state or send_cap.load_cap(inbox)
     cap = cap_state.cap
     problems: list[str] = []
     notes: list[str] = []
@@ -252,13 +256,18 @@ def print_send(
     touch: int,
     followups_due: int | None = None,
     carries: str | None = None,
+    inbox: str | None = None,
 ) -> int:
     row = _load_row(row_json)
-    ok, problems, notes = check_send(row, sends_today, touch, followups_due, carries)
+    cap_state = send_cap.load_cap(inbox)
+    ok, problems, notes = check_send(
+        row, sends_today, touch, followups_due, carries, cap_state=cap_state,
+    )
     name = _norm(row.get("Contact Name")) or "unnamed lead"
+    tag = f" [{cap_state.inbox}]"
     if ok:
-        print(f"CRM GATE (send): PASS — {name}: finding verified, email verified, "
+        print(f"CRM GATE (send){tag}: PASS — {name}: finding verified, email verified, "
               + ", ".join(notes))
         return 0
-    print(f"CRM GATE (send): FAIL — {name}: " + "; ".join(problems))
+    print(f"CRM GATE (send){tag}: FAIL — {name}: " + "; ".join(problems))
     return 1

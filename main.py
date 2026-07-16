@@ -334,14 +334,15 @@ def cmd_crm_gate(args) -> None:
         sys.exit(2)
     sys.exit(crm_gate.print_send(
         args.row_json, args.sends_today, args.touch, args.followups_due, args.carries,
+        inbox=args.inbox,
     ))
 
 
 def cmd_send_cap(args) -> None:
     from audit import send_cap
     if args.cap_command == "status":
-        sys.exit(send_cap.print_status())
-    sys.exit(send_cap.print_set(args.value))
+        sys.exit(send_cap.print_status(inbox=args.inbox, show_all=args.all))
+    sys.exit(send_cap.print_set(args.value, inbox=args.inbox))
 
 
 def cmd_email_check(args) -> None:
@@ -571,18 +572,28 @@ def main() -> None:
     p_crm.add_argument("--carries", choices=["second-finding", "loom-offer", "disambiguating-question"],
                        help="(send gate, touch 2/3) the new thing this follow-up carries; "
                             "second-finding is checked against the row's Findings Bank")
+    p_crm.add_argument("--inbox", default=None,
+                       help="(send gate) which sending inbox this send leaves from — its ceiling is "
+                            "independent (default: primary, haytham@auto-mate.one)")
     p_crm.set_defaults(func=cmd_crm_gate)
 
     p_cap = sub.add_parser(
         "send-cap",
-        help="daily send ceiling (TOTAL sends leaving the inbox): status shows the cap "
-             "+ ramp reminder; set moves it one step (20 → 25 → 30, Haytham's call only) "
-             "— see audit/send_cap.py",
+        help="daily send ceiling, one independent ramp PER inbox (TOTAL sends leaving that "
+             "inbox): status shows a cap + ramp reminder (--inbox to target one, --all for "
+             "every inbox); set moves one step (20 → 25 → 30) or registers a new inbox at 20, "
+             "Haytham's call only — see audit/send_cap.py",
     )
     cap_sub = p_cap.add_subparsers(dest="cap_command", required=True)
-    cap_sub.add_parser("status", help="print the current ceiling, days at this step, and the ramp reminder")
-    c_set = cap_sub.add_parser("set", help="move the ceiling to a ramp step (20/25/30) — Haytham's call, never a skill's")
+    c_status = cap_sub.add_parser("status", help="print the current ceiling, days at this step, and the ramp reminder")
+    c_status.add_argument("--inbox", default=None,
+                          help="which sending inbox (default: primary, haytham@auto-mate.one)")
+    c_status.add_argument("--all", action="store_true",
+                          help="show every registered inbox and the total additive system ceiling")
+    c_set = cap_sub.add_parser("set", help="move an inbox's ceiling to a ramp step (20/25/30), or register a new inbox at 20 — Haytham's call, never a skill's")
     c_set.add_argument("value", type=int)
+    c_set.add_argument("--inbox", default=None,
+                       help="which sending inbox (default: primary); a new address registers at 20")
     p_cap.set_defaults(func=cmd_send_cap)
 
     p_email = sub.add_parser(

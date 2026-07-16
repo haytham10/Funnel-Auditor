@@ -1,5 +1,15 @@
 {
-  "cap": 20,
-  "set_on": "2026-07-14",
-  "history": []
+  "primary": "haytham@auto-mate.one",
+  "inboxes": {
+    "haytham@auto-mate.one": {
+      "cap": 20,
+      "set_on": "2026-07-14",
+      "history": []
+    },
+    "haytham@gethaytham.com": {
+      "cap": 20,
+      "set_on": "2026-07-16",
+      "history": []
+    }
+  }
 }
