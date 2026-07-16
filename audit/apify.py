@@ -22,15 +22,19 @@ capability.
 ## The actor set (vetted; do not expand casually)
 
     ig          apify/instagram-scraper                 profile details + recent posts w/ captions (date-filterable); post detail
-    li_posts    apimaestro/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
+    li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
     li_profile  apimaestro/linkedin-profile-detail      headline/about/experience; optional email-search mode (finds an address)
     email       account56/email-verifier                MillionVerifier-backed address verification
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
 
-    (li_posts/li_profile switched from harvestapi's actors 2026-07-16 — the
-    harvestapi backend enforces its own ~20-runs/month quota independent of
-    Apify billing, and a batch hit it mid-run. apimaestro is a separate
-    vendor/backend, still pay-per-event, no known cap.)
+    (li_profile switched from harvestapi/linkedin-profile-scraper to
+    apimaestro/linkedin-profile-detail 2026-07-16 — the harvestapi PROFILE
+    actor specifically enforces its own ~20-runs/month quota independent of
+    Apify billing, and a batch hit it mid-run. li_posts stays on harvestapi:
+    that actor isn't capped and is roughly 2.5x cheaper per post than
+    apimaestro's equivalent — confirmed by comparing run costs in the Apify
+    console after a brief mis-swap of both actors together. Don't swap
+    li_posts again without re-confirming the cap actually applies to it.)
 
 ## Cost discipline (Instagram and the email-search mode are the pricey ones)
 
@@ -68,7 +72,7 @@ APIFY_BASE = "https://api.apify.com/v2"
 # REST API uses. Keep this map tight.
 ACTORS = {
     "ig": "apify~instagram-scraper",
-    "li_posts": "apimaestro~linkedin-profile-posts",
+    "li_posts": "harvestapi~linkedin-profile-posts",
     "li_profile": "apimaestro~linkedin-profile-detail",
     "email": "account56~email-verifier",
     "search": "apify~google-search-scraper",
@@ -284,46 +288,23 @@ def instagram_post(post_url: str, raw: bool = False) -> list[dict]:
             for i in items]
 
 
-# apimaestro/linkedin-profile-posts has no server-side date filter, so
-# `since` is applied client-side against each post's posted_at timestamp.
-_SINCE_SECONDS = {
-    "1h": 3600, "24h": 86400, "week": 7 * 86400, "month": 30 * 86400,
-    "3months": 90 * 86400, "6months": 182 * 86400, "year": 365 * 86400,
-}
-
-
 def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
                    raw: bool = False) -> list[dict]:
     """Recent LinkedIn posts (no cookies) — the primary hook source. `since`
-    is one of LI_POSTED_LIMITS (e.g. 'week', 'month'), applied client-side
-    against each post's timestamp. Takes a profile URL or bare username."""
+    is one of LI_POSTED_LIMITS (e.g. 'week', 'month'). Reactions/comments
+    stay off by default to keep the run cheap."""
     if since and since not in LI_POSTED_LIMITS:
         raise ApifyError(f"since must be one of {LI_POSTED_LIMITS}, got {since!r}")
-    items = run_actor(ACTORS["li_posts"], {"username": url, "total_posts": max_posts},
-                       memory_mbytes=256)
-    if since and since != "any":
-        import time
-        cutoff_ms = (time.time() - _SINCE_SECONDS[since]) * 1000
-        items = [i for i in items if (i.get("posted_at") or {}).get("timestamp", 0) >= cutoff_ms]
+    run: dict[str, Any] = {"targetUrls": [url], "maxPosts": max_posts}
+    if since:
+        run["postedLimit"] = since
+    items = run_actor(ACTORS["li_posts"], run, memory_mbytes=256)
     if raw:
         return items
-    out = []
-    for i in items:
-        posted = i.get("posted_at") or {}
-        author = i.get("author") or {}
-        name = f"{author.get('first_name', '')} {author.get('last_name', '')}".strip()
-        rec = {
-            "linkedinUrl": i.get("url"),
-            "postedAt": posted.get("date"),
-            "postedAgo": posted.get("relative"),
-            "text": i.get("text"),
-            "type": i.get("post_type"),
-            "stats": i.get("stats"),
-            "authorName": name,
-            "authorHeadline": author.get("headline"),
-        }
-        out.append({k: v for k, v in rec.items() if v not in (None, "", [])})
-    return out
+    return [_lean(i, ("linkedinUrl", "postedAt", "postedDate", "content",
+                      "text", "type", "reactionsCount", "commentsCount",
+                      "repostsCount", "author"))
+            for i in items]
 
 
 def linkedin_profile(url: str, with_email: bool = False, raw: bool = False) -> list[dict]:
