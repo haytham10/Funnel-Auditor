@@ -1,22 +1,26 @@
-# Deliverability log — one inbox (haytham@auto-mate.one)
+# Deliverability log — per inbox (Inbox 1 = auto-mate.one, Inbox 2 = gethaytham.com)
 
-The evidence file behind every send-cap ramp decision. `python main.py
-send-cap set 25|30` is Haytham's call, and this log is what "deliverability
-actually held" means: 7+ days at the current step with no unexplained
-bounces, no spam-folder reports, test scores steady, reply rate not
-cratering.
+The evidence file behind every send-cap ramp decision. Each inbox ramps on
+its OWN reputation, so every entry names the inbox it concerns. `python
+main.py send-cap set 25|30 --inbox "<label>"` is Haytham's call, and this
+log is what "THAT inbox's deliverability actually held" means: 7+ days at
+its current step with no unexplained bounces, no spam-folder reports, test
+scores steady, reply rate not cratering.
 
-**Who writes here:** uae-tick appends a dated line whenever it detects a
-bounce (mailer-daemon), a spam mention in a reply, or a day over the
-ceiling — in the same run it detects them. Haytham appends test scores
-(MailGenius, mail-tester, etc.) whenever he runs them. Newest entries at
-the top.
+**Who writes here:** uae-tick appends a line whenever it detects a bounce
+(mailer-daemon), a spam mention in a reply, or an inbox over its ceiling —
+in the same run, via `python main.py send-cap log --inbox "<label>" --kind
+<kind> --detail "..."` (which enforces the canonical shape). Haytham
+appends test scores the same way. Newest entries at the top.
 
-Entry format, one line each:
+Entry format, one canonical line each (written by `send-cap log`):
 
 ```
-YYYY-MM-DD — [bounce|spam-flag|test-score|over-ceiling|note] — detail
+- YYYY-MM-DD — [Inbox N] — [bounce|spam-flag|test-score|over-ceiling|note] — detail
 ```
+
+Entries before 2026-07-16 predate the two-inbox split and are Inbox 1
+(auto-mate.one) by definition.
 
 ---
 

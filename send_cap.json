@@ -1,5 +1,15 @@
 {
-  "cap": 20,
-  "set_on": "2026-07-14",
-  "history": []
+  "primary": "Inbox 1",
+  "inboxes": {
+    "Inbox 1": {
+      "cap": 20,
+      "set_on": "2026-07-14",
+      "history": []
+    },
+    "Inbox 2": {
+      "cap": 20,
+      "set_on": "2026-07-16",
+      "history": []
+    }
+  }
 }

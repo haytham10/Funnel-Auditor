@@ -39,7 +39,7 @@ from rich.text import Text
 
 from config import EVIDENCE_DIR
 from audit.urls import slugify
-from audit import vision_gate
+from audit import inboxes, vision_gate
 
 # audit.crawler (Playwright/bs4 stack) is imported lazily inside the commands
 # that fetch or parse pages, so the gate commands (crm-gate, send-cap, vision)
@@ -334,14 +334,96 @@ def cmd_crm_gate(args) -> None:
         sys.exit(2)
     sys.exit(crm_gate.print_send(
         args.row_json, args.sends_today, args.touch, args.followups_due, args.carries,
+        inbox=args.inbox,
     ))
 
 
 def cmd_send_cap(args) -> None:
     from audit import send_cap
     if args.cap_command == "status":
-        sys.exit(send_cap.print_status())
-    sys.exit(send_cap.print_set(args.value))
+        sys.exit(send_cap.print_status(inbox=args.inbox, show_all=args.all))
+    if args.cap_command == "log":
+        sys.exit(send_cap.print_log(args.inbox, args.kind, args.detail))
+    sys.exit(send_cap.print_set(args.value, inbox=args.inbox))
+
+
+def cmd_inbox(args) -> None:
+    """Inbox registry management — the seam between logical labels
+    (Inbox 1/2/N, used by the CRM, the cap file, and the gate) and the real
+    sending addresses + transports. See audit/inboxes.py."""
+    from audit import inboxes, send_cap
+    if args.inbox_command == "list":
+        caps = send_cap.load_all()
+        rows = []
+        for ib in inboxes.all_inboxes():
+            st = caps.get(ib.label)
+            cap_str = f"{st.cap}/day" if st else "unregistered (fails closed to 20)"
+            flag = " (primary)" if ib.is_primary else ""
+            rows.append({
+                "label": ib.label,
+                "address": ib.address,
+                "send_via": ib.send_via,
+                "cap": cap_str,
+                "primary": ib.is_primary,
+                "note": ib.note + flag,
+            })
+        print(json.dumps(rows, indent=2))
+        sys.exit(0)
+    if args.inbox_command == "counts":
+        # Today's sent count PER inbox. Direct-API inboxes (gethaytham) are
+        # counted here; MCP-only inboxes (Gmail connector) can't be reached
+        # from Python, so we emit the exact query for the skill/agent to run.
+        from audit import send_cap
+        day = args.date or send_cap.today().strftime("%Y/%m/%d")
+        query = f"in:sent after:{day}"
+        out = {}
+        for ib in inboxes.all_inboxes():
+            if ib.send_via == "gmail-gethaytham":
+                try:
+                    from audit import gmail_gethaytham as gg
+                    out[ib.label] = {"count": gg.count_messages(query), "via": ib.send_via,
+                                     "query": query}
+                except Exception as exc:  # noqa: BLE001 - report, never crash the tick
+                    out[ib.label] = {"count": None, "via": ib.send_via, "query": query,
+                                     "error": str(exc)}
+            else:
+                out[ib.label] = {"count": None, "via": ib.send_via, "query": query,
+                                 "note": "count via Gmail MCP: run this query and count sent messages"}
+        print(json.dumps({"date": day, "inboxes": out}, indent=2))
+        sys.exit(0)
+    if args.inbox_command == "reconcile":
+        if not inboxes.is_registered(args.found_in):
+            print(f"INBOX RECONCILE: FAIL — --found-in {args.found_in!r} is not a registered inbox "
+                  f"(known: {', '.join(inboxes.labels())})")
+            sys.exit(2)
+        needs, corrected, reason = inboxes.reconcile_assignment(args.current or None, args.found_in)
+        verb = f"SET Inbox = {corrected}" if needs else "no change"
+        print(f"INBOX RECONCILE: {verb} — {reason}")
+        sys.exit(0)
+    if args.inbox_command == "route":
+        # Decide which inbox a lead's next send leaves from, given its current
+        # assignment (blank for a new lead) and today's per-inbox sent counts.
+        caps = {lbl: st.cap for lbl, st in send_cap.load_all().items()}
+        counts = {}
+        for pair in (args.count or []):
+            label, _, n = pair.partition("=")
+            try:
+                counts[label] = int(n)
+            except ValueError:
+                print(f"INBOX ROUTE: FAIL — bad --count {pair!r}, expected 'Label=N'")
+                sys.exit(2)
+        current = args.current or None
+        if current is not None and not inboxes.is_registered(current):
+            print(f"INBOX ROUTE: FAIL — current {current!r} is not a registered inbox "
+                  f"(known: {', '.join(inboxes.labels())})")
+            sys.exit(2)
+        policy = args.policy or "headroom"
+        chosen = inboxes.choose_inbox(current, caps, counts, policy=policy)
+        ib = inboxes.resolve(chosen)
+        sticky = inboxes.is_registered(current)
+        why = "sticky (keeps its assignment)" if sticky else f"{policy} policy"
+        print(f"INBOX ROUTE: {chosen} ({ib.address}, via {ib.send_via}) — {why}")
+        sys.exit(0)
 
 
 def cmd_email_check(args) -> None:
@@ -571,19 +653,74 @@ def main() -> None:
     p_crm.add_argument("--carries", choices=["second-finding", "loom-offer", "disambiguating-question"],
                        help="(send gate, touch 2/3) the new thing this follow-up carries; "
                             "second-finding is checked against the row's Findings Bank")
+    p_crm.add_argument("--inbox", default=None,
+                       help="(send gate) which sending inbox this send leaves from — its ceiling is "
+                            "independent (default: primary, haytham@auto-mate.one)")
     p_crm.set_defaults(func=cmd_crm_gate)
 
     p_cap = sub.add_parser(
         "send-cap",
-        help="daily send ceiling (TOTAL sends leaving the inbox): status shows the cap "
-             "+ ramp reminder; set moves it one step (20 → 25 → 30, Haytham's call only) "
-             "— see audit/send_cap.py",
+        help="daily send ceiling, one independent ramp PER inbox (TOTAL sends leaving that "
+             "inbox): status shows a cap + ramp reminder (--inbox to target one, --all for "
+             "every inbox); set moves one step (20 → 25 → 30) or registers a new inbox at 20, "
+             "Haytham's call only — see audit/send_cap.py",
     )
     cap_sub = p_cap.add_subparsers(dest="cap_command", required=True)
-    cap_sub.add_parser("status", help="print the current ceiling, days at this step, and the ramp reminder")
-    c_set = cap_sub.add_parser("set", help="move the ceiling to a ramp step (20/25/30) — Haytham's call, never a skill's")
+    c_status = cap_sub.add_parser("status", help="print the current ceiling, days at this step, and the ramp reminder")
+    c_status.add_argument("--inbox", default=None,
+                          help="which sending inbox by logical label (default: primary, 'Inbox 1')")
+    c_status.add_argument("--all", action="store_true",
+                          help="show every registered inbox and the total additive system ceiling")
+    c_set = cap_sub.add_parser("set", help="move an inbox's ceiling to a ramp step (20/25/30), or register a new inbox at 20 — Haytham's call, never a skill's")
     c_set.add_argument("value", type=int)
+    c_set.add_argument("--inbox", default=None,
+                       help="which sending inbox by logical label (default: primary); must already be in the registry")
+    c_log = cap_sub.add_parser(
+        "log",
+        help="append one canonical per-inbox line to docs/deliverability-log.md (the ramp evidence file)",
+    )
+    c_log.add_argument("--inbox", required=True, help="the inbox this event concerns (logical label)")
+    c_log.add_argument("--kind", required=True,
+                       choices=["bounce", "spam-flag", "test-score", "over-ceiling", "note"],
+                       help="event type")
+    c_log.add_argument("--detail", required=True, help="one-line detail (address, score, count, etc.)")
     p_cap.set_defaults(func=cmd_send_cap)
+
+    p_inbox = sub.add_parser(
+        "inbox",
+        help="inbox registry — the seam between logical labels (Inbox 1/2/N, used by the CRM, "
+             "the cap file, and the gate) and real sending addresses + transports. `list` shows "
+             "every inbox with its address, transport, and cap; `route` picks the inbox for a "
+             "lead's next send — see audit/inboxes.py",
+    )
+    inbox_sub = p_inbox.add_subparsers(dest="inbox_command", required=True)
+    inbox_sub.add_parser("list", help="every registered inbox: label, address, transport, cap (JSON)")
+    i_route = inbox_sub.add_parser(
+        "route",
+        help="which inbox a lead's next send leaves from, given its current assignment and today's counts",
+    )
+    i_route.add_argument("--current", default=None,
+                         help="the lead's current Inbox label (blank/omitted for a new, unassigned lead)")
+    i_route.add_argument("--count", action="append", metavar="LABEL=N",
+                         help="today's sends already out of an inbox, e.g. --count 'Inbox 1=18' "
+                              "(repeatable; missing inboxes count 0)")
+    i_route.add_argument("--policy", default="headroom", choices=list(inboxes.ROUTING_POLICIES),
+                         help="routing policy for a NEW lead: headroom (emptiest inbox, default) "
+                              "or fill-primary (fill primary, then overflow)")
+    i_counts = inbox_sub.add_parser(
+        "counts",
+        help="today's sent count per inbox — counts direct-API inboxes (gethaytham) here, "
+             "emits the query for Gmail MCP inboxes",
+    )
+    i_counts.add_argument("--date", default=None, metavar="YYYY/MM/DD",
+                          help="Gmail-style date (default: Dubai today)")
+    i_rec = inbox_sub.add_parser(
+        "reconcile",
+        help="reconcile a lead's CRM Inbox against where its thread physically lives (reality wins)",
+    )
+    i_rec.add_argument("--current", default=None, help="the lead's current CRM Inbox label (may be blank)")
+    i_rec.add_argument("--found-in", required=True, help="the inbox whose Gmail actually holds the thread")
+    p_inbox.set_defaults(func=cmd_inbox)
 
     p_email = sub.add_parser(
         "email-check",
@@ -728,7 +865,7 @@ def main() -> None:
         sys.exit(1)
     # Bare URL → walk
     if argv[0] not in (
-        "walk", "crawl", "slug", "vision", "crm-gate", "send-cap",
+        "walk", "crawl", "slug", "vision", "crm-gate", "send-cap", "inbox",
         "email-check", "email-verify", "cta-probe", "apify", "gmail-gethaytham",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",

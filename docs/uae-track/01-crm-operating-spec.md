@@ -74,6 +74,7 @@ SQLite table name is the data source URL, quoted:
 | `Findings Bank` | text | Every verified finding from the walk, ranked strongest first, one per line: `1. USED-T1 \| finding` / `2. UNUSED \| finding`. #1 is the opener; touches 2-3 draw the next UNUSED entry. Written by the walk; statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property. |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
 | `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14) |
+| `Inbox` | select | `Inbox 1` `Inbox 2` (added 2026-07-16). Which sending inbox this lead's whole thread goes out of — a LOGICAL label, mapped to a real address + transport by the registry (`audit/inboxes.py`; Inbox 1 = auto-mate.one via Gmail MCP, Inbox 2 = gethaytham.com via `main.py gmail-gethaytham`). Assigned once, sticky for the life of the thread. Blank = unassigned; routing fills it when the lead first enters the send queue. Each inbox has its OWN send ceiling. |
 | `Sequence` | select | `Cold` `Warm` |
 | `Touch #` | number | Increment on every send incl. follow-ups. |
 | `Last Contacted` | date | |
@@ -132,7 +133,7 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 | Sourced → Qualifying | Name + site captured |
 | Qualifying → Audit Ready | `Gate 0` = Pass, `Gate 1` = Pass, funnel walk done, `Lane` set, `Finding Verified` = checked, AND `Email Verified` = checked (deliverability confirmed via `email-verify`, or Haytham accepted a catch_all/unknown risk by hand). Both hard gates are set before a lead is declared sendable — a verified finding on an address that bounces still burns the domain. |
 | Qualifying → Disqualified | Either gate = Fail. Set and move on, do not linger. |
-| Audit Ready → Draft Ready | SMYKM hook line resolved (hook-finder ran), `crm-gate send` PASS (which now requires `Email Verified` checked, not just an `@`-shaped address), Gmail draft created. Sets nothing else — a draft is not a send. |
+| Audit Ready → Draft Ready | SMYKM hook line resolved (hook-finder ran), `Inbox` assigned if still blank (`python main.py inbox route` → set the label), `crm-gate send … --inbox "<label>"` PASS (which now requires `Email Verified` checked, not just an `@`-shaped address), Gmail draft created IN THAT INBOX (Inbox 1 → Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham draft`). Sets nothing else — a draft is not a send. |
 | Draft Ready → Scheduled | Haytham scheduled the send in Gmail (tick detects it in the scheduled queue, or he says so). |
 | Audit Ready / Draft Ready / Scheduled → Outreach Sent | Touch #1 ACTUALLY departed (matching message in Gmail sent mail). Set `Last Contacted` (real departure date), `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must have printed PASS at queue time.** |
 | Outreach Sent → Reply Received | They replied. Set `Sequence` = Warm |
@@ -146,7 +147,7 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 ## 4. Hard rules (do not violate)
 
 1. **No send without `Finding Verified` = checked AND `Email Verified` = checked.** The finding produces the reply rate; a thin finding burns the lead and the domain. The verified address protects deliverability; a bounce burns the one shared domain the whole ramp is built to protect (`email-check` is syntax+MX only and PASSED for two addresses that then hard-bounced — `email-verify` is the deliverability confirm). Both enforced by `python main.py crm-gate send`, which fails closed on either flag.
-2. **Never past the daily ceiling on TOTAL sends leaving the inbox** (openers + follow-ups + warm replies, both tracks — one inbox, one domain). The ceiling lives in `send_cap.json` (fails closed to 20) and ramps 20 → 25 → 30 only by Haytham's explicit `python main.py send-cap set` after 7+ days of deliverability holding; **30 is the hard cap for one inbox — more volume means more inboxes.** Follow-ups due today eat the budget first; openers get what's left. Enforced by `crm-gate send --sends-today N --touch T [--followups-due M]`.
+2. **Never past a sending inbox's daily ceiling — PER INBOX, never pooled.** The ceiling is TOTAL sends leaving THAT inbox (openers + follow-ups + warm replies, both tracks). Each inbox is a separate domain with its own reputation, so each has its own independent ramp in `send_cap.json` (keyed by logical label, fails closed to 20 per inbox), moved 20 → 25 → 30 only by Haytham's explicit `python main.py send-cap set --inbox "<label>"` after 7+ days of that inbox's deliverability holding; **30 is the hard cap for ONE inbox — more volume means more inboxes, never a bigger number.** A lead's sends count against its assigned `Inbox`. Follow-ups due on an inbox eat that inbox's budget first; its openers get what's left. Enforced by `crm-gate send --sends-today N --touch T [--followups-due M] --inbox "<label>"` (`--sends-today` = that inbox's own count). Which inbox a new lead lands on: `python main.py inbox route`.
 3. **Price discovery happens BEFORE the priced offer**, not after a stall. This is the entire point of the track. Enforced by `python main.py crm-gate offer`.
 4. **`Price Discovery Answer` is logged verbatim.** Not summarized.
 5. **The price never moves.** Per Grand Slam Offer v2. A low anchor is market data, not an instruction to discount. Objections get bonuses or restructured terms.
@@ -205,28 +206,35 @@ WHERE "Status" IN ('Reply Received','Price Discovery Sent','Offer Sent')
   AND date("date:Last Contacted:start") < date('now','-5 days')
 ```
 
-### Daily send-count check (deliverability guard)
+### Daily send-count check (deliverability guard) — PER INBOX
 
-The ceiling and the count are two separate reads:
+The ceiling and the count are two separate reads, and both are **per
+inbox** now (one ramp and one count for each sending domain):
 
-- **The ceiling:** `python main.py send-cap status` — quote its literal
-  line. It ramps 20 → 25 → 30 by Haytham's hand only and fails closed
-  to 20 (see `audit/send_cap.py`).
-- **The count:** TOTAL sends that left or WILL leave the inbox today, not
+- **The ceiling:** `python main.py send-cap status --all` — quote the
+  literal block. Each inbox ramps 20 → 25 → 30 on its OWN reputation, by
+  Haytham's hand only, and fails closed to 20 per inbox (see
+  `audit/send_cap.py`). The additive total is the whole system's capacity.
+- **The count:** TOTAL sends that left or WILL leave THAT inbox today, not
   just UAE openers. "Today" is the **Dubai calendar day** (UTC+4 — the
   same day boundary `send_cap.py` uses; compute the date string once and
-  use it everywhere). Two Gmail reads, added together:
-  `in:sent after:<today>` (messages that departed, warm replies +
-  parenting + deliverability tests included — they all burn the domain)
-  **plus** `in:scheduled` messages due today (scheduled sends sit in
-  neither sent nor drafts until they depart, and missing them overshoots
-  the ceiling by exactly their count). Cross-check against the CRM:
+  use it everywhere). Count each inbox on its own transport:
+  - **Inbox 1** (auto-mate.one, Gmail MCP): `in:sent after:<today>`
+    **plus** `in:scheduled` due today.
+  - **Inbox 2** (gethaytham.com, direct API):
+    `python main.py gmail-gethaytham search "in:sent after:<today>"`
+    (this inbox is not on the scheduled-send path).
+  Warm replies + parenting + deliverability tests all count against
+  whichever inbox they left from — they all burn that domain. Scheduled
+  sends sit in neither sent nor drafts until they depart, and missing them
+  overshoots the ceiling by exactly their count. Cross-check against the
+  CRM, split by `Inbox`:
 
 ```sql
-SELECT date("date:Last Contacted:start") AS d, COUNT(*) AS sends
+SELECT date("date:Last Contacted:start") AS d, "Inbox" AS inbox, COUNT(*) AS sends
 FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
 WHERE "date:Last Contacted:start" IS NOT NULL
-GROUP BY d ORDER BY d DESC LIMIT 14
+GROUP BY d, inbox ORDER BY d DESC LIMIT 28
 ```
 
 The SQL undercounts by design (one row per lead, UAE only) — when the

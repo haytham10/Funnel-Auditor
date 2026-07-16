@@ -76,11 +76,16 @@ drafts get created in this same session." When Haytham approves ("draft
 them," "go," or per-lead picks/edits — an edited hook gets written back
 to Notion first), immediately run the full Touch 1 draft flow for each
 approved lead in this same session: `haytham-email-draft` (full loop,
-UAE rules), `python main.py email-check` + `python main.py crm-gate
-send … --touch 1 --followups-due M` per lead (quote both lines), create
-the Gmail DRAFT for each PASS, and set Status = `Draft Ready`. Held
-leads (gate FAIL, email-check FAIL, no address) get named with reasons.
-Drafts only — sending stays his hand, from Gmail.
+UAE rules), `python main.py email-check`, then **assign the sending inbox
+if the row's `Inbox` is blank** (`python main.py inbox route --current
+"<row's Inbox>" --count "Inbox 1=<n>" --count "Inbox 2=<n>"`, write the
+chosen label back to Notion), then `python main.py crm-gate send … --touch
+1 --followups-due M --inbox "<assigned Inbox>"` per lead (quote both
+lines). Create the Gmail DRAFT for each PASS **in that inbox** (Inbox 1 →
+Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham
+draft`), and set Status = `Draft Ready`. Held leads (gate FAIL, email-check
+FAIL, no address) get named with reasons. Drafts only — sending stays his
+hand, from Gmail.
 
 ---
 

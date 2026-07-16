@@ -59,10 +59,13 @@ send, as always):
 ## What each cold touch carries (the follow-up payload rule)
 
 A cold follow-up that just bumps is a wasted send and a spam signal — it
-eats the day's inbox budget and gives the reader nothing. Every touch on
+eats that inbox's day budget and gives the reader nothing. Every touch on
 this track carries a payload, and the send gate enforces it
 (`python main.py crm-gate send <row.json> --sends-today N --touch T
---carries X` must print PASS before a follow-up enters the queue):
+--carries X --inbox "<the lead's Inbox>"` must print PASS before a
+follow-up enters the queue — `--inbox` is the lead's assigned `Inbox`
+label, and `--sends-today` is THAT inbox's own count, since each inbox has
+its own ceiling):
 
 - **Touch 1:** the strongest verified finding — `Findings Bank` #1.
 - **Touch 2 (day 3) and Touch 3 (day 9):** exactly one of
@@ -181,17 +184,32 @@ either way" phrasing is banned like every other weak closer):
 Direct binary questions. There is always still a concrete thing to say
 yes to.
 
-## The daily ceiling
+## The daily ceiling — one per inbox
 
-One number for the whole inbox: TOTAL sends leaving it today — openers,
-follow-ups, warm replies, both tracks. The ceiling lives in
-`send_cap.json` and ramps 20 → 25 → 30 by Haytham's explicit call only
-(`python main.py send-cap status` shows the current cap and the ramp
-reminder; missing or invalid state fails closed to 20; 30 is the hard cap
-for one inbox — more volume means more inboxes). Follow-ups due today eat
-the budget first, new openers get what's left — enforced at queue time by
-`python main.py crm-gate send <row.json> --sends-today N --touch T
-[--followups-due M | --carries X]`. This skill drafts; the uae-tick skill
-owns the daily count. If a draft request would obviously blow past the
-ceiling (a batch of 30 "for today"), say so and draft for the queue, not
-for the day.
+There are two sending inboxes (Inbox 1 = auto-mate.one, Inbox 2 =
+gethaytham.com), each its own domain with its own ceiling. A lead's `Inbox`
+property says which one its whole thread rides. The ceiling is TOTAL sends
+leaving THAT inbox today — openers, follow-ups, warm replies, both tracks.
+Each inbox has its own ramp in `send_cap.json`, 20 → 25 → 30 by Haytham's
+explicit call only (`python main.py send-cap status --all` shows every
+inbox's cap and ramp reminder; missing/invalid state fails closed to 20 per
+inbox; 30 is the hard cap for ONE inbox — more volume means more inboxes).
+That inbox's follow-ups eat its budget first, its new openers get what's
+left — enforced at queue time by `python main.py crm-gate send <row.json>
+--sends-today N --touch T --inbox "<the lead's Inbox>" [--followups-due M |
+--carries X]` (`--sends-today` = that inbox's own count).
+
+**Which inbox, and how the draft is created:** the draft must land in the
+lead's assigned inbox. Inbox 1 uses the Gmail MCP `create_draft` (the
+bare-link PreToolUse hook guards it). Inbox 2 uses `python main.py
+gmail-gethaytham draft <to> <subject> <body> [--thread-id T --in-reply-to
+M]` — the SAME copy rules apply (no em-dashes, no bare domains/emails,
+sign off "Haytham"); the create_draft hook does NOT cover this path, so the
+body must be clean by construction. A new lead with a blank `Inbox` is
+routed and assigned by uae-tick at queue time (`python main.py inbox
+route`); don't invent an inbox here — draft into the one the row already
+carries.
+
+This skill drafts; the uae-tick skill owns the per-inbox daily count. If a
+draft request would obviously blow past an inbox's ceiling (a batch of 30
+"for today"), say so and draft for the queue, not for the day.

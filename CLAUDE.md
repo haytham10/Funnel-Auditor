@@ -96,17 +96,25 @@ scores to `docs/deliverability-log.md`.
   on a visually-confirmed Lane 1 finding; it is the send gate, and
   checking it to make a lead sendable corrupts the track's data.
 - **No send without `Finding Verified` AND `Email Verified`, and never past
-  the daily ceiling on TOTAL sends leaving the inbox** — openers, follow-ups, warm replies,
-  both tracks; deliverability doesn't care what kind of email it was (one
-  inbox, one domain, no backup). The ceiling lives in `send_cap.json` and
-  ramps 20 → 25 → 30, one step per 7+ days, raised only by Haytham's
-  explicit call and only if deliverability held (`python main.py send-cap
-  status|set`; missing/invalid state fails closed to 20). **30 is the hard
-  cap for one inbox — more volume means more inboxes, never a bigger
-  number.** Follow-ups due today eat the budget first; new openers get
-  what's left. Enforced per send: `python main.py crm-gate send <row.json>
-  --sends-today N --touch T` (+ `--followups-due M` on touch 1, `--carries
-  X` on touch 2/3). The bottleneck is findings, not sends — opener
+  a sending inbox's daily ceiling — PER INBOX, never pooled.** The ceiling
+  is TOTAL sends leaving THAT inbox (openers, follow-ups, warm replies, both
+  tracks; deliverability doesn't care what kind of email it was, but it
+  cares which domain it left). There are now **two inboxes** — `Inbox 1`
+  (haytham@auto-mate.one, Gmail MCP) and `Inbox 2` (haytham@gethaytham.com,
+  direct API) — each its own domain, each with its OWN independent ramp in
+  `send_cap.json` (keyed by logical label, fails closed to 20 per inbox),
+  moved 20 → 25 → 30 one step per 7+ days, only by Haytham's explicit call
+  and only if THAT inbox's deliverability held (`python main.py send-cap
+  status|set --inbox "<label>"`, `--all` for every inbox). **30 is the hard
+  cap for ONE inbox — more volume means more inboxes, never a bigger
+  number.** A lead's whole thread rides its assigned `Inbox` (sticky);
+  `python main.py inbox route` picks one for a new lead. That inbox's
+  follow-ups eat its budget first; its new openers get what's left. Enforced
+  per send: `python main.py crm-gate send <row.json> --sends-today N
+  --touch T --inbox "<label>"` (+ `--followups-due M` on touch 1, `--carries
+  X` on touch 2/3; `--sends-today` = that inbox's own count). The
+  registry that maps a label to its address + transport is
+  `audit/inboxes.py`. The bottleneck is findings, not sends — opener
   headroom means that many funnel walks/day.
 - **The cold sequence is three touches (day 0, 3, 9), then Dormant — and
   touches 2-3 must each carry something new:** the next unused banked
@@ -165,17 +173,28 @@ scores to `docs/deliverability-log.md`.
 - `main.py crm-gate offer|send` — the UAE transition gates (see
   `audit/crm_gate.py`): offer = verbatim discovery answer + anchor before
   any priced offer; send = Finding Verified + `Email Verified` (fails closed
-  on either) + follow-ups-first headroom under the inbox ceiling + a
-  declared carrier on touch 2/3 (checked against `Findings Bank` when it
-  claims a second finding). Skills dump the fresh Notion row to JSON, run
-  the gate, and quote its literal output line. Same trust model as the
-  vision gate.
-- `main.py send-cap status|set` — the inbox ceiling (see
-  `audit/send_cap.py`): current cap + the built-in ramp reminder once a
-  step has held 7 days. `set` moves one step (20/25/30) and is Haytham's
-  command, never a skill's; state is `send_cap.json`, failing closed to 20.
-  The ramp decision's evidence lives in `docs/deliverability-log.md`
-  (uae-tick appends bounces/spam flags; Haytham appends test scores).
+  on either) + follow-ups-first headroom under THAT inbox's ceiling
+  (`--inbox "<label>"`) + a declared carrier on touch 2/3 (checked against
+  `Findings Bank` when it claims a second finding). Skills dump the fresh
+  Notion row to JSON, run the gate, and quote its literal output line. Same
+  trust model as the vision gate.
+- `main.py inbox list|route` — the inbox registry (see `audit/inboxes.py`):
+  the ONE seam between logical labels (`Inbox 1`/`Inbox 2`/…, used by the
+  CRM `Inbox` property, `send_cap.json`, and `crm-gate send --inbox`) and
+  real sending addresses + transports (`gmail-mcp` for Inbox 1, the
+  `gmail-gethaytham` direct API for Inbox 2). `list` shows every inbox with
+  its address, transport, and cap; `route` picks the inbox for a lead's next
+  send — sticky if already assigned, else the emptiest inbox today. Scale to
+  Inbox 3/N by adding one entry there, registering its cap, and adding the
+  CRM select option — nothing else hardcodes a count.
+- `main.py send-cap status|set` — the ceiling, one independent ramp PER
+  inbox (see `audit/send_cap.py`): each inbox's cap + its ramp reminder once
+  its step has held 7 days; `--all` prints every inbox + the additive total.
+  `set --inbox "<label>"` moves one step (20/25/30) or registers a new inbox
+  at 20 — Haytham's command, never a skill's; state is `send_cap.json` keyed
+  by logical label, failing closed to 20 per inbox. The ramp decision's
+  evidence lives in `docs/deliverability-log.md` (uae-tick appends
+  bounces/spam flags naming the inbox; Haytham appends test scores).
 - `main.py email-check <address> [--name]` / `main.py email-verify
   <address>` — the two-layer address gate (`audit/email_check.py`).
   `email-check` is the free shape check (syntax + MX + typo/disposable/
