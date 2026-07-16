@@ -6,9 +6,9 @@ description: Work a whole batch of UAE leads in one run, pulled from the UAE Lea
 # Batch Audit — walk queue → worked pipeline, in parallel
 
 Sourcing is web-native now: the `source-leads` skill (or Haytham by hand)
-logs candidates into the UAE Lead CRM as `Sourced`, qualifies them to
-`Qualifying`. Then the system takes over. This skill picks the batch up
-from Notion — chat paste not required.
+logs candidates into the UAE Lead CRM as `Sourced`, then `qualify-leads`
+gates them to `Qualifying`. Then the system takes over. This skill picks the
+batch up from Notion — chat paste not required.
 
 **CRM:** `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`
 (REST API database ID: `5a9fc583160046d1a64c4e65cc804229`).
