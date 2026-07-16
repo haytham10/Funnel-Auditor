@@ -76,9 +76,11 @@ Polish correlates with no openable leak. This is a pattern, not a law. Messy-fun
 
 ## The IG problem, and the fix
 
-The parenting pipeline sourced through personal IG browsing — logging in and browsing as Haytham. That is gone (his account was permanently banned Jun 22, 2026), so **Instagram is not a cold-sourcing channel for this track. Sourcing is web-native, full stop** — everything below is the web-native channel set.
+The parenting pipeline sourced through personal IG browsing — logging in and browsing as Haytham. That is gone (his account was permanently banned Jun 22, 2026). The lesson was an **account-safety** one, not a platform ban: what killed the account was *acting as Haytham through his own login*, not touching Instagram at all.
 
-That is a *sourcing* exclusion, and it is separate from enrichment. Once a lead is sourced and being worked, **SMYKM hook evidence for UAE leads comes primarily from LinkedIn posts, podcast appearances, YouTube, and their own site's About page** — and read-only public Instagram data pulled through a no-login third-party tool (an Apify-style actor, no account required) is a fair enrichment source too, the same as the others. The banned account was an identity/account-safety loss; it never made Instagram off-limits as public read-only data. What stays banned is logging in or acting as Haytham on any platform. See `CLAUDE.md` hard rules and `haytham-hook-finder`.
+So the fix is not "web-native, full stop" — it is **no-login, full stop.** Sourcing is dynamic and channel-agnostic: work whatever vein produces UAE solo coaches with an audience and a way to get paid, Instagram and link-in-bio stores included, **through read-only no-login tools only** (Firecrawl, or an Apify actor that takes a username/URL and needs no account). The channels below are a menu of veins to work adaptively, not a fixed set or a rotation. What stays permanently banned is logging in or acting as Haytham on any platform. See `CLAUDE.md` hard rules, the `source-leads` skill, and `haytham-hook-finder`.
+
+The same no-login IG/LinkedIn data also feeds enrichment: once a lead is being worked, **SMYKM hook evidence comes primarily from LinkedIn posts, podcast appearances, YouTube, and their own About page.**
 
 ## Channel 1 — Coach directories (highest density, start here)
 
@@ -111,7 +113,11 @@ Dubai has a dense business-event and podcast scene. Anyone who shows up as a gue
 
 Guest lists, speaker pages, and the "where to find me" links that follow.
 
-## Channel 5 — Lateral discovery
+## Channel 5 — Link-in-bio footprint (the IG/DM-native coaches)
+
+Where the Instagram- and DM-native coaches keep their money page: `site:stan.store`, `site:beacons.ai`, `site:linktr.ee` + coach + emirate/niche. The link-in-bio page **is** the funnel and is scrapable — confirm UAE + solo + a paid offer and grab the real name off it. This is the vein that catches exactly the coaches a domain-only search misses. Pair with the no-login IG actor (`apify ig <profile> --mode details`) when you have a handle but no store link: it returns followers (audience), bio (UAE + solo), and the external link (the funnel).
+
+## Channel 6 — Lateral discovery
 
 Once a good lead is found, the people they collaborate with, get interviewed by, or are recommended alongside are usually the same profile. Follow the thread. Each good lead becomes the next anchor.
 
@@ -154,10 +160,11 @@ Two rules keep top-up from drying up in a small market:
   (recent directory additions, recent podcast episodes, current launches and
   cohort announcements). A bootstrap run mines the stock once; top-up skims
   the flow.
-- **Rotate to the stalest channel.** Which channel was worked least recently is
-  derivable for free from the CRM — the most recent Created time per Source
-  Channel. Top-up defaults to the channel that has gone longest without a fresh
-  row. A rising dedup rate on a channel is the early warning it is drying up.
+- **Follow what's producing; abandon what's dry.** There is no fixed rotation
+  and no channel you owe a turn to. Start wherever the ask points or where you
+  last had signal, and let results steer: a vein returning fresh UAE coaches
+  gets worked harder, a vein returning mostly dedup hits or noise gets dropped
+  for the day. The rising dedup rate is the drying signal — read it and switch.
 
 The full mechanics of both live in the skills:
 `.claude/skills/source-leads` and `.claude/skills/qualify-leads`.

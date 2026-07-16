@@ -5,10 +5,10 @@ description: Take a sourced UAE coach lead (name + site URL, usually from the UA
 
 # Process Lead — intake → walk → vision pass → Notion → opener → (hook-finder) → Gmail draft
 
-One command per candidate. Sourcing is web-native now (`source-leads` skill,
-five channels — directories, Google footprint, LinkedIn, podcasts/events,
-lateral); this skill takes over the moment a candidate has a name and a
-site URL.
+One command per candidate. Sourcing is dynamic and no-login now
+(`source-leads` skill — platform + link-in-bio footprints, directories,
+LinkedIn, podcasts/events, no-login IG actor, lateral); this skill takes
+over the moment a candidate has a name and a reachable link.
 
 **CRM (all reads/writes):** `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`
 (REST API database ID: `5a9fc583160046d1a64c4e65cc804229`).
