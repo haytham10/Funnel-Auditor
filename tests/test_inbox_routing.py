@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from audit import inboxes, send_cap
+from audit import draft_lint, inboxes, send_cap
 
 
 # --- registry -------------------------------------------------------------
@@ -136,6 +136,102 @@ def test_set_cap_refuses_new_inbox_above_base(tmp_path):
     p = _write(tmp_path / "c.json", {"primary": "Inbox 1", "inboxes": {}})
     ok, lines = send_cap.set_cap(25, "Inbox 2", p)
     assert not ok and "registers at 20" in lines[0]
+
+
+# --- routing policies + warm-up weights (opt #5) --------------------------
+
+def test_policy_fill_primary_fills_primary_first():
+    caps = {"Inbox 1": 20, "Inbox 2": 20}
+    counts = {"Inbox 1": 5, "Inbox 2": 0}  # headroom would pick Inbox 2; fill-primary keeps Inbox 1
+    assert inboxes.choose_inbox(None, caps, counts, policy="fill-primary") == "Inbox 1"
+
+def test_policy_fill_primary_overflows_when_primary_full():
+    caps = {"Inbox 1": 20, "Inbox 2": 20}
+    counts = {"Inbox 1": 20, "Inbox 2": 0}
+    assert inboxes.choose_inbox(None, caps, counts, policy="fill-primary") == "Inbox 2"
+
+def test_warmup_weight_biases_away_from_young_inbox():
+    caps = {"Inbox 1": 20, "Inbox 2": 20}
+    counts = {"Inbox 1": 12, "Inbox 2": 0}  # raw headroom: I1=8, I2=20 -> I2
+    # Weight Inbox 2 down to 0.3: effective I2 = 20*0.3 = 6 < I1 = 8 -> Inbox 1 wins
+    assert inboxes.choose_inbox(None, caps, counts, weights={"Inbox 2": 0.3}) == "Inbox 1"
+
+def test_sticky_beats_policy_and_weights():
+    caps = {"Inbox 1": 20, "Inbox 2": 20}
+    counts = {"Inbox 1": 19, "Inbox 2": 0}
+    assert inboxes.choose_inbox("Inbox 2", caps, counts, policy="fill-primary") == "Inbox 2"
+
+
+# --- reconcile (opt #3) ---------------------------------------------------
+
+def test_reconcile_match_no_change():
+    needs, corrected, _ = inboxes.reconcile_assignment("Inbox 1", "Inbox 1")
+    assert not needs and corrected == "Inbox 1"
+
+def test_reconcile_mismatch_reality_wins():
+    needs, corrected, _ = inboxes.reconcile_assignment("Inbox 1", "Inbox 2")
+    assert needs and corrected == "Inbox 2"
+
+def test_reconcile_blank_current_sets_found():
+    needs, corrected, _ = inboxes.reconcile_assignment(None, "Inbox 2")
+    assert needs and corrected == "Inbox 2"
+
+def test_reconcile_unknown_found_is_noop():
+    needs, corrected, _ = inboxes.reconcile_assignment("Inbox 1", "Inbox 9")
+    assert not needs and corrected == "Inbox 1"
+
+
+# --- draft lint: shared bare-link + em-dash rule (opt #1) -----------------
+
+def test_lint_clean_body_passes():
+    assert draft_lint.scan("Hey, saw your old site and had one quick thought. Haytham") == []
+
+def test_lint_bare_domain_flagged():
+    problems = draft_lint.scan("check drsusankoruthu.com for the issue")
+    assert problems and "auto-link" in problems[0]
+
+def test_lint_bare_email_flagged():
+    assert draft_lint.scan("reply to jane@coach.ae") != []
+
+def test_lint_scheme_link_allowed():
+    assert draft_lint.scan("proof here: https://haytham-sys.netlify.app/x") == []
+
+def test_lint_em_dash_flagged():
+    problems = draft_lint.scan("one thing — it matters")
+    assert any("em-dash" in p for p in problems)
+
+def test_lint_allowlisted_bare_domain_ok():
+    assert draft_lint.scan("see haytham-sys.netlify.app") == []
+
+
+# --- deliverability log appender (opt #4) ---------------------------------
+
+def _log_fixture(tmp_path):
+    p = tmp_path / "log.md"
+    p.write_text("# Deliverability log\n\nblurb\n\n## Log\n\n- 2026-07-15 — [Inbox 1] — [note] — seed\n")
+    return p
+
+def test_log_append_prepends_under_anchor(tmp_path):
+    from datetime import date
+    p = _log_fixture(tmp_path)
+    ok, msg = send_cap.append_log_entry("Inbox 2", "bounce", "a@b.com  hard   bounce",
+                                        on=date(2026, 7, 16), path=p)
+    assert ok
+    body = p.read_text()
+    # newest entry is the first bullet after the anchor, whitespace-collapsed
+    first = body.split("## Log\n\n", 1)[1].splitlines()[0]
+    assert first == "- 2026-07-16 — [Inbox 2] — [bounce] — a@b.com hard bounce"
+    assert "seed" in body  # old entry preserved
+
+def test_log_append_refuses_unknown_inbox(tmp_path):
+    p = _log_fixture(tmp_path)
+    ok, msg = send_cap.append_log_entry("Inbox 9", "note", "x", path=p)
+    assert not ok and "not a registered inbox" in msg
+
+def test_log_append_refuses_unknown_kind(tmp_path):
+    p = _log_fixture(tmp_path)
+    ok, msg = send_cap.append_log_entry("Inbox 1", "explosion", "x", path=p)
+    assert not ok and "unknown" in msg
 
 
 # --- no-pytest fallback ---------------------------------------------------

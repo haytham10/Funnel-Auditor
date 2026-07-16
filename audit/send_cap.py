@@ -348,6 +348,61 @@ def set_cap(new_cap: int, inbox: str | None = None, path: str | Path = STATE_FIL
     return True, lines
 
 
+LOG_FILE = Path(__file__).resolve().parent.parent / "docs" / "deliverability-log.md"
+LOG_KINDS = ("bounce", "spam-flag", "test-score", "over-ceiling", "note")
+_LOG_ANCHOR = "## Log"
+
+
+def append_log_entry(
+    inbox: str,
+    kind: str,
+    detail: str,
+    on: date | None = None,
+    path: str | Path = LOG_FILE,
+) -> tuple[bool, str]:
+    """Append one canonical, per-inbox line to the deliverability log — the
+    evidence file the ramp decision reads. Enforcing the shape here (instead
+    of free-typing it in the tick) keeps the log parseable per inbox.
+
+    Line format, newest at the top under `## Log`:
+        - YYYY-MM-DD — [Inbox N] — [kind] — detail
+
+    Returns (ok, message). Refuses an unregistered inbox or an unknown kind
+    so a typo can't land a line the ramp reader will silently miss.
+    """
+    if not inboxes.is_registered(inbox):
+        return False, (f"DELIVERABILITY LOG: REFUSED — {inbox!r} is not a registered inbox "
+                       f"(known: {', '.join(inboxes.labels())}).")
+    if kind not in LOG_KINDS:
+        return False, (f"DELIVERABILITY LOG: REFUSED — kind {kind!r} unknown "
+                       f"(one of: {', '.join(LOG_KINDS)}).")
+    detail = " ".join(detail.split())
+    if not detail:
+        return False, "DELIVERABILITY LOG: REFUSED — empty detail."
+
+    path = Path(path)
+    day = on or today()
+    line = f"- {day} — [{inbox}] — [{kind}] — {detail}"
+    try:
+        text = path.read_text()
+    except OSError as e:
+        return False, f"DELIVERABILITY LOG: REFUSED — cannot read {path} ({e.__class__.__name__})."
+    if _LOG_ANCHOR not in text:
+        return False, f"DELIVERABILITY LOG: REFUSED — no '{_LOG_ANCHOR}' section in {path.name}."
+
+    head, _, tail = text.partition(_LOG_ANCHOR)
+    tail = tail.lstrip("\n")
+    new_text = f"{head}{_LOG_ANCHOR}\n\n{line}\n{tail}" if tail else f"{head}{_LOG_ANCHOR}\n\n{line}\n"
+    path.write_text(new_text)
+    return True, f"DELIVERABILITY LOG: appended — {line}"
+
+
+def print_log(inbox: str, kind: str, detail: str) -> int:
+    ok, msg = append_log_entry(inbox, kind, detail)
+    print(msg)
+    return 0 if ok else 1
+
+
 def print_status(inbox: str | None = None, show_all: bool = False) -> int:
     lines = all_status_lines() if show_all else status_lines(inbox=inbox)
     for line in lines:

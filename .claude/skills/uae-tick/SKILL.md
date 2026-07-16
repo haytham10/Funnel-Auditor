@@ -52,15 +52,15 @@ days.
 
 **The count — TOTAL sends leaving EACH inbox today** (warm replies,
 parenting-track sends, and deliverability-test sends all count against
-whichever inbox they left from):
+whichever inbox they left from). Start with `python main.py inbox counts`:
+it counts the direct-API inboxes for you (Inbox 2 comes back as a real
+number) and hands you the exact query for the Gmail MCP inboxes:
 
-- **Inbox 1:** `in:sent after:<today YYYY/MM/DD>` (Gmail MCP) **plus**
-  `in:scheduled` due today. **Scheduled sends sit in neither sent mail nor
-  drafts until they depart; skipping this read overshoots the ceiling by
-  exactly their count.**
-- **Inbox 2:** `python main.py gmail-gethaytham search "in:sent
-  after:<today YYYY/MM/DD>"`. (This inbox isn't on the scheduled-send
-  path — no scheduled read needed.)
+- **Inbox 2:** taken straight from `inbox counts` (`count` field).
+- **Inbox 1:** run the `query` it prints (`in:sent after:<today>`) via the
+  Gmail MCP and count the results, **plus** `in:scheduled` due today.
+  **Scheduled sends sit in neither sent mail nor drafts until they depart;
+  skipping this read overshoots the ceiling by exactly their count.**
 
 Cross-check with the CRM, split by inbox (undercounts by design — one row
 per lead, UAE only; Gmail wins on disagreement):
@@ -73,10 +73,12 @@ GROUP BY inbox
 ```
 
 **The deliverability log:** skim `docs/deliverability-log.md` (bounces,
-spam-folder hits, test scores). If a bounce or spam mention turns up
-below, append a dated line — **naming which inbox** — in the same run; the
-ramp decision reads this file per inbox, so it only works if it stays
-current.
+spam-folder hits, test scores). If a bounce or spam mention turns up below,
+append it in the same run with `python main.py send-cap log --inbox
+"<label>" --kind bounce|spam-flag|over-ceiling --detail "..."` — it writes
+the one canonical, per-inbox line the ramp decision reads (don't hand-type
+the line; the command enforces the shape and refuses a bad inbox/kind).
+Commit and push the file change to uae-track if you make one.
 
 **The budget — computed separately for each inbox, follow-ups first:** for
 inbox X, count today's still-unsent follow-ups whose lead is assigned to X
@@ -133,7 +135,11 @@ Replies land in whichever inbox sent the thread, so sweep both:
 Match sender addresses against the CRM's Email column (one SQL pull), and
 only fetch the full thread for matches — from the inbox where the reply
 landed. A matched lead's `Inbox` should equal the inbox that caught the
-reply; if it doesn't, flag it (misrouted or hand-moved thread). A lead who
+reply; if it doesn't, **reconcile it**: run `python main.py inbox reconcile
+--current "<row Inbox>" --found-in "<inbox that caught it>"` and, on a `SET`
+result, write that label to the row's `Inbox` (a thread can't move between
+Gmail accounts, so the CRM label is the thing that's wrong — reality wins).
+This is a reality-recording write, allowed like reply detection. A lead who
 last replied before the sweep window is caught by the Last Contacted
 cross-check below.
 
@@ -359,8 +365,9 @@ coffee.
   at draft time and the step 0.5 reconciliation flips are the sanctioned
   exceptions: they mirror Gmail reality, they don't claim a send.)
 - Reply-detection, discovery-answer logging, the step 0.5 Gmail-state
-  reconciliation, and the step 4 `Inbox` assignment (routing a lead to a
-  sending inbox) are the only unprompted Notion writes.
+  reconciliation, the step 4 `Inbox` assignment (routing a lead to a
+  sending inbox), and the step 1 `Inbox` reconcile (correcting the label to
+  where a thread physically lives) are the only unprompted Notion writes.
 - `Price Discovery Answer` is verbatim or it is nothing. Never paraphrase,
   never tidy her grammar.
 - Never draft a money email unprompted, and never while `crm-gate offer`

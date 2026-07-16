@@ -39,7 +39,7 @@ from rich.text import Text
 
 from config import EVIDENCE_DIR
 from audit.urls import slugify
-from audit import vision_gate
+from audit import inboxes, vision_gate
 
 # audit.crawler (Playwright/bs4 stack) is imported lazily inside the commands
 # that fetch or parse pages, so the gate commands (crm-gate, send-cap, vision)
@@ -342,6 +342,8 @@ def cmd_send_cap(args) -> None:
     from audit import send_cap
     if args.cap_command == "status":
         sys.exit(send_cap.print_status(inbox=args.inbox, show_all=args.all))
+    if args.cap_command == "log":
+        sys.exit(send_cap.print_log(args.inbox, args.kind, args.detail))
     sys.exit(send_cap.print_set(args.value, inbox=args.inbox))
 
 
@@ -367,6 +369,37 @@ def cmd_inbox(args) -> None:
             })
         print(json.dumps(rows, indent=2))
         sys.exit(0)
+    if args.inbox_command == "counts":
+        # Today's sent count PER inbox. Direct-API inboxes (gethaytham) are
+        # counted here; MCP-only inboxes (Gmail connector) can't be reached
+        # from Python, so we emit the exact query for the skill/agent to run.
+        from audit import send_cap
+        day = args.date or send_cap.today().strftime("%Y/%m/%d")
+        query = f"in:sent after:{day}"
+        out = {}
+        for ib in inboxes.all_inboxes():
+            if ib.send_via == "gmail-gethaytham":
+                try:
+                    from audit import gmail_gethaytham as gg
+                    out[ib.label] = {"count": gg.count_messages(query), "via": ib.send_via,
+                                     "query": query}
+                except Exception as exc:  # noqa: BLE001 - report, never crash the tick
+                    out[ib.label] = {"count": None, "via": ib.send_via, "query": query,
+                                     "error": str(exc)}
+            else:
+                out[ib.label] = {"count": None, "via": ib.send_via, "query": query,
+                                 "note": "count via Gmail MCP: run this query and count sent messages"}
+        print(json.dumps({"date": day, "inboxes": out}, indent=2))
+        sys.exit(0)
+    if args.inbox_command == "reconcile":
+        if not inboxes.is_registered(args.found_in):
+            print(f"INBOX RECONCILE: FAIL — --found-in {args.found_in!r} is not a registered inbox "
+                  f"(known: {', '.join(inboxes.labels())})")
+            sys.exit(2)
+        needs, corrected, reason = inboxes.reconcile_assignment(args.current or None, args.found_in)
+        verb = f"SET Inbox = {corrected}" if needs else "no change"
+        print(f"INBOX RECONCILE: {verb} — {reason}")
+        sys.exit(0)
     if args.inbox_command == "route":
         # Decide which inbox a lead's next send leaves from, given its current
         # assignment (blank for a new lead) and today's per-inbox sent counts.
@@ -384,10 +417,11 @@ def cmd_inbox(args) -> None:
             print(f"INBOX ROUTE: FAIL — current {current!r} is not a registered inbox "
                   f"(known: {', '.join(inboxes.labels())})")
             sys.exit(2)
-        chosen = inboxes.choose_inbox(current, caps, counts)
+        policy = args.policy or "headroom"
+        chosen = inboxes.choose_inbox(current, caps, counts, policy=policy)
         ib = inboxes.resolve(chosen)
         sticky = inboxes.is_registered(current)
-        why = "sticky (keeps its assignment)" if sticky else "most headroom today"
+        why = "sticky (keeps its assignment)" if sticky else f"{policy} policy"
         print(f"INBOX ROUTE: {chosen} ({ib.address}, via {ib.send_via}) — {why}")
         sys.exit(0)
 
@@ -641,6 +675,15 @@ def main() -> None:
     c_set.add_argument("value", type=int)
     c_set.add_argument("--inbox", default=None,
                        help="which sending inbox by logical label (default: primary); must already be in the registry")
+    c_log = cap_sub.add_parser(
+        "log",
+        help="append one canonical per-inbox line to docs/deliverability-log.md (the ramp evidence file)",
+    )
+    c_log.add_argument("--inbox", required=True, help="the inbox this event concerns (logical label)")
+    c_log.add_argument("--kind", required=True,
+                       choices=["bounce", "spam-flag", "test-score", "over-ceiling", "note"],
+                       help="event type")
+    c_log.add_argument("--detail", required=True, help="one-line detail (address, score, count, etc.)")
     p_cap.set_defaults(func=cmd_send_cap)
 
     p_inbox = sub.add_parser(
@@ -661,6 +704,22 @@ def main() -> None:
     i_route.add_argument("--count", action="append", metavar="LABEL=N",
                          help="today's sends already out of an inbox, e.g. --count 'Inbox 1=18' "
                               "(repeatable; missing inboxes count 0)")
+    i_route.add_argument("--policy", default="headroom", choices=list(inboxes.ROUTING_POLICIES),
+                         help="routing policy for a NEW lead: headroom (emptiest inbox, default) "
+                              "or fill-primary (fill primary, then overflow)")
+    i_counts = inbox_sub.add_parser(
+        "counts",
+        help="today's sent count per inbox — counts direct-API inboxes (gethaytham) here, "
+             "emits the query for Gmail MCP inboxes",
+    )
+    i_counts.add_argument("--date", default=None, metavar="YYYY/MM/DD",
+                          help="Gmail-style date (default: Dubai today)")
+    i_rec = inbox_sub.add_parser(
+        "reconcile",
+        help="reconcile a lead's CRM Inbox against where its thread physically lives (reality wins)",
+    )
+    i_rec.add_argument("--current", default=None, help="the lead's current CRM Inbox label (may be blank)")
+    i_rec.add_argument("--found-in", required=True, help="the inbox whose Gmail actually holds the thread")
     p_inbox.set_defaults(func=cmd_inbox)
 
     p_email = sub.add_parser(

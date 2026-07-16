@@ -31,60 +31,17 @@ the normal path with a body present always scans.
 from __future__ import annotations
 
 import json
-import re
+import os
 import sys
 
-# Bare proof domains that are deliberately used and should not trip the guard.
-# Anything written with an explicit https:// scheme is already allowed, so keep
-# this minimal — it's only for domains habitually written bare.
-ALLOWLIST = {
-    "haytham-sys.netlify.app",
-}
-
-# Common TLDs we actually see in this pipeline (coach sites, UAE/GCC, socials).
-# Curated rather than "any TLD" to keep false positives near zero.
-_TLDS = (
-    "com|net|org|io|co|me|ai|app|dev|site|online|xyz|info|biz|store|link|tech|"
-    "live|blog|page|so|ae|sa|qa|bh|om|kw|eg|uk|de|fr|es|nl|in|us|ca|au"
-)
-
-_SCHEME_URL = re.compile(r"(?:https?://|mailto:)\S+", re.IGNORECASE)
-_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-_BARE_DOMAIN = re.compile(
-    r"\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+(?:" + _TLDS + r")\b",
-    re.IGNORECASE,
-)
-
-
-def scan(text: str) -> list[str]:
-    """Return bare domains / emails that Gmail would auto-link. Empty = clean."""
-    if not text:
-        return []
-    # Deliberate, scheme-qualified links are fine — remove them before scanning.
-    work = _SCHEME_URL.sub(" ", text)
-
-    offenders: list[str] = []
-
-    emails = _EMAIL.findall(work)
-    offenders.extend(emails)
-    # Drop emails before the domain pass so their domain half isn't double-flagged.
-    work = _EMAIL.sub(" ", work)
-
-    for m in _BARE_DOMAIN.finditer(work):
-        token = m.group(0)
-        if token.lower() in ALLOWLIST:
-            continue
-        offenders.append(token)
-
-    # De-dupe, preserve order.
-    seen: set[str] = set()
-    unique: list[str] = []
-    for tok in offenders:
-        low = tok.lower()
-        if low not in seen:
-            seen.add(low)
-            unique.append(tok)
-    return unique
+# The scan rule lives in audit/draft_lint.py so this hook (Inbox 1 / Gmail
+# MCP) and audit/gmail_gethaytham.create_draft (Inbox 2 / direct API) enforce
+# the SAME copy rules — bare-link AND em-dash — and can never drift apart.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+try:
+    from audit import draft_lint
+except Exception:
+    draft_lint = None  # if the import fails, fail open below — never brick drafting
 
 
 def main() -> int:
@@ -95,21 +52,20 @@ def main() -> int:
 
     if payload.get("tool_name") != "mcp__Gmail__create_draft":
         return 0
+    if draft_lint is None:
+        return 0  # module unavailable -> fail open
 
     tool_input = payload.get("tool_input") or {}
     parts = [tool_input.get("body") or "", tool_input.get("htmlBody") or ""]
-    offenders = scan("\n".join(parts))
-    if not offenders:
+    problems = draft_lint.scan("\n".join(parts))
+    if not problems:
         return 0
 
-    listed = ", ".join(offenders)
     print(
-        "BLOCKED: Gmail draft body contains a bare domain/email that Gmail will "
-        f"auto-link into a google.com/url redirect: {listed}\n"
-        "Fix: don't print the bare address. Refer to the site by description "
-        '("your old site", "the FAQ page"). Cold openers carry no links at all. '
-        "If a link is genuinely intended (a money-email proof link), write it "
-        "with an explicit https:// scheme.",
+        "BLOCKED: Gmail draft body fails a copy rule — " + "; ".join(problems) + "\n"
+        "Fix: don't print bare addresses (refer to the site by description, e.g. "
+        '"your old site"; cold openers carry no links, an intended proof link gets '
+        "an explicit https:// scheme). Remove any em-dash.",
         file=sys.stderr,
     )
     return 2

@@ -155,6 +155,26 @@ def search_threads(query: str, max_results: int = 10) -> list[dict]:
     return data.get("threads", [])
 
 
+def count_messages(query: str, hard_cap: int = 500) -> int:
+    """Exact count of messages matching a Gmail query, paginating so the
+    daily send count is real (not resultSizeEstimate, which is approximate).
+    Used by `main.py inbox counts` for this inbox's ceiling accounting;
+    daily counts are tiny so this is one page in practice. `hard_cap` bounds
+    a pathological query so it never loops unboundedly."""
+    total = 0
+    page_token: str | None = None
+    while total < hard_cap:
+        params = {"q": query, "maxResults": 100}
+        if page_token:
+            params["pageToken"] = page_token
+        data = _request("GET", "/messages", params=params)
+        total += len(data.get("messages", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return total
+
+
 def get_thread(thread_id: str) -> dict:
     return _request("GET", f"/threads/{thread_id}", params={"format": "full"})
 
@@ -177,7 +197,20 @@ def create_draft(
 ) -> dict:
     """Creates a Gmail DRAFT — never sends. `thread_id` keeps a follow-up in
     the same thread as the original send; `in_reply_to` is the Message-Id
-    header of the message being replied to, for proper threading headers."""
+    header of the message being replied to, for proper threading headers.
+
+    The body is linted by the SAME rule the Gmail MCP path is guarded by
+    (audit/draft_lint) — this transport has no PreToolUse hook, so the check
+    is enforced here in code: a bare domain/email or an em-dash blocks the
+    draft rather than shipping."""
+    from audit import draft_lint
+    problems = draft_lint.scan(body)
+    if problems:
+        raise GmailGethaythamError(
+            "draft body fails the copy rules (same as the Gmail MCP link "
+            "guard): " + "; ".join(problems)
+        )
+
     mime = MIMEText(body)
     mime["to"] = to
     mime["subject"] = subject

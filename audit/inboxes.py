@@ -133,10 +133,15 @@ def label_for_address(address: str | None) -> str | None:
     return ib.label if ib else None
 
 
+ROUTING_POLICIES = ("headroom", "fill-primary")
+
+
 def choose_inbox(
     current: str | None,
     caps: dict[str, int],
     counts: dict[str, int],
+    policy: str = "headroom",
+    weights: dict[str, float] | None = None,
 ) -> str:
     """The routing rule — which inbox a lead's next send leaves from.
 
@@ -145,14 +150,21 @@ def choose_inbox(
     on one domain — clean for reply threading and for attributing which
     domain earned a reply or a bounce.
 
-    New/unassigned leads go to the inbox with the most remaining headroom
-    today (cap − sends so far), ties broken by registry order (primary
-    first). That spreads new openers across inboxes as capacity grows,
-    with no hardcoded inbox count — add Inbox 3 to the registry and it
-    joins the rotation automatically.
+    New/unassigned leads are routed by `policy`:
+      - "headroom" (default): the inbox with the most remaining headroom
+        today (cap − sends so far), ties broken by registry order (primary
+        first). Spreads new openers across inboxes as capacity grows.
+      - "fill-primary": the FIRST inbox (registry order) that still has
+        headroom today — fill primary, then overflow. Concentrates
+        reputation on one domain until it's full each day.
 
-    This function is the single knob for routing policy: change it (e.g. to
-    fill-primary-first, or track-based) and the whole system follows.
+    `weights` (optional) scales effective headroom per label for warm-up
+    biasing: give a young inbox a weight < 1 so it's chosen LESS while its
+    reputation is still building (e.g. {"Inbox 2": 0.3}). Missing label = 1.0.
+    Applies to the "headroom" policy.
+
+    This function is the single knob for routing policy — adding a new policy
+    (track-based, round-robin, ...) is a change here and nowhere else.
 
     caps/counts are keyed by label; a missing entry is treated as cap 0 /
     count 0 so an unregistered-or-unfunded inbox is never chosen for new work.
@@ -160,11 +172,43 @@ def choose_inbox(
     if is_registered(current):
         return current  # sticky
 
+    if policy == "fill-primary":
+        for label in labels():  # registry order
+            if caps.get(label, 0) - counts.get(label, 0) > 0:
+                return label
+        return PRIMARY_LABEL
+
+    # "headroom" (default), optionally warm-up-weighted
+    weights = weights or {}
     best_label = PRIMARY_LABEL
-    best_headroom = None
+    best_score = None
     for label in labels():  # registry order → primary wins ties
         headroom = caps.get(label, 0) - counts.get(label, 0)
-        if best_headroom is None or headroom > best_headroom:
-            best_headroom = headroom
+        score = headroom * weights.get(label, 1.0)
+        if best_score is None or score > best_score:
+            best_score = score
             best_label = label
     return best_label
+
+
+def reconcile_assignment(current: str | None, found_in: str | None) -> tuple[bool, str | None, str]:
+    """Reconcile a lead's CRM `Inbox` against where its thread PHYSICALLY
+    lives (the inbox whose Gmail actually holds the sent messages / caught
+    the reply).
+
+    A thread cannot be moved between two Gmail accounts, so reality wins: if
+    the CRM label disagrees with where the mail actually is, the CRM is the
+    thing that's wrong and must be corrected to match. This is data repair,
+    not routing — stickiness does not apply.
+
+    Returns (needs_change, corrected_label, reason).
+    """
+    if not is_registered(found_in):
+        return (False, current, f"where the thread lives is unknown/unregistered ({found_in!r}); nothing to reconcile")
+    if current == found_in:
+        return (False, current, f"CRM Inbox already matches reality ({found_in})")
+    if not is_registered(current):
+        return (True, found_in, f"CRM Inbox was blank/invalid; set to where the thread lives ({found_in})")
+    return (True, found_in,
+            f"CRM Inbox says {current} but the thread lives in {found_in} — a thread can't move "
+            f"between Gmail accounts, so reality wins: correct to {found_in}")
