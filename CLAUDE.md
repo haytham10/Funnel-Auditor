@@ -273,6 +273,16 @@ scores to `docs/deliverability-log.md`.
   scoreboard.
 - `.claude/skills/pipeline-tick` — the parenting track's daily loop, live
   threads only.
+- `.claude/skills/dashboard` + `main.py dashboard skeleton|render`
+  (`audit/dashboard.py`) — the read-only command center: fuses pipeline state
+  (Notion) + sending reality (both Gmail inboxes) + the deliverability ceilings
+  into one self-contained HTML page, published as a stable-URL Claude Artifact.
+  Same Python/skill split as `crm-gate`: `skeleton` fills the Python-reachable
+  slice (per-inbox ceilings + Inbox 2's real sent-today count) and seeds the
+  Notion/Gmail-MCP panels null; the skill fills them via MCP and pipes the
+  snapshot through `render`, which validates and draws every panel (null → an
+  "awaiting data" empty state, never a crash). Never sends, drafts, or writes
+  the CRM.
 - `.claude/skills/haytham-funnel-auditor` — deep audit (Loom/call prep).
 - `.claude/skills/firecrawl` — MCP tool reference for the fetch layer.
 

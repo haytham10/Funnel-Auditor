@@ -461,6 +461,39 @@ def cmd_inbox(args) -> None:
         sys.exit(0)
 
 
+def cmd_dashboard(args) -> None:
+    """The command-center dashboard — see audit/dashboard.py.
+
+    `skeleton` prints the Python-reachable base snapshot (per-inbox ceilings +
+    Inbox 2's real sent-today count) with every Notion-sourced / Gmail-MCP panel
+    seeded as null, PLUS the Gmail-MCP count queries the skill must run. The
+    /dashboard skill fills the panels from Notion + Gmail and pipes the completed
+    snapshot back into `render`, which validates it and writes the HTML page
+    (published as a Claude Artifact). Same trust split as crm-gate: Python owns
+    the deterministic pieces, the skill owns the MCP fetches."""
+    from audit import dashboard
+    if args.dashboard_command == "skeleton":
+        print(json.dumps(dashboard.build_skeleton(), indent=2))
+        sys.exit(0)
+    if args.dashboard_command == "render":
+        try:
+            snapshot = json.loads(Path(args.snapshot_json).read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"DASHBOARD RENDER: FAIL — cannot read snapshot {args.snapshot_json!r}: {exc}")
+            sys.exit(1)
+        try:
+            html = dashboard.render_html(snapshot, title=args.title)
+        except dashboard.DashboardError as exc:
+            print(f"DASHBOARD RENDER: FAIL — {exc}")
+            sys.exit(1)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html)
+        print(f"DASHBOARD RENDER: OK — wrote {out} ({len(html):,} bytes). "
+              "Publish it as a Claude Artifact (see the /dashboard skill).")
+        sys.exit(0)
+
+
 def cmd_email_check(args) -> None:
     from audit import email_check
     sys.exit(email_check.print_check(args.address, args.name or ""))
@@ -763,6 +796,28 @@ def main() -> None:
     i_rec.add_argument("--found-in", required=True, help="the inbox whose Gmail actually holds the thread")
     p_inbox.set_defaults(func=cmd_inbox)
 
+    p_dash = sub.add_parser(
+        "dashboard",
+        help="command-center dashboard: `skeleton` prints the Python-reachable base "
+             "snapshot (per-inbox ceilings + Inbox 2's sent-today count) + the Gmail-MCP "
+             "count queries, with Notion panels seeded null for the skill to fill; "
+             "`render` validates a completed snapshot and writes the self-contained HTML "
+             "page (published as a Claude Artifact) — see audit/dashboard.py",
+    )
+    dash_sub = p_dash.add_subparsers(dest="dashboard_command", required=True)
+    dash_sub.add_parser(
+        "skeleton",
+        help="print the Python-reachable base snapshot JSON (fill the null panels from "
+             "Notion + Gmail MCP, then pipe into `render`)",
+    )
+    d_render = dash_sub.add_parser(
+        "render", help="validate a completed snapshot JSON and write the dashboard HTML")
+    d_render.add_argument("snapshot_json", help="path to the completed snapshot JSON")
+    d_render.add_argument("--out", required=True, help="output path for the HTML page")
+    d_render.add_argument("--title", default="Funnel Auditor — Command Center",
+                          help="page title (browser tab + Artifact name)")
+    p_dash.set_defaults(func=cmd_dashboard)
+
     p_email = sub.add_parser(
         "email-check",
         help="pre-send address check: syntax + MX + typo/disposable/role flags "
@@ -907,9 +962,9 @@ def main() -> None:
     # Bare URL → walk
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap", "inbox",
-        "email-check", "email-verify", "cta-probe", "apify", "gmail-gethaytham",
-        "discover-links", "discover-checkout", "screenshot-name", "ingest",
-        "-h", "--help",
+        "dashboard", "email-check", "email-verify", "cta-probe", "apify",
+        "gmail-gethaytham", "discover-links", "discover-checkout",
+        "screenshot-name", "ingest", "-h", "--help",
     ):
         argv = ["walk"] + argv
 
