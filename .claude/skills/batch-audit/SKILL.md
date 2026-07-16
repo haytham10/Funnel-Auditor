@@ -114,17 +114,23 @@ goes under Blocked, not Done.
 Then one brief, in this order:
 
 1. **Table**: lead / gates / lane / strongest finding in one line /
-   Finding Verified? / email status / vision-pass line / flags rejected.
-2. **Needs hook-finder**: every Lane 1 lead with a verified finding and a
-   usable email address — the walk finding + innocent explanation in
-   full, one line each, ready to draft the moment Haytham runs
-   `haytham-hook-finder` on it and asks for the draft.
+   Finding Verified? / email status (incl. the `EMAIL VERIFY` verdict for
+   Lane 1) / vision-pass line / flags rejected.
+2. **Needs hook-finder**: every Lane 1 lead that is actually Audit Ready —
+   `Finding Verified` AND `Email Verified` both checked (verified finding +
+   a deliverability-confirmed address) — the walk finding + innocent
+   explanation in full, one line each, ready to draft the moment Haytham
+   runs `haytham-hook-finder` on it and asks for the draft. A Lane 1 lead
+   whose address came back `EMAIL VERIFY: WARN/FAIL` is NOT here — it's in
+   §4 (held), holding at Qualifying.
 3. **Warm-up holds (Lane 2)**: committed buyers with no felt leak — the
    warm-up angle, one line each. These stay at Qualifying and never enter
    the cold send queue; Haytham works them by hand if and when he wants.
-4. **Held for other reasons**: Lane 1 leads where the draft is blocked by
-   something besides the hook — suspect address, no address — with the
-   specific reason.
+4. **Held for other reasons**: Lane 1 leads with a verified finding still
+   short of Audit Ready — an address that came back `EMAIL VERIFY:
+   WARN/FAIL` (holding at Qualifying, needs a better address or Haytham's
+   risk call), a suspect-source address, or no address — with the specific
+   reason.
 5. **Parked**: gate fails and Lane 3 leads with their one-line reasons.
 6. **Blocked**: rows needing a site link, an email address, or a re-run
    after a crawl failure, each with the specific manual step.

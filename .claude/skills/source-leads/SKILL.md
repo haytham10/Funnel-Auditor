@@ -115,7 +115,15 @@ Qualifying survivors only.
   last 30 days (one `firecrawl_search`, or visible on the site/profile).
   Dormant = Fail.
 - **Audience floor:** 1,500+ on their largest visible channel. Under it
-  with no bigger owned channel in sight = Fail.
+  with no bigger owned channel in sight = Fail. **A Pass needs a real
+  number, not a vibe** — a follower/subscriber count you actually saw. If
+  the number isn't cheaply visible, do NOT stamp `Gate 0` = Pass on a soft
+  claim ("looks big," "well above floor," a likes count read as followers):
+  leave `Gate 0` = `Not checked` with the number unconfirmed in Notes, same
+  as the can't-tell UAE-base rule above. A soft "Pass" is exactly what sent
+  three leads into a batch that each burned a full walk before failing on
+  the real number — an unconfirmed floor must stay visibly unconfirmed, not
+  ride into the Walk Queue as a confirmed pass.
 
 **Gate 1 — the solo test (2 seconds, on Gate 0 survivors only):** team or
 gatekeeper between Haytham and the owner? "Our team", agency footer,

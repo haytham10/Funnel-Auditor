@@ -349,6 +349,23 @@ def cmd_email_check(args) -> None:
     sys.exit(email_check.print_check(args.address, args.name or ""))
 
 
+def cmd_email_verify(args) -> None:
+    """Deliverability verification (Apify/MillionVerifier) as a quotable gate
+    line. This is the confirm step before `Email Verified` is checked and the
+    lead becomes sendable — syntax+MX (email-check) is not enough, one real
+    bounce burns the domain. One address, one attempt; an Apify error is
+    inconclusive (WARN), never a silent pass."""
+    from audit import email_check, apify
+    try:
+        rows = apify.verify_emails([args.address])
+    except apify.ApifyError as exc:
+        print(f"EMAIL VERIFY: WARN — {args.address}: verifier unavailable "
+              f"({exc}) — inconclusive, could not confirm deliverability")
+        sys.exit(0)
+    result = rows[0] if rows else None
+    sys.exit(email_check.print_verify(args.address, result))
+
+
 def cmd_cta_probe(args) -> None:
     """Single-page Playwright pass: load ONE page and run the JS-button
     click-discovery on it. Exists for the Firecrawl fetch path, where
@@ -538,6 +555,17 @@ def main() -> None:
     p_email.add_argument("--name", help="lead's name — flags whether the local part matches")
     p_email.set_defaults(func=cmd_email_check)
 
+    p_email_verify = sub.add_parser(
+        "email-verify",
+        help="deliverability verification (Apify/MillionVerifier) as a quotable gate "
+             "line: PASS = mailbox confirmed, check `Email Verified` and the lead is "
+             "sendable; FAIL = bounce risk, never send; WARN = inconclusive "
+             "(catch_all/unknown), Haytham's call. The confirm step email-check can't "
+             "do — see audit/email_check.py",
+    )
+    p_email_verify.add_argument("address")
+    p_email_verify.set_defaults(func=cmd_email_verify)
+
     p_probe = sub.add_parser(
         "cta-probe",
         help="single-page Playwright JS-button click-discovery, for resolving one "
@@ -614,7 +642,7 @@ def main() -> None:
     # Bare URL → walk
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap",
-        "email-check", "cta-probe", "apify",
+        "email-check", "email-verify", "cta-probe", "apify",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",
     ):

@@ -56,7 +56,74 @@ a Notion URL), fetch the page first:
 No pasted evidence is the normal case on this track — the crawl + search
 IS the intake. Carry on.
 
+## Step 0.5 — Pre-flight qualification (cheap, BEFORE the walk)
+
+The walk and vision pass exist to find the *leak*, and a leak only matters
+on a lead who is already a real UAE buyer reachable directly. Most Gate 0
+kills fail on things a full crawl never needs — audience, activity,
+UAE-base, gatekeeper — so settle those FIRST, cheaply, and commit the
+expensive walk only to survivors. (This step exists because a July 2026
+batch let three of four kills each burn a full 185K-268K-token walk +
+vision pass before the one cheap number that killed them: audience.)
+
+Budget: **one web search + at most one light profile scrape + one light
+fetch of the entry page.** No multi-page crawl, no screenshots, no vision
+pass yet. Bail the instant one floor hard-fails. Resolve cheapest-first:
+
+1. **UAE-based** — search + the entry page's About/footer. Not UAE-primary
+   (a multi-hub coach who lists Dubai alongside other home bases, or serves
+   the region from elsewhere) → `Gate 0` = Fail, `City` = Unconfirmed,
+   `Status` = Disqualified, one-line reason, stop. Free, and it kills early.
+2. **Gatekeeper (Gate 1)** — the same entry-page fetch shows own-face vs
+   "we"/agency/support-desk/named marketing lead. Walled → `Gate 1` = Fail,
+   `Status` = Disqualified, "gatekeeper/team", stop. (This is the full Gate
+   1 check from `haytham-opener-finder` Step 1, just pulled forward — no
+   reason it waited behind the walk.)
+3. **Funnel exists (cheap read)** — the entry-page fetch confirms a paid
+   offer is present at all (sales page, checkout, course, paid digital
+   product). Genuinely nothing-digital / call-only / brochure-only → Fail.
+   Full funnel-floor confirmation comes from the walk; this is only the
+   "is there an offer to leak from at all" read.
+4. **Activity floor** — most-recent post/publish/launch date from the
+   search or the profile. Nothing in the last **30 days** → Fail.
+5. **Audience floor** — 1,500+ on the largest owned or social channel. Try
+   the cheapest signal first (a search snippet, a follower count visible on
+   the entry page). Escalate to **one** Apify profile scrape (`apify ig
+   --mode details` OR `apify li-profile`, largest channel only, never both)
+   ONLY if the cheap signal is inconclusive AND the lead survived 1-4 — and
+   only if `python main.py apify limits` isn't already `near_cap`. One
+   attempt, no retry-storm.
+
+   **The audience call is three-way, never a blind pass/fail** — a scraper
+   hiccup must not kill a real lead (a July run had Apify return empty for
+   an obvious-above-floor ICF board chair and error on the cap for another;
+   both turned out to be real Audit-Ready leads):
+   - **Hard number obtainable** → it decides. Under 1,500 with no bigger
+     owned channel = Fail → Disqualified.
+   - **Inconclusive + strong qualitative signal** (public stature, press,
+     directory presence, a real paid ladder) → proceed to the walk; write
+     "audience unconfirmed — proceeding on <signal>" in Notes.
+   - **Inconclusive + weak/no signal** → **hold at Qualifying** (Notes:
+     "audience unconfirmed — needs a hard number before a walk"). Do NOT
+     spend the walk, do NOT hard-Disqualify.
+
+6. **Email, free check only** — if the entry-page fetch surfaced a contact/
+   footer address, run `python main.py email-check <addr> --name "<name>"`
+   now (free, no Apify). At this stage it's a soft reachability signal, a
+   flag not a kill: no visible address yet is normal (it may surface in the
+   walk or via a freebie opt-in). Deliverability verification is Step 5,
+   once the real address is settled — don't spend Apify on it here.
+
+**Only a lead that clears 1-5 earns the walk.** Write the resolved floors
+onto the row now (City, Audience Size, `Gate 0` = Pass, `Gate 1` = Pass) so
+a kill later in the walk doesn't lose the pre-flight evidence, and **keep
+the entry-page fetch you already pulled — it becomes Stop 1 of the machine
+walk**, so the tax on a lead that passes is ~zero.
+
 ## Step 1 — Machine walk (Firecrawl-primary)
+
+Only reached by a lead that cleared Step 0.5. Reuse the Step 0.5 entry-page
+fetch as this walk's Stop 1 (seed page) rather than re-fetching it.
 
 ```bash
 pip install -q -r requirements.txt   # first run only
@@ -217,33 +284,28 @@ lists exactly which paths are still unread.
   chat verdict. Never write a paraphrase like "4 screenshots read" — if the
   check didn't print exactly that, the report can't claim it either.
 
-## Step 2 — Gate 0 (the UAE floors)
+## Step 2 — Gate 0 (confirm + lock)
 
-The packet + vision pass give the machine half (`audit/gates.py`: entry
-link, funnel floor, audience floor). Complete the rest by judgment:
+UAE-base, activity, audience, and the gatekeeper (Gate 1) were already
+settled cheaply in Step 0.5 — this step does NOT re-litigate them. Its job
+is the one floor the walk actually adds evidence to, plus a lock:
 
-- **UAE-based**: physically in Dubai, Abu Dhabi, Sharjah, or elsewhere in
-  the UAE — About page, LinkedIn location, event appearances. "Serves the
-  region" does not count. Set the City property while you're there.
-- **Activity floor**: posted, emailed, or launched something in the last
-  **30 days**. One web search on the lead's name + niche/city is required,
-  not optional — the search is what actually tells you if she's active.
-- **Funnel floor**: a live sales page, checkout, course, or paid digital
-  offer exists (the crawl usually settles this). Call-only with nothing
-  digital = fail.
-- **Audience floor**: **1,500+** on their largest owned or social channel.
-  If the crawl and one web search don't surface a number, **one** Apify
-  lookup is fine (`apify ig --mode details` or `apify li-profile`,
-  whichever channel is largest — never both) — but only if `python main.py
-  apify limits` hasn't already been flagged `near_cap` for this run. One
-  attempt, no retry-storm: if it errors (quota, timeout, anything), write
-  "audience unconfirmed — Apify unavailable" in Notes and judge on the
-  strongest number you already have rather than trying a second actor.
+- **Funnel floor (confirm)**: the full crawl + vision pass now confirm the
+  paid offer Step 0.5 saw is real and reachable, not login-walled vapor or
+  a dead offer page. If the walk *contradicts* a pre-flight pass — the
+  "offer" turns out to be nothing behind a wall, or the site is genuinely
+  call-only after all — flip `Gate 0` = Fail, `Status` = Disqualified,
+  one-line reason (properties only, no body), and stop.
+- **Lock the verdict**: with the funnel floor confirmed and Step 0.5's
+  floors holding, `Gate 0` stays Pass. `audit/gates.py` still owns the
+  machine half (entry link, funnel floor, audience-if-supplied); the
+  judgment floors carry over from pre-flight.
 
-Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line
-reason in Notes (properties only, no body), and stop. The floor exists to
-protect walks and touches — every opener under the send ceiling needs a verified finding, so walks are the bottleneck
-by design.
+Do not re-run the Apify audience lookup here — Step 0.5 owns the one
+attempt. The floors protect walks and touches: every opener under the send
+ceiling needs a verified finding, so walks are the bottleneck by design,
+and Step 0.5 is what keeps a walk from being spent on a lead that can't
+clear them.
 
 ## Step 3 — Notion row
 
@@ -269,26 +331,31 @@ Now invoke the **haytham-opener-finder** skill logic with:
   B (the human-layer read — it OUTRANKS the machine text checks wherever
   they disagree, and Haytham's own typed notes outrank everything).
 
-Follow that skill exactly: Gate 1, 5-stop walk, sting test + vitamin
-filter, lane classification, opening angle + innocent explanation. Only
-visually-confirmed findings enter the filters. Bank every finding that
-survives both filters, ranked strongest first — the body's Findings Bank
-section plus the `Findings Bank` property (`N. UNUSED | finding` lines the
-send gate parses); #1 is the opener, the rest is Touch 2/3 material that
-must not be discarded. Write the page body and
-properties to the UAE CRM in the exact schema.md format, including the
-Evidence section with the literal vision-check line. `Finding Verified`
-gets checked ONLY for a Lane 1 lead with a visually-confirmed finding —
-it is the hard send gate. The `SMYKM hook:` line gets written as the
+Follow that skill exactly: the 5-stop walk, sting test + vitamin filter,
+lane classification, opening angle + innocent explanation. (Gate 1 was
+already settled in Step 0.5 — do not redo it.) Only visually-confirmed
+findings enter the filters. Bank every finding that survives both filters,
+ranked strongest first — the body's Findings Bank section plus the
+`Findings Bank` property (`N. UNUSED | finding` lines the send gate
+parses); #1 is the opener, the rest is Touch 2/3 material that must not be
+discarded. Write the page body and properties to the UAE CRM in the exact
+schema.md format, including the Evidence section with the literal
+vision-check line. `Finding Verified` gets checked ONLY for a Lane 1 lead
+with a visually-confirmed finding — it is one of the two hard send gates
+(the other is `Email Verified`, set in Step 5). **Do not promote Status to
+Audit Ready here** — a Lane 1 lead stays Qualifying until Step 5 confirms
+deliverability and checks `Email Verified`; Audit Ready must mean sendable
+pending only the hook. The `SMYKM hook:` line gets written as the
 placeholder `not run yet — see haytham-hook-finder`. **This placeholder
 blocks Step 6 below.** `haytham-hook-finder` is a separate, manual step
 Haytham runs on this same lead to clear the block — its evidence sources
 are LinkedIn, podcasts, YouTube, the About page, and read-only no-login
 Instagram data (via a third-party actor, never logged in as Haytham).
 
-## Step 5 — Email address
+## Step 5 — Email address + deliverability verify (send-readiness gate)
 
-Work the Email OS decision tree with what the packet harvested:
+Work the Email OS decision tree with what the walk harvested (Step 0.5's
+free `email-check` may already have a candidate):
 1. Personal-looking address from the crawl → use it.
 2. Generic (info@/contact@) → use only if nothing better.
 3. Nothing harvested → web search (`"[name]" email contact`), LinkedIn
@@ -297,17 +364,42 @@ Work the Email OS decision tree with what the packet harvested:
    or pattern-guess+verify needed" and leave Status = Qualifying. The
    freebie opt-in and verification are Haytham's manual steps.
 
-**Whatever the tree picks, check it before it enters the CRM:**
-`python main.py email-check <address> --name "<Contact Name>"` — quote
-the line in the verdict. FAIL (typo domain, dead domain, no-reply inbox,
-disposable) = the address is unusable: keep hunting or fall to step 4;
-never log a FAIL address into the Email property. WARN inconclusive =
-log it, but Notes first line says "address unverified — run the Apify
-email-checker before Touch 1." **Do not run `python main.py apify
-verify-email` here to resolve it early** — that's deferred to Touch 1
-time (uae-tick owns it) specifically so a walk-phase batch doesn't spend
-Apify calls on addresses that may never get a send. One verified address
-per lead — never send the same opener to two guessed spellings.
+**Two checks, in order — the first is free, the second is the send gate:**
+
+a. **Shape (free):** `python main.py email-check <address> --name "<Contact
+   Name>"` — quote the line. FAIL (typo/dead domain, no-reply, disposable)
+   = unusable, never enters the Email property: keep hunting or fall to
+   step 4. PASS/WARN = well-formed enough to verify.
+
+b. **Deliverability (Lane 1 only — this is the gate):** for a Lane 1 lead
+   that will actually get a send, confirm the mailbox accepts mail BEFORE
+   the lead is declared sendable. `email-check` is syntax+MX only and has
+   PASSED for addresses that then hard-bounced at Touch 1 — one bounce
+   burns the one shared domain. Run:
+   ```bash
+   python main.py email-verify <address>
+   ```
+   (one address, one Apify call; skip only if `python main.py apify limits`
+   is `near_cap`, and say so). Act on the literal line:
+   - **`EMAIL VERIFY: PASS`** → check the `Email Verified` box on the row.
+     This is the only thing that checks it automatically.
+   - **`EMAIL VERIFY: FAIL`** (invalid/disposable) → the address bounces;
+     do NOT log it as sendable. Keep hunting (step 3) or fall to step 4.
+   - **`EMAIL VERIFY: WARN`** (catch_all/unknown, or Apify unavailable) →
+     leave `Email Verified` unchecked; Notes first line "deliverability
+     inconclusive (<reason>) — Haytham's call before send." Not
+     auto-sendable; he finds a better address or checks the box by hand to
+     accept the risk.
+
+   Skip (b) for Lane 2/3 — they never get a cold send, so don't spend an
+   Apify call verifying them.
+
+**Status promotion (Lane 1):** a lead reaches **Audit Ready** only when
+BOTH `Finding Verified` and `Email Verified` are checked. If the address is
+FAIL / WARN / not-found, `Finding Verified` stays checked but Status
+**holds at Qualifying** with the reason above — Audit Ready must mean
+"sendable pending only the hook." One verified address per lead — never the
+same opener to two guessed spellings.
 
 If the email came from a source the walk flagged as broken/suspect, Status
 stays Qualifying and that flag goes in Notes as the FIRST line.
@@ -335,8 +427,11 @@ draft, dump the fresh row to JSON and run `python main.py crm-gate send
 sends out of the inbox, from Gmail's sent count; M = follow-ups still owed
 today — they eat the budget before any opener; uae-tick owns both numbers
 on a normal day) — a FAIL means the lead isn't actually sendable (finding
-unverified, no address, or no opener headroom left under the ceiling) and
-the draft holds with that reason.
+unverified, address unverified/`Email Verified` unchecked, no address, or
+no opener headroom left under the ceiling) and the draft holds with that
+reason. On a lead worked through Step 5 the `Email Verified` box is already
+set, so the gate's deliverability check passes here — it's the backstop for
+a row that skipped or failed that step.
 
 Then, without waiting for approval:
 - Pick the variant that came through the gate strongest and **create the
@@ -379,8 +474,14 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
   screenshots read" without that exact command having printed `VISION
   PASS: COMPLETE` first is a false statement, full stop.
 - **`Finding Verified` is checked only on a visually-confirmed Lane 1
-  finding.** It is the send gate. Checking it to make a lead sendable is
+  finding.** It is a send gate. Checking it to make a lead sendable is
   the exact corruption this track's data cannot survive.
+- **`Email Verified` is checked only on an `EMAIL VERIFY: PASS`** (or by
+  Haytham's hand to accept a catch_all/unknown risk). It is the other send
+  gate — `email-check` PASS (syntax+MX) is NOT enough; it cleared two
+  addresses that then hard-bounced. A bounce burns the one shared domain,
+  so checking this box on an unverified address is the same class of
+  corruption as faking `Finding Verified`.
 - This flow does not find a SMYKM hook — that's `haytham-hook-finder`,
   triggered manually by Haytham, from cited public evidence.
 - **Never invoke haytham-email-draft or create a Gmail draft while the
