@@ -95,6 +95,13 @@ first rather than assume the quota is open.
 
 - **`haytham-hook-finder`** — LinkedIn + Instagram hook evidence (Step 1).
   The primary consumer. Podcasts/YouTube/About stay on Firecrawl.
+- **`source-leads` Google footprint channel** — `apify search` runs
+  alongside `firecrawl_search` on the same query (2026-07-16), not as a
+  fallback. A same-query comparison showed near-zero URL overlap between
+  the two engines and each surfacing real UAE candidates the other
+  missed, so both run and the results get merged and deduped. At
+  ~$0.002/call it barely touches the monthly budget; `--site`/`--country`
+  scoping matters far more than which engine runs the query.
 - **`email-check` WARN → verify** — when `main.py email-check` returns WARN
   (unverifiable MX / role account), `apify verify-email <addr>` is the
   confirm step before the address enters the CRM or a send queue.

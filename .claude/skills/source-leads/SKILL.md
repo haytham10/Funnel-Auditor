@@ -1,6 +1,6 @@
 ---
 name: source-leads
-description: Fill and keep filling the UAE Lead CRM's top of funnel, web-natively. Three modes — sourcing (Day-1 bootstrap: volume collection of raw candidates into the CRM as Sourced, no judgment), qualifying (Day-2 bootstrap: mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified), and top-up (the everyday tap: a small, lightweight, repeatable sourcing run you can fire any day for the life of the track). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape only — it never sources from Instagram (not a cold-sourcing channel for this track), never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
+description: Fill and keep filling the UAE Lead CRM's top of funnel, web-natively. Three modes — sourcing (Day-1 bootstrap: volume collection of raw candidates into the CRM as Sourced, no judgment), qualifying (Day-2 bootstrap: mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified), and top-up (the everyday tap: a small, lightweight, repeatable sourcing run you can fire any day for the life of the track). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape as the default, plus `apify search` (Google SERP) run alongside Firecrawl on the Google footprint channel — it never sources from Instagram (not a cold-sourcing channel for this track), never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
 ---
 
 # Source Leads — the sourcing engine, as a skill
@@ -41,18 +41,34 @@ not plausibly UAE, no site at all).
 in one SQL query at the start of the run. Skip anything already logged,
 in any status. Never create a duplicate row.
 
+**Check the Apify quota once, up front, if this run will touch channel 2:**
+`python main.py apify limits`. `apify search` is cheap (~$0.002/call,
+confirmed 2026-07-16), but it still draws off the same small monthly USD
+budget everything else on this layer shares. If `near_cap` is `true`, skip
+`apify search` for the whole run and work channel 2 on `firecrawl_search`
+alone — note it in the run report, don't silently degrade.
+
 ### The five channels (work them in this order)
 
 1. **Coach directories (highest density, start here).** `firecrawl_scrape`
    / `firecrawl_crawl` the ICF UAE chapter directory and regional coach
    directories/marketplaces. Directory listings almost always carry name,
    city, specialty, and a site link — exactly the intake fields.
-2. **Google footprint (proof of a paid product baked in).**
-   `firecrawl_search` for the PLATFORM, not the person:
-   `mykajabi.com coach Dubai`, `teachable.com UAE coach`, platform domain
-   + city for Thinkific/Podia/Systeme/Skool. A platform footprint IS a
-   funnel — these candidates come pre-passed on the funnel floor. Set the
-   Platform property while it's free.
+2. **Google footprint (proof of a paid product baked in).** Run BOTH
+   engines on the same query, not one or the other — a same-query
+   side-by-side comparison (2026-07-16) showed near-zero URL overlap
+   between them on a loose query, and each surfaced a real UAE candidate
+   the other missed on a scoped one:
+   - `firecrawl_search` for the PLATFORM, not the person:
+     `mykajabi.com coach Dubai`, `teachable.com UAE coach`, platform
+     domain + city for Thinkific/Podia/Systeme/Skool.
+   - `python main.py apify search "<same platform+city query>" --site
+     <platform domain> --country ae` — the `--site`/`--country` scoping
+     matters far more than which engine runs it; a loose query (no
+     `--site`) is weak on both engines, so always scope it.
+   - Merge the two result lists and dedupe by URL before triage. A
+     platform footprint IS a funnel — these candidates come pre-passed on
+     the funnel floor. Set the Platform property while it's free.
 3. **LinkedIn (the UAE unlock).** `firecrawl_search` for UAE coaches
    announcing programs/cohorts, then fetch what's PUBLIC. LinkedIn walls
    most content — take what renders, log the profile URL, move on.
