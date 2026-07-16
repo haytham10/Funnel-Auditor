@@ -22,10 +22,15 @@ capability.
 ## The actor set (vetted; do not expand casually)
 
     ig          apify/instagram-scraper                 profile details + recent posts w/ captions (date-filterable); post detail
-    li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
-    li_profile  harvestapi/linkedin-profile-scraper     headline/about/experience; optional email-search mode (finds an address)
+    li_posts    apimaestro/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
+    li_profile  apimaestro/linkedin-profile-detail      headline/about/experience; optional email-search mode (finds an address)
     email       account56/email-verifier                MillionVerifier-backed address verification
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
+
+    (li_posts/li_profile switched from harvestapi's actors 2026-07-16 — the
+    harvestapi backend enforces its own ~20-runs/month quota independent of
+    Apify billing, and a batch hit it mid-run. apimaestro is a separate
+    vendor/backend, still pay-per-event, no known cap.)
 
 ## Cost discipline (Instagram and the email-search mode are the pricey ones)
 
@@ -63,8 +68,8 @@ APIFY_BASE = "https://api.apify.com/v2"
 # REST API uses. Keep this map tight.
 ACTORS = {
     "ig": "apify~instagram-scraper",
-    "li_posts": "harvestapi~linkedin-profile-posts",
-    "li_profile": "harvestapi~linkedin-profile-scraper",
+    "li_posts": "apimaestro~linkedin-profile-posts",
+    "li_profile": "apimaestro~linkedin-profile-detail",
     "email": "account56~email-verifier",
     "search": "apify~google-search-scraper",
 }
@@ -76,8 +81,6 @@ _SYNC_TIMEOUT_SECS = 240
 
 LI_POSTED_LIMITS = ("any", "1h", "24h", "week", "month", "3months", "6months", "year")
 IG_RESULT_TYPES = ("posts", "details", "comments", "reels", "mentions", "stories")
-LI_PROFILE_MODE_NO_EMAIL = "Profile details no email ($4 per 1k)"
-LI_PROFILE_MODE_EMAIL = "Profile details + email search ($10 per 1k)"
 
 
 class ApifyError(RuntimeError):
@@ -281,40 +284,81 @@ def instagram_post(post_url: str, raw: bool = False) -> list[dict]:
             for i in items]
 
 
+# apimaestro/linkedin-profile-posts has no server-side date filter, so
+# `since` is applied client-side against each post's posted_at timestamp.
+_SINCE_SECONDS = {
+    "1h": 3600, "24h": 86400, "week": 7 * 86400, "month": 30 * 86400,
+    "3months": 90 * 86400, "6months": 182 * 86400, "year": 365 * 86400,
+}
+
+
 def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
                    raw: bool = False) -> list[dict]:
     """Recent LinkedIn posts (no cookies) — the primary hook source. `since`
-    is one of LI_POSTED_LIMITS (e.g. 'week', 'month'). Reactions/comments
-    stay off by default to keep the run cheap."""
+    is one of LI_POSTED_LIMITS (e.g. 'week', 'month'), applied client-side
+    against each post's timestamp. Takes a profile URL or bare username."""
     if since and since not in LI_POSTED_LIMITS:
         raise ApifyError(f"since must be one of {LI_POSTED_LIMITS}, got {since!r}")
-    run: dict[str, Any] = {"targetUrls": [url], "maxPosts": max_posts}
-    if since:
-        run["postedLimit"] = since
-    items = run_actor(ACTORS["li_posts"], run, memory_mbytes=256)
+    items = run_actor(ACTORS["li_posts"], {"username": url, "total_posts": max_posts},
+                       memory_mbytes=256)
+    if since and since != "any":
+        import time
+        cutoff_ms = (time.time() - _SINCE_SECONDS[since]) * 1000
+        items = [i for i in items if (i.get("posted_at") or {}).get("timestamp", 0) >= cutoff_ms]
     if raw:
         return items
-    return [_lean(i, ("linkedinUrl", "postedAt", "postedDate", "content",
-                      "text", "type", "reactionsCount", "commentsCount",
-                      "repostsCount", "author"))
-            for i in items]
+    out = []
+    for i in items:
+        posted = i.get("posted_at") or {}
+        author = i.get("author") or {}
+        name = f"{author.get('first_name', '')} {author.get('last_name', '')}".strip()
+        rec = {
+            "linkedinUrl": i.get("url"),
+            "postedAt": posted.get("date"),
+            "postedAgo": posted.get("relative"),
+            "text": i.get("text"),
+            "type": i.get("post_type"),
+            "stats": i.get("stats"),
+            "authorName": name,
+            "authorHeadline": author.get("headline"),
+        }
+        out.append({k: v for k, v in rec.items() if v not in (None, "", [])})
+    return out
 
 
 def linkedin_profile(url: str, with_email: bool = False, raw: bool = False) -> list[dict]:
     """LinkedIn profile enrichment (headline, about, experience). Pass
-    with_email=True ONLY when hunting an address for a no-email lead — that
-    mode costs more ($10/1k vs $4/1k)."""
-    run = {
-        "queries": [url],
-        "profileScraperMode": LI_PROFILE_MODE_EMAIL if with_email else LI_PROFILE_MODE_NO_EMAIL,
-    }
-    items = run_actor(ACTORS["li_profile"], run, memory_mbytes=256)
+    with_email=True ONLY when hunting an address for a no-email lead. Takes
+    a profile URL or bare username."""
+    items = run_actor(ACTORS["li_profile"], {"username": url, "includeEmail": with_email},
+                       memory_mbytes=256)
     if raw:
         return items
-    return [_lean(i, ("linkedinUrl", "publicIdentifier", "firstName", "lastName",
-                      "headline", "about", "summary", "location", "email",
-                      "emails", "experience", "currentPosition"))
-            for i in items]
+    out = []
+    for i in items:
+        info = i.get("basic_info") or {}
+        location = info.get("location") or {}
+        experience = [
+            {k: e.get(k) for k in
+             ("title", "company", "location", "duration", "description", "is_current")
+             if e.get(k) not in (None, "", [])}
+            for e in (i.get("experience") or [])
+        ]
+        rec = {
+            "linkedinUrl": info.get("profile_url"),
+            "publicIdentifier": info.get("public_identifier"),
+            "fullName": info.get("fullname"),
+            "headline": info.get("headline"),
+            "about": info.get("about"),
+            "location": location.get("full"),
+            "currentCompany": info.get("current_company"),
+            "followerCount": info.get("follower_count"),
+            "website": info.get("creator_website"),
+            "email": info.get("email"),
+            "experience": experience,
+        }
+        out.append({k: v for k, v in rec.items() if v not in (None, "", [])})
+    return out
 
 
 def verify_emails(emails: list[str], raw: bool = False) -> list[dict]:
