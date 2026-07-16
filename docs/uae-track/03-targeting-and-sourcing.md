@@ -117,42 +117,54 @@ Once a good lead is found, the people they collaborate with, get interviewed by,
 
 ---
 
-## The two-day sprint (50+ qualified leads)
+## Two functions, two skills — sourcing and qualifying
 
-**Status as of Jul 13, 2026: not started. The CRM has zero leads in it.** The Jul 15 target for 50+ sourced and qualified is missed and has moved to Jul 20. Everything below is the plan, not a description of work already done.
+Sourcing and qualifying are **separate operations, and separate skills.**
+Keeping them apart is the point — mixing "collect names" and "gate names" is
+what makes both slow, so the split is structural, not just advised:
 
-**Day 1 — sourcing ONLY.** No qualifying, no funnel walks, no judgment. Collect names, sites, cities into the CRM as `Sourced`. Volume mode. Target 60-70 raw names so 50+ survive Gate 0.
+- **`source-leads` collects ONLY.** No qualifying, no funnel walks, no
+  judgment. Collect names, sites, cities into the CRM as `Sourced`. It runs
+  at two volumes — a one-time **bootstrap** (60-70 raw names to fill an
+  empty CRM) and everyday **top-up** (~15-20, repeatable) — but the job is
+  the same either way: a logged `Sourced` row and nothing more.
+- **`qualify-leads` gates ONLY.** Run Gate 0 on every `Sourced` row,
+  mechanically, no funnel walk yet. Kill anything that fails to
+  `Disqualified`. Then Gate 1 on the survivors, promoting passes to
+  `Qualifying`. Triage speed — ~2 fetches per lead.
 
-**Day 2 — qualifying ONLY.** Run Gate 0 on every raw name. Mechanical, fast, no funnel walk yet. Kill anything that fails. Then Gate 1 on the survivors. Target 50+ at `Qualifying` with both gates passed.
+Historically this ran as a one-time **two-day bootstrap sprint** (Day 1
+source, Day 2 qualify) to fill an empty CRM — targeted 50+ qualified by
+mid-Jul 2026. That framing is retired: the calendar-day language described
+a one-off event, but both functions run for the life of the track (every
+top-up produces `Sourced` rows that then need qualifying). Name them by
+function — source, then qualify — not by day.
 
-**Separating these two days is the point.** Mixing sourcing and qualifying is what makes both slow.
+### Keeping the tap on — top-up
 
-The `source-leads` skill runs both modes (`.claude/skills/source-leads`).
-
-## After the bootstrap — top-up (keeping the tap on)
-
-The two-day sprint is a one-time bootstrap for an empty CRM. It is not the
-whole life of the feature. Once leads exist, sourcing continues as **top-up**:
-a small, on-demand run ("source me 20," "find more coaches") that adds ~15-20
-fresh `Sourced` rows any day, then gets qualified by the Day-2 mechanics like
-any other batch. Same channels, same gates, just smaller and repeatable.
+Once the CRM has leads, sourcing continues as **top-up**: a small, on-demand
+`source-leads` run ("source me 20," "find more coaches") that adds ~15-20
+fresh `Sourced` rows any day, then gets gated by `qualify-leads` like any
+other batch. Same channels, same gates, just smaller and repeatable.
 
 Two rules keep top-up from drying up in a small market:
 
 - **Source the flow, not the stock.** The UAE / English / solo pool is finite.
   Do not re-mine the same back-catalog — bias to what is new since last time
   (recent directory additions, recent podcast episodes, current launches and
-  cohort announcements). The sprint mines the stock once; top-up skims the flow.
+  cohort announcements). A bootstrap run mines the stock once; top-up skims
+  the flow.
 - **Rotate to the stalest channel.** Which channel was worked least recently is
   derivable for free from the CRM — the most recent Created time per Source
   Channel. Top-up defaults to the channel that has gone longest without a fresh
   row. A rising dedup rate on a channel is the early warning it is drying up.
 
-Top-up is Mode 3 in the `source-leads` skill.
+The full mechanics of both live in the skills:
+`.claude/skills/source-leads` and `.claude/skills/qualify-leads`.
 
 ---
 
-## After the sprint — the funnel walk
+## After qualifying — the funnel walk
 
 Only leads that pass both gates get a walk. The walk assigns the Lane, produces the verified Finding, and sets `Finding Verified`. Only then does a lead become `Audit Ready` and eligible to send.
 
