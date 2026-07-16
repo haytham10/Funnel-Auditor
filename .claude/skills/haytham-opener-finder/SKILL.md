@@ -80,7 +80,7 @@ Read `references/walk.md` and `references/schema.md` now, before doing anything 
 
 No automatic dedup query here — querying the pipeline on every single walk was burning tokens for a check that's rarely the actual failure point. If Haytham already has the lead's Notion page open or pasted, that page IS the dedup check; a walk on an existing row just overwrites it fresh, which is fine. Only query the pipeline for a name/URL match if something feels off — e.g. Haytham pastes a lead with no page link at all, or a name that rings a bell — and even then, one targeted query, not a routine step.
 
-**Gate 0 (docs/uae-track/03).** Sourcing and Day-2 qualifying are supposed to settle this upstream, but the old pipeline's rows proved gates get skipped, so the walk re-enforces all four before any touches get spent. The machine-checkable half comes back in the evidence packet (`audit/gates.py`); complete the rest by judgment:
+**Gate 0 (docs/uae-track/03).** Sourcing and the `qualify-leads` gate are supposed to settle this upstream, but the old pipeline's rows proved gates get skipped, so the walk re-enforces all four before any touches get spent. The machine-checkable half comes back in the evidence packet (`audit/gates.py`); complete the rest by judgment:
 
 - **UAE-based:** physically in Dubai, Abu Dhabi, Sharjah, or elsewhere in the UAE. "Serves the region" does not count. Check the About page, LinkedIn location, event appearances from the Step A search.
 - **Has a funnel or paid product:** a live sales page, checkout, course, or paid digital offer exists. A coach who only sells 1:1 by DM or call has nothing to fix — out of scope.
