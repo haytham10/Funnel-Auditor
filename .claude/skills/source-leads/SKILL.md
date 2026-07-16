@@ -33,11 +33,12 @@ day" on an empty or near-empty CRM, that's bootstrap volume. Otherwise
 **Never write to the parenting DB** (`c6209e29-55ef-4781-b735-73b2a254e34f`).
 
 **The ICP, one line:** a UAE-based solo coach or course creator with an
-**audience** and a **way to get paid** — a funnel, a paid digital product,
-OR a link-in-bio store (Stan / Beacons / Linktree) carrying a paid offer.
-A big audience is a strong buy signal in its own right: capture it every
-time, and never drop a large-audience coach just because the way-to-pay is
-thin. Full targeting spec: `docs/uae-track/03-targeting-and-sourcing.md`.
+**audience** and a **real way to get paid** — a funnel, a paid digital
+product, OR a link-in-bio store (Stan / Beacons / Linktree) with a real
+purchasable offer inside it. A big audience is a strong buy signal and
+worth capturing every time, but it does NOT substitute for the offer: a
+large following with no way to actually buy is not a lead for this track.
+Full targeting spec: `docs/uae-track/03-targeting-and-sourcing.md`.
 
 ---
 
@@ -135,27 +136,30 @@ call on a handle you're already vetting. A large audience is a strong buy
 signal, so make it visible in the row; never guess it (a guessed number
 poisons Gate 0 downstream), but do spend the one cheap lookup to find it.
 
-**A reachable link is required to log the row** — but "reachable link"
-is broader than a custom-domain funnel:
+**A reachable link to a real offer is required to log the row.** "Reachable
+link" is broader than a custom-domain funnel, but it must lead to something
+purchasable:
 - A funnel or paid-product site (custom domain or platform subdomain).
-- A **link-in-bio store** (Stan / Beacons / Linktree) carrying a paid
-  offer — this counts as the Site URL.
-- For a **large-audience coach with no funnel page at all** (pure DM/IG):
-  log their strongest public profile (IG/LinkedIn) as the Site URL and flag
-  it in Notes ("no funnel page — DM-only, <N> followers"). The audience
-  earns the row; `qualify-leads` makes the funnel-floor call. Do NOT drop a
-  big audience for a thin funnel.
-- A candidate with neither a funnel nor a notable audience, whose link you
-  can't find in one obvious hop, does NOT get a row — list them under "seen,
-  no link found" in the report so the name isn't lost, and move on.
+- A **link-in-bio store** (Stan / Beacons / Linktree) **only when it has a
+  real purchasable offer inside** — a product, course, program, or paid
+  booking with a price. Open the page and confirm the offer before logging;
+  the store URL is the Site URL only once you've seen the offer in it.
+- **DM-only is not a funnel.** "DM me to work together," a Linktree that is
+  just social links or a free lead magnet, or an IG bio with no store — none
+  of these count, no matter how large the audience. A big audience with no
+  purchasable offer is not a lead for this track. Note the strongest of
+  these under "seen, no offer found" in the report so the name isn't lost
+  (a coach with reach may launch an offer later), and move on.
+- A candidate whose link to a real offer you can't find in one obvious hop
+  does NOT get a row — same "seen, no offer found" list.
 
 Create rows in batches (notion-create-pages takes multiples), not one call
 per lead.
 
 Do NOT qualify, do NOT walk funnels, do NOT reject anyone except obvious
-non-candidates (not a coach, not plausibly UAE, no link and no audience).
-The gates are `qualify-leads`'s job, on the `Sourced` rows this skill
-leaves behind.
+non-candidates (not a coach, not plausibly UAE, no reachable offer). The
+gates are `qualify-leads`'s job, on the `Sourced` rows this skill leaves
+behind.
 
 ---
 
@@ -209,7 +213,7 @@ Report which **veins produced and which came up dry** (one line each) — not
 as channel bookkeeping, but as the signal for where to point the next run.
 Give the seen-but-skipped duplicate count: a high dedup rate is the early
 warning a vein is drying, and the trigger to work a different one next
-time. List "seen, no link found" names so they aren't lost.
+time. List "seen, no offer found" names so they aren't lost.
 
 Every run ends the same way: these `Sourced` rows now need `qualify-leads`
 (Gate 0 + Gate 1) before they reach the Walk Queue. Say so.
@@ -239,6 +243,7 @@ Every run ends the same way: these `Sourced` rows now need `qualify-leads`
 - Never write to the parenting DB, and never source parenting/faith leads
   into this CRM — that niche is closed.
 - Out of scope stays out: agencies/teams, non-English funnels, coaches
-  outside the UAE however adjacent. A solo coach who works IG-first with a
-  real audience is IN scope — that is a lead, not an exclusion. Do not
-  dilute the geographic thesis.
+  outside the UAE however adjacent. A solo coach who works IG-first but
+  sells through a real link-in-bio offer is IN scope; a DM-only coach with
+  no purchasable offer is NOT — there is no funnel to work, however large
+  the audience. Do not dilute the geographic thesis.
