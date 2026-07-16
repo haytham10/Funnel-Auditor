@@ -423,10 +423,14 @@ invoke the **haytham-email-draft** skill for the Touch 1 opener (it reads
 `references/uae-track.md` for this track's rules). Full silent loop, voice
 rules, gate — as that skill specifies. Additionally, before creating the
 draft, dump the fresh row to JSON and run `python main.py crm-gate send
-<row.json> --sends-today N --touch 1 --followups-due M` (N = today's TOTAL
-sends out of the inbox, from Gmail's sent count; M = follow-ups still owed
-today — they eat the budget before any opener; uae-tick owns both numbers
-on a normal day) — a FAIL means the lead isn't actually sendable (finding
+<row.json> --sends-today N --touch 1 --followups-due M --inbox "<the
+lead's Inbox>"` (assign the inbox first if the row's `Inbox` is blank:
+`python main.py inbox route`, write the label back; N = today's TOTAL
+sends out of THAT inbox, from its own sent count — `python main.py inbox
+counts` gives Inbox 2's number and the query for Inbox 1; M = follow-ups
+still owed today on that inbox — they eat its budget before any opener;
+uae-tick owns both numbers on a normal day) — a FAIL means the lead isn't
+actually sendable (finding
 unverified, address unverified/`Email Verified` unchecked, no address, or
 no opener headroom left under the ceiling) and the draft holds with that
 reason. On a lead worked through Step 5 the `Email Verified` box is already

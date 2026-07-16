@@ -56,13 +56,16 @@ def main() -> int:
         return 0  # module unavailable -> fail open
 
     tool_input = payload.get("tool_input") or {}
-    parts = [tool_input.get("body") or "", tool_input.get("htmlBody") or ""]
+    # Subject is copy too — an em-dash or bare domain there ships just as
+    # visibly as one in the body. The recipient address is a header, not copy.
+    parts = [tool_input.get("subject") or "",
+             tool_input.get("body") or "", tool_input.get("htmlBody") or ""]
     problems = draft_lint.scan("\n".join(parts))
     if not problems:
         return 0
 
     print(
-        "BLOCKED: Gmail draft body fails a copy rule — " + "; ".join(problems) + "\n"
+        "BLOCKED: Gmail draft subject/body fails a copy rule — " + "; ".join(problems) + "\n"
         "Fix: don't print bare addresses (refer to the site by description, e.g. "
         '"your old site"; cold openers carry no links, an intended proof link gets '
         "an explicit https:// scheme). Remove any em-dash.",

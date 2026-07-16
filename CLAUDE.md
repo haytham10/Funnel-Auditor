@@ -178,15 +178,23 @@ scores to `docs/deliverability-log.md`.
   `Findings Bank` when it claims a second finding). Skills dump the fresh
   Notion row to JSON, run the gate, and quote its literal output line. Same
   trust model as the vision gate.
-- `main.py inbox list|route` — the inbox registry (see `audit/inboxes.py`):
-  the ONE seam between logical labels (`Inbox 1`/`Inbox 2`/…, used by the
-  CRM `Inbox` property, `send_cap.json`, and `crm-gate send --inbox`) and
-  real sending addresses + transports (`gmail-mcp` for Inbox 1, the
-  `gmail-gethaytham` direct API for Inbox 2). `list` shows every inbox with
-  its address, transport, and cap; `route` picks the inbox for a lead's next
-  send — sticky if already assigned, else the emptiest inbox today. Scale to
-  Inbox 3/N by adding one entry there, registering its cap, and adding the
-  CRM select option — nothing else hardcodes a count.
+- `main.py inbox list|route|counts|reconcile` — the inbox registry (see
+  `audit/inboxes.py`): the ONE seam between logical labels
+  (`Inbox 1`/`Inbox 2`/…, used by the CRM `Inbox` property,
+  `send_cap.json`, and `crm-gate send --inbox`) and real sending addresses
+  + transports (`gmail-mcp` for Inbox 1, the `gmail-gethaytham` direct API
+  for Inbox 2). `list` shows every inbox with its address, transport, and
+  cap; `route` picks the inbox for a lead's next send — sticky if already
+  assigned, else by policy (`headroom` default / `fill-primary`, with
+  optional `--weight` warm-up bias); `counts` returns each inbox's sends
+  today (epoch-exact Dubai day — direct-API inboxes counted, the Gmail MCP
+  query emitted for the rest); `reconcile` corrects a row's `Inbox` to
+  where its thread physically lives. `send-cap log --inbox … --kind …
+  --detail …` appends the canonical per-inbox deliverability-log line.
+  Scale to Inbox 3/N by adding one entry there, registering its cap, and
+  adding the CRM select option — nothing else hardcodes a count. Drafts on
+  BOTH transports are linted by the same shared rule (`audit/draft_lint.py`,
+  bare links + em-dashes, subject and body).
 - `main.py send-cap status|set` — the ceiling, one independent ramp PER
   inbox (see `audit/send_cap.py`): each inbox's cap + its ramp reminder once
   its step has held 7 days; `--all` prints every inbox + the additive total.

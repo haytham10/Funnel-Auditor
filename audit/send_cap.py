@@ -72,6 +72,18 @@ def today() -> date:
     return datetime.now(DUBAI_TZ).date()
 
 
+def dubai_midnight_epoch(day: date | None = None) -> int:
+    """Unix seconds at 00:00 Dubai on the given send-day (default: today).
+
+    For Gmail search: `after:YYYY/MM/DD` resolves in the ACCOUNT's timezone,
+    not Dubai's, so a date-string query can be hours off exactly inside the
+    window the tick runs in. `after:<epoch>` is timezone-exact — this is what
+    `inbox counts` queries with.
+    """
+    day = day or today()
+    return int(datetime(day.year, day.month, day.day, tzinfo=DUBAI_TZ).timestamp())
+
+
 RAMP_STEPS = (20, 25, 30)
 HARD_MAX = 30
 FAIL_CLOSED_CAP = 20
@@ -284,6 +296,20 @@ def set_cap(new_cap: int, inbox: str | None = None, path: str | Path = STATE_FIL
             f"(known: {', '.join(inboxes.labels())}). Add it to audit/inboxes.py "
             "before giving it a ceiling — the registry is the source of truth."
         ]
+
+    # An existing-but-unparseable state file is never blindly rewritten: the
+    # rewrite would erase EVERY OTHER inbox's ramp state (set_on, history —
+    # the 7-day clocks). Corruption of the whole file is a human's mess to
+    # look at, not something to pave over.
+    if path.exists():
+        try:
+            json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return False, [
+                f"SEND CAP [{inbox}]: REFUSED — {path.name} exists but is not readable JSON. "
+                "Fix or delete the file by hand first; a blind rewrite here would erase every "
+                "other inbox's ramp state (set_on / history / the 7-day clocks)."
+            ]
 
     if new_cap not in RAMP_STEPS:
         msg = f"{new_cap} is not a ramp step — the only legal values are {', '.join(map(str, RAMP_STEPS))}."
