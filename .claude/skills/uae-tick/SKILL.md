@@ -205,8 +205,12 @@ Send Queue view). For each candidate, in order:
 
 1. `python main.py email-check <address> --name "<name>"` — quote the
    line. FAIL = the address is unusable (typo/dead domain/no-reply):
-   flag "needs a real address" and skip the gate. WARN inconclusive =
-   verify via the Apify email-checker actor before it enters the queue.
+   flag "needs a real address" and skip the gate. This is a sanity
+   re-check only: deliverability was already confirmed at the walk
+   (`email-verify` → `Email Verified`), and the gate in step 2 enforces
+   that flag. A row that reaches the queue with `Email Verified` unchecked
+   is an edge case the gate will catch — hold it and flag "needs
+   email-verify" rather than sending.
 2. Dump the fresh row to JSON and run `python main.py crm-gate send
    <row.json> --sends-today <Gmail total incl. today's already-queued
    drafts> --touch 1 --followups-due <F from step 0, minus follow-ups
@@ -236,8 +240,9 @@ line.
 
 - `Offer Sent` with no verbatim answer/anchor (the impossible state — top
   of the list).
-- Audit Ready without `Finding Verified` checked, or `Finding Verified`
-  checked on a Lane 2/3 row (both incoherent).
+- Audit Ready without `Finding Verified` checked, without `Email Verified`
+  checked, or `Finding Verified` checked on a Lane 2/3 row (all incoherent
+  — Audit Ready now means both hard gates are set).
 - Status Outreach Sent with Touch # = 0.
 - **Outreach Sent with no matching message in Gmail's sent mail** — the
   status means the email actually left; no matching send = a logging

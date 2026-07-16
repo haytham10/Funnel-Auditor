@@ -44,13 +44,21 @@ this repo is built to keep separate.
 
 `source-leads` (Day 1: 5 web channels → CRM as Sourced, Site URL required
 per row; Day 2: mechanical Gate 0/1 → Qualifying) → `/batch-audit` (one
-lead-processor agent per lead, ~5 parallel, cap 20) → per lead: machine
-walk (Firecrawl-primary fetch, parallel scrapes, Playwright fallback;
-`cta-probe` for single-page JS-button resolution) → **mandatory vision
-pass** → UAE Gate 0 floors → opener-finder (lane + finding + innocent
+lead-processor agent per lead, ~5 parallel, cap 20) → per lead:
+**pre-flight qualification first** (the cheap floors — UAE-base, gatekeeper,
+paid-offer-exists, 30-day activity, 1,500 audience — settled from one search
++ at most one light profile scrape + one entry-page fetch, BEFORE the walk,
+so a Gate 0 kill costs a lookup not a full crawl; audience is three-way:
+hard number decides / inconclusive+strong stature proceeds /
+inconclusive+weak holds at Qualifying) → machine walk on survivors only
+(Firecrawl-primary fetch, parallel scrapes, Playwright fallback; `cta-probe`
+for single-page JS-button resolution) → **mandatory vision pass** → Gate 0
+confirm (funnel floor) → opener-finder (lane + finding + innocent
 explanation + findings bank + 3-line Loom skeleton; `Finding Verified`
 checked only on a visually-confirmed Lane 1 finding) → CRM write → email
-address (checked by `main.py email-check`; FAIL never enters the CRM) →
+address (shape checked by `main.py email-check`; FAIL never enters the CRM;
+then Lane 1 deliverability confirmed by `main.py email-verify` → `Email
+Verified`, both hard gates required for Audit Ready) →
 **held** (no Gmail draft yet) → Haytham runs `haytham-hook-finder`
 (single lead or batch mode over all Audit Ready; real public evidence:
 LinkedIn, podcasts, YouTube, About page) → he approves the hooks → Gmail
@@ -87,8 +95,8 @@ scores to `docs/deliverability-log.md`.
   vision pass is dead and stays dead. `Finding Verified` gets checked only
   on a visually-confirmed Lane 1 finding; it is the send gate, and
   checking it to make a lead sendable corrupts the track's data.
-- **No send without `Finding Verified`, and never past the daily ceiling
-  on TOTAL sends leaving the inbox** — openers, follow-ups, warm replies,
+- **No send without `Finding Verified` AND `Email Verified`, and never past
+  the daily ceiling on TOTAL sends leaving the inbox** — openers, follow-ups, warm replies,
   both tracks; deliverability doesn't care what kind of email it was (one
   inbox, one domain, no backup). The ceiling lives in `send_cap.json` and
   ramps 20 → 25 → 30, one step per 7+ days, raised only by Haytham's
@@ -156,21 +164,29 @@ scores to `docs/deliverability-log.md`.
   screenshot" is a computed fact, not a claim.
 - `main.py crm-gate offer|send` — the UAE transition gates (see
   `audit/crm_gate.py`): offer = verbatim discovery answer + anchor before
-  any priced offer; send = Finding Verified + address + follow-ups-first
-  headroom under the inbox ceiling + a declared carrier on touch 2/3
-  (checked against `Findings Bank` when it claims a second finding).
-  Skills dump the fresh Notion row to JSON, run the gate, and quote its
-  literal output line. Same trust model as the vision gate.
+  any priced offer; send = Finding Verified + `Email Verified` (fails closed
+  on either) + follow-ups-first headroom under the inbox ceiling + a
+  declared carrier on touch 2/3 (checked against `Findings Bank` when it
+  claims a second finding). Skills dump the fresh Notion row to JSON, run
+  the gate, and quote its literal output line. Same trust model as the
+  vision gate.
 - `main.py send-cap status|set` — the inbox ceiling (see
   `audit/send_cap.py`): current cap + the built-in ramp reminder once a
   step has held 7 days. `set` moves one step (20/25/30) and is Haytham's
   command, never a skill's; state is `send_cap.json`, failing closed to 20.
   The ramp decision's evidence lives in `docs/deliverability-log.md`
   (uae-tick appends bounces/spam flags; Haytham appends test scores).
-- `main.py email-check <address> [--name]` — pre-send address gate
-  (`audit/email_check.py`): syntax + MX + typo/disposable/no-reply flags.
-  FAIL = the address never enters the CRM or a queue; WARN inconclusive =
-  verify via `main.py apify verify-email <addr>` first.
+- `main.py email-check <address> [--name]` / `main.py email-verify
+  <address>` — the two-layer address gate (`audit/email_check.py`).
+  `email-check` is the free shape check (syntax + MX + typo/disposable/
+  no-reply flags): FAIL = the address never enters the CRM or a queue.
+  `email-verify` is the deliverability confirm (Apify/MillionVerifier) run
+  during the walk for Lane 1 leads: `EMAIL VERIFY: PASS` checks `Email
+  Verified` and clears the lead for Audit Ready; FAIL = the mailbox
+  bounces, never send; WARN (catch_all/unknown) = Haytham's call. It exists
+  because `email-check` PASS is syntax+MX only and cleared two addresses
+  that then hard-bounced at Touch 1, and a bounce burns the one shared
+  domain.
 - `main.py apify <li-posts|li-profile|ig|ig-post|verify-email|search|actors>`
   — the no-login third-party fetch layer (`audit/apify.py`,
   `docs/uae-track/apify-actors.md`): read-only public LinkedIn/Instagram

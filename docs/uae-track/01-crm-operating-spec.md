@@ -57,6 +57,7 @@ SQLite table name is the data source URL, quoted:
 | --- | --- | --- |
 | `Contact Name` | title | |
 | `Email` | email | Required before any send. |
+| `Email Verified` | checkbox | **SEND GATE.** `__YES__` / `__NO__` in SQL. Checked only after `python main.py email-verify <addr>` prints PASS (deliverability confirmed, not just syntax+MX — a bounce burns the one shared domain), or Haytham checks it by hand to accept a catch_all/unknown risk. `crm-gate send` fails closed on this. |
 | `Phone Number` | phone_number | Decision-maker phone / WhatsApp if publicly listed. Optional; enables the WhatsApp pivot on warm trust-verification threads. |
 | `Site URL` | url | Funnel entry point. |
 | `Profile URL` | url | LinkedIn / wherever found. |
@@ -129,9 +130,9 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 | From → To | Requires |
 | --- | --- |
 | Sourced → Qualifying | Name + site captured |
-| Qualifying → Audit Ready | `Gate 0` = Pass, `Gate 1` = Pass, funnel walk done, `Lane` set, `Finding Verified` = checked |
+| Qualifying → Audit Ready | `Gate 0` = Pass, `Gate 1` = Pass, funnel walk done, `Lane` set, `Finding Verified` = checked, AND `Email Verified` = checked (deliverability confirmed via `email-verify`, or Haytham accepted a catch_all/unknown risk by hand). Both hard gates are set before a lead is declared sendable — a verified finding on an address that bounces still burns the domain. |
 | Qualifying → Disqualified | Either gate = Fail. Set and move on, do not linger. |
-| Audit Ready → Draft Ready | SMYKM hook line resolved (hook-finder ran), `crm-gate send` PASS, `email-check` not FAIL, Gmail draft created. Sets nothing else — a draft is not a send. |
+| Audit Ready → Draft Ready | SMYKM hook line resolved (hook-finder ran), `crm-gate send` PASS (which now requires `Email Verified` checked, not just an `@`-shaped address), Gmail draft created. Sets nothing else — a draft is not a send. |
 | Draft Ready → Scheduled | Haytham scheduled the send in Gmail (tick detects it in the scheduled queue, or he says so). |
 | Audit Ready / Draft Ready / Scheduled → Outreach Sent | Touch #1 ACTUALLY departed (matching message in Gmail sent mail). Set `Last Contacted` (real departure date), `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must have printed PASS at queue time.** |
 | Outreach Sent → Reply Received | They replied. Set `Sequence` = Warm |
@@ -144,7 +145,7 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 
 ## 4. Hard rules (do not violate)
 
-1. **No send without `Finding Verified` = checked.** The finding produces the reply rate. A thin finding burns the lead and the domain. Enforced by `python main.py crm-gate send`.
+1. **No send without `Finding Verified` = checked AND `Email Verified` = checked.** The finding produces the reply rate; a thin finding burns the lead and the domain. The verified address protects deliverability; a bounce burns the one shared domain the whole ramp is built to protect (`email-check` is syntax+MX only and PASSED for two addresses that then hard-bounced — `email-verify` is the deliverability confirm). Both enforced by `python main.py crm-gate send`, which fails closed on either flag.
 2. **Never past the daily ceiling on TOTAL sends leaving the inbox** (openers + follow-ups + warm replies, both tracks — one inbox, one domain). The ceiling lives in `send_cap.json` (fails closed to 20) and ramps 20 → 25 → 30 only by Haytham's explicit `python main.py send-cap set` after 7+ days of deliverability holding; **30 is the hard cap for one inbox — more volume means more inboxes.** Follow-ups due today eat the budget first; openers get what's left. Enforced by `crm-gate send --sends-today N --touch T [--followups-due M]`.
 3. **Price discovery happens BEFORE the priced offer**, not after a stall. This is the entire point of the track. Enforced by `python main.py crm-gate offer`.
 4. **`Price Discovery Answer` is logged verbatim.** Not summarized.

@@ -172,3 +172,90 @@ def print_check(address: str, lead_name: str = "") -> int:
     verdict, details = check_email(address, lead_name)
     print(f"EMAIL CHECK: {verdict} — {address}: " + ", ".join(details))
     return 1 if verdict == "FAIL" else 0
+
+
+# --- Deliverability verification (MillionVerifier result → gate verdict) -----
+#
+# `check_email` above is syntax + MX only. It PASSED for two addresses that
+# then hard-bounced at Touch 1 (550 5.1.1 "address not found"), which is the
+# whole reason this second layer exists: a bounce burns the one shared domain.
+# `classify_verification` turns one `apify verify-email` result row into a
+# quotable PASS/WARN/FAIL line, same trust model as everything else here —
+# a script owns the verdict so it can't be talked past.
+#
+# The rule the skills follow: the Notion `Email Verified` box gets checked
+# ONLY on a literal `EMAIL VERIFY: PASS`. WARN and FAIL never auto-check it.
+# So the classifier fails SAFE — anything not provably deliverable is WARN,
+# never silently promoted to PASS.
+
+# MillionVerifier result vocabulary → what it means for sending.
+_VERIFY_DELIVERABLE = {"ok", "valid", "deliverable"}
+_VERIFY_UNDELIVERABLE = {
+    "invalid": "mailbox does not exist — this is the hard-bounce case, never send here",
+    "disposable": "disposable-mail domain — not a real inbox",
+    "disabled": "mailbox is disabled — mail will bounce",
+    "spamtrap": "known spam trap — sending here damages the domain",
+    "abuse": "flagged abuse/complainer address — do not send",
+}
+_VERIFY_INCONCLUSIVE = {
+    "catch_all": "domain accepts all addresses, so this specific mailbox can't be "
+                 "confirmed — a real bounce risk; Haytham's call before send",
+    "catchall": "domain accepts all addresses, so this specific mailbox can't be "
+                "confirmed — a real bounce risk; Haytham's call before send",
+    "unknown": "verifier could not determine deliverability — inconclusive, "
+               "not a confirmed-good address",
+    "error": "verifier errored on this address — inconclusive, try again or verify by hand",
+}
+
+
+def _verify_token(result: dict) -> str:
+    """Pull the result token from a verify-email row, tolerating field-shape
+    variance across the actor's output (result / status / resultCode)."""
+    for key in ("result", "status", "resultCode", "subStatus"):
+        val = result.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip().lower()
+    return ""
+
+
+def classify_verification(result: dict | None) -> tuple[str, list[str]]:
+    """One MillionVerifier row → (verdict, details). verdict is PASS | WARN | FAIL.
+
+    Fails SAFE: any token that is not an explicit deliverable/undeliverable
+    signal (empty, missing, unrecognized, or a no-result) is WARN, so an
+    ambiguous verification never checks the `Email Verified` box on its own.
+    """
+    if not result:
+        return "WARN", ["verifier returned no result for this address — "
+                        "inconclusive, cannot confirm deliverability"]
+
+    token = _verify_token(result)
+    if not token:
+        return "WARN", ["verifier returned no readable result field — inconclusive"]
+
+    if token in _VERIFY_DELIVERABLE:
+        extras = []
+        if result.get("role"):
+            extras.append("role account")
+        if result.get("free"):
+            extras.append("free provider")
+        tail = (" (" + ", ".join(extras) + ")") if extras else ""
+        return "PASS", [f"mailbox confirmed deliverable ({token}){tail}"]
+
+    if token in _VERIFY_UNDELIVERABLE:
+        return "FAIL", [_VERIFY_UNDELIVERABLE[token]]
+
+    if token in _VERIFY_INCONCLUSIVE:
+        return "WARN", [_VERIFY_INCONCLUSIVE[token]]
+
+    # Unrecognized token: never guess PASS.
+    return "WARN", [f'unrecognized verifier result "{token}" — treated as inconclusive, '
+                    "not a confirmed-good address"]
+
+
+def print_verify(address: str, result: dict | None) -> int:
+    """Format one verification result as the quotable gate line. Exit 1 only
+    on FAIL (unusable address); PASS and WARN exit 0, mirroring email-check."""
+    verdict, details = classify_verification(result)
+    print(f"EMAIL VERIFY: {verdict} — {address}: " + ", ".join(details))
+    return 1 if verdict == "FAIL" else 0

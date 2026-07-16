@@ -15,7 +15,9 @@ Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
           Price discovery happens BEFORE the priced offer. That is the
           entire point of the track.
 
-  send  — no send without `Finding Verified` checked, a real `Email`, and
+  send  — no send without `Finding Verified` checked, a real `Email` that is
+          also `Email Verified` (deliverability confirmed by `email-verify`,
+          not just syntax+MX — a bounce burns the one shared domain), and
           headroom under the daily deliverability ceiling. The ceiling is
           TOTAL sends leaving the inbox (openers + follow-ups + warm
           replies, both tracks), read from send_cap.json (audit/send_cap.py;
@@ -154,6 +156,20 @@ def check_send(
     email = _norm(row.get("Email"))
     if "@" not in email:
         problems.append(f'Email = "{email or "unset"}" — no usable address')
+    elif not _is_checked(row.get("Email Verified")):
+        # A syntactically-fine address is not a deliverable one. `email-check`
+        # (syntax + MX) PASSED for two addresses that then hard-bounced at
+        # Touch 1, and a bounce burns the one shared domain the whole ramp
+        # protects. `Email Verified` is checked only after `email-verify`
+        # (Apify/MillionVerifier) prints PASS, or Haytham checks it by hand to
+        # accept a catch_all/unknown risk. Fails closed: missing property =
+        # unchecked = not sendable.
+        problems.append(
+            f'Email Verified is unchecked for "{email}" — deliverability was never '
+            "confirmed (email-check is syntax+MX only; a bounce burns the domain). Run "
+            "`python main.py email-verify <addr>` — it must print PASS before the box is "
+            "checked, or Haytham checks it by hand to accept a catch_all/unknown risk"
+        )
 
     if touch < 1 or touch > COLD_SEQUENCE_TOUCHES:
         problems.append(
@@ -241,7 +257,7 @@ def print_send(
     ok, problems, notes = check_send(row, sends_today, touch, followups_due, carries)
     name = _norm(row.get("Contact Name")) or "unnamed lead"
     if ok:
-        print(f"CRM GATE (send): PASS — {name}: finding verified, email set, "
+        print(f"CRM GATE (send): PASS — {name}: finding verified, email verified, "
               + ", ".join(notes))
         return 0
     print(f"CRM GATE (send): FAIL — {name}: " + "; ".join(problems))

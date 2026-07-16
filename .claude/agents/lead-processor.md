@@ -16,11 +16,23 @@ Read `.claude/skills/process-lead/SKILL.md` FIRST and follow it exactly,
 including every skill it chains into (`haytham-opener-finder`,
 `haytham-email-draft`). Do not improvise a shorter path. In particular:
 
+0. **Pre-flight FIRST, before the walk (process-lead Step 0.5).** Settle
+   the cheap floors — UAE-base, gatekeeper (Gate 1), a paid offer exists,
+   30-day activity, and 1,500 audience — from one search + at most one
+   light profile scrape + one light entry-page fetch, BEFORE spending the
+   full crawl + vision pass. Most kills fail here, and the walk is the
+   expensive thing: don't pay for it on a lead that can't clear the floors.
+   Any hard fail → park (Gate = Fail, Status = Disqualified, one-line
+   reason) and finish. Audience is three-way: a hard number decides;
+   inconclusive + strong stature → proceed; inconclusive + weak signal →
+   HOLD at Qualifying (no walk, no Disqualify). Only a survivor gets the
+   walk, and the entry-page fetch you already pulled is its Stop 1.
 1. Fetch the lead's Notion page before anything else — its properties are
    the intake, and any images attached to the page body are Haytham's
    pasted evidence (download them per the process-lead skill into
    `evidence/<slug>/hook/`; they are your human-layer evidence and they
-   outrank the crawl).
+   outrank the crawl). (Do this as part of, or just before, pre-flight —
+   you need the row either way.)
 2. Run the machine walk (Firecrawl-primary per process-lead's Step 1: fetch
    via `firecrawl_scrape`, discover next URLs via `python main.py
    discover-links`/`discover-checkout`, then `python main.py ingest
@@ -38,11 +50,14 @@ including every skill it chains into (`haytham-opener-finder`,
    the screenshots" and it actually being true. If it's still INCOMPLETE
    for an unreadable image, say so explicitly in NOTES below — don't round
    up.
-3. Enforce the UAE Gate 0 floors (UAE-based, funnel exists, 30-day
-   activity, 1,500 audience). A gate fail or Lane 3 is a fine outcome —
-   park it properly (Gate = Fail, Status = Disqualified, one-line reason)
-   and finish. Lane 2 is also a fine outcome — it holds at Qualifying with
-   the warm-up angle in Notes; no verified finding means no cold send.
+3. Confirm the Gate 0 verdict. UAE-base, activity, audience, and Gate 1
+   were settled in pre-flight (step 0); this step only confirms the funnel
+   floor against the full crawl and locks the verdict — do NOT re-run the
+   Apify audience lookup (pre-flight already spent the one attempt). A gate
+   fail or Lane 3 is a fine outcome — park it properly (Gate = Fail, Status
+   = Disqualified, one-line reason) and finish. Lane 2 is also a fine
+   outcome — it holds at Qualifying with the warm-up angle in Notes; no
+   verified finding means no cold send.
 4. Write the walk to the lead's Notion page in the exact schema
    (`haytham-opener-finder/references/schema.md`). The row already exists —
    update it, never create a duplicate. **`Finding Verified` gets checked
@@ -55,8 +70,18 @@ including every skill it chains into (`haytham-opener-finder`,
 5. Work the Email OS address tree, and check whatever it picks with
    `python main.py email-check <address> --name "<name>"` before logging
    it (FAIL = unusable, never enters the Email property; quote the line
-   in your return block's EMAIL field). Then check the `SMYKM hook:` line you
-   just wrote in step 4 — it will read `not run yet — see
+   in your return block's EMAIL field). **Then, for a Lane 1 lead only,
+   confirm deliverability before declaring it sendable:** `python main.py
+   email-verify <address>` (one Apify call; skip only if `apify limits` is
+   near_cap). PASS → check the `Email Verified` box and the lead can be
+   Audit Ready; FAIL → the address bounces, keep hunting or leave it
+   unfound; WARN (catch_all/unknown/Apify down) → leave `Email Verified`
+   unchecked, hold at Qualifying, Notes "deliverability inconclusive —
+   Haytham's call." **Audit Ready requires BOTH `Finding Verified` and
+   `Email Verified` checked** — otherwise the lead holds at Qualifying with
+   the reason. Skip email-verify for Lane 2/3 (they never send). Then check
+   the `SMYKM hook:` line you just wrote in step 4 — it will read `not run
+   yet — see
    haytham-hook-finder`, since you never find a hook yourself (see hard
    rules). **That means you do not draft.** Do not invoke the email-draft
    skill and do not create a Gmail draft. Report DRAFT as "held — needs
@@ -89,13 +114,15 @@ including every skill it chains into (`haytham-opener-finder`,
 - **Never invoke haytham-email-draft or create a Gmail draft while that
   hook line still reads "not run yet."** Hold the lead there instead — see
   step 5 above.
-- **Apify is capped to one attempt, if used at all.** If your prompt
-  didn't already tell you Apify is at/near its monthly cap for this run,
-  and the audience floor genuinely needs it (process-lead Step 2), make
-  at most one call. An error (quota, timeout, anything) means "audience
-  unconfirmed — Apify unavailable" in Notes, not a retry against a second
-  actor. Never call `apify verify-email` during this walk to resolve a
-  WARN address early — that's deferred to Touch 1 (process-lead Step 5).
+- **Apify is capped to one attempt per purpose, if used at all.** If your
+  prompt didn't already tell you Apify is at/near its monthly cap for this
+  run, you may spend at most one call for the audience floor (pre-flight /
+  Step 0.5) and, for a Lane 1 lead, one `email-verify` call (Step 5). An
+  error (quota, timeout, anything) means "unconfirmed — Apify unavailable"
+  in Notes, not a retry against a second actor. `email-verify` is now run
+  during the walk for Lane 1 leads (it moved off Touch 1) — that is the
+  ONE deliberate `apify verify-email` call this flow makes; do not also run
+  it on Lane 2/3 leads, which never send.
 - Never write into the parenting DB.
 
 ## What you return (the whole point)
@@ -114,6 +141,9 @@ INNOCENT: <the innocent explanation, or "n/a">
 SMYKM: <always "not run yet — see haytham-hook-finder" from this flow; you
   do not find a hook yourself, see hard rules>
 EMAIL: <address + source, or "not found — <next manual step>">
+EMAIL VERIFIED: <Lane 1: the literal `EMAIL VERIFY: PASS|WARN|FAIL` line +
+  whether you checked the box | "n/a (Lane 2/3, not verified)" | "n/a (no
+  address)">
 DRAFT: <for Lane 1, always "held — needs haytham-hook-finder" (you never
   draft on a fresh "not run yet" hook line, regardless of address status) |
   "n/a (Lane 2 warm-up hold)" | "n/a (parked)">
