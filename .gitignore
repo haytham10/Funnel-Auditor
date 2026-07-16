@@ -9,3 +9,7 @@ evidence/
 # transient walk scratch helpers (screenshot decoding, etc.)
 scratch_*.py
 scratch_save.py
+
+# dashboard: rendered page + the Artifact-URL pointer (per-session runtime state)
+dashboard.html
+dashboard_state.json
