@@ -89,19 +89,33 @@ first rather than assume the quota is open.
 - **Email:** `li-profile --email` uses the $10/1k email-search mode vs
   $4/1k plain — only pass it when actually hunting an address. Never
   re-verify an address already MX-confirmed by `main.py email-check`.
-- **Search:** tight scoped queries, low `--pages`.
+- **Search / footprint:** tight scoped queries, low `--pages`. `apify
+  footprint <platform>` is the sourcing-optimized wrapper (subdomain +
+  footer-signature, merged, deduped, noise-filtered) — prefer it over raw
+  `apify search` for the Google-footprint channel.
 
 ## Where the machine uses it
 
 - **`haytham-hook-finder`** — LinkedIn + Instagram hook evidence (Step 1).
   The primary consumer. Podcasts/YouTube/About stay on Firecrawl.
-- **`source-leads` Google footprint channel** — `apify search` runs
-  alongside `firecrawl_search` on the same query (2026-07-16), not as a
-  fallback. A same-query comparison showed near-zero URL overlap between
-  the two engines and each surfacing real UAE candidates the other
-  missed, so both run and the results get merged and deduped. At
-  ~$0.002/call it barely touches the monthly budget; `--site`/`--country`
-  scoping matters far more than which engine runs the query.
+- **`source-leads` Google footprint channel** — worked hard, not as a
+  fallback (2026-07-16). `python main.py apify footprint <platform>
+  --geo <emirate>` runs TWO query shapes per platform and merges them:
+  the **subdomain** shape (`site:mykajabi.com coach Dubai`, free-tier
+  coaches) and the **footer-signature** shape (`"powered by kajabi" coach
+  Dubai`, un-site-scoped, which catches custom-domain coaches the
+  subdomain query is blind to — that's how achievher.com, a real Dubai
+  coach on a custom domain, surfaced). It dedupes by host, drops the
+  platform's own site and social posts, and tags each hit
+  `foundVia`/`emphasizedKeywords` (the latter confirms the footer marker
+  actually matched, the false-positive filter). `firecrawl_search` runs
+  the footer-signature query alongside it (near-different result sets,
+  merge both). Platforms: kajabi/teachable/thinkific/podia/systeme/
+  kartra/skool; rotate `--geo` across Dubai/Abu Dhabi/Sharjah/UAE. The
+  wider footer-signature net needs UAE + solo confirmation before
+  logging. `apify search --meta` adds relatedQueries/peopleAlsoAsk for
+  query expansion when a pass runs thin. At ~$0.002/call the whole
+  platform sweep is a few tenths of a cent.
 - **`email-check` WARN → verify** — when `main.py email-check` returns WARN
   (unverifiable MX / role account), `apify verify-email <addr>` is the
   confirm step before the address enters the CRM or a send queue.

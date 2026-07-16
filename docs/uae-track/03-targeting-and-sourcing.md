@@ -91,9 +91,13 @@ Pull name, site, city, specialty. Log as `Sourced`. Do not qualify yet.
 
 ## Channel 2 — Google footprint searches (finds the funnel directly)
 
-Search for the **platform**, not the person. Platform domain footprint + UAE geographic marker. Kajabi, Teachable, Thinkific, Podia, Systeme, Skool.
+Search for the **platform**, not the person. Platform footprint + UAE geographic marker. Kajabi, Teachable, Thinkific, Podia, Systeme, Kartra, Skool.
 
-This is the single best channel for Gate 0, because a platform footprint IS proof of a paid product.
+This is the single best channel for Gate 0, because a platform footprint IS proof of a paid product. Work it two ways, because they catch different, barely-overlapping segments (confirmed 2026-07-16):
+- **Subdomain** (`site:mykajabi.com coach Dubai`) — coaches on the free default platform subdomain.
+- **Footer signature** (`"powered by kajabi" coach Dubai`, not site-scoped) — coaches on a **custom domain** still running the platform underneath, which the subdomain query never sees and which skew more established.
+
+The mechanics (both shapes, both engines, merge/dedupe, geo rotation across the emirates, and the confirmation the wider footer-signature net needs) live in the `source-leads` skill and `apify-actors.md`. `python main.py apify footprint <platform> --geo <emirate>` is the wrapper that runs it.
 
 ## Channel 3 — LinkedIn (the UAE-specific unlock)
 
