@@ -1,6 +1,6 @@
 ---
 name: source-leads
-description: Fill and keep filling the UAE Lead CRM's top of funnel, web-natively. Three modes — sourcing (Day-1 bootstrap: volume collection of raw candidates into the CRM as Sourced, no judgment), qualifying (Day-2 bootstrap: mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified), and top-up (the everyday tap: a small, lightweight, repeatable sourcing run you can fire any day for the life of the track). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape only — it never sources from Instagram (not a cold-sourcing channel for this track), never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
+description: Fill and keep filling the UAE Lead CRM's top of funnel, web-natively. Three modes — sourcing (Day-1 bootstrap: volume collection of raw candidates into the CRM as Sourced, no judgment), qualifying (Day-2 bootstrap: mechanical Gate 0 + Gate 1 over Sourced rows, promoting survivors to Qualifying and killing fails to Disqualified), and top-up (the everyday tap: a small, lightweight, repeatable sourcing run you can fire any day for the life of the track). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "run the sprint," "qualify the raw names," "run Gate 0 on the batch," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a sourcing channel to work (ICF directory, Google footprint, LinkedIn, podcasts, lateral). Works the five channels via Firecrawl search/scrape, with the Google footprint channel run harder via `apify footprint` (subdomain + "powered by" footer-signature queries across platforms and emirates, merged with Firecrawl) — it never sources from Instagram (not a cold-sourcing channel for this track), never logs in anywhere, and never acts as Haytham on any platform. It does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
 ---
 
 # Source Leads — the sourcing engine, as a skill
@@ -41,18 +41,71 @@ not plausibly UAE, no site at all).
 in one SQL query at the start of the run. Skip anything already logged,
 in any status. Never create a duplicate row.
 
+**Check the Apify quota once, up front, if this run will touch channel 2:**
+`python main.py apify limits`. `apify search`/`apify footprint` are cheap
+(~$0.002 per search call; `footprint` is two search calls per platform,
+one for markerless skool — confirmed 2026-07-16), but they still draw off
+the same small monthly USD budget everything else on this layer shares. If
+`near_cap` is `true`, skip the Apify side of channel 2 for the whole run
+and work it on `firecrawl_search` alone (still run the footer-signature
+queries there) — note it in the run report, don't silently degrade.
+
 ### The five channels (work them in this order)
 
 1. **Coach directories (highest density, start here).** `firecrawl_scrape`
    / `firecrawl_crawl` the ICF UAE chapter directory and regional coach
    directories/marketplaces. Directory listings almost always carry name,
    city, specialty, and a site link — exactly the intake fields.
-2. **Google footprint (proof of a paid product baked in).**
-   `firecrawl_search` for the PLATFORM, not the person:
-   `mykajabi.com coach Dubai`, `teachable.com UAE coach`, platform domain
-   + city for Thinkific/Podia/Systeme/Skool. A platform footprint IS a
-   funnel — these candidates come pre-passed on the funnel floor. Set the
-   Platform property while it's free.
+2. **Google footprint (proof of a paid product baked in — one of the two
+   best channels, treat it that way).** A platform footprint IS a funnel,
+   so every hit here comes pre-passed on the Gate 0 funnel floor. Work it
+   two ways at once, because they find two different, barely-overlapping
+   segments (confirmed 2026-07-16):
+   - **Subdomain** (`site:mykajabi.com coach Dubai`) catches coaches on
+     the FREE default platform subdomain — often the less-established end.
+   - **Footer signature** (`"powered by kajabi" coach Dubai`, NOT
+     site-scoped) catches coaches on a CUSTOM domain still running the
+     platform underneath — the more-invested, often BETTER end, which the
+     subdomain query is 100% blind to. (This surfaced achievher.com, a
+     real Dubai somatic coach with a named method, that `site:mykajabi.com`
+     never sees.)
+
+   **Run the Apify side with one command — it does both shapes, merges,
+   dedupes by host, and drops noise:**
+   ```
+   python main.py apify footprint <platform> --geo <Dubai|Abu Dhabi|Sharjah|UAE> [--role coach]
+   ```
+   Platforms: `kajabi teachable thinkific podia systeme kartra skool`
+   (skool has no footer marker, so it runs the subdomain shape only). Each
+   hit is tagged `foundVia: subdomain|footprint` and carries
+   `emphasizedKeywords` — a footprint hit whose emphasizedKeywords
+   actually contains "Powered by <platform>" is a real match, not a Google
+   guess; that's your false-positive filter. Set the Platform property from
+   which command found it, while it's free.
+
+   **Run `firecrawl_search` alongside it on the footer-signature query**
+   (`"powered by kajabi" coach Dubai`) — the two engines return
+   near-different result sets, so Firecrawl nets custom-domain coaches
+   Apify's SERP missed and vice versa. Merge both into the Apify result and
+   dedupe by host before triage.
+
+   **Rotate the geo, don't anchor only on Dubai.** Run each platform across
+   `Dubai`, `Abu Dhabi`, `Sharjah`, and a plain `UAE` pass — anchoring only
+   on "Dubai" silently undercounts the other emirates. `--geo` takes any of
+   these.
+
+   **The wider net needs tighter confirmation.** Footer-signature catches
+   more, including non-UAE and non-solo hits (a UK sports-coaching *group*
+   came through a Kajabi footer once). Do not log a footprint hit on the
+   marker alone: confirm UAE-based and solo the same way as any other
+   candidate before it gets a row. The subdomain shape is safer on geo
+   (the `--country ae` bias plus the platform host), the footer shape is
+   the one to double-check.
+
+   **Query expansion (optional, when a platform+geo runs thin):** add
+   `--meta` to `apify search` to pull Google's `relatedQueries` and
+   `peopleAlsoAsk` for the query — real adjacent search terms to feed the
+   next pass, cheaper than guessing.
 3. **LinkedIn (the UAE unlock).** `firecrawl_search` for UAE coaches
    announcing programs/cohorts, then fetch what's PUBLIC. LinkedIn walls
    most content — take what renders, log the profile URL, move on.
@@ -174,14 +227,30 @@ back-catalog once; top-up skims the new arrivals. A top-up run that just
 re-scrapes the same back-catalog and leans on dedup to discard it has
 drifted — you are burning fetches to find nothing new.
 
-**3. Rotate to the stalest channel (no new schema needed).** Unless
-Haytham names a channel, pick the one worked least recently, derived from
-data already in the CRM: for each Source Channel, the most recent row's
-Created time is when that channel was last worked. Start with the channel
-whose most-recent row is oldest (or a channel with zero rows). One SQL
-query up front gets this. Name the channel you chose and why in the
-report. If Haytham named a channel ("top up from podcasts"), work that one
-and skip the rotation logic.
+**3. Default to the Google footprint channel; rotate WITHIN it.** Unless
+Haytham names a channel, a top-up works **Google footprint (channel 2)**
+by default — it's one of the two best channels, a hit here is pre-passed
+on the funnel floor, and it has enough internal variety to be the everyday
+default without drying up: 7 platforms (kajabi/teachable/thinkific/podia/
+systeme/kartra/skool) × 4 geos (Dubai/Abu Dhabi/Sharjah/UAE) × both query
+shapes (subdomain + footer signature) = a large rotation surface. So the
+staleness logic moves DOWN a level: instead of picking the stalest
+*channel*, pick the stalest **platform × geo combo** inside footprint —
+the combos whose most-recent `Sourced` row (by Created time, or by the
+Platform/City it produced) is oldest, or that have never been run. Lean to
+the footer-signature shape and recency (rule 2) so each pass skims new
+custom-domain arrivals, not the back-catalog.
+
+**When to leave footprint for the day:** if footprint's dedup rate comes
+back high (rule 4 — most hits already in the CRM), that combo set is
+drying for now. Fall back to the old channel-level staleness rotation:
+pick the stalest OTHER channel (directories, LinkedIn, podcasts/events,
+lateral) by each channel's most-recent row Created time, and work that
+instead. Footprint is the default, not a cage — a drying signal means
+rotate out.
+
+If Haytham names a channel ("top up from podcasts"), work that one and
+skip all of this.
 
 **4. Dedup against EVERY status, Disqualified included.** Same one-time
 dedup pull as Mode 1, but be explicit: skip a name/site already in the CRM
@@ -191,12 +260,14 @@ not built yet: leads that failed Gate 0 only on activity or audience — not
 niche or geography — are recheck-later candidates, since a dormant coach
 may relaunch; a hard niche/geo Disqualified is dead for good.)
 
-**The top-up report:** how many logged, which channel(s) worked and why
-that channel was picked (staleness or named), how many candidates were
-seen-but-skipped as already-in-CRM duplicates (the dedup rate is the early
-warning that a channel is drying up — call it out if it's high), the new
-`Sourced` count, and the reminder that these need Day-2 qualifying (Mode 2)
-before they reach the Walk Queue.
+**The top-up report:** how many logged, which channel worked and why
+(footprint by default — name the platform × geo combos run; or the stalest
+other channel if footprint was drying or Haytham named one), how many
+candidates were seen-but-skipped as already-in-CRM duplicates (the dedup
+rate is the early warning that a channel or combo is drying up — call it
+out if it's high, since that's the trigger to rotate off footprint), the
+new `Sourced` count, and the reminder that these need Day-2 qualifying
+(Mode 2) before they reach the Walk Queue.
 
 ---
 

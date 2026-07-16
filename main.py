@@ -438,7 +438,11 @@ def cmd_apify(args) -> None:
             out = apify.verify_emails(args.addresses, raw=args.raw)
         elif cmd == "search":
             out = apify.google_search(args.query, pages=args.pages, site=args.site,
-                                      country=args.country, raw=args.raw)
+                                      country=args.country, raw=args.raw,
+                                      meta=getattr(args, "meta", False))
+        elif cmd == "footprint":
+            out = apify.footprint_search(args.platform, geo=args.geo, role=args.role,
+                                         country=args.country, raw=args.raw)
         else:
             parser_error = f"apify: unknown subcommand {cmd!r}"
             print(json.dumps({"error": parser_error}))
@@ -631,7 +635,21 @@ def main() -> None:
     a_search.add_argument("--pages", type=int, default=1)
     a_search.add_argument("--site", help="scope to a domain, e.g. linkedin.com")
     a_search.add_argument("--country", default="ae", help="country bias (default ae); pass '' to disable")
+    a_search.add_argument("--meta", action="store_true",
+                          help="also return relatedQueries + peopleAlsoAsk (query expansion)")
     a_search.add_argument("--raw", action="store_true")
+
+    a_footprint = apify_sub.add_parser(
+        "footprint",
+        help="platform footprint sourcing: subdomain + 'powered by' footer signature, merged")
+    a_footprint.add_argument("platform",
+                             help="kajabi | teachable | thinkific | podia | systeme | kartra | skool")
+    a_footprint.add_argument("--geo", default="Dubai",
+                             help="geographic marker (default Dubai; also Abu Dhabi, Sharjah, UAE)")
+    a_footprint.add_argument("--role", default="coach",
+                             help="role/noun to search for (default coach)")
+    a_footprint.add_argument("--country", default="ae", help="country bias (default ae); pass '' to disable")
+    a_footprint.add_argument("--raw", action="store_true")
 
     p_apify.set_defaults(func=cmd_apify)
 
