@@ -201,11 +201,11 @@ left — enforced at queue time by `python main.py crm-gate send <row.json>
 
 **Which inbox, and how the draft is created:** the draft must land in the
 lead's assigned inbox. Inbox 1 uses the Gmail MCP `create_draft` (the
-bare-link PreToolUse hook guards it). Inbox 2 uses `python main.py
+PreToolUse hook lints it). Inbox 2 uses `python main.py
 gmail-gethaytham draft <to> <subject> <body> [--thread-id T --in-reply-to
-M]` — the SAME copy rules apply (no em-dashes, no bare domains/emails,
-sign off "Haytham"); the create_draft hook does NOT cover this path, so the
-body must be clean by construction. A new lead with a blank `Inbox` is
+M]` — the SAME copy rules apply and are enforced in code on this path too
+(`audit/draft_lint.py`, shared with the hook: bare domains/emails and
+em-dashes block the draft, subject and body both). A new lead with a blank `Inbox` is
 routed and assigned by uae-tick at queue time (`python main.py inbox
 route`); don't invent an inbox here — draft into the one the row already
 carries.

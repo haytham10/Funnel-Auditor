@@ -82,11 +82,16 @@ _BY_ADDRESS: dict[str, Inbox] = {ib.address.lower(): ib for ib in _REGISTRY}
 
 # Fail loudly at import if the registry is malformed — one and only one
 # primary, unique labels and addresses. These are invariants the rest of the
-# system relies on, not runtime conditions to handle gracefully.
+# system relies on, not runtime conditions to handle gracefully. Explicit
+# raises, not asserts: asserts vanish under `python -O` and this is a safety
+# file.
 _PRIMARIES = [ib for ib in _REGISTRY if ib.is_primary]
-assert len(_PRIMARIES) == 1, f"registry must have exactly one primary inbox, found {len(_PRIMARIES)}"
-assert len(_BY_LABEL) == len(_REGISTRY), "inbox labels must be unique"
-assert len(_BY_ADDRESS) == len(_REGISTRY), "inbox addresses must be unique"
+if len(_PRIMARIES) != 1:
+    raise RuntimeError(f"inbox registry must have exactly one primary inbox, found {len(_PRIMARIES)}")
+if len(_BY_LABEL) != len(_REGISTRY):
+    raise RuntimeError("inbox registry labels must be unique")
+if len(_BY_ADDRESS) != len(_REGISTRY):
+    raise RuntimeError("inbox registry addresses must be unique")
 
 PRIMARY_LABEL: str = _PRIMARIES[0].label
 
@@ -164,11 +169,17 @@ def choose_inbox(
     Applies to the "headroom" policy.
 
     This function is the single knob for routing policy — adding a new policy
-    (track-based, round-robin, ...) is a change here and nowhere else.
+    (track-based, round-robin, ...) is a change here and nowhere else. An
+    unknown policy raises rather than silently falling back: a typo'd policy
+    quietly rerouting leads is exactly the kind of leak this layer exists to
+    prevent.
 
     caps/counts are keyed by label; a missing entry is treated as cap 0 /
     count 0 so an unregistered-or-unfunded inbox is never chosen for new work.
     """
+    if policy not in ROUTING_POLICIES:
+        raise InboxError(f"unknown routing policy {policy!r} (one of: {', '.join(ROUTING_POLICIES)})")
+
     if is_registered(current):
         return current  # sticky
 
@@ -178,12 +189,15 @@ def choose_inbox(
                 return label
         return PRIMARY_LABEL
 
-    # "headroom" (default), optionally warm-up-weighted
+    # "headroom" (default), optionally warm-up-weighted. Headroom is clamped
+    # at 0 BEFORE weighting: on a negative number a <1 weight would flip the
+    # bias and favor the exact inbox it's meant to protect (-2 x 0.3 = -0.6
+    # beats -1). A full inbox has zero room, not negative attractiveness.
     weights = weights or {}
     best_label = PRIMARY_LABEL
     best_score = None
     for label in labels():  # registry order → primary wins ties
-        headroom = caps.get(label, 0) - counts.get(label, 0)
+        headroom = max(caps.get(label, 0) - counts.get(label, 0), 0)
         score = headroom * weights.get(label, 1.0)
         if best_score is None or score > best_score:
             best_score = score

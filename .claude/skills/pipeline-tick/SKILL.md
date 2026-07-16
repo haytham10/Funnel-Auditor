@@ -81,12 +81,14 @@ Query Status = Audit Ready with an Email set. Sort sub-12K followers first
 (the warm-reply band so far), then Tier. Present as "ready to send today" —
 Email OS daily input is 3 cold sends + 1 follow-up.
 
-Every send from this track leaves the same inbox as the UAE track and
-counts against the same daily ceiling (`python main.py send-cap status`,
-fails closed to 20). uae-tick's Gmail sent-count picks these up
-automatically; if today's UAE queue is already at the ceiling, parenting
-sends displace it one-for-one — say so in the brief rather than silently
-stacking past it. The 5/day parenting leash applies on top: the UAE
+Every send from this track leaves **Inbox 1** (haytham@auto-mate.one, the
+primary — this track never uses Inbox 2) and counts against Inbox 1's own
+daily ceiling (`python main.py send-cap status` with no --inbox reads
+exactly that inbox; fails closed to 20). uae-tick's Inbox 1 sent-count
+picks these up automatically; if today's UAE Inbox 1 queue is already at
+that ceiling, parenting sends displace it one-for-one — say so in the
+brief rather than silently stacking past it. Inbox 2's headroom is UAE
+capacity, never a parenting overflow valve. The 5/day parenting leash applies on top: the UAE
 track is the active pipeline, and this track's live threads never
 out-consume it.
 

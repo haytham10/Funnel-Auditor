@@ -357,7 +357,13 @@ def cmd_inbox(args) -> None:
         rows = []
         for ib in inboxes.all_inboxes():
             st = caps.get(ib.label)
-            cap_str = f"{st.cap}/day" if st else "unregistered (fails closed to 20)"
+            if st is None:
+                cap_str = "unregistered (fails closed to 20)"
+            elif not st.valid:
+                # A corrupt entry must not display as a clean ceiling.
+                cap_str = f"{st.cap}/day (FAILED CLOSED: {st.problem})"
+            else:
+                cap_str = f"{st.cap}/day"
             flag = " (primary)" if ib.is_primary else ""
             rows.append({
                 "label": ib.label,
@@ -373,9 +379,16 @@ def cmd_inbox(args) -> None:
         # Today's sent count PER inbox. Direct-API inboxes (gethaytham) are
         # counted here; MCP-only inboxes (Gmail connector) can't be reached
         # from Python, so we emit the exact query for the skill/agent to run.
+        # The query uses epoch seconds at Dubai midnight, not a YYYY/MM/DD
+        # string: Gmail resolves `after:<date>` in the ACCOUNT's timezone, so
+        # a date string can be hours off exactly inside the tick's window.
         from audit import send_cap
-        day = args.date or send_cap.today().strftime("%Y/%m/%d")
-        query = f"in:sent after:{day}"
+        if args.date:
+            day_label, boundary = args.date, args.date
+        else:
+            day_label = send_cap.today().isoformat()
+            boundary = str(send_cap.dubai_midnight_epoch())
+        query = f"in:sent after:{boundary}"
         out = {}
         for ib in inboxes.all_inboxes():
             if ib.send_via == "gmail-gethaytham":
@@ -388,8 +401,9 @@ def cmd_inbox(args) -> None:
                                      "error": str(exc)}
             else:
                 out[ib.label] = {"count": None, "via": ib.send_via, "query": query,
-                                 "note": "count via Gmail MCP: run this query and count sent messages"}
-        print(json.dumps({"date": day, "inboxes": out}, indent=2))
+                                 "note": "count via Gmail MCP: run this query and count sent "
+                                         "messages, PLUS in:scheduled due today"}
+        print(json.dumps({"date": day_label, "inboxes": out}, indent=2))
         sys.exit(0)
     if args.inbox_command == "reconcile":
         if not inboxes.is_registered(args.found_in):
@@ -407,10 +421,28 @@ def cmd_inbox(args) -> None:
         counts = {}
         for pair in (args.count or []):
             label, _, n = pair.partition("=")
+            # A typo'd label would silently count as 0 sends and hand the
+            # router fictional headroom — fail loud instead.
+            if not inboxes.is_registered(label):
+                print(f"INBOX ROUTE: FAIL — --count label {label!r} is not a registered inbox "
+                      f"(known: {', '.join(inboxes.labels())})")
+                sys.exit(2)
             try:
                 counts[label] = int(n)
             except ValueError:
                 print(f"INBOX ROUTE: FAIL — bad --count {pair!r}, expected 'Label=N'")
+                sys.exit(2)
+        weights = {}
+        for pair in (args.weight or []):
+            label, _, w = pair.partition("=")
+            if not inboxes.is_registered(label):
+                print(f"INBOX ROUTE: FAIL — --weight label {label!r} is not a registered inbox "
+                      f"(known: {', '.join(inboxes.labels())})")
+                sys.exit(2)
+            try:
+                weights[label] = float(w)
+            except ValueError:
+                print(f"INBOX ROUTE: FAIL — bad --weight {pair!r}, expected 'Label=0.3'")
                 sys.exit(2)
         current = args.current or None
         if current is not None and not inboxes.is_registered(current):
@@ -418,11 +450,14 @@ def cmd_inbox(args) -> None:
                   f"(known: {', '.join(inboxes.labels())})")
             sys.exit(2)
         policy = args.policy or "headroom"
-        chosen = inboxes.choose_inbox(current, caps, counts, policy=policy)
+        chosen = inboxes.choose_inbox(current, caps, counts, policy=policy, weights=weights or None)
         ib = inboxes.resolve(chosen)
         sticky = inboxes.is_registered(current)
         why = "sticky (keeps its assignment)" if sticky else f"{policy} policy"
-        print(f"INBOX ROUTE: {chosen} ({ib.address}, via {ib.send_via}) — {why}")
+        rooms = ", ".join(
+            f"{lbl} {max(caps.get(lbl, 0) - counts.get(lbl, 0), 0)}" for lbl in inboxes.labels()
+        )
+        print(f"INBOX ROUTE: {chosen} ({ib.address}, via {ib.send_via}) — {why} (headroom: {rooms})")
         sys.exit(0)
 
 
@@ -707,13 +742,19 @@ def main() -> None:
     i_route.add_argument("--policy", default="headroom", choices=list(inboxes.ROUTING_POLICIES),
                          help="routing policy for a NEW lead: headroom (emptiest inbox, default) "
                               "or fill-primary (fill primary, then overflow)")
+    i_route.add_argument("--weight", action="append", metavar="LABEL=W",
+                         help="warm-up bias for the headroom policy, e.g. --weight 'Inbox 2=0.3' "
+                              "(scales that inbox's effective headroom down while it warms; "
+                              "repeatable; missing = 1.0)")
     i_counts = inbox_sub.add_parser(
         "counts",
         help="today's sent count per inbox — counts direct-API inboxes (gethaytham) here, "
-             "emits the query for Gmail MCP inboxes",
+             "emits the query for Gmail MCP inboxes; queries by epoch seconds at Dubai "
+             "midnight (timezone-exact, unlike after:YYYY/MM/DD)",
     )
     i_counts.add_argument("--date", default=None, metavar="YYYY/MM/DD",
-                          help="Gmail-style date (default: Dubai today)")
+                          help="override the query boundary with a Gmail-style date string "
+                               "(default: epoch seconds at Dubai midnight today, timezone-exact)")
     i_rec = inbox_sub.add_parser(
         "reconcile",
         help="reconcile a lead's CRM Inbox against where its thread physically lives (reality wins)",

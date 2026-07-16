@@ -97,10 +97,11 @@ Sent and Offer Sent are their own statuses, and Offer Sent additionally
 requires the `crm-gate offer` PASS). Parenting live threads follow the
 status rules below unchanged. Touch #, Sequence, Last Contacted, and
 Next Action mechanics are identical in both tracks. On a UAE cold Touch 1
-log, also confirm the send passed `crm-gate send` (finding verified +
-follow-ups-first headroom under the inbox ceiling + the touch 2/3 carrier
-check) — uae-tick normally ran it at queue time; if this send bypassed
-the queue, run it now before logging.
+log, also confirm the send passed `crm-gate send` with `--inbox "<the
+lead's Inbox>"` (finding verified + follow-ups-first headroom under THAT
+inbox's own ceiling + the touch 2/3 carrier check) — uae-tick normally ran
+it at queue time; if this send bypassed the queue, run it now before
+logging.
 
 Before appending, fetch the lead's Notion page to confirm the current
 literal body format — if you're appending via search-and-replace

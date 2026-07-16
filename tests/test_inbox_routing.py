@@ -162,6 +162,46 @@ def test_sticky_beats_policy_and_weights():
     assert inboxes.choose_inbox("Inbox 2", caps, counts, policy="fill-primary") == "Inbox 2"
 
 
+def test_unknown_policy_raises():
+    try:
+        inboxes.choose_inbox(None, {"Inbox 1": 20}, {}, policy="round-robin")
+        assert False, "expected InboxError"
+    except inboxes.InboxError:
+        pass
+
+def test_negative_headroom_clamped_before_weighting():
+    # Both over cap. Without the clamp, Inbox 2's <1 weight would make its
+    # negative headroom LESS negative (-2 x 0.3 = -0.6 beats -1), flipping
+    # the warm-up bias toward the exact inbox it protects.
+    caps = {"Inbox 1": 20, "Inbox 2": 20}
+    counts = {"Inbox 1": 21, "Inbox 2": 22}
+    got = inboxes.choose_inbox(None, caps, counts, weights={"Inbox 2": 0.3})
+    assert got == "Inbox 1"  # all clamped to 0 -> tie -> primary
+
+def test_dubai_midnight_epoch_roundtrips():
+    from datetime import date, datetime
+    epoch = send_cap.dubai_midnight_epoch(date(2026, 7, 16))
+    back = datetime.fromtimestamp(epoch, send_cap.DUBAI_TZ)
+    assert (back.year, back.month, back.day, back.hour, back.minute) == (2026, 7, 16, 0, 0)
+
+def test_set_cap_refuses_rewrite_over_corrupt_file(tmp_path):
+    p = tmp_path / "c.json"
+    p.write_text("{ this is not json")
+    ok, lines = send_cap.set_cap(20, "Inbox 1", p)
+    assert not ok and "not readable JSON" in lines[0]
+    assert p.read_text() == "{ this is not json"  # untouched
+
+def test_gethaytham_draft_lints_subject_before_any_network():
+    # A dirty subject must raise the copy-rules error BEFORE the transport
+    # ever touches credentials or the network.
+    from audit import gmail_gethaytham as gg
+    try:
+        gg.create_draft("x@y.com", "one thing — quick", "clean body. Haytham")
+        assert False, "expected GmailGethaythamError"
+    except gg.GmailGethaythamError as e:
+        assert "copy rules" in str(e) and "em-dash" in str(e)
+
+
 # --- reconcile (opt #3) ---------------------------------------------------
 
 def test_reconcile_match_no_change():

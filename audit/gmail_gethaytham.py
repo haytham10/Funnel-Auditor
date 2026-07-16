@@ -199,16 +199,17 @@ def create_draft(
     the same thread as the original send; `in_reply_to` is the Message-Id
     header of the message being replied to, for proper threading headers.
 
-    The body is linted by the SAME rule the Gmail MCP path is guarded by
-    (audit/draft_lint) — this transport has no PreToolUse hook, so the check
-    is enforced here in code: a bare domain/email or an em-dash blocks the
-    draft rather than shipping."""
+    The subject AND body are linted by the SAME rule the Gmail MCP path is
+    guarded by (audit/draft_lint) — this transport has no PreToolUse hook, so
+    the check is enforced here in code: a bare domain/email or an em-dash
+    blocks the draft rather than shipping. The recipient's address in `to`
+    is a header, not copy — it is never scanned."""
     from audit import draft_lint
-    problems = draft_lint.scan(body)
+    problems = draft_lint.scan(f"{subject}\n{body}")
     if problems:
         raise GmailGethaythamError(
-            "draft body fails the copy rules (same as the Gmail MCP link "
-            "guard): " + "; ".join(problems)
+            "draft subject/body fails the copy rules (same as the Gmail MCP "
+            "link guard): " + "; ".join(problems)
         )
 
     mime = MIMEText(body)
