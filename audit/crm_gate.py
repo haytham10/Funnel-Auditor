@@ -52,7 +52,7 @@ import json
 import re
 from pathlib import Path
 
-from audit import send_cap
+from audit import inboxes, send_cap
 
 COLD_SEQUENCE_TOUCHES = 3
 CARRIERS = ("second-finding", "loom-offer", "disambiguating-question")
@@ -258,6 +258,13 @@ def print_send(
     carries: str | None = None,
     inbox: str | None = None,
 ) -> int:
+    if inbox is not None and not inboxes.is_registered(inbox):
+        print(
+            f"CRM GATE (send): FAIL — {inbox!r} is not a registered inbox "
+            f"(known: {', '.join(inboxes.labels())}). Fix the --inbox label or add it "
+            "to audit/inboxes.py; refusing to gate against a phantom inbox."
+        )
+        return 1
     row = _load_row(row_json)
     cap_state = send_cap.load_cap(inbox)
     ok, problems, notes = check_send(

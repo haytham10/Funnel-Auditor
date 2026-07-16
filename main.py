@@ -345,6 +345,53 @@ def cmd_send_cap(args) -> None:
     sys.exit(send_cap.print_set(args.value, inbox=args.inbox))
 
 
+def cmd_inbox(args) -> None:
+    """Inbox registry management — the seam between logical labels
+    (Inbox 1/2/N, used by the CRM, the cap file, and the gate) and the real
+    sending addresses + transports. See audit/inboxes.py."""
+    from audit import inboxes, send_cap
+    if args.inbox_command == "list":
+        caps = send_cap.load_all()
+        rows = []
+        for ib in inboxes.all_inboxes():
+            st = caps.get(ib.label)
+            cap_str = f"{st.cap}/day" if st else "unregistered (fails closed to 20)"
+            flag = " (primary)" if ib.is_primary else ""
+            rows.append({
+                "label": ib.label,
+                "address": ib.address,
+                "send_via": ib.send_via,
+                "cap": cap_str,
+                "primary": ib.is_primary,
+                "note": ib.note + flag,
+            })
+        print(json.dumps(rows, indent=2))
+        sys.exit(0)
+    if args.inbox_command == "route":
+        # Decide which inbox a lead's next send leaves from, given its current
+        # assignment (blank for a new lead) and today's per-inbox sent counts.
+        caps = {lbl: st.cap for lbl, st in send_cap.load_all().items()}
+        counts = {}
+        for pair in (args.count or []):
+            label, _, n = pair.partition("=")
+            try:
+                counts[label] = int(n)
+            except ValueError:
+                print(f"INBOX ROUTE: FAIL — bad --count {pair!r}, expected 'Label=N'")
+                sys.exit(2)
+        current = args.current or None
+        if current is not None and not inboxes.is_registered(current):
+            print(f"INBOX ROUTE: FAIL — current {current!r} is not a registered inbox "
+                  f"(known: {', '.join(inboxes.labels())})")
+            sys.exit(2)
+        chosen = inboxes.choose_inbox(current, caps, counts)
+        ib = inboxes.resolve(chosen)
+        sticky = inboxes.is_registered(current)
+        why = "sticky (keeps its assignment)" if sticky else "most headroom today"
+        print(f"INBOX ROUTE: {chosen} ({ib.address}, via {ib.send_via}) — {why}")
+        sys.exit(0)
+
+
 def cmd_email_check(args) -> None:
     from audit import email_check
     sys.exit(email_check.print_check(args.address, args.name or ""))
@@ -587,14 +634,34 @@ def main() -> None:
     cap_sub = p_cap.add_subparsers(dest="cap_command", required=True)
     c_status = cap_sub.add_parser("status", help="print the current ceiling, days at this step, and the ramp reminder")
     c_status.add_argument("--inbox", default=None,
-                          help="which sending inbox (default: primary, haytham@auto-mate.one)")
+                          help="which sending inbox by logical label (default: primary, 'Inbox 1')")
     c_status.add_argument("--all", action="store_true",
                           help="show every registered inbox and the total additive system ceiling")
     c_set = cap_sub.add_parser("set", help="move an inbox's ceiling to a ramp step (20/25/30), or register a new inbox at 20 — Haytham's call, never a skill's")
     c_set.add_argument("value", type=int)
     c_set.add_argument("--inbox", default=None,
-                       help="which sending inbox (default: primary); a new address registers at 20")
+                       help="which sending inbox by logical label (default: primary); must already be in the registry")
     p_cap.set_defaults(func=cmd_send_cap)
+
+    p_inbox = sub.add_parser(
+        "inbox",
+        help="inbox registry — the seam between logical labels (Inbox 1/2/N, used by the CRM, "
+             "the cap file, and the gate) and real sending addresses + transports. `list` shows "
+             "every inbox with its address, transport, and cap; `route` picks the inbox for a "
+             "lead's next send — see audit/inboxes.py",
+    )
+    inbox_sub = p_inbox.add_subparsers(dest="inbox_command", required=True)
+    inbox_sub.add_parser("list", help="every registered inbox: label, address, transport, cap (JSON)")
+    i_route = inbox_sub.add_parser(
+        "route",
+        help="which inbox a lead's next send leaves from, given its current assignment and today's counts",
+    )
+    i_route.add_argument("--current", default=None,
+                         help="the lead's current Inbox label (blank/omitted for a new, unassigned lead)")
+    i_route.add_argument("--count", action="append", metavar="LABEL=N",
+                         help="today's sends already out of an inbox, e.g. --count 'Inbox 1=18' "
+                              "(repeatable; missing inboxes count 0)")
+    p_inbox.set_defaults(func=cmd_inbox)
 
     p_email = sub.add_parser(
         "email-check",
@@ -739,7 +806,7 @@ def main() -> None:
         sys.exit(1)
     # Bare URL → walk
     if argv[0] not in (
-        "walk", "crawl", "slug", "vision", "crm-gate", "send-cap",
+        "walk", "crawl", "slug", "vision", "crm-gate", "send-cap", "inbox",
         "email-check", "email-verify", "cta-probe", "apify", "gmail-gethaytham",
         "discover-links", "discover-checkout", "screenshot-name", "ingest",
         "-h", "--help",

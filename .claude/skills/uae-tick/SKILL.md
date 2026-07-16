@@ -21,61 +21,84 @@ Full lifecycle, gates, and SQL: `docs/uae-track/01-crm-operating-spec.md`.
 Email rules for everything drafted here: `haytham-email-draft` +
 `references/uae-track.md`.
 
-## 0 — Ceiling + today's send count (compute first, everything else uses it)
+## 0 — Ceiling + today's send count, PER INBOX (compute first, everything else uses it)
 
-**The ceiling:** run `python main.py send-cap status` and quote its
-literal lines in the brief. It ramps 20 → 25 → 30 and fails closed to 20;
-when a step has held 7 days it prints the RAMP REMINDER — surface it at
-the top of the brief. **Raising the cap is Haytham's call, gated on
-deliverability having actually held; this skill NEVER runs `send-cap
-set`.**
+Sends now leave from **two inboxes**, each its own domain with its own
+reputation, its own ramp, and its own daily count. Everything in this
+section is computed **once per inbox** and kept separate — never pooled.
+The registry (`python main.py inbox list`, or `audit/inboxes.py`) maps the
+logical labels to addresses and transports:
+
+- **Inbox 1** = haytham@auto-mate.one — read/draft via the **Gmail MCP**
+  tools (`search_threads`, `list_drafts`, `create_draft`). Primary; also
+  carries the parenting track.
+- **Inbox 2** = haytham@gethaytham.com — read/draft via the **direct API**:
+  `python main.py gmail-gethaytham <search|drafts|draft>`. There is no
+  Gmail MCP connector for this inbox.
+
+**The ceiling:** run `python main.py send-cap status --all` and quote its
+literal block (one ramp line per inbox + the additive total). Each inbox
+ramps 20 → 25 → 30 and fails closed to 20 independently; when an inbox's
+step has held 7 days it prints that inbox's RAMP REMINDER — surface it at
+the top of the brief, naming the inbox. **Raising any cap is Haytham's
+call, gated on THAT inbox's deliverability having actually held; this skill
+NEVER runs `send-cap set`.**
 
 **The day:** "today" is the **Dubai calendar day** (UTC+4, no DST) — the
 same boundary `send_cap.py` uses. This tick fires at 02:53 UTC = 06:53
-Dubai; compute the Dubai date string once and use it in every Gmail
-search and SQL comparison below. Never mix server-local, UTC, and
-Gmail-account days.
+Dubai; compute the Dubai date string once and use it in every Gmail search
+and SQL comparison below. Never mix server-local, UTC, and Gmail-account
+days.
 
-**The count:** TOTAL sends that left or WILL leave the inbox today, not
-just UAE openers — warm replies, parenting-track sends, and
-deliverability-test sends all burn the same domain. Two Gmail reads,
-added together:
+**The count — TOTAL sends leaving EACH inbox today** (warm replies,
+parenting-track sends, and deliverability-test sends all count against
+whichever inbox they left from):
 
-1. `in:sent after:<today YYYY/MM/DD>` — messages that departed.
-2. `in:scheduled` — messages Haytham scheduled that are due today.
-   **Scheduled sends sit in neither sent mail nor drafts until they
-   depart; skipping this read overshoots the ceiling by exactly their
-   count.** (He schedules sends sometimes — this is a normal state, not
-   an anomaly.)
+- **Inbox 1:** `in:sent after:<today YYYY/MM/DD>` (Gmail MCP) **plus**
+  `in:scheduled` due today. **Scheduled sends sit in neither sent mail nor
+  drafts until they depart; skipping this read overshoots the ceiling by
+  exactly their count.**
+- **Inbox 2:** `python main.py gmail-gethaytham search "in:sent
+  after:<today YYYY/MM/DD>"`. (This inbox isn't on the scheduled-send
+  path — no scheduled read needed.)
 
-Cross-check with the CRM (undercounts by design — one row per lead, UAE
-only; Gmail wins on disagreement):
+Cross-check with the CRM, split by inbox (undercounts by design — one row
+per lead, UAE only; Gmail wins on disagreement):
 
 ```sql
-SELECT COUNT(*) AS sends
+SELECT "Inbox" AS inbox, COUNT(*) AS sends
 FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
 WHERE date("date:Last Contacted:start") = date('now', '+4 hours')
+GROUP BY inbox
 ```
 
 **The deliverability log:** skim `docs/deliverability-log.md` (bounces,
-spam-folder hits, test scores). If step 1 below finds a bounce or a
-lead's reply mentions spam, append a dated line to that log in the same
-run — the ramp decision reads this file, so it only works if it stays
+spam-folder hits, test scores). If a bounce or spam mention turns up
+below, append a dated line — **naming which inbox** — in the same run; the
+ramp decision reads this file per inbox, so it only works if it stays
 current.
 
-**The budget, in this order — follow-ups first:** count today's
-still-unsent follow-ups from steps 1-3 (warm replies owed, discovery
-questions due, cold Touch 2/3 due) = F. New-opener headroom = ceiling −
-sends so far − F. Openers get what's LEFT — never what follow-ups need.
-There is no separate opener quota; it falls out of this arithmetic.
-Enforced per lead by the gate invocations in steps 3 and 4. Also run the
-14-day history query from the operating spec and flag any day over the
-ceiling as a deliverability risk.
+**The budget — computed separately for each inbox, follow-ups first:** for
+inbox X, count today's still-unsent follow-ups whose lead is assigned to X
+(warm replies owed, discovery questions due, cold Touch 2/3 due) = F_X.
+New-opener headroom on X = X's ceiling − X's sends so far − F_X. Openers
+routed to X get what's LEFT on X — never what X's follow-ups need. Enforced
+per lead by the gate invocations in steps 3 and 4, each passing
+`--inbox "<the lead's Inbox>"` and that inbox's own `--sends-today`. Also
+run the per-inbox 14-day history query from the operating spec and flag any
+inbox over its own ceiling on any day as a deliverability risk.
 
 ## 0.5 — Gmail-state reconciliation (Scheduled / Draft Ready → reality)
 
 The CRM's `Scheduled` and `Draft Ready` statuses mirror Gmail state, so
-verify them against Gmail every morning:
+verify them against Gmail every morning. **Check each lead against the
+inbox it's assigned to** (its `Inbox` property): Inbox 1 rows use the Gmail
+MCP (`list_drafts`, `in:sent`); Inbox 2 rows use `python main.py
+gmail-gethaytham drafts` and `... search "in:sent after:<today>"`. A draft
+or sent message only "exists" for reconciliation if it's in the RIGHT
+inbox — a Draft Ready Inbox 2 lead whose draft is in Inbox 1 is a
+misrouted draft, not a confirmation. (Rows with a blank `Inbox` predate
+routing — treat as Inbox 1, the historical inbox, and set the label.)
 
 - **Scheduled rows:** if the message now appears in `in:sent`, flip the
   row to `Outreach Sent` with the REAL departure date as `Last Contacted`
@@ -99,12 +122,20 @@ allowed without approval.
 
 ## 1 — Reply detection (Gmail → Notion)
 
-**One inbox sweep, not one search per lead** (per-lead searches grow
+**One sweep PER inbox, not one search per lead** (per-lead searches grow
 linearly with threads out and were 16+ Gmail calls per tick by day two).
-Run a single `in:inbox after:<last tick's Dubai date>` search, match
-sender addresses against the CRM's Email column (one SQL pull), and only
-fetch the full thread for matches. A lead who last replied before the
-sweep window is caught by the Last Contacted cross-check below.
+Replies land in whichever inbox sent the thread, so sweep both:
+
+- **Inbox 1:** `in:inbox after:<last tick's Dubai date>` via the Gmail MCP.
+- **Inbox 2:** `python main.py gmail-gethaytham search "in:inbox
+  after:<last tick's Dubai date>"`.
+
+Match sender addresses against the CRM's Email column (one SQL pull), and
+only fetch the full thread for matches — from the inbox where the reply
+landed. A matched lead's `Inbox` should equal the inbox that caught the
+reply; if it doesn't, flag it (misrouted or hand-moved thread). A lead who
+last replied before the sweep window is caught by the Last Contacted
+cross-check below.
 
 Query the CRM for rows with Touch # ≥ 1 and Status in
 (Outreach Sent, Reply Received, Price Discovery Sent, Offer Sent,
@@ -140,8 +171,12 @@ Two queues, surfaced every tick:
 turn-two done or in motion. For each: draft the price discovery reply
 (email type (e) in `haytham-email-draft`, canonical phrasings in
 `references/uae-track.md` — one question, no price of ours, never after a
-stall). Create the Gmail DRAFT as a reply in the existing thread
-(`replyToMessageId`), subject unchanged.
+stall). Create the Gmail DRAFT as a reply in the existing thread, subject
+unchanged, **in the lead's assigned inbox** (Inbox 1 → Gmail MCP
+`create_draft` with `replyToMessageId`; Inbox 2 → `python main.py
+gmail-gethaytham draft <to> <subject> <body> --thread-id <t>
+--in-reply-to <msgid>`). A discovery reply is a send and counts against
+that inbox's budget.
 
 **b) Answer logged, offer unlocked** — Status = Price Discovery Sent with
 `Price Discovery Answer` filled and `Discovery Anchor` set. For each:
@@ -175,24 +210,32 @@ Before drafting, pick the carrier honestly: `second-finding` only if the
 row's `Findings Bank` has an UNUSED entry past #1 (the gate verifies);
 otherwise `loom-offer` (natural Touch 2) or `disambiguating-question`
 (natural Touch 3 closer). Dump the fresh row to JSON and run
-`python main.py crm-gate send <row.json> --sends-today <Gmail total incl.
-already-queued drafts> --touch 2|3 --carries <carrier>` — quote the
-literal gate line per queued follow-up, and make the draft actually carry
-what was declared (gate.md checks). FAIL on the carrier means the
-follow-up doesn't go out today as a bare bump; it gets a real payload or
-it waits.
+`python main.py crm-gate send <row.json> --sends-today <THAT INBOX's total
+incl. already-queued drafts> --touch 2|3 --carries <carrier> --inbox
+"<the lead's Inbox>"` — the `--inbox` is the lead's assigned `Inbox` (a
+follow-up is sticky; it goes out of the same inbox that opened the thread),
+and `--sends-today` is that inbox's own count from step 0, not the pooled
+total. Quote the literal gate line per queued follow-up, and make the draft
+actually carry what was declared (gate.md checks). FAIL on the carrier
+means the follow-up doesn't go out today as a bare bump; it gets a real
+payload or it waits.
 
-Then create the Gmail DRAFT automatically for the strongest variant — with
-one guard: check Gmail drafts first (`list_drafts`), and if an unsent
-draft to that address already exists, do NOT stack a second one; surface
-the old draft in the brief instead ("draft from <date> still unsent —
-send, edit, or delete"). Warm replies are drafted as replies in the
-existing thread (`replyToMessageId`).
+Then create the Gmail DRAFT automatically for the strongest variant, **in
+the lead's assigned inbox** (Inbox 1 → Gmail MCP `create_draft`; Inbox 2 →
+`python main.py gmail-gethaytham draft <to> <subject> <body>
+[--thread-id ...] [--in-reply-to ...]`). One guard: check that inbox's
+drafts first (Inbox 1 `list_drafts`; Inbox 2 `gmail-gethaytham drafts`),
+and if an unsent draft to that address already exists there, do NOT stack a
+second one; surface the old draft in the brief instead ("draft from <date>
+still unsent — send, edit, or delete"). Warm replies are drafted as replies
+in the existing thread (Inbox 1: `replyToMessageId`; Inbox 2:
+`--thread-id` + `--in-reply-to`).
 
-Cold follow-ups count against today's headroom (they're cold sends) —
-if the due list alone exceeds the remaining headroom, prioritize warm
-threads first, then cold touches by lead quality, and say plainly which
-cold touches rolled to tomorrow.
+Cold follow-ups count against their own inbox's headroom — if one inbox's
+due list exceeds that inbox's remaining headroom, prioritize warm threads
+first, then cold touches by lead quality WITHIN that inbox, and say plainly
+which cold touches rolled to tomorrow (and on which inbox). Headroom on one
+inbox never covers overflow from the other.
 
 Do NOT log or increment anything at draft time — a Gmail draft is not a
 send. Only after Haytham confirms a send does the logging + property diff
@@ -211,23 +254,35 @@ Send Queue view). For each candidate, in order:
    that flag. A row that reaches the queue with `Email Verified` unchecked
    is an edge case the gate will catch — hold it and flag "needs
    email-verify" rather than sending.
-2. Dump the fresh row to JSON and run `python main.py crm-gate send
-   <row.json> --sends-today <Gmail total incl. today's already-queued
-   drafts> --touch 1 --followups-due <F from step 0, minus follow-ups
-   already queued>`. Only PASS rows enter today's queue — the gate
-   itself holds openers behind the follow-ups still owed, so a FAIL on
-   headroom means the opener rolls to tomorrow, not that a follow-up
-   gets bumped. Quote one gate line per queued lead.
+2. **Assign the inbox if the row's `Inbox` is blank.** Run `python main.py
+   inbox route --current "<row's Inbox or empty>" --count "Inbox 1=<its
+   count>" --count "Inbox 2=<its count>"` — it returns the same inbox for
+   an already-assigned lead (sticky) or the emptiest inbox for a new one.
+   Write the chosen label to the row's `Inbox` now (this is a routing
+   write, allowed like reply-detection writes) so the assignment is durable
+   and the draft lands in the right place. Increment that inbox's running
+   count for the rest of this tick.
+3. Dump the fresh row to JSON (with the assigned `Inbox`) and run
+   `python main.py crm-gate send <row.json> --sends-today <the ASSIGNED
+   inbox's total incl. today's already-queued drafts> --touch 1
+   --followups-due <that inbox's F from step 0, minus its follow-ups
+   already queued> --inbox "<assigned Inbox>"`. Only PASS rows enter
+   today's queue — the gate holds openers behind that inbox's follow-ups,
+   so a FAIL on headroom means the opener rolls to tomorrow (or, if the
+   OTHER inbox has room and the lead is not yet sticky, re-routing it there
+   is fine — re-run route excluding the full inbox). Quote one gate line
+   per queued lead, showing its inbox.
 
-Present as "ready to send today," split by status: `Draft Ready` (draft
-sitting in Gmail — send it) vs `Audit Ready` (still needs
-haytham-hook-finder before a draft can exist).
+Present as "ready to send today," grouped **by inbox**, then split by
+status within each: `Draft Ready` (draft sitting in that inbox — send it)
+vs `Audit Ready` (still needs haytham-hook-finder before a draft can
+exist).
 
-**Pacing:** hand the queue over in batches of **at most 10**, spread
-across the day (e.g. morning / midday / late afternoon) — 20 sends in a
-two-minute burst is a spam-filter signature even under the ceiling.
-Scheduled sending is fine and counts via step 0's scheduled read; the
-batch shape applies to it too.
+**Pacing:** hand each inbox's queue over in batches of **at most 10**,
+spread across the day (e.g. morning / midday / late afternoon) — 20 sends
+in a two-minute burst is a spam-filter signature even under the ceiling,
+and this is per inbox. Scheduled sending (Inbox 1) is fine and counts via
+step 0's scheduled read; the batch shape applies to it too.
 
 If the send queue is empty or thin: say so, and point at the Walk Queue
 count — the bottleneck is findings, not sends; the fix is walks
@@ -286,11 +341,13 @@ channel split is what decides where top-up sourcing spends its fetches.
 
 ## The brief
 
-One message, in this order: replies (verbatim, with the suggested next
-move), discovery ladder (due the question / offer unlocked), due
-follow-ups (with drafts), today's send queue (with gate lines and
-headroom math), hygiene flags, scoreboard (weekly). If a section is
-empty, one line saying so. If everything is empty: "Pipeline quiet —
+One message, in this order: the per-inbox ceiling block
+(`send-cap status --all`, with any ramp reminder), replies (verbatim, with
+the suggested next move), discovery ladder (due the question / offer
+unlocked), due follow-ups (with drafts, tagged by inbox), today's send
+queue (grouped by inbox, with gate lines and each inbox's headroom math),
+hygiene flags, scoreboard (weekly). If a section is empty, one line saying
+so. If everything is empty: "Pipeline quiet —
 nothing due today," and stop. Keep it scannable; he reads this before
 coffee.
 
@@ -301,20 +358,26 @@ coffee.
   departed — creating a Gmail draft is not a send. (Setting `Draft Ready`
   at draft time and the step 0.5 reconciliation flips are the sanctioned
   exceptions: they mirror Gmail reality, they don't claim a send.)
-- Reply-detection, discovery-answer logging, and the step 0.5
-  Gmail-state reconciliation are the only unprompted Notion writes.
+- Reply-detection, discovery-answer logging, the step 0.5 Gmail-state
+  reconciliation, and the step 4 `Inbox` assignment (routing a lead to a
+  sending inbox) are the only unprompted Notion writes.
 - `Price Discovery Answer` is verbatim or it is nothing. Never paraphrase,
   never tidy her grammar.
 - Never draft a money email unprompted, and never while `crm-gate offer`
   says FAIL.
-- Never queue past the day's ceiling (`send-cap status`, fails closed to
-  20), and always follow-ups before new openers. The gate line is the
-  proof, quoted per lead.
-- Never run `send-cap set`. Surface the ramp reminder; raising the cap is
-  Haytham's call, made by him, gated on deliverability actually holding.
+- Never queue past a **sending inbox's own** ceiling (`send-cap status
+  --all`, fails closed to 20 per inbox), and always that inbox's follow-ups
+  before its new openers. Ceilings are per inbox and additive, never
+  pooled. The gate line — with `--inbox` — is the proof, quoted per lead.
+- Never run `send-cap set`. Surface the per-inbox ramp reminder; raising
+  any cap is Haytham's call, made by him, gated on THAT inbox's
+  deliverability actually holding.
 - Never queue a cold Touch 2/3 without a PASS on its `--carries` check,
   and never declare a carrier the draft doesn't actually contain.
-- Never stack a second unsent draft to the same address.
+- Never stack a second unsent draft to the same address in the same inbox.
+- A lead's inbox is sticky: once `Inbox` is set, its whole thread (opener,
+  follow-ups, warm replies, discovery, offer) stays on that inbox. Never
+  move a live thread between inboxes.
 - Never log in to or act as Haytham on any platform (Instagram included).
   Public read-only data is not the issue; acting as him is.
 - Never touch the parenting DB — that's pipeline-tick's territory.

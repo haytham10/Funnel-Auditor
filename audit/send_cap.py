@@ -5,25 +5,28 @@ The ceiling counts TOTAL sends leaving ONE inbox in a day: cold openers,
 cold follow-ups, warm replies, discovery questions, money emails, both
 tracks. Deliverability doesn't care what kind of email it was — but it
 cares WHICH domain the mail left from. Each inbox is a separate domain
-with its own reputation (haytham@auto-mate.one, haytham@gethaytham.com),
-so each inbox gets its OWN independent ramp, its own set_on, and its own
-history. Caps are additive, never pooled: the way to send more is another
-inbox, never a bigger number on one — that is the whole reason a second
-inbox exists.
+with its own reputation, so each inbox gets its OWN independent ramp, its
+own set_on, and its own history. Caps are additive, never pooled: the way
+to send more is another inbox, never a bigger number on one — that is the
+whole reason a second inbox exists.
 
-State lives in send_cap.json at the repo root, keyed by inbox address:
+State lives in send_cap.json at the repo root, keyed by the LOGICAL inbox
+label ("Inbox 1", "Inbox 2", ...) — the same label the CRM's `Inbox`
+property and `crm-gate send --inbox` use. The registry (audit/inboxes.py)
+maps a label to its real address; this file never needs to know the address.
 
     {
-      "primary": "haytham@auto-mate.one",
+      "primary": "Inbox 1",
       "inboxes": {
-        "haytham@auto-mate.one":  {"cap": 20, "set_on": "2026-07-14", "history": [...]},
-        "haytham@gethaytham.com": {"cap": 20, "set_on": "2026-07-16", "history": [...]}
+        "Inbox 1": {"cap": 20, "set_on": "2026-07-14", "history": [...]},
+        "Inbox 2": {"cap": 20, "set_on": "2026-07-16", "history": [...]}
       }
     }
 
-The legacy flat shape ({"cap": 20, "set_on": ..., "history": [...]}) is
-still read: it is interpreted as the primary inbox, so nothing in flight
-breaks before the file is next written in the keyed shape.
+Two older shapes are still read and migrated on the next write: the legacy
+flat shape ({"cap": 20, "set_on": ..., "history": [...]}) is interpreted as
+the primary inbox, and an intermediate address-keyed shape is remapped to
+labels via the registry — so nothing in flight breaks.
 
 Rules, enforced here rather than documented somewhere (per inbox):
 
@@ -54,6 +57,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from audit import inboxes
+
 # The send-day is the DUBAI calendar day (UTC+4, no DST), everywhere: the
 # inbox's audience lives there, the tick fires at 02:53 UTC (06:53 Dubai),
 # and mixing server-local, UTC, and Gmail-account days put up to 4 hours of
@@ -72,10 +77,11 @@ HARD_MAX = 30
 FAIL_CLOSED_CAP = 20
 MIN_DAYS_PER_STEP = 7
 
-# The original single inbox. The legacy flat state file is read as this
-# inbox, and it is the default target when no --inbox is given, so every
-# existing caller keeps its exact behavior.
-PRIMARY_INBOX = "haytham@auto-mate.one"
+# The default inbox when nothing selects one — the registry's primary
+# ("Inbox 1"). The legacy flat state file, and the intermediate
+# address-keyed shape, are both migrated onto logical labels on read (see
+# _normalize), so every existing caller keeps its exact behavior.
+PRIMARY_INBOX = inboxes.PRIMARY_LABEL
 
 STATE_FILE = Path(__file__).resolve().parent.parent / "send_cap.json"
 
@@ -118,18 +124,34 @@ def _fail_closed(inbox: str, problem: str, registered: bool = True) -> CapState:
     )
 
 
+def _relabel_key(key: str) -> str:
+    """Map a stored inbox key onto a logical label.
+
+    Keys are logical labels ("Inbox 1"). An intermediate version of this
+    file was keyed by raw address ("haytham@auto-mate.one") — those are
+    remapped to their label via the registry so that old file still loads.
+    An unrecognized key is left as-is (it will fail closed on read).
+    """
+    if inboxes.is_registered(key):
+        return key
+    return inboxes.label_for_address(key) or key
+
+
 def _normalize(data) -> dict:
     """Return the state as the keyed shape {"primary": ..., "inboxes": {...}}.
 
-    Accepts either the keyed shape or the legacy flat shape (read as the
-    primary inbox). Anything unrecognizable becomes an empty registry —
-    every inbox then fails closed on read, which is the safe direction.
+    Accepts the label-keyed shape, the intermediate address-keyed shape
+    (remapped to labels), or the legacy flat shape (read as the primary
+    inbox). Anything unrecognizable becomes an empty registry — every inbox
+    then fails closed on read, which is the safe direction.
     """
     if not isinstance(data, dict):
         return {"primary": PRIMARY_INBOX, "inboxes": {}}
-    inboxes = data.get("inboxes")
-    if isinstance(inboxes, dict):
-        return {"primary": data.get("primary") or PRIMARY_INBOX, "inboxes": inboxes}
+    stored = data.get("inboxes")
+    if isinstance(stored, dict):
+        remapped = {_relabel_key(k): v for k, v in stored.items()}
+        primary = _relabel_key(data.get("primary") or PRIMARY_INBOX)
+        return {"primary": primary, "inboxes": remapped}
     if "cap" in data:  # legacy flat shape → the primary inbox
         return {
             "primary": PRIMARY_INBOX,
@@ -255,6 +277,13 @@ def all_status_lines(path: str | Path = STATE_FILE) -> list[str]:
 def set_cap(new_cap: int, inbox: str | None = None, path: str | Path = STATE_FILE) -> tuple[bool, list[str]]:
     inbox = inbox or PRIMARY_INBOX
     path = Path(path)
+
+    if not inboxes.is_registered(inbox):
+        return False, [
+            f"SEND CAP [{inbox}]: REFUSED — not a registered inbox "
+            f"(known: {', '.join(inboxes.labels())}). Add it to audit/inboxes.py "
+            "before giving it a ceiling — the registry is the source of truth."
+        ]
 
     if new_cap not in RAMP_STEPS:
         msg = f"{new_cap} is not a ramp step — the only legal values are {', '.join(map(str, RAMP_STEPS))}."
