@@ -5,7 +5,8 @@ The Notion CRM is the source of truth for pipeline state, but it is hard to
 read at a glance and it says nothing about the two sending inboxes or their
 ceilings. This module builds ONE fused picture — pipeline (Notion) + sending
 reality (Gmail, both inboxes) + the deliverability ceilings (send_cap.json) —
-and renders it as a single self-contained HTML page for a Claude Artifact.
+and renders it as a single self-contained interactive HTML page for a Claude
+Artifact.
 
 ## The split (same grain as crm_gate / vision_gate)
 
@@ -26,16 +27,37 @@ renderer is defensive: a panel whose data is still `null`/empty renders an
 produces a usable page. `validate_snapshot()` guards only the load-bearing
 core (the Python-produced keys) so a malformed skeleton fails loudly.
 
-The output is a self-contained fragment (a `<title>`, an inline `<style>`, and
-the page body) — no external assets, matching the Artifact CSP and the existing
-`docs/uae-track/pipeline.html` precedent. It works both as an Artifact file and
-opened directly in a browser.
+## The page
+
+Triage-first, so the state of the world reads in seconds:
+
+  1. An alert banner (only when hygiene flags exist — alerts never hide).
+  2. A summary band: one hero figure ("needs you today") + stat tiles that
+     jump to their sections.
+  3. Three tabs: TODAY (action queues + inbox meters), CALENDAR (a month grid
+     of everything dated — due touches, scheduled sends, ramp-eligibility
+     days — click a day for its items), PIPELINE (funnel, price-discovery
+     study, weekly scoreboard).
+
+Calendar events are merged by `build_events()`: the skill may supply extra
+dated items in `snapshot["calendar"]` (scheduled sends, revival bumps), and
+the renderer derives the rest itself from `due_followups`, the discovery
+ladder, and each inbox's ramp-eligibility date — so the calendar has content
+even before the skill fills anything.
+
+The output is a self-contained fragment (a `<title>`, an inline `<style>`,
+the page body, and inline JS — tabs, calendar, hover tooltips) with no
+external assets, matching the Artifact CSP. Dates and "today" come from the
+snapshot (Dubai day), never the viewer's clock, so the page always shows the
+truth as of its own refresh.
 """
 
 from __future__ import annotations
 
 import html
-from datetime import datetime
+import json
+import re
+from datetime import datetime, timedelta
 
 from audit import inboxes, send_cap
 
@@ -56,6 +78,10 @@ ANCHOR_ORDER = [
     "Refused to name", "Not asked yet",
 ]
 
+# Calendar event kinds → fixed categorical slots (validated palette, slots
+# 1-4, both modes — see the /dashboard skill). Fixed assignment, never cycled.
+EVENT_KINDS = ("touch", "send", "other", "ramp")
+
 # The load-bearing keys build_skeleton() always produces. Panels beyond these
 # are skill-filled and may be null; the renderer degrades gracefully.
 SNAPSHOT_KEYS = ("generated_at", "generated_day", "inboxes", "cap_total")
@@ -64,8 +90,10 @@ SNAPSHOT_KEYS = ("generated_at", "generated_day", "inboxes", "cap_total")
 # as null and the skill fills them in place (no key means "awaiting data").
 _PANEL_KEYS = (
     "pipeline", "replies", "discovery_ladder", "due_followups",
-    "send_queue", "price_discovery", "scoreboard", "hygiene",
+    "send_queue", "price_discovery", "scoreboard", "hygiene", "calendar",
 )
+
+_ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
 
 class DashboardError(ValueError):
@@ -80,6 +108,9 @@ def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str)
     """One inbox's meter, with everything Python can settle. The sent-today
     count is filled here ONLY for the direct-API inbox; for a Gmail-MCP inbox
     it stays null and the skill runs `count_query` (plus `in:scheduled`)."""
+    eligible_on = None
+    if cap_state.valid and cap_state.next_step and cap_state.set_on:
+        eligible_on = str(cap_state.set_on + timedelta(days=send_cap.MIN_DAYS_PER_STEP))
     ramp = {
         "cap": cap_state.cap,
         "valid": cap_state.valid,
@@ -89,6 +120,7 @@ def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str)
         "step_index": cap_state.step_index if cap_state.valid else None,
         "step_of": len(send_cap.RAMP_STEPS),
         "next_step": cap_state.next_step if cap_state.valid else None,
+        "eligible_on": eligible_on,  # the day the next ramp step unlocks
         "status_lines": send_cap.status_lines(cap_state),
     }
     meter = {
@@ -170,6 +202,56 @@ def validate_snapshot(snapshot) -> None:
             raise DashboardError(f"inbox meter #{i} must be an object with at least 'label' and 'cap'")
 
 
+def build_events(snapshot: dict) -> list[dict]:
+    """Merge every dated item into one calendar event list, sorted by date.
+
+    Sources, in order:
+      - `snapshot["calendar"]` — skill-supplied extras (scheduled sends from
+        Gmail, revival bumps, anything the renderer can't see itself).
+      - `due_followups` / the discovery ladder — kind "touch".
+      - each inbox's ramp `eligible_on` — kind "ramp".
+
+    Every event is {"date": "YYYY-MM-DD", "kind": <EVENT_KINDS>, "label": str}.
+    Items with a malformed date are dropped (a bad date can't be placed on a
+    grid); unknown kinds fold to "other" rather than inventing a color slot.
+    """
+    events: list[dict] = []
+
+    def add(date, kind, label):
+        date = str(date or "")[:10]
+        if not _ISO_DAY.match(date) or not label:
+            return
+        events.append({
+            "date": date,
+            "kind": kind if kind in EVENT_KINDS else "other",
+            "label": str(label),
+        })
+
+    for ev in snapshot.get("calendar") or []:
+        if isinstance(ev, dict):
+            add(ev.get("date"), ev.get("kind"), ev.get("label"))
+
+    for fu in snapshot.get("due_followups") or []:
+        if isinstance(fu, dict):
+            touch = fu.get("touch")
+            label = f"{fu.get('name', '?')} · touch {touch}" if touch else f"{fu.get('name', '?')} · follow-up"
+            add(fu.get("next_action"), "touch", label)
+
+    ladder = snapshot.get("discovery_ladder") or {}
+    for lead in ladder.get("due_question") or []:
+        if isinstance(lead, dict):
+            add(lead.get("next_action"), "touch", f"{lead.get('name', '?')} · discovery question")
+
+    for m in snapshot.get("inboxes") or []:
+        ramp = (m or {}).get("ramp") or {}
+        if ramp.get("eligible_on") and ramp.get("next_step"):
+            add(ramp["eligible_on"], "ramp",
+                f"{m.get('label')} ramp: {ramp.get('cap')}/day held 7 days, {ramp['next_step']}/day eligible")
+
+    events.sort(key=lambda e: e["date"])
+    return events
+
+
 # ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
@@ -184,326 +266,637 @@ def _pct(part: float, whole: float) -> float:
     return max(0.0, min(100.0, 100.0 * part / whole))
 
 
+def _human_stamp(iso: str | None) -> str:
+    if not iso:
+        return ""
+    try:
+        dt = datetime.fromisoformat(str(iso))
+    except ValueError:
+        return str(iso)
+    return f"{dt.strftime('%A')} {dt.day} {dt.strftime('%B')} · {dt.strftime('%H:%M')} Dubai"
+
+
 def _empty(msg: str) -> str:
     return f'<p class="empty">{_esc(msg)}</p>'
 
 
-def _meter_card(m: dict) -> str:
-    label = _esc(m.get("label"))
-    address = _esc(m.get("address"))
-    cap = m.get("cap") or 0
+def _await(msg: str = "Awaiting first refresh.") -> str:
+    return _empty(msg)
+
+
+# --- summary band -----------------------------------------------------------
+
+def _meter_usage(m: dict) -> tuple[int | None, int, int]:
+    """(used, scheduled, cap) for a meter; used is None when the count is unknown."""
+    cap = int(m.get("cap") or 0)
     sent = m.get("sent_today")
-    sched = m.get("sent_scheduled") or 0
-    ramp = m.get("ramp") or {}
-    primary = " · primary" if m.get("primary") else ""
-
+    sched = int(m.get("sent_scheduled") or 0)
     if sent is None:
-        # Unknown (MCP inbox not yet filled, or a direct-API read failed).
-        note = m.get("count_error") or (
-            "run the count query via Gmail MCP" if m.get("count_source") == "gmail-mcp"
-            else "count unavailable"
-        )
-        head = f'<span class="meter-num">?<span class="meter-den">/{_esc(cap)}</span></span>'
-        bar = '<div class="bar"><div class="bar-fill unknown" style="width:100%"></div></div>'
-        sub = f'<span class="warn">sent today unknown — {_esc(note)}</span>'
-    else:
-        used = sent + sched
-        headroom = max(cap - used, 0)
-        pct = _pct(used, cap)
-        over = used > cap
-        sched_str = f" (+{sched} scheduled)" if sched else ""
-        head = (f'<span class="meter-num">{_esc(sent)}'
-                f'<span class="meter-den">/{_esc(cap)}</span></span>')
-        klass = "over" if over else ("high" if pct >= 80 else "ok")
-        bar = (f'<div class="bar"><div class="bar-fill {klass}" '
-               f'style="width:{pct:.0f}%"></div></div>')
-        if over:
-            sub = f'<span class="warn">OVER CEILING by {used - cap}{_esc(sched_str)}</span>'
+        return None, sched, cap
+    return int(sent) + sched, sched, cap
+
+
+def _summary(snapshot: dict) -> str:
+    replies = snapshot.get("replies")
+    fus = snapshot.get("due_followups")
+    sq = snapshot.get("send_queue")
+
+    def count(x):
+        return len(x) if isinstance(x, list) else None
+
+    parts = [count(replies), count(fus), count(sq)]
+    hero = sum(p for p in parts if p is not None) if any(p is not None for p in parts) else None
+
+    # Headroom left today, summed across inboxes; partial knowledge is labeled,
+    # never silently presented as the whole picture.
+    known_room = 0
+    unknown = 0
+    for m in snapshot.get("inboxes", []):
+        used, _, cap = _meter_usage(m)
+        if used is None:
+            unknown += 1
         else:
-            sub = f'<span class="muted">{headroom} left today{_esc(sched_str)}</span>'
+            known_room += max(cap - used, 0)
+    if unknown == 0:
+        room_val, room_sub = str(known_room), "across all inboxes"
+    elif unknown < len(snapshot.get("inboxes", [])):
+        room_val, room_sub = f"{known_room}+", f"{unknown} inbox count still unknown"
+    else:
+        room_val, room_sub = "–", "counts not fetched yet"
 
-    # Ramp line: the most informative status line (the reminder if present).
-    lines = ramp.get("status_lines") or []
-    ramp_line = lines[-1] if len(lines) > 1 else (lines[0] if lines else "")
-    valid = ramp.get("valid", True)
-    ramp_html = f'<div class="ramp {"bad" if not valid else ""}">{_esc(ramp_line)}</div>'
+    def tile(value, label, sub, target):
+        v = "–" if value is None else str(value)
+        return (f'<button class="tile" data-jump="{_esc(target)}">'
+                f'<span class="tile-v">{_esc(v)}</span>'
+                f'<span class="tile-l">{_esc(label)}</span>'
+                f'<span class="tile-s">{_esc(sub)}</span></button>')
 
+    hero_v = "–" if hero is None else str(hero)
+    hero_sub = ("replies + follow-ups + sends ready" if hero is not None
+                else "refresh to pull live numbers")
+    tiles = (
+        tile(count(replies), "Replies waiting", "read these first", "sec-replies")
+        + tile(count(fus), "Follow-ups due", "today or overdue", "sec-followups")
+        + tile(count(sq), "Ready to send", "gated and queued", "sec-send")
+        + tile(room_val, "Room left today", room_sub, "sec-inboxes")
+    )
     return (
-        f'<div class="meter">'
-        f'<div class="meter-head"><span class="meter-label">{label}<span class="muted">{_esc(primary)}</span></span>{head}</div>'
-        f'<div class="meter-addr muted">{address} · {_esc(m.get("send_via"))}</div>'
-        f'{bar}<div class="meter-sub">{sub}</div>{ramp_html}'
-        f'</div>'
+        '<section class="summary" aria-label="Today at a glance">'
+        f'<div class="hero"><span class="hero-v">{_esc(hero_v)}</span>'
+        f'<span class="hero-l">need you today</span>'
+        f'<span class="hero-s">{_esc(hero_sub)}</span></div>'
+        f'<div class="tiles">{tiles}</div></section>'
     )
 
 
-def _meters(snapshot: dict) -> str:
-    cards = "".join(_meter_card(m) for m in snapshot.get("inboxes", []))
-    total = snapshot.get("cap_total")
-    foot = (f'<div class="panel-foot muted">Total system ceiling: {_esc(total)}/day '
-            f'across {len(snapshot.get("inboxes", []))} inbox(es) — independent ramps, '
-            f'additive capacity.</div>')
-    return _panel("Sending inboxes", f'<div class="meter-grid">{cards}</div>{foot}')
+def _alert_banner(snapshot: dict) -> str:
+    alerts = snapshot.get("hygiene")
+    if alerts is None:
+        return ""
+    if not alerts:
+        return '<div class="allclear">Hygiene checks: all clear.</div>'
+    items = "".join(f"<li>{_esc(a)}</li>" for a in alerts)
+    return (f'<div class="banner" role="alert"><strong>{len(alerts)} thing(s) look wrong</strong>'
+            f'<ul>{items}</ul></div>')
 
 
-def _pipeline(snapshot: dict) -> str:
+# --- TODAY tab ---------------------------------------------------------------
+
+def _meter_card(m: dict) -> str:
+    label = _esc(m.get("label"))
+    used, sched, cap = _meter_usage(m)
+    ramp = m.get("ramp") or {}
+    primary = ' <span class="mut">· primary</span>' if m.get("primary") else ""
+
+    if used is None:
+        note = m.get("count_error") or "sent count not fetched yet"
+        num = f'<span class="m-num">–<span class="m-den"> / {cap}</span></span>'
+        bar = '<div class="track unknown"><div class="fill" style="width:0"></div></div>'
+        state = f'<span class="m-state warn-t">{_esc(note)}</span>'
+        sev = ""
+    else:
+        pct = _pct(used, cap)
+        over = used > cap
+        sev = "over" if over else ("warn" if pct >= 80 else "ok")
+        num = f'<span class="m-num">{used - sched}<span class="m-den"> / {cap}</span></span>'
+        bar = (f'<div class="track {sev}"><div class="fill" '
+               f'style="width:{pct:.0f}%"></div></div>')
+        bits = []
+        if over:
+            bits.append(f'<strong>over ceiling by {used - cap}</strong>')
+        else:
+            bits.append(f"{cap - used} left")
+        if sched:
+            bits.append(f"{sched} scheduled")
+        state = f'<span class="m-state {"crit-t" if over else ""}">{" · ".join(bits)}</span>'
+
+    # The single most useful ramp fact, not the whole block.
+    if not ramp.get("valid", True):
+        ramp_line = f'failed closed to {cap}/day'
+        ramp_cls = "crit-t"
+    elif ramp.get("next_step") and ramp.get("eligible_on"):
+        ramp_line = f'step {int(ramp.get("step_index", 0)) + 1}/{ramp.get("step_of", 3)} · {ramp["next_step"]}/day unlocks {ramp["eligible_on"]}'
+        ramp_cls = ""
+    else:
+        ramp_line = "top step for this inbox (30 is the hard cap)"
+        ramp_cls = ""
+
+    return (
+        f'<div class="meter"><div class="m-head"><span class="m-label">{label}{primary}</span>{num}</div>'
+        f'<div class="m-addr">{_esc(m.get("address"))}</div>'
+        f'{bar}{state}'
+        f'<div class="m-ramp {ramp_cls}">{_esc(ramp_line)}</div></div>'
+    )
+
+
+def _list_rows(items, render_row) -> str:
+    return '<ul class="rows">' + "".join(render_row(it) for it in items) + "</ul>"
+
+
+def _today_tab(snapshot: dict) -> str:
+    meters = "".join(_meter_card(m) for m in snapshot.get("inboxes", []))
+    out = (f'<div class="card" id="sec-inboxes"><h2>Inboxes</h2>'
+           f'<div class="meter-grid">{meters}</div></div>')
+
+    replies = snapshot.get("replies")
+    if replies is None:
+        body = _await()
+    elif not replies:
+        body = _empty("No replies waiting.")
+    else:
+        body = _list_rows(replies, lambda r: (
+            f'<li><span class="r-main">{_esc(r.get("name"))}</span>'
+            f'<span class="r-sub">{_esc(r.get("note") or r.get("status"))}'
+            f'{" · last touched " + _esc(r.get("last_contacted")) if r.get("last_contacted") else ""}</span></li>'))
+    out += f'<div class="card" id="sec-replies"><h2>Replies waiting</h2>{body}</div>'
+
+    def followup_row(f: dict) -> str:
+        inbox_pill = ""
+        if f.get("inbox"):
+            inbox_pill = f'<span class="pill mut-pill">{_esc(f.get("inbox"))}</span>'
+        return (
+            f'<li><span class="r-main">{_esc(f.get("name"))}'
+            f'<span class="pill">touch {_esc(f.get("touch"))}</span>{inbox_pill}</span>'
+            f'<span class="r-sub">carries: {_esc(f.get("carries") or "pick from the findings bank")}'
+            f' · due {_esc(f.get("next_action"))}</span></li>')
+
+    fus = snapshot.get("due_followups")
+    if fus is None:
+        body = _await()
+    elif not fus:
+        body = _empty("Nothing due today.")
+    else:
+        body = _list_rows(fus, followup_row)
+    out += f'<div class="card" id="sec-followups"><h2>Follow-ups due</h2>{body}</div>'
+
+    sq = snapshot.get("send_queue")
+    if sq is None:
+        body = _await()
+    elif not sq:
+        body = _empty("Queue is empty. Do walks before sending.")
+    else:
+        groups: dict[str, list] = {}
+        for it in sq:
+            groups.setdefault(it.get("inbox") or "Unassigned", []).append(it)
+        body = ""
+        for inbox_label in sorted(groups):
+            rows = groups[inbox_label]
+            body += f'<h3>{_esc(inbox_label)} <span class="mut">· {len(rows)}</span></h3>'
+            body += _list_rows(rows, lambda s: (
+                f'<li><span class="r-main">{_esc(s.get("name"))}'
+                f'<span class="pill">{_esc(s.get("status"))}</span></span>'
+                f'<span class="r-sub">finding {_esc(s.get("finding_verified"))}'
+                f' · email {_esc(s.get("email_verified"))}</span></li>'))
+    out += f'<div class="card" id="sec-send"><h2>Ready to send</h2>{body}</div>'
+
+    lad = snapshot.get("discovery_ladder")
+    if lad is None:
+        body = _await()
+    else:
+        due = lad.get("due_question") or []
+        unlocked = lad.get("offer_unlocked") or []
+        body = "<h3>Owed the price question</h3>"
+        body += _list_rows(due, lambda d: (
+            f'<li><span class="r-main">{_esc(d.get("name"))}</span>'
+            f'<span class="r-sub">{_esc(d.get("status"))} · due {_esc(d.get("next_action"))}</span></li>'
+        )) if due else _empty("Nobody owed the question right now.")
+        body += "<h3>Answered · offer unlocked</h3>"
+        body += _list_rows(unlocked, lambda u: (
+            f'<li><span class="r-main">{_esc(u.get("name"))}'
+            f'<span class="pill">{_esc(u.get("anchor"))}</span></span>'
+            f'<span class="r-sub">“{_esc(u.get("answer"))}”</span></li>'
+        )) if unlocked else _empty("No answers logged yet.")
+    out += f'<div class="card" id="sec-discovery"><h2>Discovery ladder</h2>{body}</div>'
+
+    return out
+
+
+# --- CALENDAR tab -------------------------------------------------------------
+
+def _calendar_tab() -> str:
+    """Static shell only — the grid is built client-side from the embedded
+    events JSON, so month navigation works without re-rendering."""
+    legend = "".join(
+        f'<span class="lg"><span class="dot k-{k}"></span>{name}</span>'
+        for k, name in (("touch", "Touch due"), ("send", "Send scheduled"),
+                        ("ramp", "Ramp step unlocks"), ("other", "Other"))
+    )
+    return (
+        '<div class="card" id="sec-calendar"><div class="cal-head">'
+        '<h2 id="cal-title">Calendar</h2>'
+        '<div class="cal-nav">'
+        '<button id="cal-prev" aria-label="Previous month">‹</button>'
+        '<button id="cal-today">Today</button>'
+        '<button id="cal-next" aria-label="Next month">›</button></div></div>'
+        f'<div class="cal-legend">{legend}</div>'
+        '<div class="cal-grid" id="cal-grid" role="grid"></div>'
+        '<div class="cal-detail"><h3 id="cal-detail-title">Selected day</h3>'
+        '<ul class="rows" id="cal-detail-list"></ul></div></div>'
+    )
+
+
+# --- PIPELINE tab --------------------------------------------------------------
+
+def _funnel(snapshot: dict) -> str:
     pipe = snapshot.get("pipeline")
     if not pipe or not pipe.get("by_status"):
-        return _panel("Pipeline", _empty("Awaiting Notion pipeline counts."))
+        return f'<div class="card"><h2>Pipeline</h2>{_await("Awaiting CRM counts.")}</div>'
     by_status = pipe["by_status"]
     active = [(s, int(by_status.get(s, 0))) for s in STATUS_ORDER]
     terminal = [(s, int(by_status.get(s, 0))) for s in TERMINAL_STATUSES]
-    # Any status the CRM returned that we don't know about — surface it, don't drop.
     known = set(STATUS_ORDER) | set(TERMINAL_STATUSES)
     extra = [(s, int(n)) for s, n in by_status.items() if s not in known]
     peak = max([n for _, n in active + terminal + extra] + [1])
+    total_active = sum(n for _, n in active)
 
     def row(label, n, klass):
-        return (f'<div class="frow"><span class="flabel">{_esc(label)}</span>'
-                f'<div class="fbar"><div class="fbar-fill {klass}" style="width:{_pct(n, peak):.0f}%"></div></div>'
-                f'<span class="fnum">{_esc(n)}</span></div>')
+        share = _pct(n, total_active) if total_active else 0
+        tip = f"{label}: {n} lead(s)" + (f" · {share:.0f}% of active" if klass == "flow" else "")
+        return (f'<div class="f-row" tabindex="0" data-tip="{_esc(tip)}" aria-label="{_esc(tip)}">'
+                f'<span class="f-label">{_esc(label)}</span>'
+                f'<div class="f-track"><div class="f-fill {klass}" style="width:{_pct(n, peak):.1f}%"></div></div>'
+                f'<span class="f-val">{n}</span></div>')
 
     body = "".join(row(s, n, "flow") for s, n in active)
-    body += '<div class="frow-sep">off-ramps</div>'
-    body += "".join(row(s, n, "kill") for s, n in terminal)
-    if extra:
-        body += "".join(row(s, n, "other") for s, n in extra)
-    total_active = sum(n for _, n in active)
-    foot = f'<div class="panel-foot muted">{total_active} leads in the active funnel.</div>'
-    return _panel("Pipeline", body + foot)
-
-
-def _table(items, columns) -> str:
-    """Generic table. `columns` is a list of (header, key) pairs."""
-    head = "".join(f"<th>{_esc(h)}</th>" for h, _ in columns)
-    rows = ""
-    for it in items:
-        cells = "".join(f"<td>{_esc(it.get(k))}</td>" for _, k in columns)
-        rows += f"<tr>{cells}</tr>"
-    return f'<div class="twrap"><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>'
-
-
-def _replies(snapshot: dict) -> str:
-    replies = snapshot.get("replies")
-    if replies is None:
-        return _panel("Replies &amp; needs attention", _empty("Awaiting the Gmail reply sweep."), badge="!")
-    if not replies:
-        return _panel("Replies &amp; needs attention", _empty("No replies waiting."), badge="0")
-    body = _table(replies, [("Lead", "name"), ("Status", "status"),
-                            ("Last contacted", "last_contacted"), ("Note", "note")])
-    return _panel("Replies &amp; needs attention", body, badge=str(len(replies)))
-
-
-def _discovery(snapshot: dict) -> str:
-    lad = snapshot.get("discovery_ladder")
-    if not lad:
-        return _panel("Discovery ladder", _empty("Awaiting Notion discovery queues."))
-    due = lad.get("due_question") or []
-    unlocked = lad.get("offer_unlocked") or []
-    body = "<h4>Due the discovery question</h4>"
-    body += _table(due, [("Lead", "name"), ("Status", "status"), ("Next action", "next_action")]) if due else _empty("None due.")
-    body += "<h4>Answer logged · offer unlocked</h4>"
-    body += _table(unlocked, [("Lead", "name"), ("Anchor", "anchor"), ("Answer (verbatim)", "answer")]) if unlocked else _empty("None.")
-    return _panel("Discovery ladder", body)
-
-
-def _followups(snapshot: dict) -> str:
-    fus = snapshot.get("due_followups")
-    if fus is None:
-        return _panel("Follow-ups due", _empty("Awaiting Notion due-touch query."))
-    if not fus:
-        return _panel("Follow-ups due", _empty("Nothing due today."), badge="0")
-    body = _table(fus, [("Lead", "name"), ("Touch", "touch"), ("Inbox", "inbox"),
-                        ("Carries", "carries"), ("Next action", "next_action")])
-    return _panel("Follow-ups due", body, badge=str(len(fus)))
-
-
-def _send_queue(snapshot: dict) -> str:
-    sq = snapshot.get("send_queue")
-    if sq is None:
-        return _panel("Send queue", _empty("Awaiting the Send Queue view."))
-    if not sq:
-        return _panel("Send queue", _empty("Empty — do walks before sending."), badge="0")
-    # Group by inbox for the per-domain view the ceiling cares about.
-    groups: dict[str, list] = {}
-    for it in sq:
-        groups.setdefault(it.get("inbox") or "Unassigned", []).append(it)
-    body = ""
-    for inbox_label in sorted(groups):
-        rows = groups[inbox_label]
-        body += f'<h4>{_esc(inbox_label)} <span class="muted">· {len(rows)}</span></h4>'
-        body += _table(rows, [("Lead", "name"), ("Status", "status"),
-                              ("Finding", "finding_verified"), ("Email", "email_verified")])
-    return _panel("Send queue", body, badge=str(len(sq)))
+    body += '<div class="f-sep">off-ramps</div>'
+    body += "".join(row(s, n, "gone") for s, n in terminal)
+    body += "".join(row(s, n, "gone") for s, n in extra)
+    body += f'<p class="foot">{total_active} leads in play · hover a stage for its share.</p>'
+    return f'<div class="card"><h2>Pipeline</h2>{body}</div>'
 
 
 def _price_discovery(snapshot: dict) -> str:
     pd = snapshot.get("price_discovery")
     if not pd:
-        return _panel("Price discovery study", _empty("Awaiting the discovery study query."))
+        return f'<div class="card"><h2>Price discovery</h2>{_await("Awaiting the study query.")}</div>'
     anchors = pd.get("anchors") or {}
     est = pd.get("est_value") or {}
     peak = max([int(v) for v in anchors.values()] + [1])
 
-    body = "<h4>Anchor distribution</h4>"
+    body = "<h3>Where they anchored</h3>"
     if anchors:
         for a in ANCHOR_ORDER:
             if a not in anchors:
                 continue
             n = int(anchors[a])
-            klass = "kill" if a.startswith("Below") or a == "Refused to name" else "flow"
-            body += (f'<div class="frow"><span class="flabel">{_esc(a)}</span>'
-                     f'<div class="fbar"><div class="fbar-fill {klass}" style="width:{_pct(n, peak):.0f}%"></div></div>'
-                     f'<span class="fnum">{_esc(n)}</span></div>')
+            # Ordinal teal ramp: Above (dark) → At (mid) → Below (light);
+            # non-answers recede to gray. Identity also carried by the row label.
+            if a.startswith("Above"):
+                step = "a-hi"
+            elif a.startswith("At"):
+                step = "a-mid"
+            elif a.startswith("Below"):
+                step = "a-lo"
+            else:
+                step = "gone"
+            tip = f"{a}: {n} lead(s)"
+            body += (f'<div class="f-row" tabindex="0" data-tip="{_esc(tip)}" aria-label="{_esc(tip)}">'
+                     f'<span class="f-label">{_esc(a)}</span>'
+                     f'<div class="f-track"><div class="f-fill {step}" style="width:{_pct(n, peak):.1f}%"></div></div>'
+                     f'<span class="f-val">{n}</span></div>')
     else:
         body += _empty("No anchors recorded yet.")
 
     if est:
-        body += "<h4>Estimated value</h4><div class=\"chips\">"
+        body += '<h3>Track split</h3><div class="chips">'
         for k, v in est.items():
             body += f'<span class="chip">{_esc(k)} <b>{_esc(v)}</b></span>'
         body += "</div>"
-    return _panel("Price discovery study", body)
+    return f'<div class="card"><h2>Price discovery</h2>{body}</div>'
 
 
 def _scoreboard(snapshot: dict) -> str:
     sb = snapshot.get("scoreboard")
     if not sb:
-        return _panel("Weekly scoreboard", _empty("Awaiting weekly aggregates."))
+        return f'<div class="card"><h2>This week</h2>{_await("Awaiting weekly aggregates.")}</div>'
     tiles = "".join(
-        f'<div class="tile"><span class="tile-num">{_esc(v)}</span>'
-        f'<span class="tile-lab">{_esc(k)}</span></div>'
+        f'<div class="sb"><span class="sb-v">{_esc(v)}</span><span class="sb-l">{_esc(k)}</span></div>'
         for k, v in sb.items()
     )
-    return _panel("Weekly scoreboard", f'<div class="tiles">{tiles}</div>')
+    return f'<div class="card"><h2>This week</h2><div class="sb-grid">{tiles}</div></div>'
 
 
-def _hygiene(snapshot: dict) -> str:
-    alerts = snapshot.get("hygiene")
-    if alerts is None:
-        return _panel("Hygiene alerts", _empty("Awaiting hygiene checks."))
-    if not alerts:
-        return _panel("Hygiene alerts", '<p class="ok-note">All clear — no impossible states flagged.</p>', badge="0")
-    items = "".join(f"<li>{_esc(a)}</li>" for a in alerts)
-    return _panel("Hygiene alerts", f'<ul class="alerts">{items}</ul>', badge=str(len(alerts)))
-
-
-def _panel(title: str, body: str, badge: str | None = None) -> str:
-    badge_html = f'<span class="badge">{_esc(badge)}</span>' if badge is not None else ""
-    return (f'<section class="panel"><div class="panel-head"><h3>{title}</h3>{badge_html}</div>'
-            f'<div class="panel-body">{body}</div></section>')
-
+# --- style + script ------------------------------------------------------------
 
 _STYLE = """
 <style>
 :root{
-  --bg:#eceff2;--surface:#ffffff;--surface-2:#f4f6f8;--ink:#161c21;
-  --ink-soft:#5c6873;--ink-faint:#8b97a1;--hair:#d9dfe4;--hair-strong:#c3cbd2;
-  --flow:#0c877c;--flow-soft:#e3f1ef;--kill:#b0473e;--kill-soft:#f4e2e0;
-  --warn:#b0473e;--ok:#0c877c;--high:#ab6f16;
-  --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px -12px rgba(20,30,40,.18);
-  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,sans-serif;
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--mut:#898781;
+  --hair:#e1e0d9;--ring:rgba(11,11,11,.10);
+  --accent:#0c877c;--accent-track:#d9ece9;--accent-hi:#0a6e65;--accent-lo:#7fbfb8;
+  --good:#006300;--warn:#fab219;--warn-track:#f7e8c4;--crit:#d03b3b;--crit-track:#f4dcdc;
+  --cat1:#2a78d6;--cat2:#008300;--cat3:#e87ba4;--cat4:#eda100;
+  --gone:#c3c2b7;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#0b1114;--surface:#131b20;--surface-2:#0e161a;--ink:#e5edf1;
-  --ink-soft:#97a4ae;--ink-faint:#64717b;--hair:#253138;--hair-strong:#33424b;
-  --flow:#2cb6a5;--flow-soft:#0f2320;--kill:#d47268;--kill-soft:#291613;
-  --warn:#d47268;--ok:#2cb6a5;--high:#d79f4c;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
-}}
-:root[data-theme="light"]{
-  --bg:#eceff2;--surface:#ffffff;--surface-2:#f4f6f8;--ink:#161c21;
-  --ink-soft:#5c6873;--ink-faint:#8b97a1;--hair:#d9dfe4;--hair-strong:#c3cbd2;
-  --flow:#0c877c;--flow-soft:#e3f1ef;--kill:#b0473e;--kill-soft:#f4e2e0;
-  --warn:#b0473e;--ok:#0c877c;--high:#ab6f16;
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --page:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink2:#c3c2b7;--mut:#898781;
+    --hair:#2c2c2a;--ring:rgba(255,255,255,.10);
+    --accent:#2cb6a5;--accent-track:#12332f;--accent-hi:#6fded0;--accent-lo:#1e7f73;
+    --good:#0ca30c;--warn:#fab219;--warn-track:#3a2f10;--crit:#d03b3b;--crit-track:#3a1717;
+    --cat1:#3987e5;--cat2:#008300;--cat3:#d55181;--cat4:#c98500;
+    --gone:#52514e;
+  }
 }
 :root[data-theme="dark"]{
-  --bg:#0b1114;--surface:#131b20;--surface-2:#0e161a;--ink:#e5edf1;
-  --ink-soft:#97a4ae;--ink-faint:#64717b;--hair:#253138;--hair-strong:#33424b;
-  --flow:#2cb6a5;--flow-soft:#0f2320;--kill:#d47268;--kill-soft:#291613;
-  --warn:#d47268;--ok:#2cb6a5;--high:#d79f4c;
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink2:#c3c2b7;--mut:#898781;
+  --hair:#2c2c2a;--ring:rgba(255,255,255,.10);
+  --accent:#2cb6a5;--accent-track:#12332f;--accent-hi:#6fded0;--accent-lo:#1e7f73;
+  --good:#0ca30c;--warn:#fab219;--warn-track:#3a2f10;--crit:#d03b3b;--crit-track:#3a1717;
+  --cat1:#3987e5;--cat2:#008300;--cat3:#d55181;--cat4:#c98500;
+  --gone:#52514e;
 }
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;}
-.wrap{max-width:1120px;margin:0 auto;padding:clamp(20px,4vw,44px) clamp(14px,3vw,32px) 72px;}
-header{margin-bottom:24px;}
-.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px;}
-h1{font-size:clamp(24px,4vw,34px);margin:0 0 6px;letter-spacing:-.02em;}
-.stamp{color:var(--ink-soft);font-size:14px;}
-.stamp b{color:var(--ink);}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;}
-.panel{background:var(--surface);border:1px solid var(--hair);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;}
-.panel.wide{grid-column:1/-1;}
-.panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 18px;border-bottom:1px solid var(--hair);background:var(--surface-2);}
-.panel-head h3{margin:0;font-size:14px;letter-spacing:.01em;text-transform:uppercase;color:var(--ink-soft);font-weight:650;}
-.badge{font-family:var(--mono);font-size:12px;min-width:22px;text-align:center;padding:2px 8px;border-radius:20px;background:var(--flow-soft);color:var(--flow);border:1px solid var(--hair);}
-.panel-body{padding:16px 18px;}
-.panel-foot{margin-top:12px;font-size:12.5px;}
-.muted{color:var(--ink-faint);font-weight:400;}
-.warn{color:var(--warn);font-weight:600;}
-.empty{color:var(--ink-faint);font-style:italic;margin:2px 0;font-size:14px;}
-.ok-note{color:var(--ok);margin:2px 0;font-size:14px;}
-h4{margin:16px 0 8px;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
-h4:first-child{margin-top:0;}
-/* meters */
-.meter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;}
-.meter{border:1px solid var(--hair);border-radius:10px;padding:12px 14px;background:var(--surface-2);}
-.meter-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
-.meter-label{font-weight:650;}
-.meter-num{font-family:var(--mono);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;}
-.meter-den{font-size:14px;color:var(--ink-faint);}
-.meter-addr{font-size:12px;margin:2px 0 8px;word-break:break-all;}
-.meter-sub{font-size:12.5px;margin-top:5px;}
-.ramp{font-size:11.5px;color:var(--ink-soft);margin-top:8px;padding-top:8px;border-top:1px dashed var(--hair);font-family:var(--mono);line-height:1.45;}
-.ramp.bad{color:var(--warn);}
-.bar{height:8px;border-radius:6px;background:var(--hair);overflow:hidden;}
-.bar-fill{height:100%;border-radius:6px;}
-.bar-fill.ok{background:var(--ok);}
-.bar-fill.high{background:var(--high);}
-.bar-fill.over{background:var(--kill);}
-.bar-fill.unknown{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 6px,var(--hair-strong) 6px,var(--hair-strong) 12px);}
-/* funnel rows */
-.frow{display:grid;grid-template-columns:150px 1fr 40px;align-items:center;gap:10px;margin:4px 0;}
-.flabel{font-size:13px;color:var(--ink-soft);}
-.fbar{height:16px;border-radius:5px;background:var(--surface-2);border:1px solid var(--hair);overflow:hidden;}
-.fbar-fill{height:100%;}
-.fbar-fill.flow{background:var(--flow);}
-.fbar-fill.kill{background:var(--kill);}
-.fbar-fill.other{background:var(--high);}
-.fnum{font-family:var(--mono);font-size:14px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;}
-.frow-sep{margin:12px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);}
-/* tables */
-.twrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:13px;}
-th{text-align:left;font-weight:600;color:var(--ink-faint);padding:6px 10px;border-bottom:1px solid var(--hair-strong);white-space:nowrap;}
-td{padding:6px 10px;border-bottom:1px solid var(--hair);vertical-align:top;}
-tr:last-child td{border-bottom:none;}
-/* chips + tiles */
-.chips{display:flex;flex-wrap:wrap;gap:8px;}
-.chip{font-size:12.5px;padding:4px 10px;border-radius:20px;background:var(--surface-2);border:1px solid var(--hair);}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
-.tile{border:1px solid var(--hair);border-radius:10px;padding:12px;background:var(--surface-2);text-align:center;}
-.tile-num{display:block;font-family:var(--mono);font-size:26px;font-weight:650;font-variant-numeric:tabular-nums;}
-.tile-lab{display:block;font-size:12px;color:var(--ink-faint);margin-top:2px;}
-.alerts{margin:0;padding-left:18px;}
-.alerts li{margin:4px 0;font-size:13.5px;color:var(--warn);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1080px;margin:0 auto;padding:clamp(16px,3vw,36px) clamp(12px,3vw,28px) 72px}
+
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:0 0 4px}
+h1{font-size:clamp(20px,3vw,26px);margin:0;letter-spacing:-.01em}
+.stamp{color:var(--ink2);font-size:13px;margin-top:2px}
+#themeBtn{font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--hair);background:var(--surface);color:var(--ink2)}
+
+.banner{background:var(--crit-track);border:1px solid var(--crit);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13.5px}
+.banner strong{color:var(--crit)}
+.banner ul{margin:6px 0 0;padding-left:18px}
+.banner li{margin:2px 0}
+.allclear{color:var(--good);font-size:13px;margin-bottom:14px}
+
+.summary{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:stretch;margin-bottom:20px}
+@media (max-width:680px){.summary{grid-template-columns:1fr}}
+.hero{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:18px 26px;display:flex;flex-direction:column;justify-content:center;min-width:190px}
+.hero-v{font-size:52px;font-weight:650;line-height:1.05;letter-spacing:-.02em}
+.hero-l{font-size:14px;color:var(--ink2);margin-top:2px}
+.hero-s{font-size:12px;color:var(--mut);margin-top:6px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:1px;transition:border-color .12s}
+.tile:hover{border-color:var(--accent)}
+.tile-v{font-size:24px;font-weight:650}
+.tile-l{font-size:12.5px;color:var(--ink2)}
+.tile-s{font-size:11px;color:var(--mut)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--hair);margin-bottom:16px}
+.tab{padding:9px 16px;font-size:13.5px;color:var(--ink2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.tab:hover{color:var(--ink)}
+[role="tabpanel"][hidden]{display:none}
+
+.card{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.card h2{margin:0 0 12px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);font-weight:650}
+.card h3{margin:14px 0 6px;font-size:12px;color:var(--mut);font-weight:600}
+.card h3:first-of-type{margin-top:0}
+.foot{font-size:12px;color:var(--mut);margin:10px 0 0}
+.mut{color:var(--mut);font-weight:400}
+.empty{color:var(--mut);font-size:13px;font-style:italic;margin:2px 0}
+
+.meter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.meter{border:1px solid var(--hair);border-radius:12px;padding:12px 14px}
+.m-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.m-label{font-weight:650;font-size:13.5px}
+.m-num{font-size:22px;font-weight:650}
+.m-den{font-size:13px;color:var(--mut);font-weight:400}
+.m-addr{font-size:11.5px;color:var(--mut);margin:1px 0 9px;word-break:break-all}
+.track{height:8px;border-radius:5px;overflow:hidden;background:var(--accent-track)}
+.track .fill{height:100%;border-radius:0 4px 4px 0;background:var(--accent)}
+.track.warn{background:var(--warn-track)}.track.warn .fill{background:var(--warn)}
+.track.over{background:var(--crit-track)}.track.over .fill{background:var(--crit)}
+.track.unknown{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 6px,var(--page) 6px,var(--page) 12px)}
+.m-state{display:block;font-size:12px;color:var(--ink2);margin-top:6px}
+.warn-t{color:var(--warn)}.crit-t{color:var(--crit);font-weight:600}
+.m-ramp{font-size:11.5px;color:var(--mut);margin-top:8px;padding-top:8px;border-top:1px dashed var(--hair)}
+
+.rows{list-style:none;margin:0;padding:0}
+.rows li{padding:9px 2px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:1px}
+.rows li:last-child{border-bottom:none}
+.r-main{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.r-sub{font-size:12.5px;color:var(--ink2)}
+.pill{font-size:11px;font-weight:600;padding:1px 8px;border-radius:20px;background:var(--accent-track);color:var(--accent);white-space:nowrap}
+.mut-pill{background:transparent;border:1px solid var(--hair);color:var(--mut)}
+
+.f-row{display:grid;grid-template-columns:minmax(110px,160px) 1fr 40px;align-items:center;gap:10px;padding:3px 0;border-radius:6px}
+.f-row:hover .f-fill{filter:brightness(1.12)}
+.f-label{font-size:12.5px;color:var(--ink2)}
+.f-track{height:18px;background:transparent}
+.f-fill{height:100%;border-radius:0 4px 4px 0;min-width:1px}
+.f-fill.flow{background:var(--accent)}
+.f-fill.gone{background:var(--gone)}
+.f-fill.a-hi{background:var(--accent-hi)}
+.f-fill.a-mid{background:var(--accent)}
+.f-fill.a-lo{background:var(--accent-lo)}
+.f-val{font-size:13px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.f-sep{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:10px 0 4px}
+
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cal-head h2{margin:0}
+.cal-nav{display:flex;gap:6px}
+.cal-nav button{border:1px solid var(--hair);border-radius:8px;padding:4px 12px;font-size:13px;color:var(--ink2);background:var(--surface)}
+.cal-nav button:hover{border-color:var(--accent);color:var(--ink)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0 12px;font-size:12px;color:var(--ink2)}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;box-shadow:0 0 0 2px var(--surface)}
+.k-touch{background:var(--cat1)}.k-send{background:var(--cat2)}.k-other{background:var(--cat3)}.k-ramp{background:var(--cat4)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);text-align:center;padding:4px 0}
+.cal-day{min-height:58px;border:1px solid var(--hair);border-radius:9px;padding:5px 6px;display:flex;flex-direction:column;gap:4px;align-items:flex-start;background:var(--surface);transition:border-color .12s}
+.cal-day:hover{border-color:var(--accent)}
+.cal-day.blank{border-color:transparent;background:transparent;pointer-events:none}
+.cal-day.today{border-color:var(--accent);border-width:2px;padding:4px 5px}
+.cal-day.sel{background:var(--accent-track)}
+.cal-num{font-size:12px;font-weight:600;color:var(--ink2)}
+.cal-day.today .cal-num{color:var(--accent)}
+.cal-dots{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.cal-more{font-size:10px;color:var(--mut)}
+.cal-detail{margin-top:14px;border-top:1px solid var(--hair);padding-top:10px}
+@media (max-width:560px){.cal-day{min-height:44px}}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:12.5px;padding:4px 11px;border-radius:20px;border:1px solid var(--hair)}
+.sb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.sb{border:1px solid var(--hair);border-radius:12px;padding:12px;text-align:center}
+.sb-v{display:block;font-size:26px;font-weight:650}
+.sb-l{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
+
+#tip{position:fixed;z-index:10;pointer-events:none;background:var(--ink);color:var(--page);font-size:12px;padding:5px 9px;border-radius:7px;max-width:260px;display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 """
 
-# Tiny inline theme toggle: honors the Artifact viewer's data-theme stamp and
-# also works standalone. No external assets.
 _SCRIPT = """
 <script>
 (function(){
-  var b=document.getElementById('themeBtn');
-  if(!b)return;
-  b.addEventListener('click',function(){
-    var r=document.documentElement;
-    var cur=r.getAttribute('data-theme');
-    if(!cur){cur=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
-    r.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  "use strict";
+  var payload = JSON.parse(document.getElementById("dash-data").textContent);
+  var EVENTS = payload.events || [];
+  var TODAY = payload.today || "";
+
+  /* theme toggle — the stamp must beat the OS preference both ways */
+  var tb = document.getElementById("themeBtn");
+  if (tb) tb.addEventListener("click", function () {
+    var r = document.documentElement, cur = r.getAttribute("data-theme");
+    if (!cur) cur = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    r.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
   });
+
+  /* tabs */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+  function selectTab(id){
+    tabs.forEach(function(t){
+      var on = t.dataset.tab === id;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      document.getElementById("panel-" + t.dataset.tab).hidden = !on;
+    });
+  }
+  tabs.forEach(function(t){ t.addEventListener("click", function(){ selectTab(t.dataset.tab); }); });
+
+  /* summary tiles jump to their section on the Today tab */
+  Array.prototype.forEach.call(document.querySelectorAll(".tile[data-jump]"), function(tile){
+    tile.addEventListener("click", function(){
+      selectTab("today");
+      var el = document.getElementById(tile.dataset.jump);
+      if (el) el.scrollIntoView({behavior:"smooth", block:"start"});
+    });
+  });
+
+  /* hover/focus tooltip for bar rows (values are also visible inline) */
+  var tip = document.createElement("div");
+  tip.id = "tip";
+  document.body.appendChild(tip);
+  function showTip(text, x, y){
+    tip.textContent = text;
+    tip.style.display = "block";
+    var pad = 12, w = tip.offsetWidth;
+    tip.style.left = Math.min(x + pad, window.innerWidth - w - pad) + "px";
+    tip.style.top = (y + pad) + "px";
+  }
+  document.addEventListener("pointermove", function(e){
+    var row = e.target.closest ? e.target.closest("[data-tip]") : null;
+    if (row) showTip(row.dataset.tip, e.clientX, e.clientY);
+    else tip.style.display = "none";
+  });
+  document.addEventListener("focusin", function(e){
+    var row = e.target.closest ? e.target.closest("[data-tip]") : null;
+    if (row){ var r = row.getBoundingClientRect(); showTip(row.dataset.tip, r.left, r.bottom); }
+  });
+  document.addEventListener("focusout", function(){ tip.style.display = "none"; });
+
+  /* calendar — month grid built from EVENTS; "today" is the snapshot's Dubai
+     day, never the viewer's clock, so the page shows its own refresh truth */
+  var byDay = {};
+  EVENTS.forEach(function(ev){ (byDay[ev.date] = byDay[ev.date] || []).push(ev); });
+  var MONTHS = ["January","February","March","April","May","June",
+                "July","August","September","October","November","December"];
+  var DOWS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  var base = TODAY ? TODAY.split("-").map(Number) : [2026, 1, 1];
+  var view = { y: base[0], m: base[1] - 1 };
+  var selected = TODAY;
+
+  function iso(y, m, d){
+    return y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  }
+  function renderDetail(){
+    var list = document.getElementById("cal-detail-list");
+    var title = document.getElementById("cal-detail-title");
+    while (list.firstChild) list.removeChild(list.firstChild);
+    title.textContent = selected + (selected === TODAY ? " (today)" : "");
+    var evs = byDay[selected] || [];
+    if (!evs.length){
+      var li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "Nothing on this day.";
+      list.appendChild(li);
+      return;
+    }
+    evs.forEach(function(ev){
+      var li = document.createElement("li");
+      var main = document.createElement("span");
+      main.className = "r-main";
+      var dot = document.createElement("span");
+      dot.className = "dot k-" + ev.kind;
+      main.appendChild(dot);
+      main.appendChild(document.createTextNode(ev.label));  /* untrusted → text node */
+      li.appendChild(main);
+      list.appendChild(li);
+    });
+  }
+  function renderGrid(){
+    var grid = document.getElementById("cal-grid");
+    while (grid.firstChild) grid.removeChild(grid.firstChild);
+    document.getElementById("cal-title").textContent = MONTHS[view.m] + " " + view.y;
+    DOWS.forEach(function(d){
+      var h = document.createElement("div");
+      h.className = "cal-dow"; h.textContent = d;
+      grid.appendChild(h);
+    });
+    var first = new Date(view.y, view.m, 1);
+    var lead = (first.getDay() + 6) % 7;               /* Monday-start week */
+    var days = new Date(view.y, view.m + 1, 0).getDate();
+    for (var i = 0; i < lead; i++){
+      var b = document.createElement("div");
+      b.className = "cal-day blank";
+      grid.appendChild(b);
+    }
+    for (var d = 1; d <= days; d++){
+      (function(d){
+        var key = iso(view.y, view.m, d);
+        var cell = document.createElement("button");
+        cell.className = "cal-day" + (key === TODAY ? " today" : "") + (key === selected ? " sel" : "");
+        cell.setAttribute("aria-label", key);
+        var num = document.createElement("span");
+        num.className = "cal-num"; num.textContent = d;
+        cell.appendChild(num);
+        var evs = byDay[key] || [];
+        if (evs.length){
+          var dots = document.createElement("span");
+          dots.className = "cal-dots";
+          evs.slice(0, 3).forEach(function(ev){
+            var dot = document.createElement("span");
+            dot.className = "dot k-" + ev.kind;
+            dots.appendChild(dot);
+          });
+          if (evs.length > 3){
+            var more = document.createElement("span");
+            more.className = "cal-more"; more.textContent = "+" + (evs.length - 3);
+            dots.appendChild(more);
+          }
+          cell.appendChild(dots);
+        }
+        cell.addEventListener("click", function(){ selected = key; renderGrid(); renderDetail(); });
+        grid.appendChild(cell);
+      })(d);
+    }
+  }
+  var prev = document.getElementById("cal-prev"), next = document.getElementById("cal-next"),
+      home = document.getElementById("cal-today");
+  if (prev) prev.addEventListener("click", function(){ view.m--; if (view.m < 0){ view.m = 11; view.y--; } renderGrid(); });
+  if (next) next.addEventListener("click", function(){ view.m++; if (view.m > 11){ view.m = 0; view.y++; } renderGrid(); });
+  if (home) home.addEventListener("click", function(){ view = { y: base[0], m: base[1] - 1 }; selected = TODAY; renderGrid(); renderDetail(); });
+  if (document.getElementById("cal-grid")){ renderGrid(); renderDetail(); }
 })();
 </script>
 """
@@ -513,34 +906,42 @@ def render_html(snapshot: dict, title: str = "Funnel Auditor — Command Center"
     """Render the full self-contained dashboard fragment from a snapshot.
 
     Validates the load-bearing core first (so a broken skeleton fails loudly),
-    then draws every panel — each degrading to an empty state when its
-    skill-filled data is still null. No external assets: Artifact-ready and
-    browser-openable, matching docs/uae-track/pipeline.html.
+    then draws the summary band, the three tabs, and the calendar data — each
+    panel degrading to an empty state when its skill-filled data is still null.
+    No external assets: Artifact-ready and browser-openable.
     """
     validate_snapshot(snapshot)
 
-    stamp = (f'<span class="stamp">As of <b>{_esc(snapshot.get("generated_at"))}</b> '
-             f'· {_esc(snapshot.get("timezone", "Asia/Dubai"))}</span>')
     header = (
-        '<header><p class="eyebrow">UAE Lead Pipeline · live snapshot</p>'
-        f'<h1>{_esc(title)}</h1>{stamp} '
-        '<button id="themeBtn" style="float:right;font:inherit;font-size:12px;'
-        'padding:4px 10px;border-radius:8px;border:1px solid var(--hair);'
-        'background:var(--surface);color:var(--ink-soft);cursor:pointer;">◐ theme</button>'
-        '</header>'
+        '<header><div>'
+        '<p class="eyebrow">UAE lead pipeline · snapshot</p>'
+        f'<h1>{_esc(title)}</h1>'
+        f'<div class="stamp">As of {_esc(_human_stamp(snapshot.get("generated_at")))}</div>'
+        '</div><button id="themeBtn">◐ Theme</button></header>'
     )
 
-    # Layout: meters + pipeline span the full width up top; the operator panels
-    # flow into the auto-fit grid below them.
-    wide = "".join(
-        panel.replace('<section class="panel">', '<section class="panel wide">', 1)
-        for panel in (_meters(snapshot), _pipeline(snapshot))
+    tabs = (
+        '<div class="tabs" role="tablist">'
+        '<button class="tab" role="tab" data-tab="today" aria-selected="true">Today</button>'
+        '<button class="tab" role="tab" data-tab="calendar" aria-selected="false">Calendar</button>'
+        '<button class="tab" role="tab" data-tab="pipeline" aria-selected="false">Pipeline</button>'
+        '</div>'
     )
-    regular = (
-        _replies(snapshot) + _send_queue(snapshot) + _discovery(snapshot) +
-        _followups(snapshot) + _price_discovery(snapshot) + _scoreboard(snapshot) +
-        _hygiene(snapshot)
+    panels = (
+        f'<div id="panel-today" role="tabpanel">{_today_tab(snapshot)}</div>'
+        f'<div id="panel-calendar" role="tabpanel" hidden>{_calendar_tab()}</div>'
+        f'<div id="panel-pipeline" role="tabpanel" hidden>'
+        f'{_funnel(snapshot)}{_price_discovery(snapshot)}{_scoreboard(snapshot)}</div>'
     )
-    grid = f'<div class="grid">{wide}{regular}</div>'
 
-    return f"<title>{_esc(title)}</title>\n{_STYLE}\n<div class=\"wrap\">{header}{grid}</div>\n{_SCRIPT}"
+    # Embedded data for the client-side calendar. The "<" escape prevents a
+    # label containing "</script>" from terminating the data block early.
+    payload = {"today": snapshot.get("generated_day"), "events": build_events(snapshot)}
+    data_json = json.dumps(payload).replace("<", "\\u003c")
+    data_tag = f'<script type="application/json" id="dash-data">{data_json}</script>'
+
+    return (
+        f"<title>{_esc(title)}</title>\n{_STYLE}\n"
+        f'<div class="wrap">{header}{_alert_banner(snapshot)}{_summary(snapshot)}{tabs}{panels}</div>\n'
+        f"{data_tag}\n{_SCRIPT}"
+    )

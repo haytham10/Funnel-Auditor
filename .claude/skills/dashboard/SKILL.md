@@ -105,6 +105,16 @@ matching snapshot key.
   threads (Reply Received / Price Discovery Sent / Offer Sent with
   `Last Contacted` older than 5 days — see the stalled-threads query in spec §6).
 
+- **`calendar`** — extra dated events for the calendar tab, shape
+  `[{"date": "YYYY-MM-DD", "kind": "touch|send|ramp|other", "label": "..."}]`.
+  The renderer already derives due follow-ups, discovery-due dates, and each
+  inbox's ramp-eligibility day on its own (`build_events` in
+  `audit/dashboard.py`) — only add what it can't see: **scheduled sends** (from
+  the `in:scheduled` sweep, with their departure dates, kind `send`) and
+  **revival bumps** (Dormant leads' future `Next Action`, kind `other`). An
+  unknown kind folds to `other`; a malformed date is dropped, so use real ISO
+  days.
+
 ---
 
 ## Step 3 — fill the Gmail counts + replies (branch by transport)

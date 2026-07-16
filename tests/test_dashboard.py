@@ -1,11 +1,14 @@
 """Tests for the command-center dashboard (audit/dashboard.py):
 
   1. build_skeleton() — the Python-reachable base snapshot: required keys,
-     null-seeded panels, and the fail-closed sent-today count for the
-     direct-API inbox when its credentials are absent.
+     null-seeded panels, ramp-eligibility dates, and the fail-closed
+     sent-today count for the direct-API inbox when its credentials are absent.
   2. validate_snapshot() — rejects a snapshot missing the load-bearing core.
-  3. render_html() — produces a self-contained page (no external assets) from
-     a full fixture, and degrades to empty states on a skeleton-only snapshot.
+  3. build_events() — merges skill-supplied calendar entries with events
+     derived from due follow-ups, the discovery ladder, and ramp dates.
+  4. render_html() — produces a self-contained interactive page (no external
+     assets, tabs + calendar shell + embedded escaped JSON) from a full
+     fixture, and degrades to empty states on a skeleton-only snapshot.
 
 Hermetic: no network. The one gethaytham path is exercised with its env
 credentials cleared, so it raises before any HTTP call (same guarantee as
@@ -54,11 +57,15 @@ def _full_snapshot():
             {"label": "Inbox 1", "address": "haytham@auto-mate.one",
              "send_via": "gmail-mcp", "primary": True, "cap": 25,
              "sent_today": 20, "sent_scheduled": 2, "count_source": "gmail-mcp",
-             "ramp": {"valid": True, "status_lines": ["SEND CAP [Inbox 1]: 25/day", "next step 30/day"]}},
+             "ramp": {"valid": True, "cap": 25, "step_index": 1, "step_of": 3,
+                      "next_step": 30, "eligible_on": "2026-07-23",
+                      "status_lines": ["SEND CAP [Inbox 1]: 25/day"]}},
             {"label": "Inbox 2", "address": "haytham@gethaytham.com",
              "send_via": "gmail-gethaytham", "primary": False, "cap": 20,
              "sent_today": 21, "sent_scheduled": 0, "count_source": "python",
-             "ramp": {"valid": True, "status_lines": ["SEND CAP [Inbox 2]: 20/day"]}},
+             "ramp": {"valid": True, "cap": 20, "step_index": 0, "step_of": 3,
+                      "next_step": 25, "eligible_on": "2026-07-21",
+                      "status_lines": ["SEND CAP [Inbox 2]: 20/day"]}},
         ],
         "pipeline": {"by_status": {
             "Sourced": 12, "Qualifying": 5, "Audit Ready": 3, "Outreach Sent": 8,
@@ -86,6 +93,10 @@ def _full_snapshot():
         "scoreboard": {"Leads cold-touched": 14, "Reply rate": "12%",
                        "Discovery answers": 3, "Offers": 1, "Closes": 0},
         "hygiene": ["Inbox 2 is 1 over ceiling today", "1 lead Draft Ready 6 days, no send"],
+        "calendar": [
+            {"date": "2026-07-17", "kind": "send", "label": "Nadia — opener scheduled (Inbox 1)"},
+            {"date": "2026-07-28", "kind": "revival-bump", "label": "Dormant batch revival"},
+        ],
     }
 
 
@@ -102,7 +113,7 @@ def test_skeleton_seeds_panels_null():
     with _no_gethaytham_creds():
         snap = dashboard.build_skeleton()
     # Every skill-filled panel is present but null, so the skill fills in place.
-    for panel in ("pipeline", "replies", "send_queue", "scoreboard", "hygiene"):
+    for panel in ("pipeline", "replies", "send_queue", "scoreboard", "hygiene", "calendar"):
         assert panel in snap and snap[panel] is None
 
 def test_skeleton_cap_total_is_sum():
@@ -131,6 +142,15 @@ def test_skeleton_gethaytham_fails_closed_without_creds():
         assert m["sent_today"] is None
         assert m["count_source"] == "python"
         assert "count_error" in m  # the missing-creds message, caught not raised
+
+def test_skeleton_ramp_carries_eligibility_date():
+    with _no_gethaytham_creds():
+        snap = dashboard.build_skeleton()
+    for m in snap["inboxes"]:
+        ramp = m["ramp"]
+        if ramp["valid"] and ramp["next_step"]:
+            # set_on + 7 days, as an ISO date the calendar can place.
+            assert ramp["eligible_on"] and len(ramp["eligible_on"]) == 10
 
 
 # --- validate_snapshot ----------------------------------------------------
@@ -161,14 +181,54 @@ def test_validate_accepts_full_snapshot():
     dashboard.validate_snapshot(_full_snapshot())  # must not raise
 
 
+# --- build_events ----------------------------------------------------------
+
+def test_events_merge_all_sources_sorted():
+    evs = dashboard.build_events(_full_snapshot())
+    dates = [e["date"] for e in evs]
+    assert dates == sorted(dates)
+    labels = " | ".join(e["label"] for e in evs)
+    assert "Ari · touch 2" in labels                 # derived from due_followups
+    assert "Sam · discovery question" in labels      # derived from the ladder
+    assert "Inbox 2 ramp" in labels                  # derived from eligible_on
+    assert "Nadia — opener scheduled" in labels      # skill-supplied
+
+def test_events_unknown_kind_folds_to_other():
+    evs = dashboard.build_events(_full_snapshot())
+    revival = [e for e in evs if "revival" in e["label"].lower()]
+    assert revival and revival[0]["kind"] == "other"
+
+def test_events_malformed_dates_dropped():
+    snap = _full_snapshot()
+    snap["calendar"] = [{"date": "not-a-date", "kind": "send", "label": "bad"},
+                        {"date": None, "kind": "send", "label": "worse"}]
+    snap["due_followups"] = []
+    snap["discovery_ladder"] = {}
+    evs = dashboard.build_events(snap)
+    assert all(e["label"] not in ("bad", "worse") for e in evs)
+
+def test_events_from_bare_skeleton():
+    # Even with nothing skill-filled, the ramp dates give the calendar content.
+    with _no_gethaytham_creds():
+        snap = dashboard.build_skeleton()
+    evs = dashboard.build_events(snap)
+    assert all(e["kind"] == "ramp" for e in evs)
+
+
 # --- render_html ----------------------------------------------------------
 
-def test_render_contains_every_panel():
+def test_render_contains_every_section():
     out = dashboard.render_html(_full_snapshot())
-    for marker in ("Sending inboxes", "Pipeline", "Replies", "Send queue",
-                   "Discovery ladder", "Follow-ups due", "Price discovery study",
-                   "Weekly scoreboard", "Hygiene alerts"):
-        assert marker in out, f"panel missing: {marker}"
+    for marker in ("need you today", "Inboxes", "Replies waiting", "Follow-ups due",
+                   "Ready to send", "Discovery ladder", "Pipeline", "Price discovery",
+                   "This week", "cal-grid", "look wrong"):
+        assert marker in out, f"section missing: {marker}"
+
+def test_render_is_interactive_shell():
+    out = dashboard.render_html(_full_snapshot())
+    assert 'role="tab"' in out and 'role="tabpanel"' in out
+    assert 'id="dash-data"' in out          # embedded events for the calendar
+    assert 'data-tip=' in out               # hover tooltips on bar rows
 
 def test_render_is_self_contained():
     out = dashboard.render_html(_full_snapshot())
@@ -176,7 +236,7 @@ def test_render_is_self_contained():
     assert "<title>" in out
     assert "https://" not in out and "http://" not in out
     assert "<link " not in out
-    assert "<script src" not in out and "src=" not in out
+    assert "src=" not in out
 
 def test_render_surfaces_unknown_status():
     out = dashboard.render_html(_full_snapshot())
@@ -184,7 +244,7 @@ def test_render_surfaces_unknown_status():
 
 def test_render_flags_over_ceiling():
     out = dashboard.render_html(_full_snapshot())
-    assert "OVER CEILING" in out  # Inbox 2 sent 21 > cap 20
+    assert "over ceiling by 1" in out  # Inbox 2 sent 21 > cap 20
 
 def test_render_escapes_html():
     snap = _full_snapshot()
@@ -194,12 +254,23 @@ def test_render_escapes_html():
     assert "<script>alert(1)</script>" not in out
     assert "&lt;script&gt;" in out
 
+def test_render_embedded_json_cannot_break_out():
+    # A calendar label containing "</script>" must not terminate the data
+    # block — "<" is escaped to \\u003c inside the embedded JSON.
+    snap = _full_snapshot()
+    snap["calendar"] = [{"date": "2026-07-20", "kind": "send",
+                         "label": "evil </script><script>x()"}]
+    out = dashboard.render_html(snap)
+    assert "evil </script>" not in out
+    assert "\\u003c/script>" in out
+
 def test_render_skeleton_degrades_to_empty_states():
     with _no_gethaytham_creds():
         snap = dashboard.build_skeleton()
     out = dashboard.render_html(snap)
-    assert "Sending inboxes" in out  # the Python-filled panel renders
-    assert "Awaiting" in out  # the null skill panels show empty states, not a crash
+    assert "Inboxes" in out    # the Python-filled panel renders
+    assert "Awaiting" in out   # the null skill panels show empty states, not a crash
+    assert "cal-grid" in out   # the calendar shell still ships (ramp events exist)
 
 def test_render_bad_snapshot_raises():
     try:
