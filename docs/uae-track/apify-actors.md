@@ -123,6 +123,15 @@ first rather than assume the quota is open.
   `apify li-profile --email` to surface a founder-direct address, then
   `apify verify-email` to confirm it before it's logged. `email-verifier`
   only *checks* an address; it does not *find* one.
+- **No-email leads, nominative fallback** — when nothing surfaces above,
+  `python main.py email-enrich "<name>" <Site URL>` derives name-based
+  candidates against the lead's OWN branded domain (jane@, jane.doe@, jdoe@…)
+  and verifies them all in ONE batched `verify-email` run, adopting at most
+  one deliverable address. It never guesses on a free-provider domain
+  (gmail/outlook/…), and never auto-adopts on a catch-all domain (every guess
+  returns `catch_all` → WARN → HOLD, so no specific mailbox is confirmable).
+  A `PASS` line is by construction an `EMAIL VERIFY: PASS` on the adopted
+  address. See `audit/email_enrich.py`.
 
 ## Examples
 
@@ -136,6 +145,9 @@ python main.py apify li-profile "https://ae.linkedin.com/in/douglambert..."
 # Find an address for a no-email lead, then confirm it
 python main.py apify li-profile "<profile url>" --email
 python main.py apify verify-email "found@lead.com"
+
+# No address surfaced anywhere → nominative fallback (name + own domain)
+python main.py email-enrich "Jane Doe" "https://janedoe.com"
 
 # IG recent posts with captions, last 60 days
 python main.py apify ig "https://www.instagram.com/<handle>/" --newer-than "60 days"

@@ -29,8 +29,9 @@ rows first (`Gate 0` = 'Pass' AND `Gate 1` = 'Pass'), then rows whose
 gates are still 'Not checked' (the lead-processor enforces Gate 0 floors
 itself either way), newest first. If Haytham named specific leads or said
 "today's", filter accordingly. Skip rows whose Notes first line says an
-email/address problem is waiting on HIS manual step — re-running the walk
-won't fix those.
+email/address problem is waiting on HIS manual step (e.g. "email not found —
+enrichment attempted, no verified candidate; freebie opt-in needed") —
+the walk already ran nominative enrichment, so re-running it won't fix those.
 
 Also list rows with NO Site URL at the end as "need the site link" —
 never try to fill it from anything but a public web search.

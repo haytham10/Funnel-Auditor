@@ -57,7 +57,7 @@ SQLite table name is the data source URL, quoted:
 | --- | --- | --- |
 | `Contact Name` | title | |
 | `Email` | email | Required before any send. |
-| `Email Verified` | checkbox | **SEND GATE.** `__YES__` / `__NO__` in SQL. Checked only after `python main.py email-verify <addr>` prints PASS (deliverability confirmed, not just syntax+MX — a bounce burns the one shared domain), or Haytham checks it by hand to accept a catch_all/unknown risk. `crm-gate send` fails closed on this. |
+| `Email Verified` | checkbox | **SEND GATE.** `__YES__` / `__NO__` in SQL. Checked only after `python main.py email-verify <addr>` prints PASS (deliverability confirmed, not just syntax+MX — a bounce burns the one shared domain), or `python main.py email-enrich` prints `EMAIL ENRICH: PASS` on a name-guessed address it adopted (that line IS a verify PASS on the adopted mailbox), or Haytham checks it by hand to accept a catch_all/unknown risk. `crm-gate send` fails closed on this. |
 | `Phone Number` | phone_number | Decision-maker phone / WhatsApp if publicly listed. Optional; enables the WhatsApp pivot on warm trust-verification threads. |
 | `Site URL` | url | Funnel entry point. |
 | `Profile URL` | url | LinkedIn / wherever found. |

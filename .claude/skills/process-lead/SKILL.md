@@ -370,16 +370,36 @@ free `email-check` may already have a candidate):
 2. Generic (info@/contact@) → use only if nothing better.
 3. Nothing harvested → web search (`"[name]" email contact`), LinkedIn
    contact info if publicly visible, podcast/YouTube show notes.
-4. Still nothing → set Notes first line "email not found — freebie opt-in
-   or pattern-guess+verify needed" and leave Status = Qualifying. The
-   freebie opt-in and verification are Haytham's manual steps.
+4. Still nothing → **nominative enrichment** (the automated fallback, run it
+   before giving up): derive name-based candidates against the lead's own
+   branded domain and verify them in one batched call:
+   ```bash
+   python main.py email-enrich "<Contact Name>" <Site URL>
+   ```
+   Quote the literal `EMAIL ENRICH:` line and act on it:
+   - **`EMAIL ENRICH: PASS`** → the printed address is the adopted, verified
+     mailbox. It is by construction an `EMAIL VERIFY: PASS`, so write it to
+     `Email` and check the `Email Verified` box (skip the separate
+     `email-verify` in check (b) — it is already done). Note in the row body
+     that the address was enrichment-derived (audit trail). The engine already
+     converged to ONE address; never send two spellings.
+   - **`EMAIL ENRICH: HOLD`** (catch-all/inconclusive domain, or Apify
+     unavailable) → no confirmable mailbox; fall through to the manual note.
+   - **`EMAIL ENRICH: NONE`** (nothing verified, or a free-provider domain
+     that can't be guessed) → fall through to the manual note.
+   Skip enrichment for a Lane 2/3 lead — it never gets a cold send, so don't
+   spend an Apify call.
+5. Enrichment came up empty (HOLD/NONE) → set Notes first line "email not
+   found — enrichment attempted, no verified candidate; freebie opt-in
+   needed" and leave Status = Qualifying. The freebie opt-in is Haytham's
+   manual step.
 
 **Two checks, in order — the first is free, the second is the send gate:**
 
 a. **Shape (free):** `python main.py email-check <address> --name "<Contact
    Name>"` — quote the line. FAIL (typo/dead domain, no-reply, disposable)
    = unusable, never enters the Email property: keep hunting or fall to
-   step 4. PASS/WARN = well-formed enough to verify.
+   step 4 (enrichment). PASS/WARN = well-formed enough to verify.
 
 b. **Deliverability (Lane 1 only — this is the gate):** for a Lane 1 lead
    that will actually get a send, confirm the mailbox accepts mail BEFORE
@@ -394,7 +414,8 @@ b. **Deliverability (Lane 1 only — this is the gate):** for a Lane 1 lead
    - **`EMAIL VERIFY: PASS`** → check the `Email Verified` box on the row.
      This is the only thing that checks it automatically.
    - **`EMAIL VERIFY: FAIL`** (invalid/disposable) → the address bounces;
-     do NOT log it as sendable. Keep hunting (step 3) or fall to step 4.
+     do NOT log it as sendable. Keep hunting (step 3) or fall to step 4
+     (enrichment).
    - **`EMAIL VERIFY: WARN`** (catch_all/unknown, or Apify unavailable) →
      leave `Email Verified` unchecked; Notes first line "deliverability
      inconclusive (<reason>) — Haytham's call before send." Not

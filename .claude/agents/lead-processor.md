@@ -82,9 +82,16 @@ including every skill it chains into (`haytham-opener-finder`,
    Audit Ready; FAIL → the address bounces, keep hunting or leave it
    unfound; WARN (catch_all/unknown/Apify down) → leave `Email Verified`
    unchecked, hold at Qualifying, Notes "deliverability inconclusive —
-   Haytham's call." **Audit Ready requires BOTH `Finding Verified` and
+   Haytham's call." **If the tree finds NO address at all** (Lane 1), run the
+   nominative fallback before giving up: `python main.py email-enrich "<name>"
+   <Site URL>`. `EMAIL ENRICH: PASS` = an adopted, verified address (it IS an
+   `EMAIL VERIFY: PASS`) → write `Email`, check `Email Verified`, note it was
+   enrichment-derived; `HOLD`/`NONE` → leave it unfound, hold at Qualifying.
+   The engine already converged to ONE address — never send two spellings.
+   **Audit Ready requires BOTH `Finding Verified` and
    `Email Verified` checked** — otherwise the lead holds at Qualifying with
-   the reason. Skip email-verify for Lane 2/3 (they never send). Then check
+   the reason. Skip email-verify/email-enrich for Lane 2/3 (they never send).
+   Then check
    the `SMYKM hook:` line you just wrote in step 4 — it will read `not run
    yet — see
    haytham-hook-finder`, since you never find a hook yourself (see hard
@@ -122,7 +129,9 @@ including every skill it chains into (`haytham-opener-finder`,
 - **Apify is capped to one attempt per purpose, if used at all.** If your
   prompt didn't already tell you Apify is at/near its monthly cap for this
   run, you may spend at most one call for the audience floor (pre-flight /
-  Step 0.5) and, for a Lane 1 lead, one `email-verify` call (Step 5). An
+  Step 0.5) and, for a Lane 1 lead, one deliverability call in Step 5 —
+  either `email-verify` on a found address OR one `email-enrich` batch when
+  no address was found (they are alternatives, never both). An
   error (quota, timeout, anything) means "unconfirmed — Apify unavailable"
   in Notes, not a retry against a second actor. `email-verify` is now run
   during the walk for Lane 1 leads (it moved off Touch 1) — that is the
@@ -145,10 +154,12 @@ FINDING VERIFIED: <checked | unchecked — must match the Notion property you se
 INNOCENT: <the innocent explanation, or "n/a">
 SMYKM: <always "not run yet — see haytham-hook-finder" from this flow; you
   do not find a hook yourself, see hard rules>
-EMAIL: <address + source, or "not found — <next manual step>">
-EMAIL VERIFIED: <Lane 1: the literal `EMAIL VERIFY: PASS|WARN|FAIL` line +
-  whether you checked the box | "n/a (Lane 2/3, not verified)" | "n/a (no
-  address)">
+EMAIL: <address + source (source is "harvested"/"search"/"enriched (guessed
+  <pattern>)"), or "not found — <next manual step>">
+EMAIL VERIFIED: <Lane 1: the literal `EMAIL VERIFY: PASS|WARN|FAIL` line, OR
+  the `EMAIL ENRICH: PASS|HOLD|NONE` line when the address came from
+  enrichment, + whether you checked the box | "n/a (Lane 2/3, not verified)"
+  | "n/a (no address)">
 DRAFT: <for Lane 1, always "held — needs haytham-hook-finder" (you never
   draft on a fresh "not run yet" hook line, regardless of address status) |
   "n/a (Lane 2 warm-up hold)" | "n/a (parked)">
