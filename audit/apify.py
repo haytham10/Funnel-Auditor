@@ -19,6 +19,15 @@ connected. This layer is deliberately small: the five Haytham-vetted
 actors below and nothing else. Adding actors is surface area and cost, not
 capability.
 
+Email verification and Google-footprint sourcing no longer default to this
+layer (2026-07-17, after the free plan's small monthly USD cap kept getting
+hit). `verify_emails`/`google_search`/`footprint_search` below still work
+and stay as a manual fallback, but the default paths are now
+`audit/email_verifier.py` (ZeroBounce, its own free tier, no Apify billing)
+and `audit/footprint.py` fed by Firecrawl search (`main.py
+classify-footprint`) — both keep the monthly cap free for LinkedIn/
+Instagram, the one thing Firecrawl genuinely can't reach.
+
 ## The actor set (vetted; do not expand casually)
 
     ig          apify/instagram-scraper                 profile details + recent posts w/ captions (date-filterable); post detail
@@ -65,6 +74,13 @@ import os
 from typing import Any
 
 import requests
+
+from audit.footprint import (  # re-exported for backward compat (tests import these off `apify`)
+    PLATFORM_FOOTPRINTS,
+    _host_of,
+    _is_footprint_noise,
+    classify_footprint_hits,
+)
 
 APIFY_BASE = "https://api.apify.com/v2"
 
@@ -404,123 +420,38 @@ def google_search(query: str, pages: int = 1, site: str | None = None,
     }
 
 
-# Platform footprints for the source-leads Google-footprint channel. Each
-# platform hides under two different, non-overlapping search shapes:
-#   - `domain`: the shared platform subdomain. `site:mykajabi.com coach
-#     Dubai` catches coaches still on the FREE default subdomain — usually
-#     the less-established end.
-#   - `marker`: the "Powered by X" footer signature every hosted funnel
-#     carries. `"powered by kajabi" coach Dubai` (NO site restriction)
-#     catches coaches on a CUSTOM domain still running the platform — the
-#     more-invested, often better end, which the subdomain query is 100%
-#     blind to (confirmed 2026-07-16: the subdomain and footer-signature
-#     result sets barely overlapped, and achievher.com — a real Dubai
-#     somatic coach on a custom domain — surfaced ONLY via the marker).
-# Skool is community-first: its URLs are skool.com/<group> and it has no
-# per-site funnel footer, so only the domain shape applies (marker None).
-PLATFORM_FOOTPRINTS = {
-    "kajabi":    {"domain": "mykajabi.com",  "marker": "powered by kajabi"},
-    "teachable": {"domain": "teachable.com", "marker": "powered by teachable"},
-    "thinkific": {"domain": "thinkific.com", "marker": "powered by thinkific"},
-    "podia":     {"domain": "podia.com",     "marker": "powered by podia"},
-    "systeme":   {"domain": "systeme.io",    "marker": "powered by systeme.io"},
-    "kartra":    {"domain": "kartra.com",    "marker": "powered by kartra"},
-    "skool":     {"domain": "skool.com",     "marker": None},
-}
-
-
 def footprint_search(platform: str, geo: str = "Dubai", role: str = "coach",
                      country: str | None = "ae", raw: bool = False) -> dict:
-    """Work one platform's Google footprint via BOTH query shapes and merge.
+    """Work one platform's Google footprint via BOTH query shapes and merge —
+    the Apify-backed path (fetches through `google_search`, which draws on
+    the shared monthly USD cap). Prefer `main.py classify-footprint`
+    (Firecrawl-fed, `audit/footprint.py`) instead; this stays as a manual
+    fallback for when Firecrawl search is unavailable.
 
     Runs the subdomain query (`site:<domain> <role> <geo>`) and, when the
     platform has one, the footer-signature query (`"powered by <platform>"
-    <role> <geo>`, un-site-scoped so custom domains surface). Dedupes hits
-    by URL across both, tags each with `foundVia` ("subdomain"|"footprint")
-    and `platform`, and drops the obvious non-funnel noise the wider
-    footer-signature net drags in (social posts, the platform's own site).
+    <role> <geo>`, un-site-scoped so custom domains surface), then hands
+    both hit lists to `audit.footprint.classify_footprint_hits` for the
+    dedupe/noise-filter/tagging — see that module for the merge logic.
 
     Returns {"platform", "geo", "hits": [...], "subdomain_count",
     "footprint_count", "queries": [...]}. Two apify calls per platform (one
     if it has no marker); at ~$0.002/call the whole platform set is a few
     tenths of a cent.
     """
-    platform = platform.lower().strip()
-    fp = PLATFORM_FOOTPRINTS.get(platform)
+    key = platform.lower().strip()
+    fp = PLATFORM_FOOTPRINTS.get(key)
     if not fp:
         raise ApifyError(
-            f"unknown platform {platform!r}; known: {', '.join(PLATFORM_FOOTPRINTS)}"
+            f"unknown platform {key!r}; known: {', '.join(PLATFORM_FOOTPRINTS)}"
         )
 
-    domain = fp["domain"]
-    marker = fp["marker"]
-    queries: list[str] = []
-
-    # Dedup by host, not full URL — one candidate per site. achievher.com/
-    # and achievher.com/login are the same coach; a coach's distinct
-    # *.mykajabi.com subdomain keeps its own host, so different free-tier
-    # coaches never collapse into each other.
-    by_host: dict[str, dict] = {}
-    sub_n = fp_n = 0
-
-    # 1) Subdomain shape — coaches on the free default subdomain.
     sub_q = f"{role} {geo}"
-    queries.append(f"site:{domain} {sub_q}")
-    for h in google_search(sub_q, site=domain, country=country):
-        if not isinstance(h, dict) or not h.get("url"):
-            continue
-        host = _host_of(h["url"])
-        if host and host not in by_host:
-            by_host[host] = {**h, "foundVia": "subdomain", "platform": platform}
-            sub_n += 1
+    subdomain_hits = google_search(sub_q, site=fp["domain"], country=country)
 
-    # 2) Footer-signature shape — custom-domain coaches the subdomain misses.
-    if marker:
-        fp_q = f'"{marker}" {role} {geo}'
-        queries.append(fp_q)
-        for h in google_search(fp_q, country=country):
-            url = h.get("url", "") if isinstance(h, dict) else ""
-            if not url or _is_footprint_noise(url):
-                continue
-            host = _host_of(url)
-            if host and host not in by_host:
-                by_host[host] = {**h, "foundVia": "footprint", "platform": platform}
-                fp_n += 1
+    marker_hits: list[dict] = []
+    if fp["marker"]:
+        fp_q = f'"{fp["marker"]}" {role} {geo}'
+        marker_hits = google_search(fp_q, country=country)
 
-    return {
-        "platform": platform,
-        "geo": geo,
-        "queries": queries,
-        "subdomain_count": sub_n,
-        "footprint_count": fp_n,
-        "hits": list(by_host.values()),
-    }
-
-
-def _host_of(url: str) -> str:
-    """Bare host (lowercased, no scheme/path/www) for per-site dedup."""
-    u = url.split("://", 1)[-1]
-    host = u.split("/", 1)[0].lower()
-    return host[4:] if host.startswith("www.") else host
-
-
-# Hosts the footer-signature net drags in that are never a coach's own
-# funnel — their own platform marketing, and social/marketplace posts that
-# merely mention the platform.
-_FOOTPRINT_NOISE_HOSTS = (
-    "kajabi.com", "teachable.com", "thinkific.com", "podia.com",
-    "systeme.io", "kartra.com", "skool.com",
-    "instagram.com", "facebook.com", "linkedin.com", "youtube.com",
-    "twitter.com", "x.com", "tiktok.com", "pinterest.com", "reddit.com",
-    "medium.com", "trustpilot.com", "g2.com", "capterra.com",
-)
-
-
-def _is_footprint_noise(url: str) -> bool:
-    u = url.lower()
-    # The platform's OWN root domain is noise; a coach's *.mykajabi.com
-    # subdomain is not (that's a real free-tier funnel).
-    for host in _FOOTPRINT_NOISE_HOSTS:
-        if f"//{host}/" in u or f"//www.{host}/" in u or u.rstrip("/").endswith(f"//{host}"):
-            return True
-    return False
+    return classify_footprint_hits(key, subdomain_hits, marker_hits, geo=geo, role=role)

@@ -199,7 +199,12 @@ def print_check(address: str, lead_name: str = "") -> int:
 # So the classifier fails SAFE — anything not provably deliverable is WARN,
 # never silently promoted to PASS.
 
-# MillionVerifier result vocabulary → what it means for sending.
+# Result vocabulary → what it means for sending. Covers both MillionVerifier
+# (the original Apify-backed verifier) and ZeroBounce (the current default,
+# audit/email_verifier.py) — the two providers' tokens overlap almost
+# entirely; where they differ (catch_all vs catch-all) both spellings are
+# listed rather than normalizing, so a provider swap never silently drops a
+# token into the "unrecognized" fail-safe WARN bucket.
 _VERIFY_DELIVERABLE = {"ok", "valid", "deliverable"}
 _VERIFY_UNDELIVERABLE = {
     "invalid": "mailbox does not exist — this is the hard-bounce case, never send here",
@@ -207,12 +212,16 @@ _VERIFY_UNDELIVERABLE = {
     "disabled": "mailbox is disabled — mail will bounce",
     "spamtrap": "known spam trap — sending here damages the domain",
     "abuse": "flagged abuse/complainer address — do not send",
+    "do_not_mail": "flagged do-not-mail (role/complainer/toxic) — sending here risks "
+                   "a complaint or deliverability hit, never send",
 }
 _VERIFY_INCONCLUSIVE = {
     "catch_all": "domain accepts all addresses, so this specific mailbox can't be "
                  "confirmed — a real bounce risk; Haytham's call before send",
     "catchall": "domain accepts all addresses, so this specific mailbox can't be "
                 "confirmed — a real bounce risk; Haytham's call before send",
+    "catch-all": "domain accepts all addresses, so this specific mailbox can't be "
+                 "confirmed — a real bounce risk; Haytham's call before send",
     "unknown": "verifier could not determine deliverability — inconclusive, "
                "not a confirmed-good address",
     "error": "verifier errored on this address — inconclusive, try again or verify by hand",

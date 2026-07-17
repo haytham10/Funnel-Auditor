@@ -383,12 +383,13 @@ free `email-check` may already have a candidate):
      `email-verify` in check (b) — it is already done). Note in the row body
      that the address was enrichment-derived (audit trail). The engine already
      converged to ONE address; never send two spellings.
-   - **`EMAIL ENRICH: HOLD`** (catch-all/inconclusive domain, or Apify
-     unavailable) → no confirmable mailbox; fall through to the manual note.
+   - **`EMAIL ENRICH: HOLD`** (catch-all/inconclusive domain, or the
+     verifier unavailable) → no confirmable mailbox; fall through to the
+     manual note.
    - **`EMAIL ENRICH: NONE`** (nothing verified, or a free-provider domain
      that can't be guessed) → fall through to the manual note.
    Skip enrichment for a Lane 2/3 lead — it never gets a cold send, so don't
-   spend an Apify call.
+   spend a verify call.
 5. Enrichment came up empty (HOLD/NONE) → set Notes first line "email not
    found — enrichment attempted, no verified candidate; freebie opt-in
    needed" and leave Status = Qualifying. The freebie opt-in is Haytham's
@@ -409,21 +410,21 @@ b. **Deliverability (Lane 1 only — this is the gate):** for a Lane 1 lead
    ```bash
    python main.py email-verify <address>
    ```
-   (one address, one Apify call; skip only if `python main.py apify limits`
-   is `near_cap`, and say so). Act on the literal line:
+   (one address, one ZeroBounce call — the free tier covers normal volume,
+   no Apify involved). Act on the literal line:
    - **`EMAIL VERIFY: PASS`** → check the `Email Verified` box on the row.
      This is the only thing that checks it automatically.
    - **`EMAIL VERIFY: FAIL`** (invalid/disposable) → the address bounces;
      do NOT log it as sendable. Keep hunting (step 3) or fall to step 4
      (enrichment).
-   - **`EMAIL VERIFY: WARN`** (catch_all/unknown, or Apify unavailable) →
-     leave `Email Verified` unchecked; Notes first line "deliverability
-     inconclusive (<reason>) — Haytham's call before send." Not
-     auto-sendable; he finds a better address or checks the box by hand to
-     accept the risk.
+   - **`EMAIL VERIFY: WARN`** (catch_all/unknown, or the verifier
+     unavailable) → leave `Email Verified` unchecked; Notes first line
+     "deliverability inconclusive (<reason>) — Haytham's call before
+     send." Not auto-sendable; he finds a better address or checks the box
+     by hand to accept the risk.
 
-   Skip (b) for Lane 2/3 — they never get a cold send, so don't spend an
-   Apify call verifying them.
+   Skip (b) for Lane 2/3 — they never get a cold send, so don't spend a
+   verify call on them.
 
 **Status promotion (Lane 1):** a lead reaches **Audit Ready** only when
 BOTH `Finding Verified` and `Email Verified` are checked. If the address is

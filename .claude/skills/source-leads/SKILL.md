@@ -1,6 +1,6 @@
 ---
 name: source-leads
-description: Fill and keep filling the UAE Lead CRM's top of funnel. One job — collect raw candidates into the CRM as Sourced (name + a reachable link + audience size when findable), no judgment, no funnel walks, no gating. Sourcing is DYNAMIC — work whatever vein is producing UAE solo coaches with an audience and a way to get paid; the channel is not the point and there is no fixed rotation to follow. Two volume profiles — a bootstrap run (one-time, 60-70 raw names to fill an empty CRM) and top-up (the everyday tap: a small, repeatable run you fire any day). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a place to look. Works web search/scrape (Firecrawl), platform + link-in-bio footprints, and read-only no-login Apify actors (Google SERP, LinkedIn, Instagram) — it never logs in anywhere and never acts as Haytham on any platform. It does NOT qualify or gate the rows it logs — that is the separate `qualify-leads` skill — and it does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
+description: Fill and keep filling the UAE Lead CRM's top of funnel. One job — collect raw candidates into the CRM as Sourced (name + a reachable link + audience size when findable), no judgment, no funnel walks, no gating. Sourcing is DYNAMIC — work whatever vein is producing UAE solo coaches with an audience and a way to get paid; the channel is not the point and there is no fixed rotation to follow. Two volume profiles — a bootstrap run (one-time, 60-70 raw names to fill an empty CRM) and top-up (the everyday tap: a small, repeatable run you fire any day). Use WHENEVER Haytham says "source leads," "sourcing day," "fill the pipeline," "top up," "source me 20," "find more coaches," "grab some fresh leads," or names a place to look. Works web search/scrape and Google-footprint sourcing via Firecrawl, platform + link-in-bio footprints, and read-only no-login Apify actors for LinkedIn/Instagram — it never logs in anywhere and never acts as Haytham on any platform. It does NOT qualify or gate the rows it logs — that is the separate `qualify-leads` skill — and it does not walk funnels (that's batch-audit/process-lead after qualifying) and it never sends anything.
 ---
 
 # Source Leads — the sourcing engine, as a skill
@@ -48,13 +48,13 @@ Full targeting spec: `docs/uae-track/03-targeting-and-sourcing.md`.
 in one SQL query at the start of the run. Skip anything already logged,
 in any status. Never create a duplicate row.
 
-**Check the Apify quota once, up front, if this run will touch an Apify
-actor** (`footprint`, `search`, `ig`, `li-posts`, `li-profile`):
-`python main.py apify limits`. `search`/`footprint` are cheap
-(~$0.002 per search call); **Instagram is the pricey actor** — use it
-sparingly. All of them draw off the same small monthly USD budget. If
-`near_cap` is `true`, skip the Apify actors for the whole run and work on
-`firecrawl_search` alone — note it in the run report, don't silently
+**Check the Apify quota once, up front, if this run will touch LinkedIn or
+Instagram** (`ig`, `li-posts`, `li-profile` — the only Apify actors this
+skill still calls by default; Google-footprint sourcing runs on Firecrawl
++ `classify-footprint` now, off Apify entirely): `python main.py apify
+limits`. **Instagram is the pricey actor** — use it sparingly. If
+`near_cap` is `true`, skip those two actors for the whole run and work on
+Firecrawl signal alone — note it in the run report, don't silently
 degrade.
 
 ---
@@ -73,18 +73,20 @@ Productive veins (reach for `firecrawl_search`/`firecrawl_scrape` first;
 the no-login Apify actors where noted):
 
 - **Platform footprint.** A platform footprint IS a funnel, so a hit here
-  is pre-passed on the funnel floor. `python main.py apify footprint
-  <platform> --geo <Dubai|Abu Dhabi|Sharjah|UAE> [--role coach]` runs two
-  shapes and merges them: **subdomain** (`site:mykajabi.com coach Dubai`,
-  free-tier coaches) and **footer signature** (`"powered by kajabi" coach
-  Dubai`, custom-domain coaches the subdomain query is blind to — how
-  achievher.com surfaced). Platforms: kajabi/teachable/thinkific/podia/
-  systeme/kartra/skool. Run `firecrawl_search` on the footer query
-  alongside it (near-different result sets, merge both). Each Apify hit is
-  tagged `foundVia`/`emphasizedKeywords` (the false-positive filter — a
-  footer hit whose keywords actually contain "Powered by <platform>" is
-  real). `--meta` on `apify search` pulls relatedQueries/peopleAlsoAsk when
-  a query runs thin.
+  is pre-passed on the funnel floor. Run BOTH query shapes through
+  `firecrawl_search` (no Apify cost) — **subdomain** (`site:mykajabi.com
+  coach Dubai`, free-tier coaches) and **footer signature** (`"powered by
+  kajabi" coach Dubai`, custom-domain coaches the subdomain query is blind
+  to — how achievher.com surfaced) — save each result set to a JSON file,
+  then run `python main.py classify-footprint <platform> --subdomain-hits
+  <file> --marker-hits <file> --geo <Dubai|Abu Dhabi|Sharjah|UAE> [--role
+  coach]` to dedupe by host, tag each hit `foundVia`, and drop the
+  platform's-own-site/social noise the wider footer net drags in.
+  Platforms: kajabi/teachable/thinkific/podia/systeme/kartra/skool.
+  `apify footprint <platform>` (the original Apify-fetched path) still
+  works as a manual fallback if Firecrawl search is itself unavailable —
+  don't reach for it by default, it draws on Apify's small monthly cap for
+  no reason now.
 - **Link-in-bio footprint.** Where the IG/DM-native coaches keep their
   money page. `site:stan.store`, `site:beacons.ai`, `site:linktr.ee` +
   coach + emirate/niche via `firecrawl_search`. The link-in-bio page **is**
