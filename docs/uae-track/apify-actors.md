@@ -34,10 +34,21 @@ it:
   costs nothing extra.
 
 `apify.verify_emails` / `apify.google_search` / `apify.footprint_search`
-still work exactly as before and remain a manual fallback (e.g. if
-ZeroBounce or Firecrawl search is unavailable) — just not the default path
-a skill reaches for. This keeps the whole free-tier monthly cap available
+are all still fully wired, untouched — nothing was removed, only the
+*default* changed. This keeps the whole free-tier monthly cap available
 for the one thing with no substitute: LinkedIn and Instagram.
+
+**Switching email verification back to Apify (once there's Apify budget
+again) is a one-line env var, no code change:** set
+`EMAIL_VERIFY_PROVIDER=apify` and `main.py email-verify`/`email-enrich`
+go straight back to `apify.verify_emails`/MillionVerifier — see
+`_email_verifier()` in `main.py`. Unset (or `zerobounce`, the default)
+keeps ZeroBounce.
+
+For Google-footprint sourcing there's no env var needed at all: `apify
+footprint <platform>` and `apify search` were never touched and work
+exactly as before — switching back is just telling `source-leads` to
+reach for those instead of `firecrawl_search` + `classify-footprint`.
 
 ## The token
 

@@ -499,16 +499,34 @@ def cmd_email_check(args) -> None:
     sys.exit(email_check.print_check(args.address, args.name or ""))
 
 
+def _email_verifier():
+    """Which verifier `email-verify`/`email-enrich` use — a one-line switch,
+    no code edit needed. Reads `EMAIL_VERIFY_PROVIDER` (default "zerobounce";
+    set to "apify" to go back to `apify.verify_emails`/MillionVerifier once
+    there's Apify budget again — both providers stay fully wired, this just
+    picks which one is default). Returns (verify_fn, error_class)."""
+    import os
+    provider = os.environ.get("EMAIL_VERIFY_PROVIDER", "zerobounce").strip().lower()
+    if provider == "apify":
+        from audit import apify
+        return apify.verify_emails, apify.ApifyError
+    from audit import email_verifier
+    return email_verifier.verify_emails, email_verifier.EmailVerifierError
+
+
 def cmd_email_verify(args) -> None:
-    """Deliverability verification (ZeroBounce, audit/email_verifier.py) as a
-    quotable gate line. This is the confirm step before `Email Verified` is
-    checked and the lead becomes sendable — syntax+MX (email-check) is not
-    enough, one real bounce burns the domain. One address, one attempt; a
-    verifier error is inconclusive (WARN), never a silent pass."""
-    from audit import email_check, email_verifier
+    """Deliverability verification as a quotable gate line — ZeroBounce by
+    default, or Apify/MillionVerifier if `EMAIL_VERIFY_PROVIDER=apify` (see
+    `_email_verifier` above). This is the confirm step before `Email
+    Verified` is checked and the lead becomes sendable — syntax+MX
+    (email-check) is not enough, one real bounce burns the domain. One
+    address, one attempt; a verifier error is inconclusive (WARN), never a
+    silent pass."""
+    from audit import email_check
+    verify_fn, error_cls = _email_verifier()
     try:
-        rows = email_verifier.verify_emails([args.address])
-    except email_verifier.EmailVerifierError as exc:
+        rows = verify_fn([args.address])
+    except error_cls as exc:
         print(f"EMAIL VERIFY: WARN — {args.address}: verifier unavailable "
               f"({exc}) — inconclusive, could not confirm deliverability")
         sys.exit(0)
@@ -523,13 +541,15 @@ def cmd_email_enrich(args) -> None:
     deliverable address (never two guessed spellings, never a catch-all guess,
     never a free-provider domain). A PASS line here IS an `EMAIL VERIFY: PASS` on
     the adopted address — authorization to write `Email` and check `Email
-    Verified`. Fails closed: a verifier error is inconclusive (HOLD), never a
-    silent adoption."""
-    from audit import email_enrich, email_verifier
+    Verified`. Same `EMAIL_VERIFY_PROVIDER` switch as `email-verify` (see
+    `_email_verifier`). Fails closed: a verifier error is inconclusive
+    (HOLD), never a silent adoption."""
+    from audit import email_enrich
     from audit.urls import registrable_domain
+    verify_fn, error_cls = _email_verifier()
     try:
-        sys.exit(email_enrich.print_enrich(args.name, args.domain))
-    except email_verifier.EmailVerifierError as exc:
+        sys.exit(email_enrich.print_enrich(args.name, args.domain, verifier=verify_fn))
+    except error_cls as exc:
         print(f"EMAIL ENRICH: HOLD — {registrable_domain(args.domain) or args.domain}: "
               f"verifier unavailable ({exc}) — inconclusive, no candidate confirmed")
         sys.exit(0)

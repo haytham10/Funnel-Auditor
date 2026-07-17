@@ -223,8 +223,10 @@ scores to `docs/deliverability-log.md`.
   mailbox bounces, never send; WARN (catch_all/unknown) = Haytham's call.
   It exists because `email-check` PASS is syntax+MX only and cleared two
   addresses that then hard-bounced at Touch 1, and a bounce burns the one
-  shared domain. `apify verify-email` (MillionVerifier) remains a manual
-  fallback.
+  shared domain. `apify verify-email` (MillionVerifier) is fully wired too,
+  untouched — set `EMAIL_VERIFY_PROVIDER=apify` (`main.py`'s
+  `_email_verifier()`) to switch both `email-verify` and `email-enrich`
+  back to it in one line, no code change, once there's Apify budget again.
 - `main.py email-enrich "<name>" <domain-or-site-url>` — the no-email
   fallback stage (`audit/email_enrich.py`). When the walk harvests no
   address, it derives ranked name-based candidates against the lead's OWN
