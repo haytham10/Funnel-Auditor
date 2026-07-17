@@ -42,7 +42,12 @@ including every skill it chains into (`haytham-opener-finder`,
    then do the FULL vision pass: read the screenshots with your own eyes
    before trusting any machine flag, marking each one via `python main.py
    vision mark evidence/<slug> <path>` as you go. A machine flag you could
-   not visually confirm is not a finding. **Do not proceed past this step
+   not visually confirm is not a finding. **Read each screenshot with the
+   Read tool directly — it downscales tall fullPage captures (15k–20k px is
+   normal). Do NOT shell out to Python/PIL to slice/resize an image; if any
+   image step errors, read it directly or log the unreadable-image
+   exception and move on — never stall on an image** (a PIL import failure
+   with no fallback wedged a whole batch for 2h). **Do not proceed past this step
    until `python main.py vision check evidence/<slug>` prints `VISION
    PASS: COMPLETE`** — this is a parallel batch run, which means nobody is
    reading your transcript turn-by-turn the way a single-lead chat session
