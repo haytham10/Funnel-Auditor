@@ -199,7 +199,12 @@ def print_check(address: str, lead_name: str = "") -> int:
 # So the classifier fails SAFE — anything not provably deliverable is WARN,
 # never silently promoted to PASS.
 
-# MillionVerifier result vocabulary → what it means for sending.
+# Result vocabulary → what it means for sending. Covers both MillionVerifier
+# (the original Apify-backed verifier) and ZeroBounce (the current default,
+# audit/email_verifier.py) — the two providers' tokens overlap almost
+# entirely; where they differ (catch_all vs catch-all) both spellings are
+# listed rather than normalizing, so a provider swap never silently drops a
+# token into the "unrecognized" fail-safe WARN bucket.
 _VERIFY_DELIVERABLE = {"ok", "valid", "deliverable"}
 _VERIFY_UNDELIVERABLE = {
     "invalid": "mailbox does not exist — this is the hard-bounce case, never send here",
@@ -207,12 +212,16 @@ _VERIFY_UNDELIVERABLE = {
     "disabled": "mailbox is disabled — mail will bounce",
     "spamtrap": "known spam trap — sending here damages the domain",
     "abuse": "flagged abuse/complainer address — do not send",
+    "do_not_mail": "flagged do-not-mail (role/complainer/toxic) — sending here risks "
+                   "a complaint or deliverability hit, never send",
 }
 _VERIFY_INCONCLUSIVE = {
     "catch_all": "domain accepts all addresses, so this specific mailbox can't be "
                  "confirmed — a real bounce risk; Haytham's call before send",
     "catchall": "domain accepts all addresses, so this specific mailbox can't be "
                 "confirmed — a real bounce risk; Haytham's call before send",
+    "catch-all": "domain accepts all addresses, so this specific mailbox can't be "
+                 "confirmed — a real bounce risk; Haytham's call before send",
     "unknown": "verifier could not determine deliverability — inconclusive, "
                "not a confirmed-good address",
     "error": "verifier errored on this address — inconclusive, try again or verify by hand",
@@ -264,9 +273,15 @@ def classify_verification(result: dict | None) -> tuple[str, list[str]]:
                     "not a confirmed-good address"]
 
 
-def print_verify(address: str, result: dict | None) -> int:
-    """Format one verification result as the quotable gate line. Exit 1 only
-    on FAIL (unusable address); PASS and WARN exit 0, mirroring email-check."""
+def print_verify(address: str, result: dict | None, *, note: str = "") -> int:
+    """Format one verification result as the quotable gate line. `note`
+    (e.g. "Apify at 92% of its monthly cap — auto-switched to ZeroBounce")
+    folds into the same line rather than a second line, so the "quote the
+    literal output line" convention still holds. Exit 1 only on FAIL
+    (unusable address); PASS and WARN exit 0, mirroring email-check."""
     verdict, details = classify_verification(result)
-    print(f"EMAIL VERIFY: {verdict} — {address}: " + ", ".join(details))
+    line = f"EMAIL VERIFY: {verdict} — {address}: " + ", ".join(details)
+    if note:
+        line += f" [{note}]"
+    print(line)
     return 1 if verdict == "FAIL" else 0

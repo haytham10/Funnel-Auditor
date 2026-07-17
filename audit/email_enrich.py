@@ -6,10 +6,10 @@ lead's name + their OWN branded domain (jane@, jane.doe@, jdoe@, ...), verifies
 them through the existing deliverability checker, and — only if exactly one
 candidate comes back provably deliverable — adopts it as the lead's address.
 
-It builds nothing new for verification: `apify.verify_emails` (one batched
-MillionVerifier call) and `email_check.classify_verification` (the fail-safe
-PASS/WARN/FAIL verdict) do that work. This module owns only candidate
-GENERATION plus the convergence rules that keep guessing safe.
+It builds nothing new for verification: `email_verifier.verify_emails` (one
+batched ZeroBounce call) and `email_check.classify_verification` (the
+fail-safe PASS/WARN/FAIL verdict) do that work. This module owns only
+candidate GENERATION plus the convergence rules that keep guessing safe.
 
 Three safety properties, non-negotiable — the reason `email_check`'s header
 exists ("one real Touch 1 went out to two guessed spellings of the same lead's
@@ -92,11 +92,11 @@ def enrich(full_name: str, domain_or_url: str, *, verifier=None, shape_check=Non
     """Generate name-based candidates against the lead's domain, verify them in
     one batched call, and converge on at most one deliverable address.
 
-    `verifier` turns a list of addresses into a list of MillionVerifier result
-    rows — defaults to `apify.verify_emails`. `shape_check` is the free
-    domain-level gate (syntax/typo/disposable/dead-domain) — defaults to
-    `email_check.check_email`. Both are injectable so tests exercise the
-    convergence logic without touching the network.
+    `verifier` turns a list of addresses into a list of verification result
+    rows — defaults to `email_verifier.verify_emails` (ZeroBounce). `shape_check`
+    is the free domain-level gate (syntax/typo/disposable/dead-domain) —
+    defaults to `email_check.check_email`. Both are injectable so tests
+    exercise the convergence logic without touching the network.
 
     Returns a dict:
       {"verdict": "PASS"|"HOLD"|"NONE",
@@ -140,8 +140,8 @@ def enrich(full_name: str, domain_or_url: str, *, verifier=None, shape_check=Non
     base["candidates"] = candidates
 
     if verifier is None:
-        from audit import apify
-        verifier = apify.verify_emails
+        from audit import email_verifier
+        verifier = email_verifier.verify_emails
 
     rows = verifier(candidates) or []
     # Map each returned row back to its address so we can rank PASS results by
@@ -205,13 +205,18 @@ def _pattern_label(local: str, full_name: str) -> str:
     return known.get(local, f"{local}@")
 
 
-def print_enrich(full_name: str, domain_or_url: str, *, verifier=None, shape_check=None) -> int:
-    """Run enrichment and print the one quotable gate line. Exit 1 only when
-    nothing was adopted (PASS exits 0); mirrors the other email gates."""
+def print_enrich(full_name: str, domain_or_url: str, *, verifier=None, shape_check=None,
+                  note: str = "") -> int:
+    """Run enrichment and print the one quotable gate line. `note` (e.g. an
+    Apify-capped auto-fallback to ZeroBounce) folds into the same line
+    rather than a second one. Exit 1 only when nothing was adopted (PASS
+    exits 0); mirrors the other email gates."""
     r = enrich(full_name, domain_or_url, verifier=verifier, shape_check=shape_check)
     subject = r["address"] if r["verdict"] == "PASS" else (r["domain"] or domain_or_url)
     line = f"EMAIL ENRICH: {r['verdict']} — {subject}: {r['reason']}"
     if r["verdict"] == "PASS" and r["discarded"]:
         line += f" (also-verified, not used: {', '.join(r['discarded'])})"
+    if note:
+        line += f" [{note}]"
     print(line)
     return 0 if r["verdict"] == "PASS" else 1

@@ -1,5 +1,5 @@
 """Tests for the Google-footprint sourcing helpers added 2026-07-16
-(audit/apify.py):
+(audit/apify.py), moved to the fetch-agnostic audit/footprint.py 2026-07-17:
 
   1. _host_of — bare host for per-site dedup (achievher.com/ and
      achievher.com/login collapse; distinct *.mykajabi.com subdomains do not).
@@ -8,6 +8,12 @@
      *.mykajabi.com funnel and their custom domain are kept.
   3. PLATFORM_FOOTPRINTS — every platform carries a domain; only the
      community-first one (skool) has no funnel footer marker.
+  4. classify_footprint_hits — the fetch-agnostic merge (audit/footprint.py),
+     fed pre-fetched hits directly (as Firecrawl search would supply) rather
+     than through apify.google_search.
+
+apify._host_of / apify._is_footprint_noise / apify.PLATFORM_FOOTPRINTS are
+re-exports of audit.footprint's originals, kept for backward compatibility.
 
 Run: python -m pytest tests/test_footprint_sourcing.py -q
      (or plain `python tests/test_footprint_sourcing.py` for the no-pytest path)
@@ -18,7 +24,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from audit import apify
+from audit import apify, footprint
 
 
 # --- _host_of --------------------------------------------------------------
@@ -80,6 +86,54 @@ def test_footprint_search_rejects_unknown_platform():
         assert "unknown platform" in str(e)
     else:
         raise AssertionError("expected ApifyError for unknown platform")
+
+
+# --- classify_footprint_hits (fetch-agnostic, Firecrawl-fed) ----------------
+
+def test_classify_rejects_unknown_platform():
+    try:
+        footprint.classify_footprint_hits("wordpress", [], [])
+    except footprint.FootprintError as e:
+        assert "unknown platform" in str(e)
+    else:
+        raise AssertionError("expected FootprintError for unknown platform")
+
+
+def test_classify_merges_and_tags_both_shapes():
+    sub_hits = [{"url": "https://kirsty-mcintyre.mykajabi.com/"}]
+    marker_hits = [{"url": "https://achievher.com/"}, {"url": "https://kajabi.com/"}]
+    out = footprint.classify_footprint_hits("kajabi", sub_hits, marker_hits, geo="Dubai")
+    assert out["subdomain_count"] == 1
+    assert out["footprint_count"] == 1  # kajabi.com itself is filtered as noise
+    hosts = {h["url"] for h in out["hits"]}
+    assert "https://kirsty-mcintyre.mykajabi.com/" in hosts
+    assert "https://achievher.com/" in hosts
+    assert "https://kajabi.com/" not in hosts
+    found_via = {h["url"]: h["foundVia"] for h in out["hits"]}
+    assert found_via["https://kirsty-mcintyre.mykajabi.com/"] == "subdomain"
+    assert found_via["https://achievher.com/"] == "footprint"
+
+
+def test_classify_dedupes_by_host_across_both_shapes():
+    # Same host surfacing via both query shapes counts once, keeping whichever
+    # shape's hit is processed first (subdomain is processed before marker).
+    sub_hits = [{"url": "https://achievher.com/"}]
+    marker_hits = [{"url": "https://achievher.com/about"}]
+    out = footprint.classify_footprint_hits("kajabi", sub_hits, marker_hits)
+    assert len(out["hits"]) == 1
+    assert out["hits"][0]["foundVia"] == "subdomain"
+
+
+def test_classify_skool_has_no_marker_query():
+    out = footprint.classify_footprint_hits("skool", [], [])
+    assert len(out["queries"]) == 1
+    assert "site:skool.com" in out["queries"][0]
+
+
+def test_classify_hits_missing_url_are_skipped():
+    out = footprint.classify_footprint_hits("kajabi", [{"title": "no url here"}], [])
+    assert out["hits"] == []
+    assert out["subdomain_count"] == 0
 
 
 if __name__ == "__main__":

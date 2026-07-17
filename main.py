@@ -499,21 +499,68 @@ def cmd_email_check(args) -> None:
     sys.exit(email_check.print_check(args.address, args.name or ""))
 
 
-def cmd_email_verify(args) -> None:
-    """Deliverability verification (Apify/MillionVerifier) as a quotable gate
-    line. This is the confirm step before `Email Verified` is checked and the
-    lead becomes sendable — syntax+MX (email-check) is not enough, one real
-    bounce burns the domain. One address, one attempt; an Apify error is
-    inconclusive (WARN), never a silent pass."""
-    from audit import email_check, apify
+def _apify_quota_note() -> tuple[bool, str | None]:
+    """Cheap pre-flight cap read (`apify.account_limits()` — no token cost,
+    no actor run). Returns (capped, note). Fails OPEN (capped=False) if the
+    check itself errors (missing token, network) — an unreadable quota
+    should not block a call that might otherwise succeed; the real call
+    surfaces its own error if Apify is actually down."""
+    from audit import apify
     try:
-        rows = apify.verify_emails([args.address])
-    except apify.ApifyError as exc:
+        limits = apify.account_limits()
+    except apify.ApifyError:
+        return False, None
+    if limits.get("near_cap"):
+        pct = limits.get("pct_of_usd_cap")
+        return True, f"Apify at {pct}% of its monthly cap"
+    return False, None
+
+
+def _email_verifier():
+    """Which verifier `email-verify`/`email-enrich` use. Reads
+    `EMAIL_VERIFY_PROVIDER` (default "zerobounce"; set to "apify" to prefer
+    `apify.verify_emails`/MillionVerifier once there's Apify budget again —
+    both providers stay fully wired, this just picks which one is
+    preferred). When "apify" is preferred, this checks the Apify quota
+    FIRST and auto-falls-back to ZeroBounce if Apify is at/near its
+    monthly cap, instead of spending an attempt that would just 402 — no
+    manual intervention needed when a paid plan caps out again some month.
+    Returns (verify_fn, error_class, note) — `note` is set only when an
+    auto-fallback happened, so the caller can fold it into the printed
+    gate line rather than silently switching providers."""
+    import os
+    from audit import email_verifier
+    provider = os.environ.get("EMAIL_VERIFY_PROVIDER", "zerobounce").strip().lower()
+    if provider != "apify":
+        return email_verifier.verify_emails, email_verifier.EmailVerifierError, None
+
+    from audit import apify
+    capped, note = _apify_quota_note()
+    if capped:
+        return (email_verifier.verify_emails, email_verifier.EmailVerifierError,
+                f"{note} — auto-switched to ZeroBounce for this call")
+    return apify.verify_emails, apify.ApifyError, None
+
+
+def cmd_email_verify(args) -> None:
+    """Deliverability verification as a quotable gate line — ZeroBounce by
+    default, or Apify/MillionVerifier if `EMAIL_VERIFY_PROVIDER=apify`
+    (auto-falling back to ZeroBounce if Apify is capped — see
+    `_email_verifier` above). This is the confirm step before `Email
+    Verified` is checked and the lead becomes sendable — syntax+MX
+    (email-check) is not enough, one real bounce burns the domain. One
+    address, one attempt; a verifier error is inconclusive (WARN), never a
+    silent pass."""
+    from audit import email_check
+    verify_fn, error_cls, note = _email_verifier()
+    try:
+        rows = verify_fn([args.address])
+    except error_cls as exc:
         print(f"EMAIL VERIFY: WARN — {args.address}: verifier unavailable "
               f"({exc}) — inconclusive, could not confirm deliverability")
         sys.exit(0)
     result = rows[0] if rows else None
-    sys.exit(email_check.print_verify(args.address, result))
+    sys.exit(email_check.print_verify(args.address, result, note=note or ""))
 
 
 def cmd_email_enrich(args) -> None:
@@ -523,13 +570,17 @@ def cmd_email_enrich(args) -> None:
     deliverable address (never two guessed spellings, never a catch-all guess,
     never a free-provider domain). A PASS line here IS an `EMAIL VERIFY: PASS` on
     the adopted address — authorization to write `Email` and check `Email
-    Verified`. Fails closed: an Apify error is inconclusive (HOLD), never a
-    silent adoption."""
-    from audit import email_enrich, apify
+    Verified`. Same `EMAIL_VERIFY_PROVIDER` switch (with auto-fallback on a
+    capped Apify quota) as `email-verify` — see `_email_verifier`. Fails
+    closed: a verifier error is inconclusive (HOLD), never a silent
+    adoption."""
+    from audit import email_enrich
     from audit.urls import registrable_domain
+    verify_fn, error_cls, note = _email_verifier()
     try:
-        sys.exit(email_enrich.print_enrich(args.name, args.domain))
-    except apify.ApifyError as exc:
+        sys.exit(email_enrich.print_enrich(args.name, args.domain, verifier=verify_fn,
+                                           note=note or ""))
+    except error_cls as exc:
         print(f"EMAIL ENRICH: HOLD — {registrable_domain(args.domain) or args.domain}: "
               f"verifier unavailable ({exc}) — inconclusive, no candidate confirmed")
         sys.exit(0)
@@ -617,10 +668,27 @@ def cmd_gmail_gethaytham(args) -> None:
     print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
 
 
+# Manual `apify <cmd>` subcommands that have a no-Apify alternative — when
+# the quota is capped, redirect to it instead of letting the actor run 402.
+# `ig`/`ig-post`/`li-posts`/`li-profile` are NOT here: Firecrawl can't reach
+# either platform, so there is nothing to redirect to and they must run
+# regardless of cap status (blocking them would just strand hook-finding
+# with no fallback at all).
+_APIFY_ALTERNATIVES = {
+    "verify-email": "`python main.py email-verify <address>` (ZeroBounce, no Apify cost)",
+    "search": "`firecrawl_search` + `python main.py classify-footprint` (no Apify cost)",
+    "footprint": "`firecrawl_search` + `python main.py classify-footprint` (no Apify cost)",
+}
+
+
 def cmd_apify(args) -> None:
     """No-login third-party fetch layer — LinkedIn/Instagram hooks, email
     verification, Google SERP (see audit/apify.py). Prints JSON to stdout
-    for the calling skill; errors print {"error": ...} and exit non-zero."""
+    for the calling skill; errors print {"error": ...} and exit non-zero.
+    `verify-email`/`search`/`footprint` check the quota first and redirect
+    to their no-Apify alternative if capped, rather than running into a 402
+    — see `_APIFY_ALTERNATIVES`. There's no such redirect for `ig`/
+    `li-posts`/`li-profile`: those have no substitute, so they always run."""
     from audit import apify
 
     cmd = args.apify_command
@@ -629,6 +697,12 @@ def cmd_apify(args) -> None:
             out = apify.account_limits()
         elif cmd == "actors":
             out = apify.discover_actors(args.query, args.limit)
+        elif cmd in _APIFY_ALTERNATIVES and _apify_quota_note()[0]:
+            print(json.dumps({
+                "error": f"Apify is at/near its monthly cap — use "
+                         f"{_APIFY_ALTERNATIVES[cmd]} instead",
+            }, indent=2))
+            sys.exit(1)
         elif cmd == "ig":
             out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
                                   limit=args.limit, raw=args.raw)
@@ -653,6 +727,35 @@ def cmd_apify(args) -> None:
             print(json.dumps({"error": parser_error}))
             sys.exit(2)
     except apify.ApifyError as exc:
+        print(json.dumps({"error": str(exc)}, indent=2))
+        sys.exit(1)
+    print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+
+
+def cmd_classify_footprint(args) -> None:
+    """Fetch-agnostic footprint merge (audit/footprint.py) — the Firecrawl-fed
+    replacement for `apify footprint`. Takes hit lists already fetched by the
+    skill via `firecrawl_search` for both query shapes (subdomain + 'powered
+    by' marker) and does the same dedupe/noise-filter/tagging Apify's
+    google-search-scraper used to feed, at no Apify cost. Prints JSON;
+    unknown platform or unreadable input prints {"error": ...} and exits
+    non-zero, same contract as `apify`."""
+    from audit import footprint
+
+    def _load_hits(path: str | None) -> list[dict]:
+        if not path:
+            return []
+        text = sys.stdin.read() if path == "-" else Path(path).read_text()
+        return json.loads(text) if text.strip() else []
+
+    try:
+        subdomain_hits = _load_hits(args.subdomain_hits)
+        marker_hits = _load_hits(args.marker_hits)
+        out = footprint.classify_footprint_hits(
+            args.platform, subdomain_hits, marker_hits,
+            geo=args.geo, role=args.role,
+        )
+    except (footprint.FootprintError, OSError, json.JSONDecodeError) as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         sys.exit(1)
     print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
@@ -840,8 +943,8 @@ def main() -> None:
     p_email = sub.add_parser(
         "email-check",
         help="pre-send address check: syntax + MX + typo/disposable/role flags "
-             "(FAIL = don't send; WARN inconclusive = verify via the Apify email "
-             "checker) — see audit/email_check.py",
+             "(FAIL = don't send; WARN inconclusive = verify via "
+             "`email-verify`) — see audit/email_check.py",
     )
     p_email.add_argument("address")
     p_email.add_argument("--name", help="lead's name — flags whether the local part matches")
@@ -849,9 +952,9 @@ def main() -> None:
 
     p_email_verify = sub.add_parser(
         "email-verify",
-        help="deliverability verification (Apify/MillionVerifier) as a quotable gate "
-             "line: PASS = mailbox confirmed, check `Email Verified` and the lead is "
-             "sendable; FAIL = bounce risk, never send; WARN = inconclusive "
+        help="deliverability verification (ZeroBounce, audit/email_verifier.py) as a "
+             "quotable gate line: PASS = mailbox confirmed, check `Email Verified` and "
+             "the lead is sendable; FAIL = bounce risk, never send; WARN = inconclusive "
              "(catch_all/unknown), Haytham's call. The confirm step email-check can't "
              "do — see audit/email_check.py",
     )
@@ -883,9 +986,11 @@ def main() -> None:
 
     p_apify = sub.add_parser(
         "apify",
-        help="no-login third-party fetch layer: LinkedIn/Instagram hook evidence, "
-             "email verification, Google SERP (see audit/apify.py). Reads APIFY_TOKEN "
-             "from the environment.",
+        help="no-login third-party fetch layer: LinkedIn/Instagram hook evidence "
+             "(the default use — email verification and Google SERP now default "
+             "elsewhere, `email-verify`/`classify-footprint`; `verify-email`/`search`/"
+             "`footprint` here remain a manual fallback). See audit/apify.py. Reads "
+             "APIFY_TOKEN from the environment.",
     )
     apify_sub = p_apify.add_subparsers(dest="apify_command", required=True)
 
@@ -954,6 +1059,25 @@ def main() -> None:
 
     p_apify.set_defaults(func=cmd_apify)
 
+    p_classify_fp = sub.add_parser(
+        "classify-footprint",
+        help="merge pre-fetched Firecrawl search hits into a deduped, tagged "
+             "platform-footprint result (audit/footprint.py) — the default, "
+             "no-Apify-cost replacement for `apify footprint`",
+    )
+    p_classify_fp.add_argument("platform",
+                               help="kajabi | teachable | thinkific | podia | systeme | kartra | skool")
+    p_classify_fp.add_argument("--subdomain-hits",
+                               help="JSON file (or '-' for stdin) of hits from the site:<domain> query")
+    p_classify_fp.add_argument("--marker-hits",
+                               help="JSON file (or '-' for stdin) of hits from the "
+                                    "'powered by <platform>' query")
+    p_classify_fp.add_argument("--geo", default="Dubai",
+                               help="geographic marker (default Dubai; also Abu Dhabi, Sharjah, UAE)")
+    p_classify_fp.add_argument("--role", default="coach",
+                               help="role/noun searched for (default coach)")
+    p_classify_fp.set_defaults(func=cmd_classify_footprint)
+
     p_gg = sub.add_parser(
         "gmail-gethaytham",
         help="direct Gmail API for haytham@gethaytham.com (the second UAE send "
@@ -995,7 +1119,7 @@ def main() -> None:
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap", "inbox",
         "dashboard", "email-check", "email-verify", "email-enrich", "cta-probe", "apify",
-        "gmail-gethaytham", "discover-links", "discover-checkout",
+        "classify-footprint", "gmail-gethaytham", "discover-links", "discover-checkout",
         "screenshot-name", "ingest", "-h", "--help",
     ):
         argv = ["walk"] + argv
