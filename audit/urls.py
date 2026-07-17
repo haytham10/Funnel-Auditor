@@ -25,6 +25,15 @@ _TRACKING_PARAMS_RE = re.compile(
 )
 
 
+def strip_www(host: str) -> str:
+    """Drop a leading 'www.' label — a real prefix strip, unlike
+    lstrip('www.'), which is a character-set strip that also eats any leading
+    run of w/. characters (wine.com -> ine.com, web.site.com -> eb.site.com).
+    The one shared www-stripper, used here and by the crawler/evidence host
+    checks."""
+    return host[4:] if host.startswith("www.") else host
+
+
 def normalize(url: str) -> str:
     """Canonical form: https scheme, lowercase host, no fragment, no
     tracking params, no trailing slash (except root kept as bare host).
@@ -34,9 +43,7 @@ def normalize(url: str) -> str:
     template link), and treating them as distinct wasted crawl-budget
     slots re-fetching the same content twice."""
     parsed = urlparse(url.strip())
-    host = parsed.netloc.lower()
-    if host.startswith("www."):
-        host = host[4:]
+    host = strip_www(parsed.netloc.lower())
     path = re.sub(r"/{2,}", "/", parsed.path).rstrip("/")
     query = urlencode(
         [(k, v) for k, v in parse_qsl(parsed.query)
@@ -50,7 +57,7 @@ def registrable_domain(url_or_host: str) -> str:
     host = url_or_host
     if "//" in host or "/" in host:
         host = urlparse(host if "//" in host else "//" + host).netloc or host.split("/")[0]
-    host = host.lower().strip(".").lstrip("www.")
+    host = strip_www(host.lower().strip("."))
     labels = host.split(".")
     if len(labels) <= 2:
         return host

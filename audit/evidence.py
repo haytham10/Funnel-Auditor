@@ -43,7 +43,7 @@ from audit.extract import (
     extract_dates, extract_availability,
 )
 from audit.gates import evaluate_floors
-from audit.urls import same_site, slugify
+from audit.urls import same_site, slugify, strip_www
 from audit import vision_gate
 from config import BOOKING_EMBED_HOSTS, JS_BUTTON_NOISE_RE
 
@@ -145,7 +145,7 @@ _BIO_HOSTS = ("linktr.ee", "linktree.com", "stan.store", "beacons.ai")
 
 
 def _is_bio_host(url: str) -> bool:
-    host = urlparse(url).netloc.lower().lstrip("www.")
+    host = strip_www(urlparse(url).netloc.lower())
     return any(host == h or host.endswith("." + h) for h in _BIO_HOSTS)
 
 

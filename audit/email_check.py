@@ -35,8 +35,19 @@ import re
 import shutil
 import socket
 import subprocess
+import unicodedata
 
 _SYNTAX_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+
+
+def name_tokens(name: str, min_len: int = 1) -> list[str]:
+    """Lowercase ASCII name tokens, accents folded (José → jose), split on any
+    non-letter. `min_len` gates token length: the name-match heuristics use 3
+    (skip initials that would false-match); candidate-address generation uses 1
+    (a two-letter first name is still a real local part). The one shared
+    tokenizer — used here, in extract.py's harvest, and in email_enrich."""
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    return [t for t in re.split(r"[^a-z]+", ascii_name.lower()) if len(t) >= min_len]
 
 _ROLE_LOCALS = {
     "info", "contact", "hello", "hi", "support", "admin", "team", "help",
@@ -161,7 +172,7 @@ def check_email(address: str, lead_name: str = "") -> tuple[str, list[str]]:
         verdict = "WARN" if verdict == "PASS" else verdict
     else:
         details.append("personal")
-        tokens = [t for t in re.split(r"[^a-z]+", lead_name.lower()) if len(t) >= 3]
+        tokens = name_tokens(lead_name, min_len=3)
         if tokens and any(t in local for t in tokens):
             details.append("matches lead name")
 

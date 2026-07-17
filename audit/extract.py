@@ -10,6 +10,7 @@ from datetime import date
 from bs4 import BeautifulSoup
 from dateutil import parser as dateparser
 
+from audit.email_check import name_tokens
 from audit.urls import same_site
 
 
@@ -117,7 +118,7 @@ def extract_emails(html: str, source_url: str = "", seed_url: str = "",
     for m in _EMAIL_RE.finditer(html):
         candidates.add(m.group().lower())
 
-    name_tokens = [t for t in re.split(r"[^a-z]+", lead_name.lower()) if len(t) >= 3]
+    tokens = name_tokens(lead_name, min_len=3)
 
     personal, generic = [], []
     for addr in sorted(candidates):
@@ -134,7 +135,7 @@ def extract_emails(html: str, source_url: str = "", seed_url: str = "",
         if local in _GENERIC_PREFIXES:
             generic.append(entry)
         else:
-            entry["name_match"] = any(t in local for t in name_tokens)
+            entry["name_match"] = any(t in local for t in tokens)
             personal.append(entry)
 
     personal.sort(key=lambda e: not e.get("name_match"))

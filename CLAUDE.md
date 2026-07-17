@@ -61,7 +61,10 @@ explanation + findings bank + 3-line Loom skeleton; `Finding Verified`
 checked only on a visually-confirmed Lane 1 finding) → CRM write → email
 address (shape checked by `main.py email-check`; FAIL never enters the CRM;
 then Lane 1 deliverability confirmed by `main.py email-verify` → `Email
-Verified`, both hard gates required for Audit Ready) →
+Verified`; if the walk found NO address, `main.py email-enrich` derives
+name-based candidates against the lead's own domain and verifies them in one
+batched call, adopting at most one — a PASS there is a verify PASS that checks
+`Email Verified`; both hard gates required for Audit Ready) →
 **held** (no Gmail draft yet) → Haytham runs `haytham-hook-finder`
 (single lead or batch mode over all Audit Ready; real public evidence:
 LinkedIn, podcasts, YouTube, About page) → he approves the hooks → Gmail
@@ -220,6 +223,22 @@ scores to `docs/deliverability-log.md`.
   because `email-check` PASS is syntax+MX only and cleared two addresses
   that then hard-bounced at Touch 1, and a bounce burns the one shared
   domain.
+- `main.py email-enrich "<name>" <domain-or-site-url>` — the no-email
+  fallback stage (`audit/email_enrich.py`). When the walk harvests no
+  address, it derives ranked name-based candidates against the lead's OWN
+  branded domain (jane@, jane.doe@, jdoe@…), shape-gates the domain once for
+  free, then verifies all candidates in ONE batched `verify-email` call and
+  converges on at most one deliverable address. Three baked-in safety
+  properties: exactly ONE address is ever adopted (the top-ranked PASS; the
+  rest are logged, never a second guessed spelling — the incident
+  `email_check.py`'s header records); it never auto-adopts on a catch-all
+  domain (every guess → `catch_all`/WARN → `HOLD`, adopt nothing); and it
+  refuses free-provider domains (`NONE`). `EMAIL ENRICH: PASS` is by
+  construction an `EMAIL VERIFY: PASS` on the adopted mailbox, so it checks
+  `Email Verified` exactly like a harvested-then-verified address. Reuses
+  `verify_emails` + `classify_verification` + `check_email` — it adds only
+  candidate generation. Fails closed (Apify error → `HOLD`, never a silent
+  adoption).
 - `main.py apify <li-posts|li-profile|ig|ig-post|verify-email|search|actors>`
   — the no-login third-party fetch layer (`audit/apify.py`,
   `docs/uae-track/apify-actors.md`): read-only public LinkedIn/Instagram

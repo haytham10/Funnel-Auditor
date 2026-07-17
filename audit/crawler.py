@@ -38,7 +38,7 @@ from config import (
     EXTERNAL_FUNNEL_PLATFORMS, SKIP_PATH_RE, OFFER_PATH_HINTS,
     BOOKING_EMBED_HOSTS, JS_BUTTON_NOISE_RE, UNSAFE_CLICK_RE,
 )
-from audit.urls import normalize, same_site
+from audit.urls import normalize, same_site, strip_www
 
 
 @dataclass
@@ -74,7 +74,7 @@ class CrawlResult:
 
 def detect_platform(url: str) -> str:
     """Return the bio-link platform name or 'direct'."""
-    hostname = urlparse(url).netloc.lower().lstrip("www.")
+    hostname = strip_www(urlparse(url).netloc.lower())
     for platform, domains in BIO_LINK_PLATFORMS.items():
         for domain in domains:
             if hostname == domain or hostname.endswith("." + domain):
@@ -87,7 +87,7 @@ def detect_platform(url: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _host_matches(url: str, domains: list[str] | tuple[str, ...]) -> bool:
-    hostname = urlparse(url).netloc.lower().lstrip("www.")
+    hostname = strip_www(urlparse(url).netloc.lower())
     full = hostname + urlparse(url).path.lower()
     for d in domains:
         if "/" in d:

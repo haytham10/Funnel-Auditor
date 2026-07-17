@@ -516,6 +516,25 @@ def cmd_email_verify(args) -> None:
     sys.exit(email_check.print_verify(args.address, result))
 
 
+def cmd_email_enrich(args) -> None:
+    """Nominative email enrichment — the no-email fallback stage. When the walk
+    harvested no address, derive name-based candidates against the lead's OWN
+    branded domain, verify them in one batched call, and adopt at most one
+    deliverable address (never two guessed spellings, never a catch-all guess,
+    never a free-provider domain). A PASS line here IS an `EMAIL VERIFY: PASS` on
+    the adopted address — authorization to write `Email` and check `Email
+    Verified`. Fails closed: an Apify error is inconclusive (HOLD), never a
+    silent adoption."""
+    from audit import email_enrich, apify
+    from audit.urls import registrable_domain
+    try:
+        sys.exit(email_enrich.print_enrich(args.name, args.domain))
+    except apify.ApifyError as exc:
+        print(f"EMAIL ENRICH: HOLD — {registrable_domain(args.domain) or args.domain}: "
+              f"verifier unavailable ({exc}) — inconclusive, no candidate confirmed")
+        sys.exit(0)
+
+
 def cmd_cta_probe(args) -> None:
     """Single-page Playwright pass: load ONE page and run the JS-button
     click-discovery on it. Exists for the Firecrawl fetch path, where
@@ -839,6 +858,19 @@ def main() -> None:
     p_email_verify.add_argument("address")
     p_email_verify.set_defaults(func=cmd_email_verify)
 
+    p_email_enrich = sub.add_parser(
+        "email-enrich",
+        help="nominative fallback when no address was harvested: derive name-based "
+             "candidates against the lead's own domain, verify them in one batched "
+             "call, adopt at most ONE deliverable address. PASS = an EMAIL VERIFY: "
+             "PASS on that address (check `Email Verified`); HOLD = catch-all/"
+             "inconclusive, no auto-send; NONE = nothing verified or free-provider "
+             "domain — see audit/email_enrich.py",
+    )
+    p_email_enrich.add_argument("name", help="the lead's full name (Contact Name)")
+    p_email_enrich.add_argument("domain", help="the lead's Site URL or bare branded domain")
+    p_email_enrich.set_defaults(func=cmd_email_enrich)
+
     p_probe = sub.add_parser(
         "cta-probe",
         help="single-page Playwright JS-button click-discovery, for resolving one "
@@ -962,7 +994,7 @@ def main() -> None:
     # Bare URL → walk
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap", "inbox",
-        "dashboard", "email-check", "email-verify", "cta-probe", "apify",
+        "dashboard", "email-check", "email-verify", "email-enrich", "cta-probe", "apify",
         "gmail-gethaytham", "discover-links", "discover-checkout",
         "screenshot-name", "ingest", "-h", "--help",
     ):
