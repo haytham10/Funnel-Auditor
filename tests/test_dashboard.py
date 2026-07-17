@@ -128,20 +128,24 @@ def test_skeleton_mcp_inbox_count_is_null_with_query():
     assert mcp, "expected at least one Gmail-MCP inbox"
     for m in mcp:
         assert m["sent_today"] is None
+        assert m["sent_scheduled"] is None
         assert m["count_source"] == "gmail-mcp"
         assert m["count_query"].startswith("in:sent after:")
+        assert m["scheduled_query"] == "in:scheduled"
 
 def test_skeleton_gethaytham_fails_closed_without_creds():
-    # Direct-API inbox with no creds: sent_today must be null (never a fake 0),
-    # and it must not have hit the network to learn that.
+    # Direct-API inbox with no creds: sent_today AND sent_scheduled must be
+    # null (never a fake 0), and it must not have hit the network to learn that.
     with _no_gethaytham_creds():
         snap = dashboard.build_skeleton()
     direct = [m for m in snap["inboxes"] if m["send_via"] == "gmail-gethaytham"]
     assert direct, "expected the gethaytham inbox in the registry"
     for m in direct:
         assert m["sent_today"] is None
+        assert m["sent_scheduled"] is None
         assert m["count_source"] == "python"
-        assert "count_error" in m  # the missing-creds message, caught not raised
+        assert "count_error" in m       # the missing-creds message, caught not raised
+        assert "scheduled_error" in m   # same fail-closed guarantee for in:scheduled
 
 def test_skeleton_ramp_carries_eligibility_date():
     with _no_gethaytham_creds():

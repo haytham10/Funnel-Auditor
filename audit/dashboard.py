@@ -104,10 +104,11 @@ class DashboardError(ValueError):
 # Assembly — the Python-reachable slice
 # ---------------------------------------------------------------------------
 
-def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str) -> dict:
+def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str, scheduled_query: str) -> dict:
     """One inbox's meter, with everything Python can settle. The sent-today
-    count is filled here ONLY for the direct-API inbox; for a Gmail-MCP inbox
-    it stays null and the skill runs `count_query` (plus `in:scheduled`)."""
+    AND sent-scheduled counts are filled here ONLY for the direct-API inbox;
+    for a Gmail-MCP inbox both stay null and the skill runs `count_query` plus
+    `scheduled_query`."""
     eligible_on = None
     if cap_state.valid and cap_state.next_step and cap_state.set_on:
         eligible_on = str(cap_state.set_on + timedelta(days=send_cap.MIN_DAYS_PER_STEP))
@@ -131,13 +132,14 @@ def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str)
         "cap": cap_state.cap,
         "ramp": ramp,
         "count_query": query,
+        "scheduled_query": scheduled_query,
         "sent_today": None,
-        "sent_scheduled": None,  # Gmail-MCP only; skill fills in:scheduled due today
+        "sent_scheduled": None,  # Gmail-MCP only; skill fills via scheduled_query
         "count_source": None,
     }
 
     if ib.send_via == "gmail-gethaytham":
-        # Direct API — Python can settle this one exactly, same call `inbox
+        # Direct API — Python can settle both counts exactly, same calls `inbox
         # counts` uses. Fail closed to null (never a fake 0) if creds/network
         # are unavailable, so the meter shows "unknown", not "empty".
         meter["count_source"] = "python"
@@ -146,9 +148,14 @@ def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str)
             meter["sent_today"] = gg.count_messages(query)
         except Exception as exc:  # noqa: BLE001 — report, never crash the build
             meter["count_error"] = str(exc)
+        try:
+            from audit import gmail_gethaytham as gg
+            meter["sent_scheduled"] = gg.count_messages(scheduled_query)
+        except Exception as exc:  # noqa: BLE001 — report, never crash the build
+            meter["scheduled_error"] = str(exc)
     else:
         # MCP-only (Gmail connector) — Python can't reach this domain. The skill
-        # runs count_query for in:sent and adds in:scheduled due today.
+        # runs count_query for in:sent and scheduled_query for in:scheduled.
         meter["count_source"] = "gmail-mcp"
 
     return meter
@@ -160,13 +167,14 @@ def build_skeleton(now: datetime | None = None) -> dict:
     now = now or datetime.now(send_cap.DUBAI_TZ)
     day = now.astimezone(send_cap.DUBAI_TZ).date()
     query = f"in:sent after:{send_cap.dubai_midnight_epoch(day)}"
+    scheduled_query = "in:scheduled"
 
     caps = send_cap.load_all()
     meters = []
     total = 0
     for ib in inboxes.all_inboxes():
         st = caps.get(ib.label) or send_cap.load_cap(ib.label)
-        meters.append(_inbox_skeleton(st, ib, query))
+        meters.append(_inbox_skeleton(st, ib, query, scheduled_query))
         total += st.cap
 
     snapshot: dict = {
@@ -388,6 +396,8 @@ def _meter_card(m: dict) -> str:
             bits.append(f"{cap - used} left")
         if sched:
             bits.append(f"{sched} scheduled")
+        if m.get("scheduled_error"):
+            bits.append(f'scheduled count unknown ({m["scheduled_error"]})')
         state = f'<span class="m-state {"crit-t" if over else ""}">{" · ".join(bits)}</span>'
 
     # The single most useful ramp fact, not the whole block.
