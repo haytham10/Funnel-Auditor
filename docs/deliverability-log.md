@@ -26,6 +26,8 @@ Entries before 2026-07-16 predate the two-inbox split and are Inbox 1
 
 ## Log
 
+- 2026-07-17 — [Inbox 2] — [bounce] — info@williambrown.com (UAE lead William Brown, Touch 1) hard-bounced (mailer-daemon 550 "No mailbox by that name is currently available") despite Email Verified=YES (WARN/inconclusive role-account at verify time). Row reverted to Qualifying; Touch #/Findings Bank not spent.
+- 2026-07-17 — [Inbox 1] — [bounce] — neha@bizexconsultancy.com (UAE lead Neha Nimje, Touch 1) hard-bounced (mailer-daemon 550 5.1.1 "No Such User Here") despite Email Verified=YES (WARN/inconclusive catch_all at verify time). Row reverted to Qualifying; Touch #/Findings Bank not spent. Third hard bounce in a week on an address that cleared the gate (Chiara 07-16, Adil 07-16, now Neha 07-17) — worth weighing against the 07-21 Inbox 1 ramp check.
 - 2026-07-16 — bounce — chiara@theholisticboutique.com (UAE lead Chiara
   Ghinolfi, Touch 1) hard-bounced (mailer-daemon 550 5.1.1 "Address not
   found") despite email-check PASS at send time. Row reverted to
