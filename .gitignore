@@ -5,6 +5,7 @@ venv/
 screenshots/
 *.png
 evidence/
+.env
 
 # transient walk scratch helpers (screenshot decoding, etc.)
 scratch_*.py

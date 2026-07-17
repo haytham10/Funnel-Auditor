@@ -389,20 +389,28 @@ def cmd_inbox(args) -> None:
             day_label = send_cap.today().isoformat()
             boundary = str(send_cap.dubai_midnight_epoch())
         query = f"in:sent after:{boundary}"
+        scheduled_query = "in:scheduled"
         out = {}
         for ib in inboxes.all_inboxes():
             if ib.send_via == "gmail-gethaytham":
+                from audit import gmail_gethaytham as gg
+                entry = {"via": ib.send_via, "query": query, "scheduled_query": scheduled_query}
                 try:
-                    from audit import gmail_gethaytham as gg
-                    out[ib.label] = {"count": gg.count_messages(query), "via": ib.send_via,
-                                     "query": query}
+                    entry["count"] = gg.count_messages(query)
                 except Exception as exc:  # noqa: BLE001 - report, never crash the tick
-                    out[ib.label] = {"count": None, "via": ib.send_via, "query": query,
-                                     "error": str(exc)}
+                    entry["count"] = None
+                    entry["error"] = str(exc)
+                try:
+                    entry["scheduled"] = gg.count_messages(scheduled_query)
+                except Exception as exc:  # noqa: BLE001 - report, never crash the tick
+                    entry["scheduled"] = None
+                    entry["scheduled_error"] = str(exc)
+                out[ib.label] = entry
             else:
-                out[ib.label] = {"count": None, "via": ib.send_via, "query": query,
-                                 "note": "count via Gmail MCP: run this query and count sent "
-                                         "messages, PLUS in:scheduled due today"}
+                out[ib.label] = {"count": None, "scheduled": None, "via": ib.send_via,
+                                 "query": query, "scheduled_query": scheduled_query,
+                                 "note": "count via Gmail MCP: run query for sent messages "
+                                         "and scheduled_query for in:scheduled due today"}
         print(json.dumps({"date": day_label, "inboxes": out}, indent=2))
         sys.exit(0)
     if args.inbox_command == "reconcile":
