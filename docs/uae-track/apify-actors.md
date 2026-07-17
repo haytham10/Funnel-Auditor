@@ -41,9 +41,27 @@ for the one thing with no substitute: LinkedIn and Instagram.
 **Switching email verification back to Apify (once there's Apify budget
 again) is a one-line env var, no code change:** set
 `EMAIL_VERIFY_PROVIDER=apify` and `main.py email-verify`/`email-enrich`
-go straight back to `apify.verify_emails`/MillionVerifier — see
-`_email_verifier()` in `main.py`. Unset (or `zerobounce`, the default)
-keeps ZeroBounce.
+prefer `apify.verify_emails`/MillionVerifier — see `_email_verifier()` in
+`main.py`. Unset (or `zerobounce`, the default) keeps ZeroBounce.
+
+**With `EMAIL_VERIFY_PROVIDER=apify` set, the switch back to Apify still
+auto-protects itself against a capped month.** Every `email-verify`/
+`email-enrich` call checks `apify.account_limits()` first (free, no actor
+run) and auto-falls-back to ZeroBounce for just that call if Apify is
+at/near its cap, folding a note into the same gate line (`... [Apify at
+94% of its monthly cap — auto-switched to ZeroBounce for this call]`) so
+Haytham sees it happened. No manual intervention needed when a paid plan
+caps out again some month — it just quietly keeps working on ZeroBounce
+until the cap resets.
+
+The manual `apify verify-email` / `apify search` / `apify footprint`
+commands get the same treatment from the other direction: if the quota is
+capped when one of those is run directly, it fails fast with `{"error":
+"... use <alternative> instead"}` instead of running into a 402 partway
+through. `apify ig` / `ig-post` / `li-posts` / `li-profile` are
+deliberately NOT covered by this — there is no alternative for LinkedIn or
+Instagram, so blocking them on a cap check would just strand hook-finding
+with nothing to fall back to; they always run regardless of cap status.
 
 For Google-footprint sourcing there's no env var needed at all: `apify
 footprint <platform>` and `apify search` were never touched and work

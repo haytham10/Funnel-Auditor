@@ -273,9 +273,15 @@ def classify_verification(result: dict | None) -> tuple[str, list[str]]:
                     "not a confirmed-good address"]
 
 
-def print_verify(address: str, result: dict | None) -> int:
-    """Format one verification result as the quotable gate line. Exit 1 only
-    on FAIL (unusable address); PASS and WARN exit 0, mirroring email-check."""
+def print_verify(address: str, result: dict | None, *, note: str = "") -> int:
+    """Format one verification result as the quotable gate line. `note`
+    (e.g. "Apify at 92% of its monthly cap — auto-switched to ZeroBounce")
+    folds into the same line rather than a second line, so the "quote the
+    literal output line" convention still holds. Exit 1 only on FAIL
+    (unusable address); PASS and WARN exit 0, mirroring email-check."""
     verdict, details = classify_verification(result)
-    print(f"EMAIL VERIFY: {verdict} — {address}: " + ", ".join(details))
+    line = f"EMAIL VERIFY: {verdict} — {address}: " + ", ".join(details)
+    if note:
+        line += f" [{note}]"
+    print(line)
     return 1 if verdict == "FAIL" else 0

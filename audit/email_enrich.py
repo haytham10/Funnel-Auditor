@@ -205,13 +205,18 @@ def _pattern_label(local: str, full_name: str) -> str:
     return known.get(local, f"{local}@")
 
 
-def print_enrich(full_name: str, domain_or_url: str, *, verifier=None, shape_check=None) -> int:
-    """Run enrichment and print the one quotable gate line. Exit 1 only when
-    nothing was adopted (PASS exits 0); mirrors the other email gates."""
+def print_enrich(full_name: str, domain_or_url: str, *, verifier=None, shape_check=None,
+                  note: str = "") -> int:
+    """Run enrichment and print the one quotable gate line. `note` (e.g. an
+    Apify-capped auto-fallback to ZeroBounce) folds into the same line
+    rather than a second one. Exit 1 only when nothing was adopted (PASS
+    exits 0); mirrors the other email gates."""
     r = enrich(full_name, domain_or_url, verifier=verifier, shape_check=shape_check)
     subject = r["address"] if r["verdict"] == "PASS" else (r["domain"] or domain_or_url)
     line = f"EMAIL ENRICH: {r['verdict']} — {subject}: {r['reason']}"
     if r["verdict"] == "PASS" and r["discarded"]:
         line += f" (also-verified, not used: {', '.join(r['discarded'])})"
+    if note:
+        line += f" [{note}]"
     print(line)
     return 0 if r["verdict"] == "PASS" else 1

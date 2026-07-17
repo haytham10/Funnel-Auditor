@@ -227,6 +227,13 @@ scores to `docs/deliverability-log.md`.
   untouched — set `EMAIL_VERIFY_PROVIDER=apify` (`main.py`'s
   `_email_verifier()`) to switch both `email-verify` and `email-enrich`
   back to it in one line, no code change, once there's Apify budget again.
+  That switch self-protects against a capped month too: every call checks
+  `apify.account_limits()` first (free) and auto-falls-back to ZeroBounce
+  for just that call if Apify is at/near its cap, noting it in the same
+  gate line — no manual intervention when a paid plan caps out again. The
+  manual `apify verify-email`/`search`/`footprint` commands fail fast with
+  the same-direction redirect when capped; `apify ig`/`li-posts`/
+  `li-profile` are exempt (no substitute exists, so they always run).
 - `main.py email-enrich "<name>" <domain-or-site-url>` — the no-email
   fallback stage (`audit/email_enrich.py`). When the walk harvests no
   address, it derives ranked name-based candidates against the lead's OWN
