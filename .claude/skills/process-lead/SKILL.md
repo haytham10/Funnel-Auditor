@@ -236,6 +236,16 @@ files of the sales/freebie pages — copy is where non-mechanical leaks
 live. Run `python main.py vision list evidence/<slug>` first to see the
 exact list of paths this crawl requires.
 
+**Read each screenshot with the Read tool directly — it downscales tall
+fullPage captures for you. Do NOT shell out to Python/PIL to slice, crop,
+or resize a screenshot.** (`pillow` is in requirements.txt if you ever
+genuinely need it, but the Read tool is the path — reaching for PIL is what
+wedged a whole batch for 2h when the import failed and the agent never fell
+back.) If ANY preprocessing or Read of an image errors, fall back to
+reading it directly / note it as the unreadable-image exception below and
+move on — **never stall on an image**. A crawled sales page can be
+15k–20k px tall; that is normal, Read it as-is.
+
 **After each image Read, immediately run
 `python main.py vision mark evidence/<slug> <path>`** (batch several paths
 in one call if you just read several in a row — same rule, no deferring to
