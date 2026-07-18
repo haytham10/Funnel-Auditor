@@ -94,6 +94,36 @@ _PANEL_KEYS = (
 )
 
 _ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}")
+# A date can reach build_events() in more than the strict ISO shape: Gmail
+# reports scheduled-send dates as YYYY/MM/DD, and a Notion date property comes
+# back as {"start": "YYYY-MM-DD"} (or {"date": {"start": ...}}). All of these
+# name a real day; only a genuinely unparseable value should be dropped.
+_SLASH_DAY = re.compile(r"^(\d{4})/(\d{2})/(\d{2})")
+
+
+def _normalize_day(value) -> str:
+    """Coerce a date-ish value to a leading 'YYYY-MM-DD', or '' if it isn't one.
+
+    Accepts the strict ISO shape, a full ISO datetime (truncated to its day), a
+    Gmail-style 'YYYY/MM/DD', and a Notion date object ({"start": ...} or nested
+    {"date": {"start": ...}}). Anything else returns '' so build_events drops it
+    rather than placing a garbage key on the grid.
+    """
+    if isinstance(value, dict):
+        # Notion date property: {"start": ...} or a wrapping {"date": {...}}.
+        inner = value.get("start")
+        if inner is None and isinstance(value.get("date"), dict):
+            inner = value["date"].get("start")
+        return _normalize_day(inner)
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if _ISO_DAY.match(text):
+        return text[:10]
+    m = _SLASH_DAY.match(text)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    return ""
 
 
 class DashboardError(ValueError):
@@ -220,14 +250,17 @@ def build_events(snapshot: dict) -> list[dict]:
       - each inbox's ramp `eligible_on` — kind "ramp".
 
     Every event is {"date": "YYYY-MM-DD", "kind": <EVENT_KINDS>, "label": str}.
-    Items with a malformed date are dropped (a bad date can't be placed on a
-    grid); unknown kinds fold to "other" rather than inventing a color slot.
+    Dates are normalized from the shapes the skill actually supplies (strict
+    ISO, a full ISO datetime, Gmail's YYYY/MM/DD, or a Notion date object) via
+    `_normalize_day`; only a genuinely unparseable date is dropped (a bad date
+    can't be placed on a grid). Unknown kinds fold to "other" rather than
+    inventing a color slot.
     """
     events: list[dict] = []
 
     def add(date, kind, label):
-        date = str(date or "")[:10]
-        if not _ISO_DAY.match(date) or not label:
+        date = _normalize_day(date)
+        if not date or not label:
             return
         events.append({
             "date": date,

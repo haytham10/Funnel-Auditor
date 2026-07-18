@@ -272,12 +272,20 @@ Send Queue view). For each candidate, in order:
    `python main.py crm-gate send <row.json> --sends-today <the ASSIGNED
    inbox's total incl. today's already-queued drafts> --touch 1
    --followups-due <that inbox's F from step 0, minus its follow-ups
-   already queued> --inbox "<assigned Inbox>"`. Only PASS rows enter
-   today's queue — the gate holds openers behind that inbox's follow-ups,
-   so a FAIL on headroom means the opener rolls to tomorrow (or, if the
-   OTHER inbox has room and the lead is not yet sticky, re-routing it there
-   is fine — re-run route excluding the full inbox). Quote one gate line
-   per queued lead, showing its inbox.
+   already queued> --inbox "<assigned Inbox>"`.
+   **Past noon Dubai** a fresh opener can't leave today — it is scheduled for
+   tomorrow morning — so the gate attributes it to tomorrow's send-day and
+   demands `--sends-next-day <that inbox's already-scheduled count>` (its
+   `scheduled` figure from `inbox counts`); it is then gated against
+   tomorrow's ceiling, not today's already-spent one. `inbox counts` prints
+   `send_day` and an `opener_note` telling you when this applies; before noon,
+   omit the flag and it behaves as before. Follow-ups (touch 2/3) always count
+   against today and never take `--sends-next-day`. Only PASS rows enter the
+   queue — the gate holds openers behind that inbox's follow-ups, so a FAIL on
+   headroom means the opener rolls to the next send-day (or, if the OTHER inbox
+   has room and the lead is not yet sticky, re-routing it there is fine — re-run
+   route excluding the full inbox). Quote one gate line per queued lead, showing
+   its inbox.
 
 Present as "ready to send today," grouped **by inbox**, then split by
 status within each: `Draft Ready` (draft sitting in that inbox — send it)

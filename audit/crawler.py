@@ -624,11 +624,17 @@ def _fetch_and_screenshot(
         # Mobile screenshot — resize + re-screenshot only, no reload.
         # Responsive CSS reflows on viewport change without a network
         # round-trip; the old page.reload(networkidle) burned 2-4s per page.
-        # _scroll_and_settle not repeated: lazy-loaded images are already in
-        # the DOM from the desktop scroll pass — resizing the viewport
-        # doesn't un-load them.
+        # But the mobile layout is NOT the desktop layout scaled down: content
+        # that sat side-by-side on desktop stacks vertically, so the page grows
+        # much taller and pushes images/sections BELOW the mobile fold that were
+        # never scrolled into view during the desktop pass — their lazy-load and
+        # IntersectionObserver reveals never fired, and a screenshot taken right
+        # after the resize catches them blank or mid-animation (the exact false
+        # "broken image" _scroll_and_settle exists to prevent). So re-settle the
+        # page in the mobile viewport before shooting.
         page.set_viewport_size({"width": 390, "height": 844})
         page.wait_for_timeout(300)  # brief settle for CSS reflow
+        _scroll_and_settle(page)
         page.screenshot(path=mobile_path, full_page=True)
 
         # CTA click-discovery — on the already-loaded page, no re-navigation.

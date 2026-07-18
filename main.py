@@ -334,7 +334,7 @@ def cmd_crm_gate(args) -> None:
         sys.exit(2)
     sys.exit(crm_gate.print_send(
         args.row_json, args.sends_today, args.touch, args.followups_due, args.carries,
-        inbox=args.inbox,
+        inbox=args.inbox, sends_next_day=args.sends_next_day,
     ))
 
 
@@ -390,6 +390,13 @@ def cmd_inbox(args) -> None:
             boundary = str(send_cap.dubai_midnight_epoch())
         query = f"in:sent after:{boundary}"
         scheduled_query = "in:scheduled"
+        # The live day (`date` / the `count`) still governs follow-ups and warm
+        # replies. A NEW opener queued past noon Dubai can't leave today, so it
+        # is attributed to `send_day` and gated against that day's ceiling using
+        # the inbox's already-SCHEDULED count (`scheduled`), not `count`. See
+        # crm_gate.check_send / `crm-gate send --sends-next-day`.
+        send_day = send_cap.send_day().isoformat()
+        opener_rolls = send_cap.is_after_send_cutoff() and not args.date
         out = {}
         for ib in inboxes.all_inboxes():
             if ib.send_via == "gmail-gethaytham":
@@ -411,7 +418,15 @@ def cmd_inbox(args) -> None:
                                  "query": query, "scheduled_query": scheduled_query,
                                  "note": "count via Gmail MCP: run query for sent messages "
                                          "and scheduled_query for in:scheduled due today"}
-        print(json.dumps({"date": day_label, "inboxes": out}, indent=2))
+        result = {"date": day_label, "send_day": send_day, "inboxes": out}
+        if opener_rolls:
+            result["opener_note"] = (
+                f"past {send_cap.SEND_DAY_CUTOFF_HOUR}:00 Dubai — a NEW opener is attributed to "
+                f"send-day {send_day} (tomorrow). Gate it with `crm-gate send --touch 1 "
+                "--sends-next-day <that inbox's `scheduled` count>`; follow-ups/warm replies "
+                "still count against today's `count`."
+            )
+        print(json.dumps(result, indent=2))
         sys.exit(0)
     if args.inbox_command == "reconcile":
         if not inboxes.is_registered(args.found_in):
@@ -883,8 +898,13 @@ def main() -> None:
                        help="(send gate) which cold touch this send is: 1, 2, or 3 (the sequence "
                             "is three touches, day 0/3/9, then Dormant)")
     p_crm.add_argument("--followups-due", type=int,
-                       help="(send gate, touch 1) follow-ups still owed today — they eat the "
-                            "budget before any opener")
+                       help="(send gate, touch 1) follow-ups still owed on the opener's send-day — "
+                            "they eat the budget before any opener")
+    p_crm.add_argument("--sends-next-day", type=int, default=None,
+                       help="(send gate, touch 1) tomorrow's already-scheduled sends out of this "
+                            "inbox. Required past noon Dubai: a fresh opener queued after noon is "
+                            "scheduled for tomorrow morning, so it is gated against TOMORROW's "
+                            "ceiling using this count, not today's already-spent one")
     p_crm.add_argument("--carries", choices=["second-finding", "loom-offer", "disambiguating-question"],
                        help="(send gate, touch 2/3) the new thing this follow-up carries; "
                             "second-finding is checked against the row's Findings Bank")

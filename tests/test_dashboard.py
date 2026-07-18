@@ -202,6 +202,31 @@ def test_events_unknown_kind_folds_to_other():
     revival = [e for e in evs if "revival" in e["label"].lower()]
     assert revival and revival[0]["kind"] == "other"
 
+def test_events_accepts_gmail_and_notion_date_shapes():
+    # Scheduled sends reach the calendar with dates in the shapes the skill
+    # actually hands over — Gmail's YYYY/MM/DD and a Notion date object — not
+    # only strict ISO. These must survive, or the calendar grid shows no events
+    # even though the grid itself renders.
+    snap = _full_snapshot()
+    snap["due_followups"] = []
+    snap["discovery_ladder"] = {}
+    snap["inboxes"] = [{"label": "x", "cap": 1, "ramp": {}}]  # no ramp events
+    snap["calendar"] = [
+        {"date": "2026/07/18", "kind": "send", "label": "gmail-slash"},
+        {"date": {"start": "2026-07-19"}, "kind": "send", "label": "notion-obj"},
+        {"date": {"date": {"start": "2026-07-20"}}, "kind": "send", "label": "notion-wrapped"},
+        {"date": "2026-07-21T09:00:00+04:00", "kind": "send", "label": "iso-datetime"},
+    ]
+    evs = dashboard.build_events(snap)
+    kept = {e["label"]: e["date"] for e in evs}
+    assert kept == {
+        "gmail-slash": "2026-07-18",
+        "notion-obj": "2026-07-19",
+        "notion-wrapped": "2026-07-20",
+        "iso-datetime": "2026-07-21",
+    }
+
+
 def test_events_malformed_dates_dropped():
     snap = _full_snapshot()
     snap["calendar"] = [{"date": "not-a-date", "kind": "send", "label": "bad"},

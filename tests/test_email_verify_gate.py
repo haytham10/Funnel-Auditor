@@ -11,11 +11,17 @@ Run: python -m pytest tests/test_email_verify_gate.py -q
 
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from audit import email_check
 from audit.crm_gate import check_send
+
+# These tests exercise the email-verified gate, not the noon-Dubai send-day
+# cutoff — pin a pre-noon Dubai moment so a touch-1 opener is attributed to
+# today (its usual path) regardless of the wall clock when the suite runs.
+_MORNING = datetime(2026, 7, 18, 9, 0, tzinfo=timezone(timedelta(hours=4)))
 
 
 # --- classify_verification -------------------------------------------------
@@ -92,7 +98,7 @@ def _sendable_row(**over):
 
 def test_send_blocks_when_email_verified_unchecked():
     ok, problems, _ = check_send(_sendable_row(**{"Email Verified": "__NO__"}),
-                                 sends_today=0, touch=1, followups_due=0)
+                                 sends_today=0, touch=1, followups_due=0, now=_MORNING)
     assert not ok
     assert any("Email Verified is unchecked" in p for p in problems)
 
@@ -100,20 +106,20 @@ def test_send_blocks_when_email_verified_unchecked():
 def test_send_blocks_when_email_verified_missing_fails_closed():
     row = _sendable_row()
     del row["Email Verified"]
-    ok, problems, _ = check_send(row, sends_today=0, touch=1, followups_due=0)
+    ok, problems, _ = check_send(row, sends_today=0, touch=1, followups_due=0, now=_MORNING)
     assert not ok
     assert any("Email Verified is unchecked" in p for p in problems)
 
 
 def test_send_passes_with_verified_email_and_headroom():
     ok, problems, _ = check_send(_sendable_row(),
-                                 sends_today=0, touch=1, followups_due=0)
+                                 sends_today=0, touch=1, followups_due=0, now=_MORNING)
     assert ok, problems
 
 
 def test_send_still_requires_finding_verified():
     ok, problems, _ = check_send(_sendable_row(**{"Finding Verified": "__NO__"}),
-                                 sends_today=0, touch=1, followups_due=0)
+                                 sends_today=0, touch=1, followups_due=0, now=_MORNING)
     assert not ok
     assert any("Finding Verified" in p for p in problems)
 
@@ -122,7 +128,7 @@ def test_send_no_address_reports_address_not_verified_flag():
     # With no '@', the address problem fires (not the verified-flag one) —
     # they shouldn't double-report on the same missing field.
     ok, problems, _ = check_send(_sendable_row(**{"Email": "", "Email Verified": "__NO__"}),
-                                 sends_today=0, touch=1, followups_due=0)
+                                 sends_today=0, touch=1, followups_due=0, now=_MORNING)
     assert not ok
     assert any("no usable address" in p for p in problems)
     assert not any("Email Verified is unchecked" in p for p in problems)
@@ -131,10 +137,10 @@ def test_send_no_address_reports_address_not_verified_flag():
 def test_send_accepts_plain_yes_shape():
     # Notion checkboxes can arrive as bool true or "Yes" as well as "__YES__".
     ok, _, _ = check_send(_sendable_row(**{"Email Verified": True}),
-                          sends_today=0, touch=1, followups_due=0)
+                          sends_today=0, touch=1, followups_due=0, now=_MORNING)
     assert ok
     ok2, _, _ = check_send(_sendable_row(**{"Email Verified": "Yes"}),
-                           sends_today=0, touch=1, followups_due=0)
+                           sends_today=0, touch=1, followups_due=0, now=_MORNING)
     assert ok2
 
 
