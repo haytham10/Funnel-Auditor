@@ -137,8 +137,8 @@ Code environment (Settings → environment).
 | --- | --- | --- |
 | `apify li-posts <url>` | harvestapi/linkedin-profile-posts | recent LinkedIn posts (text + date, no cookies) — **where LinkedIn hooks live** |
 | `apify li-profile <url>` | apimaestro/linkedin-profile-detail | headline / about / experience; `--email` mode finds an address |
-| `apify ig <url>` | apify/instagram-scraper | IG recent posts w/ captions (`--mode details` for bio/followers) |
-| `apify ig-post <url>` | apify/instagram-scraper | full detail on one IG post (caption + top comments) |
+| `apify ig <url>` | apify/instagram-post-scraper (posts) · apify/instagram-profile-scraper (`--mode details`) | IG recent posts w/ captions (`--skip-pinned` to drop pinned); `--mode details` for bio/followers (`--include-about` for the paid about-account block) |
+| `apify ig-post <url>` | apify/instagram-post-scraper | full detail on one IG post (caption + top comments) |
 | `apify verify-email <addr…>` | account56/email-verifier | manual cross-check — `main.py email-verify`/`email-enrich` call this same actor by default now (restored 2026-07-18); use this form directly only to bypass the CLI's gate line |
 | `apify search "<q>"` / `apify footprint <platform>` | apify/google-search-scraper | *manual fallback only* — default is still `main.py classify-footprint` fed by `firecrawl_search` (`audit/footprint.py`); this was never about the cap |
 | `apify actors "<q>"` | (Store search) | discover/compare actors — **no token needed** |
@@ -166,6 +166,20 @@ equivalent (confirmed by comparing per-run costs in the Apify console after
 a brief mis-swap of both actors together the same day) — don't move it to
 apimaestro without re-confirming the cap actually applies to posts, not
 just profiles.
+
+**Instagram split into two dedicated actors 2026-07-18.** The single
+`apify/instagram-scraper` was replaced by `apify/instagram-profile-scraper`
+(the `--mode details` path — `usernames` input) and
+`apify/instagram-post-scraper` (the posts path and `ig-post` single-post
+detail — `username` input, which also accepts a profile or post URL). Both
+are Apify's own sibling actors: identical output field names (so the
+trim/`_lean` keys are unchanged), slightly cheaper per item ($0.0023/profile
+and $0.0015/post at BRONZE vs the unified actor), and the post actor adds a
+native `skipPinnedPosts` toggle (`--skip-pinned`). The unified actor's
+reels/comments/mentions/stories modes had no consumer in the skills and were
+dropped with it (`--mode` is now just `posts`/`details`). The CLI command
+names (`apify ig`, `apify ig-post`) are unchanged, so `haytham-hook-finder`
+needed no change.
 
 Everything web-fetchable (podcasts, YouTube, About pages, funnel walks,
 checkout probes) stays on **Firecrawl** — cheaper and already connected.
@@ -204,7 +218,10 @@ first rather than assume the quota is open.
   story and the site didn't already give it. Never both by default.
 - **Instagram:** `apify ig <url> --newer-than "60 days"` with a small
   `--limit`; only `ig-post` on a specific post that looks like a hook and
-  needs its full detail. Output is trimmed to useful fields by default
+  needs its full detail. `--skip-pinned` drops pinned posts (default keeps
+  them — a pinned post is often the coach's signature/framework content).
+  `--mode details` (profile scraper) takes `--include-about` for the paid
+  about-account block. Output is trimmed to useful fields by default
   (`--raw` bypasses).
 - **Email:** `li-profile --email` uses the $10/1k email-search mode vs
   $4/1k plain — only pass it when actually hunting an address. Never

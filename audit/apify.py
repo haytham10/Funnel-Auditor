@@ -38,11 +38,20 @@ reason to look before a run that costs real money.
 
 ## The actor set (vetted; do not expand casually)
 
-    ig          apify/instagram-scraper                 profile details + recent posts w/ captions (date-filterable); post detail
+    ig_profile  apify/instagram-profile-scraper         profile details (followers/bio/latest posts; optional about-account add-on)
+    ig_post     apify/instagram-post-scraper            recent posts w/ captions (date-filterable, can skip pinned); single-post detail
     li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
     li_profile  apimaestro/linkedin-profile-detail      headline/about/experience; optional email-search mode (finds an address)
     email       account56/email-verifier                MillionVerifier-backed address verification
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
+
+    (Instagram split from the single apify/instagram-scraper into the two
+    dedicated actors above 2026-07-18: the unified actor's `details` mode is
+    now instagram-profile-scraper and its `posts`/single-post modes are now
+    instagram-post-scraper. Both are Apify's own sibling actors — same output
+    field names, slightly cheaper per item, and the post actor adds a native
+    `skipPinnedPosts` toggle. The unified actor's reels/comments/mentions/
+    stories modes had no consumer in the skills and were dropped with it.)
 
     (li_profile switched from harvestapi/linkedin-profile-scraper to
     apimaestro/linkedin-profile-detail 2026-07-16 — the harvestapi PROFILE
@@ -113,7 +122,8 @@ APIFY_BASE = "https://api.apify.com/v2"
 # Haytham-vetted actors, addressed in the `username~actor-name` form the
 # REST API uses. Keep this map tight.
 ACTORS = {
-    "ig": "apify~instagram-scraper",
+    "ig_profile": "apify~instagram-profile-scraper",
+    "ig_post": "apify~instagram-post-scraper",
     "li_posts": "harvestapi~linkedin-profile-posts",
     "li_profile": "apimaestro~linkedin-profile-detail",
     "email": "account56~email-verifier",
@@ -131,7 +141,10 @@ _SYNC_TIMEOUT_SECS = 240
 COST_APPROVAL_THRESHOLD_USD = 0.10
 
 LI_POSTED_LIMITS = ("any", "1h", "24h", "week", "month", "3months", "6months", "year")
-IG_RESULT_TYPES = ("posts", "details", "comments", "reels", "mentions", "stories")
+# Only the two modes the dedicated actors cover: details -> profile scraper,
+# posts -> post scraper. The old unified actor's reels/comments/mentions/
+# stories modes had no consumer and went with it.
+IG_RESULT_TYPES = ("posts", "details")
 
 
 class ApifyError(RuntimeError):
@@ -416,43 +429,77 @@ def _lean(item: dict, keep: tuple[str, ...] | None = None) -> dict:
     return {k: v for k, v in item.items() if k not in _NOISE_KEYS}
 
 
+def _ig_username(url_or_handle: str) -> str:
+    """Reduce a profile URL or @handle to the bare username the
+    instagram-profile-scraper's `usernames` field wants. A plain handle
+    passes through (leading @ stripped); a URL yields its first path
+    segment (`https://www.instagram.com/coachjane/?hl=en` → `coachjane`).
+    The post scraper takes URLs directly, so this is only used on the
+    profile path."""
+    s = url_or_handle.strip().strip("@")
+    if "instagram.com" in s:
+        path = s.split("instagram.com/", 1)[1]
+        s = path.split("?", 1)[0].split("/", 1)[0]
+    return s.strip("/")
+
+
 def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
-              limit: int = 12, raw: bool = False, approved: bool = False) -> list[dict]:
-    """Instagram profile enrichment. mode='details' → profile metadata
-    (followers, bio, latest posts); mode='posts' → recent posts with
-    captions, `newer_than` (e.g. '7 days', '2026-07-01') filtering recency.
-    Cost-gated on `limit` — see "Cost approval gate" above; pass
-    approved=True once Haytham has signed off on an estimate over
-    COST_APPROVAL_THRESHOLD_USD."""
+              limit: int = 12, skip_pinned: bool = False, include_about: bool = False,
+              raw: bool = False, approved: bool = False) -> list[dict]:
+    """Instagram profile enrichment, split across two dedicated actors.
+
+    mode='details' → apify/instagram-profile-scraper: profile metadata
+    (followers, bio, latest posts; `include_about` adds the paid
+    about-account block — country, join date, verification). Gated as 1
+    profile.
+
+    mode='posts' → apify/instagram-post-scraper: recent posts with captions,
+    `newer_than` (e.g. '7 days', '2026-07-01') filtering recency,
+    `skip_pinned` dropping pinned posts (default off — a pinned post is often
+    the coach's signature/framework content, i.e. exactly the SMYKM hook).
+    Gated on `limit`.
+
+    Pass approved=True once Haytham has signed off on an estimate over
+    COST_APPROVAL_THRESHOLD_USD — see "Cost approval gate" above."""
     if mode not in IG_RESULT_TYPES:
         raise ApifyError(f"instagram mode must be one of {IG_RESULT_TYPES}, got {mode!r}")
-    _require_cost_approval(ACTORS["ig"], limit, approved)
-    run: dict[str, Any] = {
-        "directUrls": [url],
-        "resultsType": mode,
-        "resultsLimit": limit,
-        "addParentData": False,
-    }
+
+    if mode == "details":
+        _require_cost_approval(ACTORS["ig_profile"], 1, approved)
+        run: dict[str, Any] = {"usernames": [_ig_username(url)]}
+        if include_about:
+            run["includeAboutSection"] = True
+        items = run_actor(ACTORS["ig_profile"], run, memory_mbytes=1024)
+        if raw:
+            return items
+        keep = ("username", "fullName", "biography", "followersCount",
+                "postsCount", "url", "latestPosts", "about")
+        return [_lean(i, keep) for i in items]
+
+    # mode == "posts"
+    _require_cost_approval(ACTORS["ig_post"], limit, approved)
+    run = {"username": [url], "resultsLimit": limit}
     if newer_than:
         run["onlyPostsNewerThan"] = newer_than
-    items = run_actor(ACTORS["ig"], run, memory_mbytes=1024)
+    if skip_pinned:
+        run["skipPinnedPosts"] = True
+    items = run_actor(ACTORS["ig_post"], run, memory_mbytes=1024)
     if raw:
         return items
-    keep = ("username", "fullName", "biography", "followersCount", "postsCount",
-            "url", "latestPosts") if mode == "details" else \
-           ("ownerUsername", "shortCode", "url", "timestamp", "caption",
-            "likesCount", "commentsCount", "type", "hashtags")
-    return [_lean(i, keep) for i in items]
+    return [_lean(i, ("ownerUsername", "shortCode", "url", "timestamp", "caption",
+                      "likesCount", "commentsCount", "type", "hashtags"))
+            for i in items]
 
 
 def instagram_post(post_url: str, raw: bool = False, approved: bool = False) -> list[dict]:
     """Full detail on one IG post — the deeper dig once a post looks like a
-    hook (caption in full plus top comments). Cost-gated (1 item)."""
-    _require_cost_approval(ACTORS["ig"], 1, approved)
+    hook (caption in full plus top comments). Runs apify/instagram-post-scraper
+    on the single post URL (its `username` field takes a post URL directly).
+    Cost-gated (1 post)."""
+    _require_cost_approval(ACTORS["ig_post"], 1, approved)
     items = run_actor(
-        ACTORS["ig"],
-        {"directUrls": [post_url], "resultsType": "posts", "resultsLimit": 1,
-         "addParentData": False},
+        ACTORS["ig_post"],
+        {"username": [post_url], "resultsLimit": 1},
         memory_mbytes=1024,
     )
     if raw:

@@ -104,7 +104,7 @@ def test_pay_per_event_uses_flagged_primary_and_account_tier(monkeypatch):
             return _FakeResponse({"data": {"plan": {"tier": "BRONZE"}}})
         return _FakeResponse({"data": {"pricingInfos": [_tiered_pricing_info()]}})
     monkeypatch.setattr(apify.requests, "get", fake_get)
-    assert apify._actor_primary_event_price_usd("apify~instagram-scraper") == 0.0023
+    assert apify._actor_primary_event_price_usd("apify~instagram-post-scraper") == 0.0023
 
 
 def test_pay_per_event_falls_back_to_free_tier_when_tier_unknown(monkeypatch):
@@ -116,7 +116,7 @@ def test_pay_per_event_falls_back_to_free_tier_when_tier_unknown(monkeypatch):
             raise apify.requests.RequestException("down")
         return _FakeResponse({"data": {"pricingInfos": [_tiered_pricing_info()]}})
     monkeypatch.setattr(apify.requests, "get", fake_get)
-    assert apify._actor_primary_event_price_usd("apify~instagram-scraper") == 0.0045
+    assert apify._actor_primary_event_price_usd("apify~instagram-post-scraper") == 0.0045
 
 
 def test_pay_per_event_falls_back_to_sole_recurring_event_when_none_flagged_primary(monkeypatch):
@@ -290,6 +290,54 @@ def test_instagram_gates_on_limit(monkeypatch):
         pass
     else:
         raise AssertionError("expected ApifyCostApprovalRequired")
+
+
+def test_instagram_routes_details_to_profile_actor_posts_to_post_actor(monkeypatch):
+    # The Instagram split (2026-07-18): details -> instagram-profile-scraper
+    # (usernames input), posts -> instagram-post-scraper (username input).
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.001)
+    seen = {}
+
+    def fake_run(actor_id, run_input, **k):
+        seen["actor"] = actor_id
+        seen["input"] = run_input
+        return []
+    monkeypatch.setattr(apify, "run_actor", fake_run)
+
+    apify.instagram("https://www.instagram.com/coachjane/?hl=en", mode="details")
+    assert seen["actor"] == apify.ACTORS["ig_profile"]
+    assert seen["input"] == {"usernames": ["coachjane"]}
+
+    apify.instagram("https://www.instagram.com/coachjane/", mode="posts",
+                    limit=5, newer_than="60 days", skip_pinned=True)
+    assert seen["actor"] == apify.ACTORS["ig_post"]
+    assert seen["input"]["username"] == ["https://www.instagram.com/coachjane/"]
+    assert seen["input"]["resultsLimit"] == 5
+    assert seen["input"]["onlyPostsNewerThan"] == "60 days"
+    assert seen["input"]["skipPinnedPosts"] is True
+
+
+def test_instagram_post_routes_to_post_actor(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.001)
+    seen = {}
+
+    def fake_run(actor_id, run_input, **k):
+        seen["actor"] = actor_id
+        seen["input"] = run_input
+        return []
+    monkeypatch.setattr(apify, "run_actor", fake_run)
+    apify.instagram_post("https://www.instagram.com/p/ABC123/")
+    assert seen["actor"] == apify.ACTORS["ig_post"]
+    assert seen["input"] == {"username": ["https://www.instagram.com/p/ABC123/"], "resultsLimit": 1}
+
+
+def test_ig_username_normalizes_urls_and_handles(monkeypatch=None):
+    assert apify._ig_username("coachjane") == "coachjane"
+    assert apify._ig_username("@coachjane") == "coachjane"
+    assert apify._ig_username("https://www.instagram.com/coachjane/?hl=en") == "coachjane"
+    assert apify._ig_username("instagram.com/coachjane") == "coachjane"
 
 
 def test_footprint_search_forwards_approved_to_both_google_search_calls(monkeypatch):
