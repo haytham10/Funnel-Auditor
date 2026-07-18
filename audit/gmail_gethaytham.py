@@ -50,7 +50,9 @@ from __future__ import annotations
 import base64
 import os
 import time
+from datetime import date
 from email.mime.text import MIMEText
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import requests
@@ -173,6 +175,55 @@ def count_messages(query: str, hard_cap: int = 500) -> int:
         if not page_token:
             break
     return total
+
+
+def _list_message_ids(query: str, hard_cap: int = 500) -> list[str]:
+    """IDs of every message matching a Gmail query, paginated (mirrors
+    `count_messages` but keeps the ids instead of discarding them)."""
+    ids: list[str] = []
+    page_token: str | None = None
+    while len(ids) < hard_cap:
+        params = {"q": query, "maxResults": 100}
+        if page_token:
+            params["pageToken"] = page_token
+        data = _request("GET", "/messages", params=params)
+        ids.extend(m["id"] for m in data.get("messages", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return ids
+
+
+def count_scheduled_by_day(target_day: date, tz, query: str = "in:scheduled") -> int:
+    """Of everything currently sitting in the scheduled queue, how many are
+    actually set to depart on `target_day` (in `tz`, e.g. Dubai).
+
+    `in:scheduled` alone returns every future-dated scheduled message, not
+    just today's — Gmail has no query operator that filters a scheduled
+    message by its intended send date, so this fetches each candidate's
+    `Date` header (cheap: format=metadata, one header only) and checks it
+    locally. A send scheduled for tomorrow counts against TOMORROW's
+    ceiling, never today's — folding it into today's total produces a false
+    "over ceiling" reading."""
+    count = 0
+    for msg_id in _list_message_ids(query):
+        data = _request(
+            "GET", f"/messages/{msg_id}",
+            params={"format": "metadata", "metadataHeaders": "Date"},
+        )
+        headers = {h["name"]: h["value"] for h in data.get("payload", {}).get("headers", [])}
+        date_header = headers.get("Date")
+        if not date_header:
+            continue
+        try:
+            dt = parsedate_to_datetime(date_header)
+        except (TypeError, ValueError):
+            continue
+        if dt.tzinfo is None:
+            continue
+        if dt.astimezone(tz).date() == target_day:
+            count += 1
+    return count
 
 
 def get_thread(thread_id: str) -> dict:

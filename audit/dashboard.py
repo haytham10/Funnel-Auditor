@@ -134,11 +134,17 @@ class DashboardError(ValueError):
 # Assembly — the Python-reachable slice
 # ---------------------------------------------------------------------------
 
-def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str, scheduled_query: str) -> dict:
+def _inbox_skeleton(
+    cap_state: send_cap.CapState, ib: inboxes.Inbox, day, query: str, scheduled_query: str,
+) -> dict:
     """One inbox's meter, with everything Python can settle. The sent-today
     AND sent-scheduled counts are filled here ONLY for the direct-API inbox;
     for a Gmail-MCP inbox both stay null and the skill runs `count_query` plus
-    `scheduled_query`."""
+    a day-scoped read of `scheduled_query` (see the /dashboard skill Step 3 —
+    `in:scheduled` alone returns every future-dated scheduled message, not
+    just `day`'s; each one must be checked against its own departure date, or
+    a send scheduled for tomorrow gets folded into today's ceiling and trips
+    a false "over ceiling" reading)."""
     eligible_on = None
     if cap_state.valid and cap_state.next_step and cap_state.set_on:
         eligible_on = str(cap_state.set_on + timedelta(days=send_cap.MIN_DAYS_PER_STEP))
@@ -180,7 +186,7 @@ def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str,
             meter["count_error"] = str(exc)
         try:
             from audit import gmail_gethaytham as gg
-            meter["sent_scheduled"] = gg.count_messages(scheduled_query)
+            meter["sent_scheduled"] = gg.count_scheduled_by_day(day, send_cap.DUBAI_TZ, scheduled_query)
         except Exception as exc:  # noqa: BLE001 — report, never crash the build
             meter["scheduled_error"] = str(exc)
     else:
@@ -204,7 +210,7 @@ def build_skeleton(now: datetime | None = None) -> dict:
     total = 0
     for ib in inboxes.all_inboxes():
         st = caps.get(ib.label) or send_cap.load_cap(ib.label)
-        meters.append(_inbox_skeleton(st, ib, query, scheduled_query))
+        meters.append(_inbox_skeleton(st, ib, day, query, scheduled_query))
         total += st.cap
 
     snapshot: dict = {
