@@ -26,6 +26,7 @@ Entries before 2026-07-16 predate the two-inbox split and are Inbox 1
 
 ## Log
 
+- 2026-07-18 — [Inbox 1] — [bounce] — contact@dubaifrenchtuitions.com (UAE lead Murielle Larriere, Touch 1 sent 07-15) confirmed hard bounce 2026-07-18 06:20 UTC ('Message not delivered... recipient server did not accept') after two days of temporary-delay notices (07-16, 07-17). Row already Dormant/dead-address per CRM Notes; no further action needed on the row itself.
 - 2026-07-18 — [Inbox 2] — [spam-flag] — Charlotte Verhaert (charlotte@c-coaching.consulting) auto-reply to Touch 1 (07-18, 'your interview with natalia') landed in Haytham's spam folder, not inbox - caught by Haytham manually, missed by the in:inbox reply sweep. Content is a genuine OOO (annual leave until 2026-08-17), not a spam-worthy reply itself, but the misclassification is a real signal worth watching.
 - 2026-07-18 — [Inbox 2] — [bounce] — Benjamin Owen (ben@coachbenjaminowen.com) hard-bounced 2026-07-18, Touch 1: 'Address not found' - mailbox does not exist. Address was a pattern-guessed catch-all-domain address, accepted risk by Haytham on 2026-07-17 revival. Row reverted to Qualifying.
 - 2026-07-17 — [Inbox 2] — [bounce] — info@williambrown.com (UAE lead William Brown, Touch 1) hard-bounced (mailer-daemon 550 "No mailbox by that name is currently available") despite Email Verified=YES (WARN/inconclusive role-account at verify time). Row reverted to Qualifying; Touch #/Findings Bank not spent.
