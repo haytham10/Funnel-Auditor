@@ -19,14 +19,22 @@ connected. This layer is deliberately small: the five Haytham-vetted
 actors below and nothing else. Adding actors is surface area and cost, not
 capability.
 
-Email verification and Google-footprint sourcing no longer default to this
-layer (2026-07-17, after the free plan's small monthly USD cap kept getting
-hit). `verify_emails`/`google_search`/`footprint_search` below still work
-and stay as a manual fallback, but the default paths are now
-`audit/email_verifier.py` (ZeroBounce, its own free tier, no Apify billing)
-and `audit/footprint.py` fed by Firecrawl search (`main.py
-classify-footprint`) — both keep the monthly cap free for LinkedIn/
-Instagram, the one thing Firecrawl genuinely can't reach.
+Email verification moved off this layer for a few weeks (2026-07-17, after
+the free plan's small monthly USD cap kept getting hit) and is back on it
+as of 2026-07-18 — the account is now on a paid (STARTER/BRONZE) plan, so
+the cap that forced the move no longer applies day-to-day. `_email_verifier`
+in `main.py` defaults to `"apify"` again; `audit/email_verifier.py`
+(ZeroBounce) stays fully wired as the automatic fallback for whenever a
+call would otherwise land on a capped account (`EMAIL_VERIFY_PROVIDER=
+zerobounce` to force it). Google-footprint sourcing stays on Firecrawl
+search feeding `audit/footprint.py` (`main.py classify-footprint`) — that
+move was never about the cap, Firecrawl already does the job at no Apify
+cost, so there's nothing to restore there; `footprint_search` below
+remains a manual fallback.
+
+Every run through this module is now cost-gated (`COST_APPROVAL_THRESHOLD_
+USD`, see below) — a paid plan removes the hard monthly wall but not the
+reason to look before a run that costs real money.
 
 ## The actor set (vetted; do not expand casually)
 
@@ -59,6 +67,24 @@ Instagram, the one thing Firecrawl genuinely can't reach.
   $10/1k — only pass `with_email=True` when you're actually hunting an
   address. Never re-verify an address already MX-confirmed.
 - Search: tight scoped queries, low page counts.
+
+## Cost approval gate
+
+Every wrapper below (`instagram`, `instagram_post`, `linkedin_posts`,
+`linkedin_profile`, `verify_emails`, `google_search`) estimates the run's
+cost BEFORE calling Apify — its primary charge event's live per-unit price
+(read from `GET /v2/acts/<id>`, at this account's actual plan tier) times
+the item count the call implies (`resultsLimit`, `maxPosts`,
+`len(emails)`, `pages`, ...). If that estimate is missing (pricing
+unreadable) or exceeds `COST_APPROVAL_THRESHOLD_USD` ($0.10), the call
+raises `ApifyCostApprovalRequired` instead of running — get Haytham's
+sign-off, then re-run with `approved=True` (CLI: `--approve-cost`).
+Ordinary single-lead calls (one Instagram pull, one address, a 5-post
+LinkedIn check) price out to a few cents at most and clear the gate
+automatically; a bulk pull or an oversized `--limit` is what actually
+trips it. The estimate prices the dominant event only (a run's primary
+line item), not situational add-ons (reactions/comments if requested, a
+captured AI Overview) — a go/no-go signal, not an invoice.
 
 ## The token
 
@@ -99,12 +125,38 @@ ACTORS = {
 # overruns returns 408 and should be re-issued async (run_actor_async).
 _SYNC_TIMEOUT_SECS = 240
 
+# A run whose estimated cost is unknown or exceeds this gets blocked with
+# ApifyCostApprovalRequired instead of running — see "Cost approval gate"
+# above.
+COST_APPROVAL_THRESHOLD_USD = 0.10
+
 LI_POSTED_LIMITS = ("any", "1h", "24h", "week", "month", "3months", "6months", "year")
 IG_RESULT_TYPES = ("posts", "details", "comments", "reels", "mentions", "stories")
 
 
 class ApifyError(RuntimeError):
     """Any Apify-side failure: missing token, billing, timeout, bad input."""
+
+
+class ApifyCostApprovalRequired(ApifyError):
+    """Raised instead of running when a call's estimated cost is unknown or
+    exceeds COST_APPROVAL_THRESHOLD_USD — the run needs Haytham's sign-off
+    before it happens, not after. Carries the estimate so a caller can
+    print it and re-run with approved=True (CLI: --approve-cost) once
+    that sign-off is given."""
+
+    def __init__(self, actor_id: str, estimated_usd: float | None, reason: str = ""):
+        self.actor_id = actor_id
+        self.estimated_usd = estimated_usd
+        if estimated_usd is None:
+            detail = f"cost could not be estimated ({reason})" if reason else "cost could not be estimated"
+        else:
+            detail = f"estimated cost ${estimated_usd:.3f}"
+        super().__init__(
+            f"{detail} for {actor_id} — exceeds the ${COST_APPROVAL_THRESHOLD_USD:.2f} "
+            "approval threshold. Get Haytham's approval, then re-run with "
+            "approved=True (CLI: --approve-cost)."
+        )
 
 
 def _token() -> str:
@@ -218,6 +270,107 @@ def account_limits() -> dict:
     }
 
 
+# Per-process caches — one lookup per actor / per account per run of the
+# CLI, not one per call. Pricing and plan tier don't change mid-process.
+_pricing_cache: dict[str, float | None] = {}
+_tier_cache: dict[str, str | None] = {"tier": None, "fetched": False}
+
+
+def _account_tier() -> str | None:
+    """Current plan tier (e.g. 'BRONZE'), read from `GET /v2/users/me` —
+    PAY_PER_EVENT actors price differently per tier and there's no way to
+    estimate a run's cost without knowing which column applies. Cached per
+    process; returns None on any failure so `_actor_primary_event_price_usd`
+    falls back to the FREE-tier (highest) column rather than silently
+    under-pricing the estimate."""
+    if _tier_cache["fetched"]:
+        return _tier_cache["tier"]
+    tier = None
+    try:
+        resp = requests.get(f"{APIFY_BASE}/users/me", headers=_auth_headers(), timeout=20)
+        if resp.ok:
+            tier = ((resp.json().get("data") or {}).get("plan") or {}).get("tier")
+    except requests.RequestException:
+        pass
+    _tier_cache["tier"] = tier
+    _tier_cache["fetched"] = True
+    return tier
+
+
+def _actor_primary_event_price_usd(actor_id: str) -> float | None:
+    """Current per-unit USD price of an actor's dominant charge event, read
+    live from `GET /v2/acts/<id>` (the same pricingInfos block shown on the
+    actor's Store page) — the actual number Apify will bill, not a
+    hardcoded guess that goes stale. Handles the two pricing models the
+    vetted actor set uses: flat PRICE_PER_DATASET_ITEM, and PAY_PER_EVENT
+    (reads the event flagged `isPrimaryEvent`; if none is flagged — e.g.
+    account56/email-verifier doesn't flag one — falls back to the sole
+    recurring, non-one-time event when there's exactly one, since that's
+    unambiguous; tiered by plan if the event has tiers). Returns None if
+    pricing can't be read at all (network failure, actor not found, or a
+    pricing model/shape this doesn't recognize) — callers treat None as
+    'can't estimate' and require approval rather than assume a run is
+    cheap."""
+    if actor_id in _pricing_cache:
+        return _pricing_cache[actor_id]
+    price: float | None = None
+    try:
+        resp = requests.get(f"{APIFY_BASE}/acts/{actor_id}", headers=_auth_headers(), timeout=20)
+        if resp.ok:
+            infos = (resp.json().get("data") or {}).get("pricingInfos") or []
+            if infos:
+                current = infos[-1]  # most recent entry — the one in effect now
+                model = current.get("pricingModel")
+                if model == "PRICE_PER_DATASET_ITEM":
+                    price = current.get("pricePerUnitUsd")
+                elif model == "PAY_PER_EVENT":
+                    events = ((current.get("pricingPerEvent") or {})
+                              .get("actorChargeEvents") or {})
+                    primary = next((e for e in events.values() if e.get("isPrimaryEvent")), None)
+                    if primary is None:
+                        recurring = [e for e in events.values() if not e.get("isOneTimeEvent")]
+                        if len(recurring) == 1:
+                            primary = recurring[0]
+                    if primary is not None:
+                        tiered = primary.get("eventTieredPricingUsd")
+                        if tiered:
+                            tier = _account_tier() or "FREE"
+                            entry = tiered.get(tier) or tiered.get("FREE")
+                            price = entry.get("tieredEventPriceUsd") if entry else None
+                        else:
+                            price = primary.get("eventPriceUsd")
+    except requests.RequestException:
+        pass
+    _pricing_cache[actor_id] = price
+    return price
+
+
+def estimate_cost_usd(actor_id: str, item_count: int) -> tuple[float | None, str]:
+    """Estimate one run's cost as (primary event's live per-unit price) x
+    item_count — item_count being whatever the caller expects Apify to
+    charge per-item for (resultsLimit, maxPosts, len(emails), pages, ...).
+    Prices the dominant cost driver only, not situational add-ons
+    (reactions/comments if requested, a captured AI Overview) — a go/no-go
+    estimate for the approval gate, not an invoice. Returns (None, reason)
+    when the price can't be read."""
+    price = _actor_primary_event_price_usd(actor_id)
+    if price is None:
+        return None, "pricing unavailable (network error or unrecognized pricing model)"
+    return round(price * max(item_count, 1), 4), ""
+
+
+def _require_cost_approval(actor_id: str, item_count: int, approved: bool) -> None:
+    """The approval gate every wrapper below calls before running. No-op
+    once approved=True (the caller already has Haytham's sign-off for this
+    call); otherwise estimates the cost and raises ApifyCostApprovalRequired
+    if it's unknown or over COST_APPROVAL_THRESHOLD_USD."""
+    if approved:
+        return
+    est, reason = estimate_cost_usd(actor_id, item_count)
+    if est is None or est > COST_APPROVAL_THRESHOLD_USD:
+        raise ApifyCostApprovalRequired(actor_id, est, reason)
+
+
 def discover_actors(query: str, limit: int = 6) -> list[dict]:
     """Search the public Apify Store (no token needed). Returns a ranked,
     trimmed list — how the actor set was chosen in the first place."""
@@ -264,12 +417,16 @@ def _lean(item: dict, keep: tuple[str, ...] | None = None) -> dict:
 
 
 def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
-              limit: int = 12, raw: bool = False) -> list[dict]:
+              limit: int = 12, raw: bool = False, approved: bool = False) -> list[dict]:
     """Instagram profile enrichment. mode='details' → profile metadata
     (followers, bio, latest posts); mode='posts' → recent posts with
-    captions, `newer_than` (e.g. '7 days', '2026-07-01') filtering recency."""
+    captions, `newer_than` (e.g. '7 days', '2026-07-01') filtering recency.
+    Cost-gated on `limit` — see "Cost approval gate" above; pass
+    approved=True once Haytham has signed off on an estimate over
+    COST_APPROVAL_THRESHOLD_USD."""
     if mode not in IG_RESULT_TYPES:
         raise ApifyError(f"instagram mode must be one of {IG_RESULT_TYPES}, got {mode!r}")
+    _require_cost_approval(ACTORS["ig"], limit, approved)
     run: dict[str, Any] = {
         "directUrls": [url],
         "resultsType": mode,
@@ -288,9 +445,10 @@ def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
     return [_lean(i, keep) for i in items]
 
 
-def instagram_post(post_url: str, raw: bool = False) -> list[dict]:
+def instagram_post(post_url: str, raw: bool = False, approved: bool = False) -> list[dict]:
     """Full detail on one IG post — the deeper dig once a post looks like a
-    hook (caption in full plus top comments)."""
+    hook (caption in full plus top comments). Cost-gated (1 item)."""
+    _require_cost_approval(ACTORS["ig"], 1, approved)
     items = run_actor(
         ACTORS["ig"],
         {"directUrls": [post_url], "resultsType": "posts", "resultsLimit": 1,
@@ -305,12 +463,13 @@ def instagram_post(post_url: str, raw: bool = False) -> list[dict]:
 
 
 def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
-                   raw: bool = False) -> list[dict]:
+                   raw: bool = False, approved: bool = False) -> list[dict]:
     """Recent LinkedIn posts (no cookies) — the primary hook source. `since`
     is one of LI_POSTED_LIMITS (e.g. 'week', 'month'). Reactions/comments
-    stay off by default to keep the run cheap."""
+    stay off by default to keep the run cheap. Cost-gated on `max_posts`."""
     if since and since not in LI_POSTED_LIMITS:
         raise ApifyError(f"since must be one of {LI_POSTED_LIMITS}, got {since!r}")
+    _require_cost_approval(ACTORS["li_posts"], max_posts, approved)
     run: dict[str, Any] = {"targetUrls": [url], "maxPosts": max_posts}
     if since:
         run["postedLimit"] = since
@@ -323,10 +482,12 @@ def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
             for i in items]
 
 
-def linkedin_profile(url: str, with_email: bool = False, raw: bool = False) -> list[dict]:
+def linkedin_profile(url: str, with_email: bool = False, raw: bool = False,
+                     approved: bool = False) -> list[dict]:
     """LinkedIn profile enrichment (headline, about, experience). Pass
     with_email=True ONLY when hunting an address for a no-email lead. Takes
-    a profile URL or bare username."""
+    a profile URL or bare username. Cost-gated (1 item)."""
+    _require_cost_approval(ACTORS["li_profile"], 1, approved)
     items = run_actor(ACTORS["li_profile"], {"username": url, "includeEmail": with_email},
                        memory_mbytes=256)
     if raw:
@@ -358,11 +519,13 @@ def linkedin_profile(url: str, with_email: bool = False, raw: bool = False) -> l
     return out
 
 
-def verify_emails(emails: list[str], raw: bool = False) -> list[dict]:
+def verify_emails(emails: list[str], raw: bool = False, approved: bool = False) -> list[dict]:
     """Verify one or more addresses (MillionVerifier-backed). The confirm
-    step before a found/guessed address enters the CRM."""
+    step before a found/guessed address enters the CRM. Cost-gated on
+    len(emails)."""
     if not emails:
         raise ApifyError("verify_emails needs at least one address")
+    _require_cost_approval(ACTORS["email"], len(emails), approved)
     items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
     if raw:
         return items
@@ -373,7 +536,7 @@ def verify_emails(emails: list[str], raw: bool = False) -> list[dict]:
 
 def google_search(query: str, pages: int = 1, site: str | None = None,
                   country: str | None = "ae", raw: bool = False,
-                  meta: bool = False) -> list[dict] | dict:
+                  meta: bool = False, approved: bool = False) -> list[dict] | dict:
     """Google SERP for one query. `site` scopes to a domain (e.g.
     linkedin.com), `country` biases results (default UAE).
 
@@ -390,6 +553,7 @@ def google_search(query: str, pages: int = 1, site: str | None = None,
     `relatedQueries` and `peopleAlsoAsk` (query-expansion fuel for lateral
     discovery) plus `resultsTotal`; otherwise it's the flat hit list, as
     before (backward compatible)."""
+    _require_cost_approval(ACTORS["search"], pages, approved)
     run: dict[str, Any] = {"queries": query, "maxPagesPerQuery": pages}
     if site:
         run["site"] = site
@@ -421,7 +585,8 @@ def google_search(query: str, pages: int = 1, site: str | None = None,
 
 
 def footprint_search(platform: str, geo: str = "Dubai", role: str = "coach",
-                     country: str | None = "ae", raw: bool = False) -> dict:
+                     country: str | None = "ae", raw: bool = False,
+                     approved: bool = False) -> dict:
     """Work one platform's Google footprint via BOTH query shapes and merge —
     the Apify-backed path (fetches through `google_search`, which draws on
     the shared monthly USD cap). Prefer `main.py classify-footprint`
@@ -447,11 +612,11 @@ def footprint_search(platform: str, geo: str = "Dubai", role: str = "coach",
         )
 
     sub_q = f"{role} {geo}"
-    subdomain_hits = google_search(sub_q, site=fp["domain"], country=country)
+    subdomain_hits = google_search(sub_q, site=fp["domain"], country=country, approved=approved)
 
     marker_hits: list[dict] = []
     if fp["marker"]:
         fp_q = f'"{fp["marker"]}" {role} {geo}'
-        marker_hits = google_search(fp_q, country=country)
+        marker_hits = google_search(fp_q, country=country, approved=approved)
 
     return classify_footprint_hits(key, subdomain_hits, marker_hits, geo=geo, role=role)
