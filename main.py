@@ -756,7 +756,9 @@ def cmd_apify(args) -> None:
             sys.exit(1)
         elif cmd == "ig":
             out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
-                                  limit=args.limit, raw=args.raw, approved=approved)
+                                  limit=args.limit, skip_pinned=args.skip_pinned,
+                                  include_about=args.include_about, raw=args.raw,
+                                  approved=approved)
         elif cmd == "ig-post":
             out = apify.instagram_post(args.url, raw=args.raw, approved=approved)
         elif cmd == "li-posts":
@@ -1077,14 +1079,21 @@ def main() -> None:
     a_actors.add_argument("query")
     a_actors.add_argument("--limit", type=int, default=6)
 
-    a_ig = apify_sub.add_parser("ig", help="Instagram profile: recent posts w/ captions, or profile details")
-    a_ig.add_argument("url")
+    a_ig = apify_sub.add_parser("ig", help="Instagram: recent posts w/ captions (post scraper), or profile details (profile scraper)")
+    a_ig.add_argument("url", help="profile URL or @handle (post URL also works for --mode posts)")
     a_ig.add_argument("--mode", default="posts",
-                      choices=["posts", "details", "reels", "comments", "mentions"],
-                      help="posts = feed w/ captions; details = follower/bio metadata")
+                      choices=["posts", "details"],
+                      help="posts = feed w/ captions (instagram-post-scraper); "
+                           "details = follower/bio metadata (instagram-profile-scraper)")
     a_ig.add_argument("--newer-than", dest="newer_than",
-                      help="recency filter, e.g. '7 days', '2 months', or 2026-07-01")
-    a_ig.add_argument("--limit", type=int, default=12)
+                      help="recency filter for posts mode, e.g. '7 days', '2 months', or 2026-07-01")
+    a_ig.add_argument("--limit", type=int, default=12, help="max posts (posts mode)")
+    a_ig.add_argument("--skip-pinned", dest="skip_pinned", action="store_true",
+                      help="posts mode: drop pinned posts (default keeps them — a pinned "
+                           "post is often the coach's signature/framework content)")
+    a_ig.add_argument("--include-about", dest="include_about", action="store_true",
+                      help="details mode: add the paid about-account block "
+                           "(country, join date, verification)")
     a_ig.add_argument("--raw", action="store_true", help="skip field trimming")
     a_ig.add_argument("--approve-cost", action="store_true",
                       help="Haytham has approved this run's estimated cost (only needed if "
