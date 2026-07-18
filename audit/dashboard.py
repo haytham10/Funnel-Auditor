@@ -134,11 +134,23 @@ class DashboardError(ValueError):
 # Assembly — the Python-reachable slice
 # ---------------------------------------------------------------------------
 
-def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str, scheduled_query: str) -> dict:
+def _inbox_skeleton(
+    cap_state: send_cap.CapState, ib: inboxes.Inbox, day, next_day, query: str, scheduled_query: str,
+) -> dict:
     """One inbox's meter, with everything Python can settle. The sent-today
     AND sent-scheduled counts are filled here ONLY for the direct-API inbox;
     for a Gmail-MCP inbox both stay null and the skill runs `count_query` plus
-    `scheduled_query`."""
+    a day-scoped read of `scheduled_query` (see the /dashboard skill Step 3 —
+    `in:scheduled` alone returns every future-dated scheduled message, not
+    just `day`'s; each one must be checked against its own departure date, or
+    a send scheduled for tomorrow gets folded into today's ceiling and trips
+    a false "over ceiling" reading).
+
+    Also settles `sent_scheduled_next_day` — how much of `next_day`'s ceiling
+    is already committed from what's currently sitting in the scheduled
+    queue (nothing can be "sent" for a day that hasn't arrived, so this is
+    scheduled-only, no sent-count component). Lets the dashboard show a
+    Tomorrow view next to Today's without a second full fetch cycle."""
     eligible_on = None
     if cap_state.valid and cap_state.next_step and cap_state.set_on:
         eligible_on = str(cap_state.set_on + timedelta(days=send_cap.MIN_DAYS_PER_STEP))
@@ -166,6 +178,8 @@ def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str,
         "sent_today": None,
         "sent_scheduled": None,  # Gmail-MCP only; skill fills via scheduled_query
         "count_source": None,
+        "next_day": str(next_day),
+        "sent_scheduled_next_day": None,  # Gmail-MCP only; skill fills the same way
     }
 
     if ib.send_via == "gmail-gethaytham":
@@ -180,9 +194,14 @@ def _inbox_skeleton(cap_state: send_cap.CapState, ib: inboxes.Inbox, query: str,
             meter["count_error"] = str(exc)
         try:
             from audit import gmail_gethaytham as gg
-            meter["sent_scheduled"] = gg.count_messages(scheduled_query)
+            meter["sent_scheduled"] = gg.count_scheduled_by_day(day, send_cap.DUBAI_TZ, scheduled_query)
         except Exception as exc:  # noqa: BLE001 — report, never crash the build
             meter["scheduled_error"] = str(exc)
+        try:
+            from audit import gmail_gethaytham as gg
+            meter["sent_scheduled_next_day"] = gg.count_scheduled_by_day(next_day, send_cap.DUBAI_TZ, scheduled_query)
+        except Exception as exc:  # noqa: BLE001 — report, never crash the build
+            meter["next_day_scheduled_error"] = str(exc)
     else:
         # MCP-only (Gmail connector) — Python can't reach this domain. The skill
         # runs count_query for in:sent and scheduled_query for in:scheduled.
@@ -196,6 +215,7 @@ def build_skeleton(now: datetime | None = None) -> dict:
     are seeded as null for the /dashboard skill to fill in place."""
     now = now or datetime.now(send_cap.DUBAI_TZ)
     day = now.astimezone(send_cap.DUBAI_TZ).date()
+    next_day = day + timedelta(days=1)
     query = f"in:sent after:{send_cap.dubai_midnight_epoch(day)}"
     scheduled_query = "in:scheduled"
 
@@ -204,7 +224,7 @@ def build_skeleton(now: datetime | None = None) -> dict:
     total = 0
     for ib in inboxes.all_inboxes():
         st = caps.get(ib.label) or send_cap.load_cap(ib.label)
-        meters.append(_inbox_skeleton(st, ib, query, scheduled_query))
+        meters.append(_inbox_skeleton(st, ib, day, next_day, query, scheduled_query))
         total += st.cap
 
     snapshot: dict = {
@@ -403,35 +423,59 @@ def _alert_banner(snapshot: dict) -> str:
 
 # --- TODAY tab ---------------------------------------------------------------
 
+def _meter_day_block(cls: str, day_tag: str, numerator, cap: int, used,
+                      bits_extra: list[str], unknown_note: str | None) -> str:
+    """One day's num/bar/state block (shared by the Today and Tomorrow
+    views on a meter card). `numerator` is what's shown before the slash;
+    `used` is what's actually checked against `cap` for the over/warn/ok
+    read — for Today these differ (numerator excludes same-day scheduled
+    sends from the headline count, `used` includes them), for Tomorrow
+    they're the same value (everything tomorrow is scheduled, nothing's
+    "sent" yet). `day_tag` is stamped into the block itself (not just the
+    shared toggle) so a card still reads correctly in a static screenshot."""
+    tag = f'<span class="m-daytag">{_esc(day_tag)}</span>'
+    if used is None:
+        note = unknown_note or "count not fetched yet"
+        num = f'<span class="m-num">–<span class="m-den"> / {cap}</span></span>'
+        bar = '<div class="track unknown"><div class="fill" style="width:0"></div></div>'
+        state = f'<span class="m-state warn-t">{_esc(note)}</span>'
+        return f'<div class="{cls}"><div class="m-head-row">{tag}{num}</div>{bar}{state}</div>'
+
+    pct = _pct(used, cap)
+    over = used > cap
+    sev = "over" if over else ("warn" if pct >= 80 else "ok")
+    num = f'<span class="m-num">{numerator}<span class="m-den"> / {cap}</span></span>'
+    bar = f'<div class="track {sev}"><div class="fill" style="width:{pct:.0f}%"></div></div>'
+    bits = [f'<strong>over ceiling by {used - cap}</strong>' if over else f"{cap - used} left"]
+    bits.extend(bits_extra)
+    if unknown_note:
+        bits.append(unknown_note)
+    state = f'<span class="m-state {"crit-t" if over else ""}">{" · ".join(bits)}</span>'
+    return f'<div class="{cls}"><div class="m-head-row">{tag}{num}</div>{bar}{state}</div>'
+
+
 def _meter_card(m: dict) -> str:
     label = _esc(m.get("label"))
     used, sched, cap = _meter_usage(m)
     ramp = m.get("ramp") or {}
     primary = ' <span class="mut">· primary</span>' if m.get("primary") else ""
 
-    if used is None:
-        note = m.get("count_error") or "sent count not fetched yet"
-        num = f'<span class="m-num">–<span class="m-den"> / {cap}</span></span>'
-        bar = '<div class="track unknown"><div class="fill" style="width:0"></div></div>'
-        state = f'<span class="m-state warn-t">{_esc(note)}</span>'
-        sev = ""
-    else:
-        pct = _pct(used, cap)
-        over = used > cap
-        sev = "over" if over else ("warn" if pct >= 80 else "ok")
-        num = f'<span class="m-num">{used - sched}<span class="m-den"> / {cap}</span></span>'
-        bar = (f'<div class="track {sev}"><div class="fill" '
-               f'style="width:{pct:.0f}%"></div></div>')
-        bits = []
-        if over:
-            bits.append(f'<strong>over ceiling by {used - cap}</strong>')
-        else:
-            bits.append(f"{cap - used} left")
-        if sched:
-            bits.append(f"{sched} scheduled")
-        if m.get("scheduled_error"):
-            bits.append(f'scheduled count unknown ({m["scheduled_error"]})')
-        state = f'<span class="m-state {"crit-t" if over else ""}">{" · ".join(bits)}</span>'
+    today_bits = [f"{sched} scheduled"] if used is not None and sched else []
+    today_numerator = (used - sched) if used is not None else "–"
+    cur_block = _meter_day_block(
+        "day-cur", "Today", today_numerator, cap, used,
+        today_bits, m.get("count_error") if used is None else m.get("scheduled_error"),
+    )
+
+    next_sched = m.get("sent_scheduled_next_day")
+    next_day_label = m.get("next_day") or "tomorrow"
+    next_bits = ["all scheduled, none sent yet"]
+    if ramp.get("eligible_on") == next_day_label and ramp.get("next_step"):
+        next_bits.append(f'ramp unlocks {ramp["next_step"]}/day tomorrow')
+    next_block = _meter_day_block(
+        "day-next", f"Tomorrow · {next_day_label}", next_sched if next_sched is not None else "–", cap, next_sched,
+        next_bits, m.get("next_day_scheduled_error"),
+    )
 
     # The single most useful ramp fact, not the whole block.
     if not ramp.get("valid", True):
@@ -445,9 +489,9 @@ def _meter_card(m: dict) -> str:
         ramp_cls = ""
 
     return (
-        f'<div class="meter"><div class="m-head"><span class="m-label">{label}{primary}</span>{num}</div>'
+        f'<div class="meter"><div class="m-head"><span class="m-label">{label}{primary}</span></div>'
         f'<div class="m-addr">{_esc(m.get("address"))}</div>'
-        f'{bar}{state}'
+        f'{cur_block}{next_block}'
         f'<div class="m-ramp {ramp_cls}">{_esc(ramp_line)}</div></div>'
     )
 
@@ -458,7 +502,14 @@ def _list_rows(items, render_row) -> str:
 
 def _today_tab(snapshot: dict) -> str:
     meters = "".join(_meter_card(m) for m in snapshot.get("inboxes", []))
-    out = (f'<div class="card" id="sec-inboxes"><h2>Inboxes</h2>'
+    day_toggle = (
+        '<div class="seg" role="group" aria-label="Meter day">'
+        '<button class="seg-btn" data-day="cur" aria-pressed="true">Today</button>'
+        '<button class="seg-btn" data-day="next" aria-pressed="false">Tomorrow</button>'
+        '</div>'
+    )
+    out = (f'<div class="card" id="sec-inboxes"><div class="card-head">'
+           f'<h2>Inboxes</h2>{day_toggle}</div>'
            f'<div class="meter-grid">{meters}</div></div>')
 
     replies = snapshot.get("replies")
@@ -714,9 +765,16 @@ h1{font-size:clamp(20px,3vw,26px);margin:0;letter-spacing:-.01em}
 .card h2{margin:0 0 12px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);font-weight:650}
 .card h3{margin:14px 0 6px;font-size:12px;color:var(--mut);font-weight:600}
 .card h3:first-of-type{margin-top:0}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.card-head h2{margin:0}
 .foot{font-size:12px;color:var(--mut);margin:10px 0 0}
 .mut{color:var(--mut);font-weight:400}
 .empty{color:var(--mut);font-size:13px;font-style:italic;margin:2px 0}
+
+.seg{display:inline-flex;gap:2px;border:1px solid var(--hair);border-radius:10px;padding:2px}
+.seg-btn{padding:4px 11px;border-radius:8px;font-size:12px;color:var(--ink2)}
+.seg-btn[aria-pressed="true"]{background:var(--accent-track);color:var(--accent);font-weight:600}
+.seg-btn:hover{color:var(--ink)}
 
 .meter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
 .meter{border:1px solid var(--hair);border-radius:12px;padding:12px 14px}
@@ -725,7 +783,12 @@ h1{font-size:clamp(20px,3vw,26px);margin:0;letter-spacing:-.01em}
 .m-num{font-size:22px;font-weight:650}
 .m-den{font-size:13px;color:var(--mut);font-weight:400}
 .m-addr{font-size:11.5px;color:var(--mut);margin:1px 0 9px;word-break:break-all}
-.track{height:8px;border-radius:5px;overflow:hidden;background:var(--accent-track)}
+.m-head-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.m-daytag{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);font-weight:600}
+.day-next{display:none}
+#sec-inboxes[data-view="next"] .day-cur{display:none}
+#sec-inboxes[data-view="next"] .day-next{display:block}
+.track{height:8px;border-radius:5px;overflow:hidden;background:var(--accent-track);margin-top:4px}
 .track .fill{height:100%;border-radius:0 4px 4px 0;background:var(--accent)}
 .track.warn{background:var(--warn-track)}.track.warn .fill{background:var(--warn)}
 .track.over{background:var(--crit-track)}.track.over .fill{background:var(--crit)}
@@ -816,6 +879,16 @@ _SCRIPT = """
     });
   }
   tabs.forEach(function(t){ t.addEventListener("click", function(){ selectTab(t.dataset.tab); }); });
+
+  /* inbox meters — Today / Tomorrow toggle */
+  var inboxCard = document.getElementById("sec-inboxes");
+  var segBtns = Array.prototype.slice.call(document.querySelectorAll(".seg-btn"));
+  segBtns.forEach(function(b){
+    b.addEventListener("click", function(){
+      segBtns.forEach(function(x){ x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      if (inboxCard) inboxCard.setAttribute("data-view", b.dataset.day);
+    });
+  });
 
   /* summary tiles jump to their section on the Today tab */
   Array.prototype.forEach.call(document.querySelectorAll(".tile[data-jump]"), function(tile){

@@ -32,11 +32,17 @@ python main.py dashboard skeleton
 
 This prints the base snapshot JSON: `generated_at` / `generated_day` (Dubai),
 the per-inbox meters with each inbox's ceiling + ramp status, and — for the
-**direct-API inbox (Inbox 2 / gethaytham)** — its real `sent_today` AND
-`sent_scheduled` counts, both fetched by Python. Every Notion-sourced and
+**direct-API inbox (Inbox 2 / gethaytham)** — its real `sent_today`,
+`sent_scheduled` (today's departures only, day-scoped — see Step 3), AND
+`sent_scheduled_next_day` (tomorrow's departures already committed from the
+scheduled queue) counts, all fetched by Python. Every Notion-sourced and
 Gmail-MCP panel is seeded `null` for you to fill in place. Each meter also
-carries `count_query` (`in:sent after:<dubai-midnight-epoch>`) and
-`scheduled_query` (`in:scheduled`) for the Gmail-MCP inbox to run itself.
+carries `count_query` (`in:sent after:<dubai-midnight-epoch>`),
+`scheduled_query` (`in:scheduled`), and `next_day` (tomorrow's Dubai date,
+ISO) for the Gmail-MCP inbox to run itself. The Today/Tomorrow toggle on the
+rendered Inboxes card reads `sent_scheduled_next_day` — leave it `null` (not
+`0`) if you can't determine it, so the card shows "count not fetched yet"
+rather than a fabricated zero.
 
 Save this JSON to the scratchpad as `snapshot.json`; you will fill its null
 fields and keep the Python-filled ones verbatim.
@@ -125,24 +131,43 @@ For **each inbox**, use the meter's `count_query` and `scheduled_query`.
 Branch on `send_via` (from `python main.py inbox list`):
 
 - **Inbox 1 (`gmail-mcp`):** run `count_query` with `mcp__Gmail__search_threads`
-  to count sent messages, write the total to that meter's `sent_today`. Then
-  run `scheduled_query` (`in:scheduled`) the same way and write the count to
-  `sent_scheduled` — **do not skip this**, it is the only source for that
-  inbox's scheduled sends; nothing else derives it. A scheduled send counts
-  against today's ceiling the same as a sent one, so a missed
-  `sent_scheduled` understates how full the inbox actually is.
-- **Inbox 2 (`gmail-gethaytham`):** both `sent_today` and `sent_scheduled`
-  are already filled by the skeleton — leave them. (To re-verify by hand:
-  `python main.py gmail-gethaytham search "<query>"` with either query.)
+  to count sent messages, write the total to that meter's `sent_today`.
+- **Inbox 2 (`gmail-gethaytham`):** `sent_today` is already filled by the
+  skeleton — leave it. `sent_scheduled` is also pre-filled, day-scoped by
+  `gmail_gethaytham.count_scheduled_by_day()` (see below) — leave it too.
+
+**`sent_scheduled` means "scheduled to depart TODAY," never "everything
+currently in the scheduled queue."** `in:scheduled` alone returns every
+future-dated scheduled message — a Touch 2 queued tonight to leave tomorrow
+morning matches it exactly the same as one departing in the next hour. Only
+today's departures belong in the ceiling meter; folding tomorrow's into
+today's total overstates usage and can trip a false "over ceiling" reading
+(this happened in practice: 10 messages scheduled for the next Dubai day got
+added to today's count and showed Inbox 1 as 7 over its cap when it wasn't).
+Inbox 2 gets this for free from Python (`count_scheduled_by_day`, which
+checks each candidate's actual `Date` header against the target day, called
+once for `generated_day` and once more for `next_day`). For **Inbox 1
+(`gmail-mcp`, the one Python can't reach)**, do the equivalent by hand —
+one fetch, two buckets:
+
+1. Run `scheduled_query` (`in:scheduled`) with `mcp__Gmail__search_threads`.
+2. For each thread, find the message with no `labelIds` (the not-yet-sent
+   scheduled one) and read its send date from the thread/message detail.
+3. Count the ones landing on `generated_day` (Dubai) and write that count to
+   `sent_scheduled` (today's meter). Separately count the ones landing on
+   `next_day` and write that to `sent_scheduled_next_day` (the Tomorrow
+   toggle) — same fetched list, just bucketed by date, no second API call.
 
 Then, for **every inbox**, list the actual scheduled messages (not just the
-count) so they can be placed on the calendar — `mcp__Gmail__search_threads`
-with `in:scheduled` for Inbox 1, `python main.py gmail-gethaytham search
-"in:scheduled"` for Inbox 2. For each one found, add an entry to
-`snapshot["calendar"]` with its departure date, kind `"send"`, and the
-recipient's name (see Step 2's `calendar` panel below) — this is the only
-way scheduled sends reach the calendar tab; `build_events()` cannot derive
-them on its own.
+count) so ALL of them — today's and future ones alike — can be placed on the
+calendar — `mcp__Gmail__search_threads` with `in:scheduled` for Inbox 1,
+`python main.py gmail-gethaytham search "in:scheduled"` for Inbox 2. For
+each one found, add an entry to `snapshot["calendar"]` with its real
+departure date, kind `"send"`, and the recipient's name (see Step 2's
+`calendar` panel below) — this is the only way scheduled sends reach the
+calendar tab; `build_events()` cannot derive them on its own. A future-dated
+scheduled send belongs on the calendar even though it's excluded from
+today's `sent_scheduled` meter count.
 
 Sweep both inboxes for new replies since the last run and fold anything not
 already in the CRM into the `replies` panel as a note (this dashboard does not
