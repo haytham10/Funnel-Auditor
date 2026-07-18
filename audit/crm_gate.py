@@ -27,6 +27,13 @@ Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
           must also hand over `--followups-due` and passes only if
           sends_today + followups_due stays under the cap.
 
+          A fresh opener queued AFTER noon Dubai (send_cap.SEND_DAY_CUTOFF_HOUR)
+          can't leave today — it is scheduled for tomorrow morning — so it is
+          attributed to tomorrow's send-day and gated against tomorrow's ceiling
+          using tomorrow's already-scheduled count (`--sends-next-day`), not
+          today's already-spent one. Follow-ups and warm replies still go out
+          today and are never rolled.
+
           The cold sequence is THREE touches (day 0, 3, 9), then Dormant.
           Touches 2 and 3 must each carry something new — `--carries`
           declares it: `second-finding` (checked against the row's
@@ -131,18 +138,30 @@ def check_send(
     carries: str | None = None,
     cap_state: send_cap.CapState | None = None,
     inbox: str | None = None,
+    now=None,
+    sends_next_day: int | None = None,
 ) -> tuple[bool, list[str], list[str]]:
     """Gate for queueing/logging any cold send on this lead.
 
     sends_today   — TOTAL sends already out of THIS inbox today (all touch
                     types, warm included, both tracks — Gmail sent count).
     touch         — which cold touch this send is (1, 2, or 3).
-    followups_due — touch 1 only: follow-ups still owed today; they eat
-                    the budget before any opener does.
+    followups_due — touch 1 only: follow-ups still owed on the opener's
+                    send-day; they eat the budget before any opener does.
     carries       — touch 2/3 only: the new thing this follow-up carries.
     inbox         — which sending inbox this send leaves from; its ceiling
                     is independent (default: the primary inbox). Ignored
                     when cap_state is passed in directly.
+    now           — the current moment (default: real Dubai now); used only
+                    to decide the opener's send-day (noon Dubai cutoff).
+    sends_next_day — touch 1 only, and only relevant PAST the noon Dubai
+                    cutoff: the count already attributed to TOMORROW's
+                    send-day (tomorrow's already-scheduled sends out of this
+                    inbox). A fresh opener queued after noon can't leave
+                    today — it is scheduled for tomorrow morning — so it is
+                    gated against tomorrow's ceiling using this count, not
+                    today's already-spent one. Follow-ups/warm replies are
+                    never rolled: they still go out today.
 
     Returns (ok, problems, notes) — notes are PASS-line detail.
     """
@@ -183,22 +202,45 @@ def check_send(
         return False, problems, notes
 
     if touch == 1:
-        if followups_due is None:
-            problems.append(
-                "--followups-due is required for a touch 1 opener — follow-ups due today "
-                "eat the budget first; count them and hand the number over"
+        # A fresh opener queued after noon Dubai can't leave today — it is
+        # scheduled for tomorrow morning — so it is gated against TOMORROW's
+        # send-day, using tomorrow's already-scheduled count, never today's
+        # already-spent one. Before noon it behaves exactly as before.
+        after = send_cap.is_after_send_cutoff(now)
+        sday = send_cap.send_day(now)
+        if after:
+            base_count = sends_next_day
+            day_phrase = (
+                f"send-day {sday} (past {send_cap.SEND_DAY_CUTOFF_HOUR}:00 Dubai — this opener "
+                "is scheduled for tomorrow, so it counts against tomorrow's ceiling)"
             )
         else:
-            total = sends_today + followups_due
+            base_count = sends_today
+            day_phrase = f"send-day {sday} (today)"
+
+        if followups_due is None:
+            problems.append(
+                "--followups-due is required for a touch 1 opener — follow-ups due on the "
+                "opener's send-day eat the budget first; count them and hand the number over"
+            )
+        elif after and base_count is None:
+            problems.append(
+                f"it is past {send_cap.SEND_DAY_CUTOFF_HOUR}:00 Dubai, so a new opener is "
+                f"attributed to tomorrow's send-day ({sday}) — pass --sends-next-day "
+                "(tomorrow's already-scheduled sends out of this inbox) so it is gated "
+                "against tomorrow's ceiling, not today's already-spent count"
+            )
+        else:
+            total = base_count + followups_due
             if total >= cap:
                 problems.append(
-                    f"sends today {sends_today} + follow-ups due {followups_due} = {total} "
-                    f">= {cap_state.cap_phrase()} — follow-ups eat the budget first; "
-                    "this opener rolls to tomorrow"
+                    f"{base_count} already on {day_phrase} + follow-ups due {followups_due} "
+                    f"= {total} >= {cap_state.cap_phrase()} — follow-ups eat the budget first; "
+                    "this opener rolls to the next send-day"
                 )
             else:
                 notes.append(
-                    f"touch 1 opener, sends today {sends_today} + follow-ups due "
+                    f"touch 1 opener → {day_phrase}: {base_count} already + follow-ups due "
                     f"{followups_due} = {total} < {cap_state.cap_phrase()} "
                     f"(opener headroom {cap - total})"
                 )
@@ -257,6 +299,7 @@ def print_send(
     followups_due: int | None = None,
     carries: str | None = None,
     inbox: str | None = None,
+    sends_next_day: int | None = None,
 ) -> int:
     if inbox is not None and not inboxes.is_registered(inbox):
         print(
@@ -269,6 +312,7 @@ def print_send(
     cap_state = send_cap.load_cap(inbox)
     ok, problems, notes = check_send(
         row, sends_today, touch, followups_due, carries, cap_state=cap_state,
+        sends_next_day=sends_next_day,
     )
     name = _norm(row.get("Contact Name")) or "unnamed lead"
     tag = f" [{cap_state.inbox}]"

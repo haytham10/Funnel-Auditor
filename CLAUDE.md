@@ -121,7 +121,11 @@ scores to `docs/deliverability-log.md`.
   follow-ups eat its budget first; its new openers get what's left. Enforced
   per send: `python main.py crm-gate send <row.json> --sends-today N
   --touch T --inbox "<label>"` (+ `--followups-due M` on touch 1, `--carries
-  X` on touch 2/3; `--sends-today` = that inbox's own count). The
+  X` on touch 2/3; `--sends-today` = that inbox's own count). **Past noon
+  Dubai a fresh touch-1 opener rolls to tomorrow's send-day** (it can't leave
+  today — it's scheduled for the morning) and is gated against tomorrow's
+  ceiling via `--sends-next-day M` (that inbox's already-scheduled count);
+  follow-ups and warm replies never roll. The
   registry that maps a label to its address + transport is
   `audit/inboxes.py`. The bottleneck is findings, not sends — opener
   headroom means that many funnel walks/day.
@@ -356,6 +360,14 @@ scores to `docs/deliverability-log.md`.
 
 ## Environment notes
 
+- **The repo's `.claude/skills/` is the authoritative skill set — never a
+  remembered or globally-installed copy.** A `SessionStart` hook
+  (`.claude/hooks/skills_authoritative.py`, wired in `.claude/settings.json`)
+  fingerprints every on-disk `SKILL.md` and injects that inventory at session
+  start, so each skill's committed version is the one in force. When a skill
+  applies, read its `SKILL.md` (and referenced files) FROM DISK and follow
+  that; if the injected `v=` fingerprint differs from what you recall, the
+  file on disk wins. Fails open — it can never block a session from starting.
 - Firecrawl MCP server is the primary fetcher — already connected in
   managed sessions, no setup needed.
 - Apify actor layer (`main.py apify`, `audit/apify.py`) is the no-login

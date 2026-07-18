@@ -72,6 +72,40 @@ def today() -> date:
     return datetime.now(DUBAI_TZ).date()
 
 
+# Cold openers are sent in the recipient's morning. A run started in the
+# afternoon can't put a fresh opener out today — it schedules it for tomorrow
+# morning — so that opener must count against TOMORROW's ceiling, not today's
+# already-spent one. Past this hour (Dubai), a NEW opener rolls to the next
+# send-day. Follow-ups and warm replies are unaffected: they still go out today
+# and still count against today (see crm_gate.check_send).
+SEND_DAY_CUTOFF_HOUR = 12  # noon Dubai
+
+
+def _dubai_now(now: datetime | None = None) -> datetime:
+    """The current moment in Dubai. `now` may be tz-aware (converted) or None."""
+    if now is None:
+        return datetime.now(DUBAI_TZ)
+    return now.astimezone(DUBAI_TZ) if now.tzinfo else now.replace(tzinfo=DUBAI_TZ)
+
+
+def is_after_send_cutoff(now: datetime | None = None) -> bool:
+    """True once it is at/after the noon Dubai cutoff — past which a new opener
+    is attributed to tomorrow's send-day."""
+    return _dubai_now(now).hour >= SEND_DAY_CUTOFF_HOUR
+
+
+def send_day(now: datetime | None = None) -> date:
+    """The send-day a NEW opener queued *now* is attributed to.
+
+    Before the noon Dubai cutoff → today; at/after it → tomorrow. This is the
+    day whose ceiling a fresh opener is gated against; the live Dubai date
+    (`today()`) still governs follow-ups, warm replies, and everything that
+    actually leaves today.
+    """
+    d = _dubai_now(now)
+    return d.date() + timedelta(days=1) if d.hour >= SEND_DAY_CUTOFF_HOUR else d.date()
+
+
 def dubai_midnight_epoch(day: date | None = None) -> int:
     """Unix seconds at 00:00 Dubai on the given send-day (default: today).
 
