@@ -29,6 +29,28 @@ Entry template:
 
 ---
 
+## 2026-07-18 — Instagram fetch split into two dedicated Apify actors
+- Swapped the single `apify/instagram-scraper` for `apify/instagram-profile-scraper`
+  (`--mode details`, `usernames` input) + `apify/instagram-post-scraper` (posts +
+  `ig-post` single-post detail, `username` input which also takes profile/post URLs).
+  Branch `claude/apify-instagram-scraper-migration-vdnypk`, pushed (no PR yet).
+- Why it's a clean swap: both are Apify's own sibling actors — **identical output
+  field names** (trim/`_lean` keys unchanged) and both PAY_PER_EVENT with a flagged
+  `isPrimaryEvent`, so the existing cost-approval estimator works untouched. Slightly
+  cheaper too: $0.0023/profile + $0.0015/post at BRONZE.
+- New flags: `--skip-pinned` (post actor's native `skipPinnedPosts`, **default off**
+  by Haytham's call — a pinned post is often the coach's signature/framework content,
+  i.e. the SMYKM hook) and `--include-about` (profile actor's paid about-account
+  add-on). Dropped the unused reels/comments/mentions/stories modes; `--mode` is now
+  `posts`/`details` only.
+- CLI command names (`apify ig` / `ig-post`) unchanged on purpose, so
+  `haytham-hook-finder` and every other consumer needed zero change. Only
+  `audit/apify.py` + `main.py` + docs/tests touched. Tests: 23/23 (added
+  actor-routing + username-normalize).
+- Gotcha: the profile scraper's `usernames` field wants a **bare handle**, not a URL
+  (the post scraper's `username` accepts either) — added `_ig_username()` to strip a
+  handle out of a profile URL on the details path only.
+
 ## 2026-07-18 — Hooks + Touch-1 drafts for the 3 Audit Ready leads (Noona, Marie, Michele)
 - Ran `haytham-hook-finder` (batch) over the 3 Audit Ready rows whose `SMYKM Hook`
   was empty. Apify cap fine (2% used). All 3 hooks from fresh, cited public evidence:
