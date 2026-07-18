@@ -79,6 +79,40 @@ Entry template:
 - [ ] Haytham to schedule the 3 drafts in Gmail for 07-19, then confirm sends so the tick
   flips each to Outreach Sent (Touch #1, Last Contacted, Findings Bank #1 → USED-T1).
 
+## 2026-07-18 — Donna Brown replied yes to the walkthrough (Inbox 2)
+- Donna Brown (Leadership/Life coach, Dubai, Inbox 2, Track A) replied a second
+  time on her thread (subj "your core blueprint bundle"), at 22:05 Dubai:
+  "Thank you for your message... Sure happy to know what I can do better.. By the
+  way, how did you come across my page?" — a **warm yes to the Loom walkthrough**
+  plus a trust-check question.
+- Thread state: Touch 1 = finding #1 (Core Blueprint checkout double-charge) →
+  her reply #1 slightly **misread** it (thinks the worry is that the bundle
+  duplicates the course; the real flag is the checkout add-on bump stacking the
+  AED 1,997 bundle on top of the AED 597 course). Touch 2 = finding #2 (Save 35%
+  badge is really ~29%) + loom-offer → her reply #2 above.
+- Logged her reply verbatim to the Email Thread Log; Notes refreshed; Next Action
+  pulled to today. Status stays `Reply Received`, Sequence `Warm`, Touch # 2 (no
+  send yet). Findings Bank #3 (course-name mismatch) + #4 (Stripe branded
+  "Coaching Business") still UNUSED — Loom material.
+- **Drafted the turn-two Loom-delivery reply** and created the Gmail draft in
+  Inbox 2 (threaded, subject unchanged), held on a `[Loom link]` placeholder.
+  Answers her question honestly (Google-footprint sourcing), re-shows the
+  double-charge she misread, carries the two remaining findings, closes steering
+  her toward handing it over (she said "I'll revisit it myself" — gratitude-trap
+  risk).
+- Timing decision: don't ask permission to send (she already said yes); record
+  the Loom and schedule the send for ~8am Dubai so it tops her inbox in the
+  morning instead of pinging at 10pm. Haytham can't record now — **doing it
+  tonight.**
+- Ceiling: Inbox 2 at 8/20 today, room for the warm reply (counts against
+  whichever Dubai-day it actually departs).
+### Open follow-ups
+- [ ] Haytham records the walkthrough Loom tonight, swaps the `[Loom link]` into
+      the Inbox 2 draft (with `https://` scheme), schedules/sends ~8am Dubai.
+- [ ] On confirmed send: Touch # → 3, Status `Reply Received` → `Loom Sent`, Last
+      Contacted → real send date, Next Action → warm cadence (~2-3 days). No new
+      bank flip (Loom bundles remaining findings as delivery, not a fresh touch).
+
 ## 2026-07-18 — Luca & Larry "findings invalid" — over-retirement corrected
 - Haytham flagged, while prepping tomorrow's follow-ups, that Luca Allam and Dr
   Larry Davies findings "don't hold anymore." Re-walked both funnels live.
