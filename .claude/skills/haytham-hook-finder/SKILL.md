@@ -95,7 +95,11 @@ hand, from Gmail.
    `python main.py apify limits` once (no cost). If `near_cap` is true,
    say so up front and fall back to Step 4 (Haytham pastes screenshots)
    for every lead in the batch instead of letting each one discover the
-   same exhausted quota individually.
+   same exhausted quota individually. Separately, each `apify` call is
+   also cost-gated per-run (`audit/apify.py`, $0.10 threshold) — a normal
+   single-lead LinkedIn/IG pull clears it automatically; if one instead
+   prints `needs_approval`/exits 3, don't retry it — tell Haytham the
+   estimate and only re-run with `--approve-cost` once he says yes.
 1. Fetch the lead's Notion page. Confirm the lane + Status, and note the
    current `SMYKM hook:` line (should read "not run yet" on a fresh lead).
    The Profile URL property is usually the LinkedIn profile — start there.

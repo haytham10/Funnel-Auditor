@@ -388,6 +388,12 @@ free `email-check` may already have a candidate):
      manual note.
    - **`EMAIL ENRICH: NONE`** (nothing verified, or a free-provider domain
      that can't be guessed) → fall through to the manual note.
+   - **`EMAIL ENRICH: APPROVAL REQUIRED`** (Apify's estimated cost for this
+     batch is unknown or over $0.10) → do NOT retry it yourself. Ask
+     Haytham for the go-ahead, quoting the estimate; only re-run with
+     `--approve-cost` once he says yes. Treat the lead as still needing
+     enrichment in the meantime (same as HOLD) — never guess an address to
+     route around the gate.
    Skip enrichment for a Lane 2/3 lead — it never gets a cold send, so don't
    spend a verify call.
 5. Enrichment came up empty (HOLD/NONE) → set Notes first line "email not
@@ -410,8 +416,10 @@ b. **Deliverability (Lane 1 only — this is the gate):** for a Lane 1 lead
    ```bash
    python main.py email-verify <address>
    ```
-   (one address, one ZeroBounce call — the free tier covers normal volume,
-   no Apify involved). Act on the literal line:
+   (one address, one Apify/MillionVerifier call by default — cheap enough
+   at this volume to clear the cost gate automatically; falls back to
+   ZeroBounce on its own if Apify is near its monthly cap). Act on the
+   literal line:
    - **`EMAIL VERIFY: PASS`** → check the `Email Verified` box on the row.
      This is the only thing that checks it automatically.
    - **`EMAIL VERIFY: FAIL`** (invalid/disposable) → the address bounces;
@@ -422,6 +430,10 @@ b. **Deliverability (Lane 1 only — this is the gate):** for a Lane 1 lead
      "deliverability inconclusive (<reason>) — Haytham's call before
      send." Not auto-sendable; he finds a better address or checks the box
      by hand to accept the risk.
+   - **`EMAIL VERIFY: APPROVAL REQUIRED`** (should not happen at
+     single-address volume, but fails closed if it does) → do NOT retry
+     yourself; ask Haytham for approval, quoting the estimate, then re-run
+     with `--approve-cost` only once he says yes.
 
    Skip (b) for Lane 2/3 — they never get a cold send, so don't spend a
    verify call on them.

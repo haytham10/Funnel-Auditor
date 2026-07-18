@@ -53,14 +53,22 @@ Run `pip install -q -r requirements.txt` once before spawning anything.
 **Check the Apify quota once, before spawning anything (added Jul 15,
 2026, after a batch where several agents each separately burned tool
 calls discovering the same exhausted monthly quota):** `python main.py
-apify limits`. Apify's free/starter tier caps on a small monthly USD
-budget (`current.monthlyUsageUsd` vs `limits.maxMonthlyUsageUsd`), not a
+apify limits`. Apify's plan caps on a monthly USD budget
+(`current.monthlyUsageUsd` vs `limits.maxMonthlyUsageUsd`), not a
 per-actor credit — one lead's LinkedIn/IG lookups can burn a meaningful
 slice of it. If `near_cap` is `true` (or a call errors), tell every
 lead-processor agent in its prompt: "Apify is at/near its monthly cap
 this run — do not call `python main.py apify <anything>` for audience
 confirmation; note 'Apify unavailable this run' and proceed on
 Firecrawl/web-search signal alone." One check, not one per lead.
+
+Separately, every individual Apify call is also cost-gated per-run
+(`audit/apify.py`, $0.10 threshold) — a normal single-lead pull clears it
+automatically, but if a lead-processor agent reports `APPROVAL REQUIRED`
+(exit 3, `EMAIL VERIFY`/`EMAIL ENRICH: APPROVAL REQUIRED`, or an
+`apify <cmd>` call printing `needs_approval`), do not tell it to retry —
+surface the estimate to Haytham and only re-run with `--approve-cost`
+once he's said yes.
 
 For each lead, spawn a **lead-processor** agent (`.claude/agents/
 lead-processor.md`). Its prompt must contain everything it needs — agents

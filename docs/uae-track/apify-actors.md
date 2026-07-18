@@ -13,46 +13,82 @@ Code: `audit/apify.py`. CLI: `python main.py apify …`. It prints JSON to
 stdout, the same shape the rest of the machine's commands use, so skills
 consume it by shelling out.
 
-**Email verification and Google-footprint sourcing no longer default to
-this layer (2026-07-17).** The free plan's small monthly USD cap kept
-getting hit, and the paid tier that unlocks Store-actor access (the
-`li-posts`/`li-profile`/`ig` actors below are all Store actors) starts at
-$29/month — Apify's own $1/month Creator Plan doesn't help here, since it
-explicitly blocks Store-actor access and only allows Apify's own
-"universal" actors or actors you build yourself. So instead of buying more
-Apify headroom, the two consumers that don't strictly need Apify moved off
-it:
+**Email verification moved off this layer for a few weeks (2026-07-17 to
+2026-07-18).** The free plan's small monthly USD cap kept getting hit, and
+the paid tier that unlocks Store-actor access (the `li-posts`/
+`li-profile`/`ig` actors below are all Store actors) starts at $29/month —
+Apify's own $1/month Creator Plan doesn't help here, since it explicitly
+blocks Store-actor access and only allows Apify's own "universal" actors
+or actors you build yourself. Two consumers that don't strictly need
+Apify moved off it in the meantime:
 
-- **Email verification** now defaults to **ZeroBounce** (`audit/
-  email_verifier.py`, `python main.py email-verify`/`email-enrich`) — its
-  free tier is 100 verification credits/month, no card, credits don't
-  expire. Reads `ZEROBOUNCE_API_KEY` from the environment.
-- **Google-footprint sourcing** now defaults to **Firecrawl search**
-  feeding a fetch-agnostic classifier (`audit/footprint.py`, `python
-  main.py classify-footprint`) instead of Apify's google-search-scraper —
-  Firecrawl is already connected and paid for in this environment, so this
-  costs nothing extra.
+- **Email verification** defaulted to **ZeroBounce** (`audit/
+  email_verifier.py`, `python main.py email-verify`/`email-enrich`) for
+  those few weeks — its free tier is 100 verification credits/month, no
+  card, credits don't expire. Reads `ZEROBOUNCE_API_KEY` from the
+  environment. **The account moved to the paid STARTER/BRONZE plan on
+  2026-07-18, so email verification is back on Apify/MillionVerifier by
+  default** — `EMAIL_VERIFY_PROVIDER` in `main.py` defaults to `"apify"`
+  again. ZeroBounce stays fully wired as the automatic fallback (see
+  below) and as a manual override (`EMAIL_VERIFY_PROVIDER=zerobounce`).
+- **Google-footprint sourcing** defaults to **Firecrawl search** feeding a
+  fetch-agnostic classifier (`audit/footprint.py`, `python main.py
+  classify-footprint`) instead of Apify's google-search-scraper — this was
+  never about the cap (Firecrawl is already connected and paid for in this
+  environment, so it costs nothing extra either way), so there's nothing
+  to restore here even now that Apify has budget again.
 
 `apify.verify_emails` / `apify.google_search` / `apify.footprint_search`
 are all still fully wired, untouched — nothing was removed, only the
-*default* changed. This keeps the whole free-tier monthly cap available
-for the one thing with no substitute: LinkedIn and Instagram.
+*default* changed (twice now). LinkedIn and Instagram remain the two
+things with no substitute.
 
-**Switching email verification back to Apify (once there's Apify budget
-again) is a one-line env var, no code change:** set
-`EMAIL_VERIFY_PROVIDER=apify` and `main.py email-verify`/`email-enrich`
-prefer `apify.verify_emails`/MillionVerifier — see `_email_verifier()` in
-`main.py`. Unset (or `zerobounce`, the default) keeps ZeroBounce.
+**The email-verify provider is a one-line env var switch either
+direction, no code change:** set `EMAIL_VERIFY_PROVIDER=zerobounce` to
+force ZeroBounce (e.g. if Apify ever needs to stand down again), or leave
+it unset to use the restored default (`"apify"`) — see `_email_verifier()`
+in `main.py`.
 
-**With `EMAIL_VERIFY_PROVIDER=apify` set, the switch back to Apify still
-auto-protects itself against a capped month.** Every `email-verify`/
-`email-enrich` call checks `apify.account_limits()` first (free, no actor
-run) and auto-falls-back to ZeroBounce for just that call if Apify is
-at/near its cap, folding a note into the same gate line (`... [Apify at
-94% of its monthly cap — auto-switched to ZeroBounce for this call]`) so
-Haytham sees it happened. No manual intervention needed when a paid plan
-caps out again some month — it just quietly keeps working on ZeroBounce
-until the cap resets.
+**With Apify as the active provider, the switch still auto-protects
+itself against a capped month.** Every `email-verify`/`email-enrich` call
+checks `apify.account_limits()` first (free, no actor run) and
+auto-falls-back to ZeroBounce for just that call if Apify is at/near its
+cap, folding a note into the same gate line (`... [Apify at 94% of its
+monthly cap — auto-switched to ZeroBounce for this call]`) so Haytham sees
+it happened. No manual intervention needed if the paid plan ever caps out
+— it just quietly keeps working on ZeroBounce until the cap resets.
+
+## Cost approval gate (new 2026-07-18)
+
+Every actor call through this layer — `instagram`, `instagram_post`,
+`linkedin_posts`, `linkedin_profile`, `verify_emails`, `google_search`
+(and `footprint_search`, which calls `google_search` twice) — estimates
+its cost BEFORE running and blocks instead of running if that estimate is
+unknown or over **`COST_APPROVAL_THRESHOLD_USD` ($0.10)**. The estimate is
+real, not guessed: it reads the actor's dominant charge event's live
+per-unit price straight from `GET /v2/acts/<id>` (the same figures shown
+on the actor's Store page), priced at this account's actual plan tier
+(`GET /v2/users/me`), times the item count the call implies
+(`resultsLimit`, `maxPosts`, `len(emails)`, `pages`, ...).
+
+A blocked call raises `apify.ApifyCostApprovalRequired`; the CLI surfaces
+it as:
+- `python main.py apify <cmd> ...` → prints `{"error": ..., "needs_approval":
+  true, "actor": "...", "estimated_usd": ...}` and exits **3**.
+- `python main.py email-verify` / `email-enrich` (when the Apify provider
+  is active) → prints `EMAIL VERIFY`/`EMAIL ENRICH: APPROVAL REQUIRED — ...`
+  and exits **3**.
+
+Get Haytham's sign-off on the quoted estimate, then re-run the exact same
+command with **`--approve-cost`** appended — that's the only thing that
+bypasses the gate for that call. Ordinary single-lead volume (one
+Instagram pull at the default `--limit 12`, one address, a 5-post
+LinkedIn check, a handful of enrichment candidates) prices out to a few
+cents at most and clears automatically; this only fires on something
+genuinely larger — an oversized `--limit`/`--max`, a bulk verify batch, or
+a big sourcing sweep. The estimate prices the dominant event only, not
+situational add-ons (reactions/comments if requested, a captured AI
+Overview) — a go/no-go signal, not an invoice.
 
 The manual `apify verify-email` / `apify search` / `apify footprint`
 commands get the same treatment from the other direction: if the quota is
@@ -103,13 +139,18 @@ Code environment (Settings → environment).
 | `apify li-profile <url>` | apimaestro/linkedin-profile-detail | headline / about / experience; `--email` mode finds an address |
 | `apify ig <url>` | apify/instagram-scraper | IG recent posts w/ captions (`--mode details` for bio/followers) |
 | `apify ig-post <url>` | apify/instagram-scraper | full detail on one IG post (caption + top comments) |
-| `apify verify-email <addr…>` | account56/email-verifier | *manual fallback only* — default is now `main.py email-verify` (ZeroBounce, `audit/email_verifier.py`) |
-| `apify search "<q>"` / `apify footprint <platform>` | apify/google-search-scraper | *manual fallback only* — default is now `main.py classify-footprint` fed by `firecrawl_search` (`audit/footprint.py`) |
+| `apify verify-email <addr…>` | account56/email-verifier | manual cross-check — `main.py email-verify`/`email-enrich` call this same actor by default now (restored 2026-07-18); use this form directly only to bypass the CLI's gate line |
+| `apify search "<q>"` / `apify footprint <platform>` | apify/google-search-scraper | *manual fallback only* — default is still `main.py classify-footprint` fed by `firecrawl_search` (`audit/footprint.py`); this was never about the cap |
 | `apify actors "<q>"` | (Store search) | discover/compare actors — **no token needed** |
 
-Only the LinkedIn and Instagram rows are the default path a skill reaches
-for. `verify-email`/`search`/`footprint` still run exactly as documented
-below, kept for when ZeroBounce or Firecrawl search is itself unavailable.
+LinkedIn and Instagram are the default path a skill reaches for directly
+via `apify li-posts`/`li-profile`/`ig`/`ig-post`. Email verification's
+default path is `main.py email-verify`/`email-enrich`, which call into
+`apify.verify_emails` under the hood — `apify verify-email` still runs
+exactly as documented below for a direct/manual check. `search`/
+`footprint` stay a manual fallback for when Firecrawl search is itself
+unavailable. Every row here is cost-gated per-run regardless of which
+entry point calls it — see "Cost approval gate" above.
 
 **`li-profile` switched vendors 2026-07-16, `li-posts` did not.** A batch
 hit a hard wall mid-run on harvestapi's PROFILE actor specifically:
@@ -134,15 +175,18 @@ genuinely web-unreachable, add it here deliberately, not by reflex.
 ## Check the quota once, not per lead
 
 `python main.py apify limits` — no token cost, no actor run. Prints
-current usage vs. plan limits (`GET /v2/users/me/limits`). The free/starter
-tier caps on a small **monthly USD budget**
-(`current.monthlyUsageUsd` / `limits.maxMonthlyUsageUsd`), not a
-per-actor credit count, so a handful of LinkedIn/IG lookups across a
-batch can burn through it fast — LinkedIn/Instagram are the only regular
-consumers of this budget now that email verification and Google-footprint
-sourcing default elsewhere (see above), so this check is really "is there
-room for this batch's hook-finding." The response includes `pct_of_usd_cap`
-and `near_cap` (`true` at ≥90%) for a quick read.
+current usage vs. plan limits (`GET /v2/users/me/limits`). The plan caps
+on a **monthly USD budget** (`current.monthlyUsageUsd` /
+`limits.maxMonthlyUsageUsd`, $29 on the current STARTER/BRONZE plan), not
+a per-actor credit count, so a handful of LinkedIn/IG lookups across a
+batch (plus email verification, restored to this budget 2026-07-18) can
+still add up across a busy day — Google-footprint sourcing is the one
+regular draw that stays off it (see above). The response includes
+`pct_of_usd_cap` and `near_cap` (`true` at ≥90%) for a quick read. This is
+the monthly-budget check, separate from the per-run cost approval gate
+below — near_cap governs whether to touch Apify at all this run;
+the cost gate governs whether any single call is cheap enough to run
+without asking first.
 
 **batch-audit checks this once, up front**, before spawning any
 lead-processor agents — if `near_cap` is true, every agent gets told to
@@ -165,8 +209,10 @@ first rather than assume the quota is open.
 - **Email:** `li-profile --email` uses the $10/1k email-search mode vs
   $4/1k plain — only pass it when actually hunting an address. Never
   re-verify an address already MX-confirmed by `main.py email-check`.
-  Deliverability *confirmation* itself no longer runs here by default —
-  see `main.py email-verify` (ZeroBounce, no Apify cost at all).
+  Deliverability *confirmation* goes through `main.py email-verify`
+  (Apify/MillionVerifier by default again, ZeroBounce as the fallback) —
+  either way it's cost-gated per-run (see "Cost approval gate" above), and
+  single-address volume clears it automatically.
 - **Search / footprint:** the Google-footprint channel defaults to
   `firecrawl_search` + `main.py classify-footprint` now (no Apify cost).
   `apify search` / `apify footprint <platform>` remain available — tight
@@ -193,9 +239,10 @@ first rather than assume the quota is open.
   <platform>` (the original Apify-fetched path) remains a fallback if
   Firecrawl search is itself unavailable.
 - **`email-check` WARN → verify** — when `main.py email-check` returns WARN
-  (unverifiable MX / role account), `main.py email-verify <addr>`
-  (ZeroBounce) is the confirm step before the address enters the CRM or a
-  send queue. `apify verify-email <addr>` remains a manual fallback.
+  (unverifiable MX / role account), `main.py email-verify <addr>` (Apify/
+  MillionVerifier by default, ZeroBounce as the auto-fallback) is the
+  confirm step before the address enters the CRM or a send queue. `apify
+  verify-email <addr>` remains a manual fallback/cross-check.
 - **No-email leads** — find-then-verify: `apify search` /
   `apify li-profile --email` to surface a founder-direct address, then
   `main.py email-verify` to confirm it before it's logged. Verification
@@ -203,8 +250,9 @@ first rather than assume the quota is open.
 - **No-email leads, nominative fallback** — when nothing surfaces above,
   `python main.py email-enrich "<name>" <Site URL>` derives name-based
   candidates against the lead's OWN branded domain (jane@, jane.doe@, jdoe@…)
-  and verifies them all in ONE batched ZeroBounce call, adopting at most
-  one deliverable address. It never guesses on a free-provider domain
+  and verifies them all in ONE batched call (Apify by default, ZeroBounce
+  as the fallback), adopting at most one deliverable address. It never
+  guesses on a free-provider domain
   (gmail/outlook/…), and never auto-adopts on a catch-all domain (every guess
   returns `catch_all`/`catch-all` → WARN → HOLD, so no specific mailbox is
   confirmable). A `PASS` line is by construction an `EMAIL VERIFY: PASS` on
@@ -219,7 +267,7 @@ python main.py apify li-posts "https://ae.linkedin.com/in/anacaragea" --max 5
 # LinkedIn About/career story, only if posts were thin
 python main.py apify li-profile "https://ae.linkedin.com/in/douglambert..."
 
-# Find an address for a no-email lead, then confirm it (ZeroBounce, no Apify cost)
+# Find an address for a no-email lead, then confirm it (Apify by default)
 python main.py apify li-profile "<profile url>" --email
 python main.py email-verify "found@lead.com"
 
@@ -236,4 +284,12 @@ python main.py apify actors "instagram profile scraper"
 # firecrawl_search results for both shapes to JSON files:
 python main.py classify-footprint kajabi --subdomain-hits sub.json \
     --marker-hits marker.json --geo Dubai
+
+# A run that trips the cost gate (needs Haytham's approval first)
+python main.py apify li-posts "<profile url>" --max 100
+# -> {"error": "estimated cost $0.20 for harvestapi~linkedin-profile-posts —
+#     exceeds the $0.10 approval threshold ...", "needs_approval": true,
+#     "estimated_usd": 0.2}, exit 3
+python main.py apify li-posts "<profile url>" --max 100 --approve-cost
+# -> runs, once Haytham has actually signed off on that estimate
 ```

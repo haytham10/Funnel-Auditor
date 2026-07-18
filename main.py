@@ -524,21 +524,27 @@ def _apify_quota_note() -> tuple[bool, str | None]:
     return False, None
 
 
-def _email_verifier():
+def _email_verifier(approved: bool = False):
     """Which verifier `email-verify`/`email-enrich` use. Reads
-    `EMAIL_VERIFY_PROVIDER` (default "zerobounce"; set to "apify" to prefer
-    `apify.verify_emails`/MillionVerifier once there's Apify budget again —
-    both providers stay fully wired, this just picks which one is
-    preferred). When "apify" is preferred, this checks the Apify quota
-    FIRST and auto-falls-back to ZeroBounce if Apify is at/near its
+    `EMAIL_VERIFY_PROVIDER` (default "apify", restored 2026-07-18 now that
+    the account is on a paid plan; set to "zerobounce" to force the
+    no-Apify path — both providers stay fully wired, this just picks which
+    one is preferred). When "apify" is preferred, this checks the Apify
+    quota FIRST and auto-falls-back to ZeroBounce if Apify is at/near its
     monthly cap, instead of spending an attempt that would just 402 — no
-    manual intervention needed when a paid plan caps out again some month.
+    manual intervention needed if a plan ever caps out again. An Apify call
+    is also cost-gated (see audit/apify.py) — `approved` forwards the
+    caller's `--approve-cost` through to `apify.verify_emails`; a call
+    whose estimate is unknown or over threshold raises
+    ApifyCostApprovalRequired rather than running (ordinary single/batched
+    verify calls price out to a fraction of a cent and clear automatically).
     Returns (verify_fn, error_class, note) — `note` is set only when an
     auto-fallback happened, so the caller can fold it into the printed
     gate line rather than silently switching providers."""
     import os
+    import functools
     from audit import email_verifier
-    provider = os.environ.get("EMAIL_VERIFY_PROVIDER", "zerobounce").strip().lower()
+    provider = os.environ.get("EMAIL_VERIFY_PROVIDER", "apify").strip().lower()
     if provider != "apify":
         return email_verifier.verify_emails, email_verifier.EmailVerifierError, None
 
@@ -547,22 +553,29 @@ def _email_verifier():
     if capped:
         return (email_verifier.verify_emails, email_verifier.EmailVerifierError,
                 f"{note} — auto-switched to ZeroBounce for this call")
-    return apify.verify_emails, apify.ApifyError, None
+    return functools.partial(apify.verify_emails, approved=approved), apify.ApifyError, None
 
 
 def cmd_email_verify(args) -> None:
-    """Deliverability verification as a quotable gate line — ZeroBounce by
-    default, or Apify/MillionVerifier if `EMAIL_VERIFY_PROVIDER=apify`
-    (auto-falling back to ZeroBounce if Apify is capped — see
-    `_email_verifier` above). This is the confirm step before `Email
-    Verified` is checked and the lead becomes sendable — syntax+MX
-    (email-check) is not enough, one real bounce burns the domain. One
-    address, one attempt; a verifier error is inconclusive (WARN), never a
-    silent pass."""
+    """Deliverability verification as a quotable gate line — Apify/
+    MillionVerifier by default (restored 2026-07-18, paid plan), or
+    ZeroBounce if `EMAIL_VERIFY_PROVIDER=zerobounce` (auto-falling back to
+    ZeroBounce if Apify is capped regardless — see `_email_verifier`
+    above). This is the confirm step before `Email Verified` is checked
+    and the lead becomes sendable — syntax+MX (email-check) is not enough,
+    one real bounce burns the domain. One address, one attempt; a
+    verifier error is inconclusive (WARN), never a silent pass. An Apify
+    call whose estimated cost is unknown or over the $0.10 approval
+    threshold prints APPROVAL REQUIRED instead (see audit/apify.py) — get
+    Haytham's sign-off, then re-run with `--approve-cost`."""
     from audit import email_check
-    verify_fn, error_cls, note = _email_verifier()
+    from audit.apify import ApifyCostApprovalRequired
+    verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
     try:
         rows = verify_fn([args.address])
+    except ApifyCostApprovalRequired as exc:
+        print(f"EMAIL VERIFY: APPROVAL REQUIRED — {exc}")
+        sys.exit(3)
     except error_cls as exc:
         print(f"EMAIL VERIFY: WARN — {args.address}: verifier unavailable "
               f"({exc}) — inconclusive, could not confirm deliverability")
@@ -581,13 +594,21 @@ def cmd_email_enrich(args) -> None:
     Verified`. Same `EMAIL_VERIFY_PROVIDER` switch (with auto-fallback on a
     capped Apify quota) as `email-verify` — see `_email_verifier`. Fails
     closed: a verifier error is inconclusive (HOLD), never a silent
-    adoption."""
+    adoption. An Apify call whose estimated cost is unknown or over the
+    $0.10 approval threshold prints APPROVAL REQUIRED instead of HOLD (see
+    audit/apify.py) — get Haytham's sign-off, then re-run with
+    `--approve-cost`."""
     from audit import email_enrich
     from audit.urls import registrable_domain
-    verify_fn, error_cls, note = _email_verifier()
+    from audit.apify import ApifyCostApprovalRequired
+    verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
     try:
         sys.exit(email_enrich.print_enrich(args.name, args.domain, verifier=verify_fn,
                                            note=note or ""))
+    except ApifyCostApprovalRequired as exc:
+        print(f"EMAIL ENRICH: APPROVAL REQUIRED — "
+              f"{registrable_domain(args.domain) or args.domain}: {exc}")
+        sys.exit(3)
     except error_cls as exc:
         print(f"EMAIL ENRICH: HOLD — {registrable_domain(args.domain) or args.domain}: "
               f"verifier unavailable ({exc}) — inconclusive, no candidate confirmed")
@@ -696,10 +717,17 @@ def cmd_apify(args) -> None:
     `verify-email`/`search`/`footprint` check the quota first and redirect
     to their no-Apify alternative if capped, rather than running into a 402
     — see `_APIFY_ALTERNATIVES`. There's no such redirect for `ig`/
-    `li-posts`/`li-profile`: those have no substitute, so they always run."""
+    `li-posts`/`li-profile`: those have no substitute, so they always run.
+
+    Every run is also cost-gated (audit/apify.py's approval threshold,
+    $0.10): a call whose estimated cost is unknown or over threshold
+    prints `{"error": ..., "needs_approval": true, "estimated_usd": ...}`
+    and exits 3 instead of running — get Haytham's approval, then re-run
+    the same command with `--approve-cost`."""
     from audit import apify
 
     cmd = args.apify_command
+    approved = getattr(args, "approve_cost", False)
     try:
         if cmd == "limits":
             out = apify.account_limits()
@@ -713,27 +741,36 @@ def cmd_apify(args) -> None:
             sys.exit(1)
         elif cmd == "ig":
             out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
-                                  limit=args.limit, raw=args.raw)
+                                  limit=args.limit, raw=args.raw, approved=approved)
         elif cmd == "ig-post":
-            out = apify.instagram_post(args.url, raw=args.raw)
+            out = apify.instagram_post(args.url, raw=args.raw, approved=approved)
         elif cmd == "li-posts":
             out = apify.linkedin_posts(args.url, max_posts=args.max, since=args.since,
-                                       raw=args.raw)
+                                       raw=args.raw, approved=approved)
         elif cmd == "li-profile":
-            out = apify.linkedin_profile(args.url, with_email=args.email, raw=args.raw)
+            out = apify.linkedin_profile(args.url, with_email=args.email, raw=args.raw,
+                                         approved=approved)
         elif cmd == "verify-email":
-            out = apify.verify_emails(args.addresses, raw=args.raw)
+            out = apify.verify_emails(args.addresses, raw=args.raw, approved=approved)
         elif cmd == "search":
             out = apify.google_search(args.query, pages=args.pages, site=args.site,
-                                      country=args.country, raw=args.raw,
+                                      country=args.country, raw=args.raw, approved=approved,
                                       meta=getattr(args, "meta", False))
         elif cmd == "footprint":
             out = apify.footprint_search(args.platform, geo=args.geo, role=args.role,
-                                         country=args.country, raw=args.raw)
+                                         country=args.country, raw=args.raw, approved=approved)
         else:
             parser_error = f"apify: unknown subcommand {cmd!r}"
             print(json.dumps({"error": parser_error}))
             sys.exit(2)
+    except apify.ApifyCostApprovalRequired as exc:
+        print(json.dumps({
+            "error": str(exc),
+            "needs_approval": True,
+            "actor": exc.actor_id,
+            "estimated_usd": exc.estimated_usd,
+        }, indent=2))
+        sys.exit(3)
     except apify.ApifyError as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         sys.exit(1)
@@ -967,6 +1004,10 @@ def main() -> None:
              "do — see audit/email_check.py",
     )
     p_email_verify.add_argument("address")
+    p_email_verify.add_argument("--approve-cost", action="store_true",
+                                help="Haytham has approved this call's estimated Apify cost "
+                                     "(only relevant when EMAIL_VERIFY_PROVIDER=apify and the "
+                                     "estimate is over $0.10 — see audit/apify.py)")
     p_email_verify.set_defaults(func=cmd_email_verify)
 
     p_email_enrich = sub.add_parser(
@@ -980,6 +1021,10 @@ def main() -> None:
     )
     p_email_enrich.add_argument("name", help="the lead's full name (Contact Name)")
     p_email_enrich.add_argument("domain", help="the lead's Site URL or bare branded domain")
+    p_email_enrich.add_argument("--approve-cost", action="store_true",
+                                help="Haytham has approved this call's estimated Apify cost "
+                                     "(only relevant when EMAIL_VERIFY_PROVIDER=apify and the "
+                                     "estimate is over $0.10 — see audit/apify.py)")
     p_email_enrich.set_defaults(func=cmd_email_enrich)
 
     p_probe = sub.add_parser(
@@ -1021,10 +1066,16 @@ def main() -> None:
                       help="recency filter, e.g. '7 days', '2 months', or 2026-07-01")
     a_ig.add_argument("--limit", type=int, default=12)
     a_ig.add_argument("--raw", action="store_true", help="skip field trimming")
+    a_ig.add_argument("--approve-cost", action="store_true",
+                      help="Haytham has approved this run's estimated cost (only needed if "
+                           "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     a_igp = apify_sub.add_parser("ig-post", help="full detail on one Instagram post (caption + top comments)")
     a_igp.add_argument("url")
     a_igp.add_argument("--raw", action="store_true")
+    a_igp.add_argument("--approve-cost", action="store_true",
+                       help="Haytham has approved this run's estimated cost (only needed if "
+                            "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     a_lip = apify_sub.add_parser("li-posts", help="recent LinkedIn posts (no cookies) — primary hook source")
     a_lip.add_argument("url")
@@ -1033,16 +1084,25 @@ def main() -> None:
                        choices=["any", "1h", "24h", "week", "month", "3months", "6months", "year"],
                        help="recency window, e.g. week, month")
     a_lip.add_argument("--raw", action="store_true")
+    a_lip.add_argument("--approve-cost", action="store_true",
+                       help="Haytham has approved this run's estimated cost (only needed if "
+                            "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     a_lipr = apify_sub.add_parser("li-profile", help="LinkedIn profile enrichment (headline/about/experience)")
     a_lipr.add_argument("url")
     a_lipr.add_argument("--email", action="store_true",
                         help="use the email-search mode ($10/1k) to find an address — no-email leads only")
     a_lipr.add_argument("--raw", action="store_true")
+    a_lipr.add_argument("--approve-cost", action="store_true",
+                        help="Haytham has approved this run's estimated cost (only needed if "
+                             "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     a_ver = apify_sub.add_parser("verify-email", help="verify one or more addresses before they enter the CRM")
     a_ver.add_argument("addresses", nargs="+")
     a_ver.add_argument("--raw", action="store_true")
+    a_ver.add_argument("--approve-cost", action="store_true",
+                       help="Haytham has approved this run's estimated cost (only needed if "
+                            "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     a_search = apify_sub.add_parser("search", help="Google SERP for one query")
     a_search.add_argument("query")
@@ -1052,6 +1112,9 @@ def main() -> None:
     a_search.add_argument("--meta", action="store_true",
                           help="also return relatedQueries + peopleAlsoAsk (query expansion)")
     a_search.add_argument("--raw", action="store_true")
+    a_search.add_argument("--approve-cost", action="store_true",
+                          help="Haytham has approved this run's estimated cost (only needed if "
+                               "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     a_footprint = apify_sub.add_parser(
         "footprint",
@@ -1064,6 +1127,9 @@ def main() -> None:
                              help="role/noun to search for (default coach)")
     a_footprint.add_argument("--country", default="ae", help="country bias (default ae); pass '' to disable")
     a_footprint.add_argument("--raw", action="store_true")
+    a_footprint.add_argument("--approve-cost", action="store_true",
+                             help="Haytham has approved this run's estimated cost (only needed if "
+                                  "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     p_apify.set_defaults(func=cmd_apify)
 
