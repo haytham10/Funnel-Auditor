@@ -368,6 +368,18 @@ scores to `docs/deliverability-log.md`.
   applies, read its `SKILL.md` (and referenced files) FROM DISK and follow
   that; if the injected `v=` fingerprint differs from what you recall, the
   file on disk wins. Fails open — it can never block a session from starting.
+- **Cross-session memory lives in `docs/journal.md`.** The container is
+  ephemeral and each session starts cold; Notion holds live pipeline *state*
+  and git holds *code changes*, but the narrative tying sessions together —
+  ops events, decisions, gotchas, open follow-ups — lives only in this
+  journal. A second `SessionStart` hook (`.claude/hooks/session_memory.py`)
+  auto-loads its latest entries + recent commits at the top of every session,
+  so you boot caught up (read side, fully automatic). **Write side is a
+  habit:** when you finish a session with anything worth remembering (a tick,
+  a send batch, a sourcing run, a decision, a code change), add a dated `## `
+  entry at the TOP of `docs/journal.md` and commit + push it — a journal-only
+  commit is fine on an ops-only session; the point is it survives the
+  container. Newest first; keep entries short and scannable.
 - Firecrawl MCP server is the primary fetcher — already connected in
   managed sessions, no setup needed.
 - Apify actor layer (`main.py apify`, `audit/apify.py`) is the no-login
