@@ -92,10 +92,8 @@ scores to `docs/deliverability-log.md`.
   Apify-style actor that takes a username or URL with no account required —
   is allowed for enrichment and SMYKM hook-finding AND for sourcing,
   Instagram the same as LinkedIn, YouTube, and podcasts. (Sourcing is
-  dynamic and channel-agnostic — work whatever vein produces UAE solo
-  coaches with an audience and a way to get paid, Instagram/link-in-bio
-  included, through no-login read-only tools only; the ban is on logging in
-  or acting as Haytham, not on the platform. See
+  dynamic and channel-agnostic through no-login read-only tools only — the
+  ban is on logging in / acting as Haytham, not on the platform. See
   `docs/uae-track/03-targeting-and-sourcing.md`.)
 - **Never send an email.** The system ends at Gmail drafts. Sending is
   human.
@@ -146,11 +144,9 @@ scores to `docs/deliverability-log.md`.
   discount — objections get bonuses or restructured terms (GSO v2).
 - **Copy rules, every generated email:** no em-dashes, ever. No operator
   jargon ("funnel", "conversion", "audit", "sequence"). Proper
-  capitalization. **Sign off "Haytham" at the end** (changed Jul 14, 2026:
-  the Gmail auto-signature was taken down, so the body must carry the name;
-  the old rule here said no sign-off, which would now ship unsigned mail).
-  No weak closers ("no
-  pressure / no rush / whenever timing's right") anywhere, including
+  capitalization. **Sign off "Haytham" at the end** (the Gmail
+  auto-signature is gone, so the body must carry the name). No weak closers
+  ("no pressure / no rush / whenever timing's right") anywhere, including
   silence-breakers.
 - **Two CRMs, never crossed.** UAE leads live ONLY in the UAE Lead CRM;
   the parenting DB is live-threads-only. Never write a UAE lead into the
@@ -174,179 +170,91 @@ scores to `docs/deliverability-log.md`.
 
 ## Key pieces
 
+Pointers, not manuals: every command and module below carries a full
+docstring — open it for the mechanics, rationale, and history. This section
+keeps only what each piece IS and how the pieces connect; the detail lives
+in the code and is one file-open away.
+
+**Fetch + walk**
 - `main.py discover-links` / `discover-checkout` / `screenshot-name` /
-  `ingest` — the Firecrawl-primary fetch path: Claude fetches via
-  Firecrawl MCP tools, these commands classify links (scope/priority) and
-  build the evidence packet. Python owns all scope/analysis logic
-  regardless of which layer fetched the page.
-- `main.py walk <url>` — the Playwright crawl fallback for leads Firecrawl
-  can't handle (persistent bot walls, JS-button click-discovery).
-- `main.py vision …` — the vision-pass completeness gate. "Read every
-  screenshot" is a computed fact, not a claim.
-- `main.py crm-gate offer|send` — the UAE transition gates (see
-  `audit/crm_gate.py`): offer = verbatim discovery answer + anchor before
-  any priced offer; send = Finding Verified + `Email Verified` (fails closed
-  on either) + follow-ups-first headroom under THAT inbox's ceiling
-  (`--inbox "<label>"`) + a declared carrier on touch 2/3 (checked against
-  `Findings Bank` when it claims a second finding). Skills dump the fresh
-  Notion row to JSON, run the gate, and quote its literal output line. Same
-  trust model as the vision gate.
-- `main.py inbox list|route|counts|reconcile` — the inbox registry (see
-  `audit/inboxes.py`): the ONE seam between logical labels
-  (`Inbox 1`/`Inbox 2`/…, used by the CRM `Inbox` property,
-  `send_cap.json`, and `crm-gate send --inbox`) and real sending addresses
-  + transports (`gmail-mcp` for Inbox 1, the `gmail-gethaytham` direct API
-  for Inbox 2). `list` shows every inbox with its address, transport, and
-  cap; `route` picks the inbox for a lead's next send — sticky if already
-  assigned, else by policy (`headroom` default / `fill-primary`, with
-  optional `--weight` warm-up bias); `counts` returns each inbox's sends
-  today (epoch-exact Dubai day — direct-API inboxes counted, the Gmail MCP
-  query emitted for the rest); `reconcile` corrects a row's `Inbox` to
-  where its thread physically lives. `send-cap log --inbox … --kind …
-  --detail …` appends the canonical per-inbox deliverability-log line.
-  Scale to Inbox 3/N by adding one entry there, registering its cap, and
-  adding the CRM select option — nothing else hardcodes a count. Drafts on
-  BOTH transports are linted by the same shared rule (`audit/draft_lint.py`,
-  bare links + em-dashes, subject and body).
-- `main.py send-cap status|set` — the ceiling, one independent ramp PER
-  inbox (see `audit/send_cap.py`): each inbox's cap + its ramp reminder once
-  its step has held 7 days; `--all` prints every inbox + the additive total.
-  `set --inbox "<label>"` moves one step (20/25/30) or registers a new inbox
-  at 20 — Haytham's command, never a skill's; state is `send_cap.json` keyed
-  by logical label, failing closed to 20 per inbox. The ramp decision's
-  evidence lives in `docs/deliverability-log.md` (uae-tick appends
-  bounces/spam flags naming the inbox; Haytham appends test scores).
-- `main.py email-check <address> [--name]` / `main.py email-verify
-  <address>` — the two-layer address gate (`audit/email_check.py`).
-  `email-check` is the free shape check (syntax + MX + typo/disposable/
-  no-reply flags): FAIL = the address never enters the CRM or a queue.
-  `email-verify` is the deliverability confirm — **Apify/MillionVerifier**
-  (`account56/email-verifier`) by default again (restored 2026-07-18: the
-  account moved to a paid STARTER/BRONZE plan, the reason it was pulled
-  is gone) — run during the walk for Lane 1 leads: `EMAIL VERIFY: PASS`
-  checks `Email Verified` and clears the lead for Audit Ready; FAIL = the
-  mailbox bounces, never send; WARN (catch_all/unknown) = Haytham's call.
-  It exists because `email-check` PASS is syntax+MX only and cleared two
-  addresses that then hard-bounced at Touch 1, and a bounce burns the one
-  shared domain. **ZeroBounce** (`audit/email_verifier.py`,
-  `ZEROBOUNCE_API_KEY`, free tier 100/month) is fully wired too, untouched
-  — set `EMAIL_VERIFY_PROVIDER=zerobounce` (`main.py`'s `_email_verifier()`)
-  to force it if Apify ever needs to stand down again, no code change.
-  Every call still checks `apify.account_limits()` first (free) and
-  auto-falls-back to ZeroBounce for just that call if Apify is at/near its
-  monthly cap, noting it in the same gate line. **New 2026-07-18: every
-  Apify actor call is also cost-gated** (`audit/apify.py`,
-  `COST_APPROVAL_THRESHOLD_USD` = $0.10) — it estimates the run's cost
-  from the actor's live per-unit price before running, and if that
-  estimate is unknown or over $0.10 it prints `APPROVAL REQUIRED` instead
-  of running (`EMAIL VERIFY`/`EMAIL ENRICH: APPROVAL REQUIRED`, exit 3);
-  get Haytham's approval, then re-run with `--approve-cost`. Ordinary
-  single-address (or small-batch) verify calls price out to a fraction of
-  a cent and clear automatically — this only fires on something genuinely
-  larger. The manual `apify verify-email`/`search`/`footprint` commands
-  fail fast with the same-direction redirect when the monthly cap (not the
-  per-run cost gate) is hit; `apify ig`/`li-posts`/`li-profile` are exempt
-  from the cap redirect (no substitute exists, so they always run) but are
-  still cost-gated like everything else.
-- `main.py email-enrich "<name>" <domain-or-site-url>` — the no-email
-  fallback stage (`audit/email_enrich.py`). When the walk harvests no
-  address, it derives ranked name-based candidates against the lead's OWN
-  branded domain (jane@, jane.doe@, jdoe@…), shape-gates the domain once for
-  free, then verifies all candidates in ONE batched call (Apify by default,
-  same provider switch and cost gate as `email-verify` above) and
-  converges on at most one deliverable address. Three baked-in safety
-  properties: exactly ONE address is ever adopted (the top-ranked PASS; the
-  rest are logged, never a second guessed spelling — the incident
-  `email_check.py`'s header records); it never auto-adopts on a catch-all
-  domain (every guess → `catch_all`/`catch-all`/WARN → `HOLD`, adopt
-  nothing); and it refuses free-provider domains (`NONE`). `EMAIL ENRICH:
-  PASS` is by construction an `EMAIL VERIFY: PASS` on the adopted mailbox,
-  so it checks `Email Verified` exactly like a harvested-then-verified
-  address. Reuses `verify_emails` + `classify_verification` +
-  `check_email` — it adds only candidate generation. Fails closed
-  (verifier error → `HOLD`, never a silent adoption; a cost-gated call →
-  `APPROVAL REQUIRED`, never a silent adoption either).
-- `main.py apify <li-posts|li-profile|ig|ig-post|verify-email|search|actors>`
-  — the no-login third-party fetch layer (`audit/apify.py`,
-  `docs/uae-track/apify-actors.md`): read-only public LinkedIn/Instagram
-  data for SMYKM hooks (the two platforms Firecrawl can't reach), through
-  vetted Apify actors that take a URL and need no account. Reads
-  `APIFY_TOKEN` from the environment (an env secret, never in code);
-  discovery works without it, runs need it, missing token fails closed.
-  Posts-first on LinkedIn, cost-aware on IG. Podcasts / YouTube / About
-  pages stay on Firecrawl. `verify-email`/`search`/`footprint` still work
-  here but are a manual fallback only — `email-verify`/`email-enrich` call
-  into this same layer by default now (see above), and Google-footprint
-  sourcing still defaults to `main.py classify-footprint` (Firecrawl-fed)
-  since that was never about the cap. Every run here (`ig`, `ig-post`,
-  `li-posts`, `li-profile`, `verify-email`, `search`, `footprint`) passes
-  through the cost approval gate described above; a blocked run prints
-  `{"needs_approval": true, "estimated_usd": ...}` and exits 3 — re-run
-  the same command with `--approve-cost` once Haytham's said yes.
-- `main.py classify-footprint <platform> --subdomain-hits <file>
-  --marker-hits <file>` — the fetch-agnostic Google-footprint merge
-  (`audit/footprint.py`): dedupes by host, tags `foundVia`
-  (subdomain/footprint), and drops the platform's-own-site/social noise
-  the wider footer-signature net drags in. Fed by `firecrawl_search` results
-  saved to JSON (no Apify cost) rather than by `apify.google_search` — same
-  output shape as the original `apify footprint`, which still exists as a
-  fallback and now just calls into this module after fetching.
+  `ingest` — the Firecrawl-primary fetch path: Claude fetches via Firecrawl
+  MCP, these classify links + build the evidence packet; Python owns all
+  scope/analysis regardless of which layer fetched (`audit/`).
+- `main.py walk <url>` — Playwright crawl fallback for leads Firecrawl can't
+  handle (persistent bot walls, JS-button click-discovery).
 - `main.py cta-probe <url> --type sales|course|booking` — single-page
-  Playwright JS-button click-discovery, for resolving one Firecrawl-fetched
-  page's unverified buttons without re-walking the whole funnel.
-- `audit/` — checks, extraction, Gate 0 floors (`gates.py`, UAE:
-  audience 1,500 / activity 30 days / funnel present / UAE-based), packet
-  builder; all fetch-layer-agnostic. `crawler.py` still holds the
-  Playwright fallback + the link/checkout classification logic both fetch
-  paths share.
-- `.claude/skills/source-leads` — the sourcing engine, collect-only: works
-  dynamically across whatever vein produces UAE solo coaches with an
-  audience and a way to get paid (platform + link-in-bio footprints,
-  directories, LinkedIn, podcasts/events, no-login IG actor, lateral),
-  logging `Sourced` rows (a reachable link + audience size, no gating). The
-  channel is not the point and there is no fixed rotation — follow what's
-  producing, drop what's dry. Two volume profiles — a one-time bootstrap
-  fill (60-70 names) and top-up, the everyday on-demand tap (small runs,
-  recency-biased to source the flow not the stock).
-- `.claude/skills/qualify-leads` — the mechanical gate, the step between
-  sourcing and the walk: runs Gate 0 (UAE-based / funnel / 30-day activity
-  / 1,500 audience) + Gate 1 (solo) over `Sourced` rows, ~2 fetches each,
-  promoting passes to `Qualifying` and killing fails to `Disqualified`. No
-  funnel walks (that's batch-audit). Sibling of batch-audit — both process
-  existing rows at a status, this one gates, that one walks.
-- `.claude/skills/process-lead` — the per-lead contract: walk → vision
-  pass → floors → opener → **held** at the Gmail draft until
-  `haytham-hook-finder` resolves the hook.
-- `.claude/skills/batch-audit` + `.claude/agents/lead-processor.md` —
-  batch orchestrator over the Walk Queue (~5 parallel, cap 20) and the
-  per-lead subagent with its structured return block.
-- `.claude/skills/haytham-opener-finder` — Gate 0/1, the 5-stop walk
-  (widened for webinar funnels, call-booking flows, cohort launches),
-  filters, lanes, CRM page body format. Stops at the finding + innocent
-  explanation — does not find the SMYKM hook.
-- `.claude/skills/haytham-hook-finder` — separate, manually-triggered:
-  real public evidence (LinkedIn, podcasts, YouTube, About page) → the
-  SMYKM hook line, cited, never fabricated. Gates the draft.
-- `.claude/skills/haytham-email-draft` — voice, mechanics, gate, logging,
-  both tracks. UAE layer (AED framing + the price discovery email type)
-  in `references/uae-track.md`.
-- `.claude/skills/uae-tick` — the UAE daily loop: replies, verbatim
-  discovery-answer logging, due touches, gated send queue, weekly
-  scoreboard.
-- `.claude/skills/pipeline-tick` — the parenting track's daily loop, live
-  threads only.
-- `.claude/skills/dashboard` + `main.py dashboard skeleton|render`
-  (`audit/dashboard.py`) — the read-only command center: fuses pipeline state
-  (Notion) + sending reality (both Gmail inboxes) + the deliverability ceilings
-  into one self-contained HTML page, published as a stable-URL Claude Artifact.
-  Same Python/skill split as `crm-gate`: `skeleton` fills the Python-reachable
-  slice (per-inbox ceilings + Inbox 2's real sent-today count) and seeds the
-  Notion/Gmail-MCP panels null; the skill fills them via MCP and pipes the
-  snapshot through `render`, which validates and draws every panel (null → an
-  "awaiting data" empty state, never a crash). Never sends, drafts, or writes
-  the CRM.
-- `.claude/skills/haytham-funnel-auditor` — deep audit (Loom/call prep).
-- `.claude/skills/firecrawl` — MCP tool reference for the fetch layer.
+  Playwright JS-button resolution without re-walking the whole funnel.
+- `main.py vision …` — the vision-pass completeness gate ("read every
+  screenshot" is a computed fact, not a claim).
+- `audit/gates.py` — Gate 0 floors (UAE-based / funnel / 30-day activity /
+  1,500 audience). `audit/crawler.py` — Playwright fallback + the
+  link/checkout classification both fetch paths share.
+
+**Gates + sending** — all fail closed. Skills dump the FRESH Notion row to
+JSON, run the gate, and quote its literal output line (same trust model as
+the vision gate).
+- `main.py crm-gate offer|send` (`audit/crm_gate.py`) — offer = verbatim
+  discovery answer + anchor before any priced offer; send = Finding Verified
+  + Email Verified + follow-ups-first headroom under THAT inbox's ceiling
+  (`--inbox`) + a declared carrier on touch 2/3 (checked against `Findings
+  Bank` for a second finding).
+- `main.py inbox list|route|counts|reconcile` (`audit/inboxes.py`) — the ONE
+  seam between logical labels (`Inbox 1`/`Inbox 2`/…) and real addresses +
+  transports (`gmail-mcp` / `gmail-gethaytham`). `route` picks a lead's inbox
+  (sticky, else policy); `counts` reports each inbox's Dubai-day sends;
+  `reconcile` corrects a row to where its thread physically lives. Scale to
+  Inbox 3/N by adding one registry entry + cap + CRM option. Drafts on both
+  transports linted by `audit/draft_lint.py` (bare links + em-dashes).
+- `main.py send-cap status|set` (`audit/send_cap.py`) — the per-inbox ceiling
+  + ramp (20→25→30, one step per 7+ days, Haytham's command only), state in
+  `send_cap.json` (fails closed to 20), ramp evidence in
+  `docs/deliverability-log.md` (`send-cap log`). More volume = more inboxes,
+  never a bigger number.
+
+**Email address gate** (`audit/email_check.py`, `email_enrich.py`,
+`email_verifier.py`; provider selection under Environment notes)
+- `main.py email-check <addr> [--name]` — free shape check (syntax + MX +
+  typo/disposable/no-reply flags); FAIL never enters the CRM or a queue.
+- `main.py email-verify <addr>` — deliverability confirm; PASS checks
+  `Email Verified` and clears for Audit Ready, FAIL bounces so never send,
+  WARN (catch_all/unknown) is Haytham's call.
+- `main.py email-enrich "<name>" <domain-or-site-url>` — no-address fallback:
+  derives ranked candidates on the lead's OWN branded domain, verifies them
+  in one batched call, adopts AT MOST one PASS, and never on a catch-all or
+  free-provider domain (else HOLD). A PASS here is a verify PASS.
+
+**Sourcing**
+- `main.py apify <li-posts|li-profile|ig|ig-post|verify-email|search|actors>`
+  (`audit/apify.py`, `docs/uae-track/apify-actors.md`) — no-login read-only
+  LinkedIn/IG fetch for SMYKM hooks (what Firecrawl can't reach); needs
+  `APIFY_TOKEN`, every run cost-gated (see Environment notes).
+- `main.py classify-footprint <platform> …` (`audit/footprint.py`) —
+  Firecrawl-fed Google-footprint merge: dedupe by host, tag `foundVia`, drop
+  own-site/social noise.
+
+**Skills** (`.claude/skills/…` — when one applies, read its SKILL.md on disk)
+- `source-leads` — collect-only sourcing into `Sourced` (dynamic vein, no
+  gating; bootstrap fill + everyday top-up).
+- `qualify-leads` — Gate 0/1 over `Sourced` → `Qualifying` (~2 fetches, no
+  walk). Sibling of batch-audit: this gates, that walks.
+- `batch-audit` + `.claude/agents/lead-processor.md` — batch walk
+  orchestrator over the Walk Queue (~5 parallel, cap 20) + the per-lead
+  subagent's structured return.
+- `process-lead` — per-lead: walk → vision → floors → opener → **held** at
+  the Gmail draft until `haytham-hook-finder` resolves the hook.
+- `haytham-opener-finder` — Gate 0/1 + the 5-stop walk → lane + finding +
+  innocent explanation + CRM body format. Stops at the finding, NOT the hook.
+- `haytham-hook-finder` — separate, manually triggered: real cited public
+  evidence → the SMYKM hook line, never fabricated. Gates the draft.
+- `haytham-email-draft` — voice, mechanics, gate, logging, both tracks (UAE
+  AED + price-discovery layer in `references/uae-track.md`).
+- `uae-tick` / `pipeline-tick` — the UAE / parenting daily loops.
+- `dashboard` + `main.py dashboard skeleton|render` (`audit/dashboard.py`) —
+  read-only command center fusing Notion state + both inboxes + ceilings into
+  a stable-URL Artifact (same Python/skill split as `crm-gate`); never sends,
+  drafts, or writes the CRM.
+- `haytham-funnel-auditor` — deep audit (Loom/call prep). `firecrawl` —
+  fetch-layer MCP tool reference.
 
 ## The CRMs
 
@@ -382,43 +290,25 @@ scores to `docs/deliverability-log.md`.
   container. Newest first; keep entries short and scannable.
 - Firecrawl MCP server is the primary fetcher — already connected in
   managed sessions, no setup needed.
-- Apify actor layer (`main.py apify`, `audit/apify.py`) is the no-login
-  fetch path for LinkedIn/Instagram (which Firecrawl can't reach), and the
-  default email verifier again as of 2026-07-18 (the account is on a paid
-  STARTER/BRONZE plan — see below). It needs `APIFY_TOKEN` set as an
-  environment secret on the runner (never in code); without it, discovery
-  still works but runs fail closed with a clear message. See
+- **Apify** (`main.py apify`, `audit/apify.py`; needs `APIFY_TOKEN` as an env
+  secret, never in code) — the no-login LinkedIn/IG fetch path AND the default
+  email verifier again as of 2026-07-18 (the account is on a paid plan).
+  Missing token → discovery works, runs fail closed. **Every actor run is
+  cost-gated** (`COST_APPROVAL_THRESHOLD_USD` = $0.10): it prices the run from
+  the actor's live per-unit rate and blocks anything unknown or over the
+  threshold with `APPROVAL REQUIRED` / exit 3 — get Haytham's OK, then re-run
+  with `--approve-cost`. Ordinary single-lead calls clear automatically. See
   `docs/uae-track/apify-actors.md`.
-- **Every Apify actor run is cost-gated** (`audit/apify.py`,
-  `COST_APPROVAL_THRESHOLD_USD` = $0.10): before running, it reads the
-  actor's live per-unit price (`GET /v2/acts/<id>`, at this account's
-  actual plan tier) and estimates the run's cost from the item count the
-  call implies. An estimate that's unknown or over $0.10 blocks the run
-  with `ApifyCostApprovalRequired` instead of spending anything — get
-  Haytham's approval first, then re-run with `approved=True` (CLI:
-  `--approve-cost`). Ordinary single-lead calls price out to a few cents
-  at most and clear automatically; this only fires on something genuinely
-  larger (a big `--limit`, a bulk verify batch, an oversized sourcing
-  sweep).
-- Email verification (`main.py email-verify`, `email-enrich`) moved off
-  Apify 2026-07-17 (the free plan's small monthly USD cap kept getting
-  hit) and defaults back to **Apify/MillionVerifier** as of 2026-07-18,
-  now that the account is on a paid plan — `EMAIL_VERIFY_PROVIDER` in
-  `main.py` defaults to `"apify"`. **ZeroBounce**
-  (`audit/email_verifier.py`, `ZEROBOUNCE_API_KEY`, free tier: 100
-  verification credits/month, no card, never expire) stays fully wired as
-  both the automatic fallback when Apify's monthly cap is hit and a manual
-  override (`EMAIL_VERIFY_PROVIDER=zerobounce`). Google-footprint sourcing
-  stays on **Firecrawl search** feeding `main.py classify-footprint`
-  (`audit/footprint.py`) — that move was never about the cap (Firecrawl
-  already does the job free), so there's nothing to restore there; `apify
-  verify-email` / `apify search` / `apify footprint` still work as a
-  manual fallback, cost-gated like every other Apify call.
-- Chromium/Playwright is only needed for the `main.py walk` fallback path.
-  Managed cloud sessions: Chromium lives at `/opt/pw-browsers/chromium`
-  (the crawler auto-detects it; override with `FUNNEL_AUDITOR_CHROMIUM`).
-  The MITM egress proxy resets Chromium's post-quantum TLS handshake — the
-  crawler writes a Chromium enterprise policy to disable PQ/ECH
-  automatically.
-- Local (WSL): `pip install -r requirements.txt && playwright install chromium`
-  (only needed if you expect to exercise the Playwright fallback).
+- **Email verification providers** — `email-verify` / `email-enrich` default
+  to Apify/MillionVerifier (`EMAIL_VERIFY_PROVIDER` in `main.py`).
+  **ZeroBounce** (`audit/email_verifier.py`, `ZEROBOUNCE_API_KEY`, free tier
+  100/month) stays fully wired as both the automatic fallback when Apify's
+  monthly cap is hit and a manual override
+  (`EMAIL_VERIFY_PROVIDER=zerobounce`). Google-footprint sourcing stays on
+  Firecrawl search feeding `classify-footprint` — never was about the cap.
+- Chromium/Playwright is only needed for the `main.py walk` fallback.
+  Managed cloud sessions: Chromium lives at `/opt/pw-browsers/chromium` (the
+  crawler auto-detects it; override with `FUNNEL_AUDITOR_CHROMIUM`), and the
+  crawler auto-writes a Chromium policy disabling the PQ/ECH TLS handshake the
+  MITM egress proxy resets. Local (WSL): `pip install -r requirements.txt &&
+  playwright install chromium` (only for the Playwright fallback).
