@@ -29,6 +29,34 @@ Entry template:
 
 ---
 
+## 2026-07-18 — Hooks + Touch-1 drafts for the 3 Audit Ready leads (Noona, Marie, Michele)
+- Ran `haytham-hook-finder` (batch) over the 3 Audit Ready rows whose `SMYKM Hook`
+  was empty. Apify cap fine (2% used). All 3 hooks from fresh, cited public evidence:
+  - **Noona Nafousi** (Inbox 1, Track B) — WORK: her LinkedIn "factory workers packing
+    medicine / 43% from one sentence / feel as good inside as success looks outside"
+    post (8 Jul). Skipped her "choosing me" grief post (too intimate) and the 8M-view
+    lisp reel (numeric-contrast/sensitive).
+  - **Marie Hondekyn** (Inbox 2, Track A) — WORK: her coined "Selection Method" —
+    "I don't teach you how to get chosen, I teach you how to choose" (IG @datingbymarie,
+    9 Jul). Her 29K IG is @datingbymarie, NOT @infinityrelations (~1.3K).
+  - **Michele Barouki** (Inbox 2, Track A) — LIFE: her 1 Jul IG post about building her
+    home studio by hand. About page was too thin (generic, "cat mom of 3") so went to IG.
+- Drafted all 3 Touch-1 openers (SMYKM opening A), Haytham approved copy.
+- **Inbox split (his call):** Noona → Inbox 1, Marie + Michele → Inbox 2. Reasoning:
+  split the two WARN-email leads (Noona catch-all, Marie inconclusive) across domains
+  so a bounce doesn't hit one twice; Michele is the only clean PASS.
+- Past noon Dubai → all 3 gate as next-day openers (send-day 07-19). `crm-gate send`
+  PASS on all 3: Inbox 1 had 12 already scheduled for 07-19 (+Noona=13<20), Inbox 2 had
+  10 (+Marie/Michele=12<20). Gmail drafts created (Noona via Gmail MCP; Marie+Michele via
+  `gmail-gethaytham draft`), all linted clean. Rows set `Inbox` + Status = **Draft Ready**.
+- Gotcha: `crm-gate send` requires BOTH `--sends-today` AND `--sends-next-day` even for a
+  next-day opener — it won't count Gmail itself. Inbox 1 = gmail-mcp = haytham@auto-mate.one
+  (confirmed). Inbox 1 already at 17 sends today (cap 20) but that doesn't constrain a
+  next-day opener.
+### Open follow-ups
+- [ ] Haytham to schedule the 3 drafts in Gmail for 07-19, then confirm sends so the tick
+  flips each to Outreach Sent (Touch #1, Last Contacted, Findings Bank #1 → USED-T1).
+
 ## 2026-07-18 — Luca & Larry "findings invalid" — over-retirement corrected
 - Haytham flagged, while prepping tomorrow's follow-ups, that Luca Allam and Dr
   Larry Davies findings "don't hold anymore." Re-walked both funnels live.
