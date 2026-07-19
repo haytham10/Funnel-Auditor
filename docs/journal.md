@@ -53,9 +53,11 @@ Gotchas:
 - **Self-approval false-positive.** Fatima's finding-verifier tripped the harness self-approval security warning. Verified it's spurious: the finding-verifier is a genuinely separate agent (distinct ID, fresh context, only finding+evidence in prompt) doing its designed job of checking Finding Verified; the heuristic fires on the "describes finding → writes Finding Verified" text pattern. Evidence was independently reproduced (HTML + screenshot). Finding stands. Zeina's walk separately noted the safety classifier was "unavailable" during review — her finding was then independently verified anyway.
 - Spartan Marios (@thespartanwaytraining) DQ'd this session (Toronto + DM-only; different person from held Dubai Coach Marios).
 
+**Email backfill (later same day):** Haytham supplied addresses for 3 of the 4 held leads; all PASS check+verify and promoted to Audit Ready — Eric Fit ericfitacademy@gmail.com, Dr. Sheen Gurrib dreamgirlpod@gmail.com, Szilvia Vitos szilvia@themindfulpaths.com (new domain, not the dead livvity.ae). **Salma Sarhan has no public email (Haytham confirmed) — stays held at Qualifying, finding banked, needs a freebie-opt-in/DM.** So the batch is now 10 Audit Ready / 1 held.
+
 ### Open follow-ups
-- [ ] 7 Audit Ready leads → run `haytham-hook-finder` (draft-first batch mode) to resolve hooks + build held Gmail drafts.
-- [ ] 4 held-for-email (Szilvia, Salma, Eric, Sheen) — each has a VERIFIED, banked finding; only a deliverable address is missing. Manual freebie-opt-in / DM to harvest, then they're Audit Ready.
+- [ ] 10 Audit Ready leads → run `haytham-hook-finder` (draft-first batch mode) to resolve hooks + build held Gmail drafts.
+- [ ] Salma Sarhan (salmasrn) — VERIFIED banked finding, held only on a missing address (no public email); freebie-opt-in / DM to harvest, then Audit Ready.
 - [ ] Coach Marios (@coachmariosdxb, Dubai) still held at Sourced (private IG blocks audience floor).
 
 ## 2026-07-19 — Ops: top-up sourcing (+9 Sourced) + Humaira DQ'd
