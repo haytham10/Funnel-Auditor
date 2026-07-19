@@ -34,7 +34,7 @@ Entry template:
 - Flipped all 15 CRM rows `Draft Ready → Scheduled`. Nothing else moved — Touch #/Last Contacted/Thread Log/Findings Bank move only on actual departure; uae-tick reconciles → `Outreach Sent` on the send-day.
 - ⚠ **Samira Alexander has TWO scheduled sends** for 2026-07-20: mine (subject "time to show up", body "Ten years mostly behind the scenes") and a stale prior-session draft (body "Ten years of doing the work quietly... into something calmer"). Couldn't read the stale one's recipient or cancel it via tooling (message/thread `message` lookups 404 once scheduled; `drafts` list empties). Flagged on her Notion page.
 ### Open follow-ups
-- [ ] Haytham: CANCEL the duplicate Samira scheduled send in Gmail before the AM send (keep "time to show up").
+- [x] Haytham CANCELLED the duplicate Samira scheduled send in Gmail (07-19) — only "time to show up" remains scheduled for 2026-07-20. CRM note updated.
 - [ ] uae-tick 2026-07-20: reconcile the 16 scheduled sends → Outreach Sent (Touch 1, Last Contacted, Thread Log, Findings Bank #1 → USED-T1) as each departs; watch Caroline's heal@ for a bounce.
 
 ## 2026-07-19 — Ops: hook+draft stage → 6 Audit Ready leads drafted (Draft Ready)
