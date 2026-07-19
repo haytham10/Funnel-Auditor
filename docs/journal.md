@@ -49,6 +49,85 @@ Ran the merged draft-first `haytham-hook-finder` batch over the full Audit Ready
 - [ ] Haytham: review the 6 Draft Ready drafts in Gmail and send/schedule by hand. On confirmed send, uae-tick logs Touch 1 + flips Findings Bank #1 → USED-T1 + clears the `run haytham-hook-finder` Notes lines.
 - [ ] Caroline Bakker: `heal@sacredwarriormedia.com` is a bounce-risk accept (email-verify WARN) — watch for a bounce on her first send.
 - [x] Samira Alexander: Haytham confirmed the hook pairs (Jul 17 "time to show up / come join me" IG post vs the sitewide dead Book-button Calendly — invitation live, door stuck). Drafted 07-19, Inbox 2, subject "time to show up" → held Draft Ready (7th draft this batch). crm-gate send PASS, email-check PASS (catch-all accepted, not re-verified).
+## 2026-07-19 — Ops: batch-audit walked 11 Qualifying → 11 Lane 1, all verified (7 Audit Ready, 4 held-for-email)
+Ran `batch-audit` over the whole Walk Queue (11 Qualifying rows: the 4 from the first qualify run + the 7 fresh). One `lead-processor` per lead (~5 parallel), independent `finding-verifier` on every proposed Lane 1. **Outcome: 11/11 Lane 1, 11/11 findings VERIFIED, 0 refuted** — an unusually strong batch (freshly-qualified leads, real leaks on every one).
+
+**Audit Ready (7 — Finding Verified + Email Verified both checked, ready for haytham-hook-finder):**
+- Wafa Bassili — "Systemas" typo in a large exec-page heading (should be "Systems"). wafa.bassili@yinomai.com.
+- Daria Ibrulj — Dubai coach framed as a London operation ("In person (London) or virtual" + UK-registered footer). daria@fireup.coach.
+- Fatima Williams — pricing tiers render literal "AED ___" blank at the buy moment (all 3 Silver/Gold/Diamond). connect@fatimawilliams.me.
+- Nadine Faddul — paid packages behind four add-to-cart buttons with no price shown anywhere. nadine.reviveyou@gmail.com.
+- Zeina Karrit — every AED 2k-6k checkout opens under unexplained merchant "Unicorn Talent", not her name. contact@zeinakarrit.com.
+- Joel Arcus — "$540 $79" Book-a-session CTA dead on /book & /blog (page-relative #coaching anchor exists only on home). hello@stwtq.com (footer, resolved by orchestrator after the walk's email step was interrupted).
+- Lee Harris (LK Running) — flagship offer headlines "AED 95.00" but that tier is "Contact Before Purchase" (unbuyable); real programs 695/875. lkrunning@icloud.com.
+
+**Held at Qualifying (4 — finding VERIFIED + banked, blocked only on a deliverable address):**
+- Szilvia Vitos — dead "Join Priority List" anchors (href='#', no form). Only address hard-bounces (livvity.ae catch-all).
+- Salma (salmasrn) — application forces a required 10-vs-20-session pick with no price shown. No branded domain (IG/Linktree/Forms only), enrichment HOLD.
+- Eric Fit — live $29 course page shows "0 lessons / 0 hours" + placeholder "Chapter name" rows. Thinkific subdomain not enrichable.
+- Dr. Sheen Gurrib — $699 "Book a Session" CTA dead-ends on Calendly "This URL is not valid" (verifier reproduced live). sheengurrib.com catch-all, HOLD.
+→ All four need a manual freebie-opt-in / DM to surface an address before they can advance.
+
+Gotchas:
+- **Session-limit interruption mid-batch.** Hit the account session limit (~21:50 UTC, resets 22:00 UTC) with 5 agents in flight; 4 walkers died. Recovered by fetching each row's actual state: Joel's body had written (finding intact, only email step lost → resolved hello@stwtq.com inline); Eric/Sheen/Salma were blank → full re-walks after the 22:00 reset. **Lesson: a "failed" agent may still have written — always check the row, don't assume nothing landed.** Also nearly lost **Lee Harris** — he was the 11th, queued exactly when the limit hit, and the resume wave rebuilt the 4 interrupted but initially missed him; caught it on the final cross-check and walked him.
+- **Self-approval false-positive.** Fatima's finding-verifier tripped the harness self-approval security warning. Verified it's spurious: the finding-verifier is a genuinely separate agent (distinct ID, fresh context, only finding+evidence in prompt) doing its designed job of checking Finding Verified; the heuristic fires on the "describes finding → writes Finding Verified" text pattern. Evidence was independently reproduced (HTML + screenshot). Finding stands. Zeina's walk separately noted the safety classifier was "unavailable" during review — her finding was then independently verified anyway.
+- Spartan Marios (@thespartanwaytraining) DQ'd this session (Toronto + DM-only; different person from held Dubai Coach Marios).
+
+**Email backfill (later same day):** Haytham supplied addresses for 3 of the 4 held leads; all PASS check+verify and promoted to Audit Ready — Eric Fit ericfitacademy@gmail.com, Dr. Sheen Gurrib dreamgirlpod@gmail.com, Szilvia Vitos szilvia@themindfulpaths.com (new domain, not the dead livvity.ae). **Salma Sarhan has no public email (Haytham confirmed) — stays held at Qualifying, finding banked, needs a freebie-opt-in/DM.** So the batch is now 10 Audit Ready / 1 held.
+
+### Open follow-ups
+- [ ] 10 Audit Ready leads → run `haytham-hook-finder` (draft-first batch mode) to resolve hooks + build held Gmail drafts.
+- [ ] Salma Sarhan (salmasrn) — VERIFIED banked finding, held only on a missing address (no public email); freebie-opt-in / DM to harvest, then Audit Ready.
+- [ ] Coach Marios (@coachmariosdxb, Dubai) still held at Sourced (private IG blocks audience floor).
+
+## 2026-07-19 — Ops: top-up sourcing (+9 Sourced) + Humaira DQ'd
+Same-day follow to the qualify run below. Two things.
+
+**1. Humaira Nasim DQ'd.** Was held at Sourced (audience cleared LI 4,097 but 30-day activity unconfirmable). Haytham's call: Disqualified on the activity-recency floor (Gate 0 Fail) — LI silent >30d, owned humairanasim.com 404s, last trace Apr 2026. So the qualify batch final = 4 Qualifying / 8 Disqualified / 0 held.
+
+**2. Top-up sourcing run → +9 Sourced.** Fanned out 4 `sourcing-worker`s over fresh-biased veins (chassis: workers RETURN candidates → orchestrator dedup → `sourcing-verifier` → batched write). 12 raw candidates → verifier cleared 9, dropped 3.
+- **Written (9):** Fatima Williams (career, 45k LinkedIn on-page, AED tiers + checkout — standout), Zeina Karrit (career/exec, native-AED Stripe 2k-6k AED), Joel Arcus (life/leadership, Stripe 1:1), Dr. Sheen Gurrib (content-biz, Gumroad course + 1:1), Salma/salmasrn (fitness, IG 7,422, paid PT), Coach Marios (fitness/life, Stripe program), Eric Fit (fitness, $29 Thinkific course), LK Running Performance (running, AED checkouts), Wendy Alexander (business, Stan store $9.99-$497).
+- **Dropped by verifier (3):** Reim El Houni / Mission Visible (team — named "Network of Mentors" + Community Directors, Gate-1 obvious), Adam Zargar / UAE Coaching (enquiry-only, multi-coach org, no purchasable offer), Jimena (DNS inconclusive — retry candidate, not a kill).
+
+**Vein signal for next run:** link-in-bio (stan.store/beacons/linktr.ee) + Instagram + podcasts/events all PRODUCED then dried. **Platform footer-signature (kajabi/systeme/kartra/podia) is DRY** — ~17 passes, 0 fresh; every UAE solo coach on those platforms is already in the CRM. Skip it next time. Lateral off named anchors was also dry this run.
+
+Gotchas:
+- **Notion free-tier SQL cap.** Hit the `query_data_sources` hourly free-tier limit early (during the qualify run) and it stayed capped through the top-up. Worked around it with `notion-query-database-view` on the unfiltered **Pipeline Board** view (separate endpoint, NOT capped) — paginated all 328 rows (4×100) to build the load-bearing dedup snapshot. Page-level fetch/update/create also stayed uncapped. If SQL is capped, the board-view paginate is the fallback for a full-CRM read.
+- Dedup discipline paid off: workers were handed all 328 existing names + 250 owned domains as a file and self-skipped ~44 collisions across the 4 veins; 0 dupes written.
+
+**Qualified the fresh 9 same session → 7 promoted, 1 DQ, 1 held.** 2 workers → verifier (8/8 CONFIRMED, 0 overturned).
+- **→ Qualifying (7):** Fatima Williams (LI 46,038), Zeina Karrit (LI 50,477; UAE-base pin Unconfirmed→Dubai + profile added), Joel Arcus (LI 5,203; profile added), Dr. Sheen Gurrib (IG **861,467** — JS counters resolved; verifier re-pulled, real follower count not a misread), Salma (IG 7,422), Eric Fit (IG **330,318**; verifier re-confirmed real), **Lee Harris** (LK Running's real coach, resolved from the FZ-LLE brand; IG 3,782 — worker wrote 2,201, verifier caught it, corrected on the row).
+- **→ Disqualified (1):** Wendy Alexander — Gate 0 UAE-base Fail. She's CURRENTLY US/Atlanta (IG about-country=US, Stan America/New_York TZ, "lived in Dubai 20 yrs" past tense). The sourcing caveat (UAE unconfirmed on-page) was the right flag; the actor settled it as a true kill. IG 12,068 (moot).
+- **Held at Sourced (1):** Coach Marios — UAE-base + Stripe funnel + solo 1:1 all confirmed, but IG @coachmariosdxb is PRIVATE; audience floor unresolvable by any cheap tool (3 actor attempts + Firecrawl login-wall + handle search all null). Honest Not-checked hold, needs a manual audience read.
+
+Net: sourcing→qualified in one session, 7 of 9 fresh leads reached the Walk Queue. Two 300k-800k IG creators (Sheen, Eric) are the standouts. Verifier value shown twice: caught the Lee Harris count mismatch and confirmed the two huge audiences were real (not likes-misreads) before trusting them.
+
+### Open follow-ups
+- [ ] Coach Marios held at Sourced — private IG blocks the audience floor; needs a manual follower read to qualify or kill.
+- [ ] Jimena (jimenafreespirit.com) — DNS failed twice in verify but her Linktree is live; retry next sourcing pass rather than lose the name.
+- [ ] Walk Queue now holds **13 `Qualifying` rows** (6 prior + 7 fresh) — ready for `batch-audit` (cap 20; combined send ceiling 40/day).
+
+## 2026-07-19 — Ops: qualified the full Sourced pile (12 rows) → 4 to Walk Queue
+Ran `qualify-leads` over all 12 `Sourced` rows (the whole pile; Walk Queue was near-empty at 2, so downstream demand was wide open). First live exercise of the resolve-then-decide overhaul (#61) — and it worked: every one of the 12 had been stalled at Gate 0 `Not checked` solely because Firecrawl search couldn't read a login-walled follower count, and the workers resolved all 12 audience floors with cheap count-only actor calls (fractions of a cent each, Apify at 3.8% of the monthly cap).
+
+Chassis: 2 `qualifier-worker`s over slices of 6 (parallel) → 1 `qualifier-verifier` over every promotion + kill.
+
+**Result — 4 promoted, 7 disqualified, 1 held:**
+- **→ Qualifying:** Wafa Bassili (LI 3,901), Nadine Faddul (LI 2,771; Site URL swapped noomii→revive-you.com), Daria Ibrulj (LI 2,127), Szilvia Vitos (LI 10,275).
+- **→ Disqualified (audience floor):** Hasina (IG 432/LI 298), Coach Mezyan (~70, directory-only), Ramy Elgebaly (LI 1,332, just under), Tahani Ahmed (LI 159), Blair Hoover (LI 1,050/IG 78).
+- **→ Disqualified (Gate 1 solo-Fail, despite clearing Gate 0):** Rajiv Sharma (LI 23K, but NLP Limited is a multi-country training co with staff), Dr. Shamma Lootah (IG ~4.1K, but "Co-Owner" of the multi-expert Holistic Culture platform).
+- **Held at Sourced:** Humaira Nasim — audience clears (LI 4,097) but 30-day activity genuinely unconfirmable (LI silent >30d, owned humairanasim.com 404s, last dated trace Apr 2026). Needs a human recency check, not another actor call.
+
+**Verifier:** 0 of 10 overturned, and all five re-pulled LI counts reproduced to the exact digit — this batch's actor provenance is solid.
+
+Gotchas:
+- **Duplicate Blair rows.** Two `cyofinance.com` "Blair Hoover" rows existed (13:09 canonical still Sourced + 22:05 dup already Disqualified). The slice-A worker mis-skipped the canonical one as "the dup" and never qualified it — caught it in the fresh CRM query, handed it to the verifier, which resolved it to Disqualified on a real seen number (LI 1,050/IG 78). Lesson: a worker "already Disqualified — skipping as dup" claim needs the orchestrator to confirm *which* row got left behind.
+- Szilvia's most recent LI post is 34 days (4 past the strict 30-day floor); passed on a non-dormancy read (weekly May–Jun cadence, live booking funnel, 10K audience, peak-Dubai-summer gap). Borderline — pre-flight will re-check activity cheaply if she stays silent.
+- Hit Notion's free-tier hourly SQL-query cap mid-run (~6 `query_data_sources` calls). Page-level `notion-fetch`/`notion-update-page` (what the agents use) is a separate endpoint and kept working. Budget SQL queries on ops runs.
+
+### Open follow-ups
+- [ ] Walk Queue now holds 6 `Qualifying` rows (2 prior + 4 new) — ready for `batch-audit` (cap 20, combined send ceiling 40/day across both inboxes).
+- [ ] Humaira Nasim held at Sourced pending a human 30-day-activity check; her owned humairanasim.com 404s (possible future finding if she's still active elsewhere).
 
 ## 2026-07-19 — Dev: Qualifying resolve-then-decide + merged draft-first hook+draft stage
 Follow-on dev session to the 4-stage rebuild (#60), on `claude/email-draft-examples-skills-5cp2w0`, restarted from `uae-track`. Two changes.
