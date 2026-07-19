@@ -51,6 +51,17 @@ Decisions: **opus pinned on every worker + verifier** — efficiency comes from 
 - [ ] **Fingerprint gap:** `skills_authoritative.py` globs `skills/*/SKILL.md`, not `.claude/agents/*.md` — the 8 agent files sit outside SessionStart authority. Consider extending the glob to `agents/*.md`. Mitigated by keeping agent files thin (logic lives in the fingerprinted process-lead).
 - [ ] Notion SQL (`query-data-sources`) hit its free-tier cap mid-session; `notion-fetch`/`notion-search` kept working. Use those or wait for reset if it recurs.
 
+## 2026-07-19 — Qualified top-10 of Sourced pile via 3 agents; LinkedIn actor unblocked → 6 new Walk Queue leads
+Ran `qualify-leads` over the 10 most promising `Sourced` rows, split across 3 general-purpose agents. First pass promoted only **1 (Aleli Gimena)** — nearly every other row was stuck on an unconfirmed audience floor because the agents used Firecrawl, which hard-refuses LinkedIn, and stopped there.
+- **Gotcha (root cause):** the agents never fell back to the no-login `main.py apify li-profile` actor — and it wouldn't have run anyway: the fresh container was missing deps (`ModuleNotFoundError: rich`), so the whole `main.py` CLI was broken. `APIFY_TOKEN` was present. Fixed with `pip install -r requirements.txt`; the actor then pulled every LinkedIn follower count first try.
+- **Lesson to bank:** in qualify-leads, when a lead's only blocker is a LinkedIn follower count, reach for `apify li-profile <url>` (and `li-posts` for the 30-day activity floor). Firecrawl will never crack LinkedIn.
+- **Second-look results** (5 held rows, actor-confirmed follower counts): Sabeen Javed 17,583 ✅, Nabil El Fquir 8,008 ✅, Trisha Hazarika 5,512 ✅ (correct-spelling profile; the 112K "Trishna" was rightly rejected), Sanjukta Ghosh 3,164 ✅ (li-posts showed a post 23h ago → activity confirmed), **Agrim Gupta 2,812 → DQ** (audience passes but newest LinkedIn post Jan 2026, fails 30-day activity).
+- **Caroline Bakker → Qualifying** on Haytham's explicit UAE-base call (audience 8.2K IG / 5.57K YT + funnel + activity already passed; only location was conflicting).
+- **Top-10 final: 6 Qualifying** (Aleli, Sabeen, Nabil, Trisha, Sanjukta, Caroline) → Walk Queue; **4 DQ** (Simon Ree non-UAE+team, Prashant Welling activity, Aimee audience 307, Agrim Gupta activity).
+### Open follow-ups
+- [ ] `batch-audit` the 6 new Walk Queue leads.
+- [ ] 5 `Sourced` rows remain unqualified on audience (Humaira, Hasina, Tahani, Dr. Shamma, Coach Mezyan, Nadine, etc. — directory listings with no scrapeable follower channel) plus Daria/Szilvia/Blair/Wafa/Ramy/Rajiv/Caroline-adjacent — most need a no-login IG/LinkedIn follower pull, same actor path.
+
 ## 2026-07-19 — Second wave: 4 fresh audits + hook→drafts → entire Qualifying bucket (12) resolved, 9 drafts held
 Continued the sweep. The whole Qualifying bucket is now terminal: **9 Draft Ready, 1 Lane 2 (Roota), 2 DQ (Danish Gate 0, Sahar unreachable).**
 - **4 never-walked fresh leads audited** (lead-processor agents), all landed verified Lane 1 findings — notably a run of dead-link/booking leaks:
