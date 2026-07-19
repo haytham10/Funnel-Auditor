@@ -87,7 +87,7 @@ No automatic dedup query here — querying the pipeline on every single walk was
 - **Activity floor:** posted, emailed, or launched something within the last **30 days**. Check this against the Step A search results, not secondhand notes.
 - **Audience floor:** **1,500+** on their largest owned or social channel. UAE audiences run smaller; a 2K UAE-focused list is worth what 8K is in the US.
 
-Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line reason in Notes, and stop. Do not linger. The floor exists to protect walks and touches, which are the scarcest resources — every opener under the daily send ceiling needs a verified finding behind it.
+Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line reason in Notes, and stop. Do not linger. The floor exists to protect walks and touches, which are the scarcest resources — every opener under each inbox's daily send ceiling needs a verified finding behind it.
 
 ---
 

@@ -14,7 +14,7 @@ The whole problem this skill solves: the draft has to be right on the first try,
 Do these in sequence. Do not skip ahead to writing.
 
 1. **Identify the track, then the email type.** Which CRM does this lead live in?
-   - **UAE Lead CRM** (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`) — the active pipeline. Read `references/uae-track.md` before drafting anything for these leads: prices are quoted in AED (Track A 735, Track B 2,575, never a discount), the lifecycle differs, and one extra email type exists.
+   - **UAE Lead CRM** (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`) — the active pipeline. Read `references/uae-track.md` before drafting anything for these leads: prices are quoted in AED (Track A 735, Track B 2,575, never a discount), the lifecycle differs, and one extra email type exists. The UAE worked examples at the top of `references/examples.md` are the anchor for these — pattern-match to them, not to the parenting examples below.
    - **Parenting Lead Pipeline** (`c6209e29-55ef-4781-b735-73b2a254e34f`) — live threads only, no new cold leads. Existing rules apply unchanged.
    Never log a lead into the other track's DB.
 
@@ -59,7 +59,7 @@ Do these in sequence. Do not skip ahead to writing.
    post's likes and comment-to-DM pricing that, per the session's own tool
    log, was never actually read.
 
-3. **Read the reference files now, before drafting.** Read `references/voice.md`, `references/examples.md`, and `references/critical-failures.md` every time — the critical-failures file is mandatory corrections learned from repeated user corrections, not situational reading. Read `references/mechanics.md` if this is a follow-up, a turn-two reply, or a warm thread (the sequencing rules live there). Read `references/drafting-craft.md` if the finding is abstract and you need to make it concrete and falsifiable. These are short and they are what stop the draft from coming out generic.
+3. **Read the reference files now, before drafting.** Read `references/voice.md`, `references/examples.md` (UAE examples first — that's the active track), and `references/critical-failures.md` every time — the critical-failures file is mandatory corrections learned from repeated user corrections, not situational reading. Read `references/mechanics.md` if this is a follow-up, a turn-two reply, or a warm thread (the sequencing rules live there). Read `references/drafting-craft.md` if the finding is abstract and you need to make it concrete and falsifiable. These are short and they are what stop the draft from coming out generic.
 
 4. **See in the right order (this is the voice, not a style note).** Admire first: before the leak, see what they got right and feel it. Find the gap reluctantly: name it only because it genuinely helps. Help before sell: the email earns belief that you can help, it does not push a call. An email that diagnoses before it admires, or sells before it earns belief, is wrong no matter how clean the copy.
 
@@ -155,6 +155,6 @@ It does not draft while the hook line still says "not run yet." Run `haytham-hoo
 - Line 1: the finding or the human hook, stated flat. No warm-up, no "I was browsing."
 - The cost: what the gap is costing them, in something they can picture.
 - The close: one real question they can answer in one line. An open door, not a bow.
-- Sign off: "Haytham" on its own line at the end. **Required** (changed Jul 14, 2026 — the Gmail auto-signature was taken down, so nothing supplies the name any more; an unsigned email now goes out genuinely unsigned). The rule was previously "no sign-off," which is why the older worked examples in `references/examples.md` and this line disagreed for a while — the examples were right, the rule was stale.
+- Sign off: "Haytham" on its own line at the end. **Required** (changed Jul 14, 2026 — the Gmail auto-signature was taken down, so nothing supplies the name any more; an unsigned email now goes out genuinely unsigned). The rule was previously "no sign-off," which is why the worked examples in `references/examples.md` and this line disagreed for a while — the examples were right, the rule was stale.
 
 The references hold the detail. Read them. The single most common failure is drafting from memory of these rules instead of reading them fresh, which is exactly how the generic version slips back in.

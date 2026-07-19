@@ -425,7 +425,7 @@ b. **Deliverability (Lane 1 only — this is the gate):** for a Lane 1 lead
    that will actually get a send, confirm the mailbox accepts mail BEFORE
    the lead is declared sendable. `email-check` is syntax+MX only and has
    PASSED for addresses that then hard-bounced at Touch 1 — one bounce
-   burns the one shared domain. Run:
+   burns the sending domain. Run:
    ```bash
    python main.py email-verify <address>
    ```
@@ -540,7 +540,7 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
 - **`Email Verified` is checked only on an `EMAIL VERIFY: PASS`** (or by
   Haytham's hand to accept a catch_all/unknown risk). It is the other send
   gate — `email-check` PASS (syntax+MX) is NOT enough; it cleared two
-  addresses that then hard-bounced. A bounce burns the one shared domain,
+  addresses that then hard-bounced. A bounce burns the sending domain,
   so checking this box on an unverified address is the same class of
   corruption as faking `Finding Verified`.
 - This flow does not find a SMYKM hook — that's `haytham-hook-finder`,
