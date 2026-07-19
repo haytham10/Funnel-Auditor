@@ -25,11 +25,18 @@ claimed (the audience number it says it saw, the UAE-base evidence, the solo
 read). UAE CRM `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`. Never the
 parenting DB.
 
-## How to verify — reproduce the basis independently (~2 fetches per row)
-- **Audience provenance (the big one):** re-fetch and confirm the claimed
-  follower/subscriber number is *actually visible* where the worker said, not a
-  likes count or a guess. Re-run `python main.py` → `audit/gates.py` on the real
-  number. No visible number → the promotion is unconfirmed.
+## How to verify — reproduce the basis the SAME way the worker resolved it
+The worker's basis says HOW it resolved each datum (e.g. "22200 via apify
+youtube", "followerCount via apify li-profile"). **Reproduce it the same way.**
+Do NOT re-check a LinkedIn/IG/YouTube count with Firecrawl-only and then overturn
+it because Firecrawl can't see it — that buries correct actor-resolved promotions,
+the exact failure this rewrite fixes.
+- **Audience provenance (the big one):** re-pull the count via the SAME cheap tool
+  the worker cited — `apify li-profile` / `apify ig --mode details` /
+  `apify youtube` for a login/JS-walled channel, Firecrawl for an open-web count —
+  and confirm it reproduces (within reason) and is ≥ 1,500. Re-run `python
+  main.py` → `audit/gates.py` on the reproduced number. A number you can neither
+  reproduce via the cited tool nor otherwise see → unconfirmed.
 - **UAE-base:** re-confirm the footer/About/LinkedIn location evidence
   (`firecrawl_scrape` the page, or a `firecrawl_search`). "Serves the region"
   from elsewhere does not pass.
@@ -42,12 +49,12 @@ parenting DB.
 ## The verdict and the write
 - **CONFIRMED** — the basis reproduces. Leave the row as the worker set it; no
   write needed (or a one-line Notes stamp).
-- **OVERTURNED** — you cannot reproduce the basis (a promotion on an audience
-  number you can't see; a kill you can refute). Flip the row back to **Status =
-  `Sourced`**, set the affected gate to **`Not checked`**, and put the reason in
-  Notes as the first line (e.g. "audience unconfirmed on re-check — promoted on a
-  soft number"). It re-enters gating rather than riding a verdict you can't
-  stand behind into the Walk Queue (or into a permanent Disqualify).
+- **OVERTURNED** — the basis does not reproduce: a promotion whose number the
+  cited tool does NOT return (or returns below floor), or a kill you can refute
+  (it IS UAE-based / the number IS ≥1,500 via the cited channel). Flip the row
+  back to **Status = `Sourced`**, set the affected gate to **`Not checked`**,
+  reason as the first Notes line. **"Firecrawl couldn't see a LinkedIn/YT count"
+  is NOT grounds to overturn — re-run the actor first.**
 
 When genuinely uncertain, OVERTURN to `Sourced`/`Not checked` — a re-gate is
 cheap; a false Qualify burns a walk and a false Disqualify loses a lead.
@@ -56,8 +63,9 @@ cheap; a false Qualify burns a walk and a false Disqualify loses a lead.
 - Never promote a row to `Qualifying` yourself and never confirm a promotion on a
   number you could not see — you can only CONFIRM the worker's verdict or OVERTURN
   it back to `Sourced`/`Not checked`.
-- No funnel walks (~2 fetches per row). Never source, never send, never log in as
-  Haytham. Never write the parenting DB.
+- No funnel walks — one actor re-pull or a light scrape per datum, not a crawl.
+  Never source, never send, never log in as Haytham (actor calls are read-only,
+  no-login). Never write the parenting DB.
 
 ## What you return
 One fenced JSON object, nothing else:

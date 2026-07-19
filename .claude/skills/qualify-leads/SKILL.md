@@ -1,6 +1,6 @@
 ---
 name: qualify-leads
-description: Mechanically gate the UAE Lead CRM's raw `Sourced` rows — run Gate 0 (UAE-based, has a funnel/paid product, active in last 30 days, 1,500+ audience) and Gate 1 (solo operator, no gatekeeper) over each one, promoting survivors to `Qualifying` and killing fails to `Disqualified`. Triage speed, not a funnel walk — budget ~2 fetches per lead (site + one search), never a crawl. Use WHENEVER Haytham says "qualify the raw names," "qualify the sourced rows," "run Gate 0 on the batch," "gate the leads," "run the gates," "clear the Sourced pile," or when a batch of fresh `Sourced` rows needs gating before it can reach the Walk Queue. This is the step BETWEEN sourcing (`source-leads`, which only collects `Sourced` rows) and the funnel walk (`batch-audit`/`process-lead`, which works `Qualifying` rows). It never sources new candidates, never walks funnels, never sends anything, and never logs in to or acts as Haytham on any platform. Reads and writes the UAE Lead CRM only, never the parenting DB.
+description: Mechanically gate the UAE Lead CRM's raw `Sourced` rows — run Gate 0 (UAE-based, has a funnel/paid product, active in last 30 days, 1,500+ audience) and Gate 1 (solo operator, no gatekeeper) over each one, promoting survivors to `Qualifying` and killing fails to `Disqualified`. Triage speed, not a funnel walk — it resolves each floor with the cheapest tool that settles it (Firecrawl first, a no-login Apify actor for a login-walled follower count on LinkedIn/IG/YouTube), never a crawl. Use WHENEVER Haytham says "qualify the raw names," "qualify the sourced rows," "run Gate 0 on the batch," "gate the leads," "run the gates," "clear the Sourced pile," or when a batch of fresh `Sourced` rows needs gating before it can reach the Walk Queue. This is the step BETWEEN sourcing (`source-leads`, which only collects `Sourced` rows) and the funnel walk (`batch-audit`/`process-lead`, which works `Qualifying` rows). It never sources new candidates, never walks funnels, never sends anything, and never logs in to or acts as Haytham on any platform. Reads and writes the UAE Lead CRM only, never the parenting DB.
 ---
 
 # Qualify Leads — the mechanical gate, as a skill
@@ -22,9 +22,15 @@ walk is a full crawl + vision pass, so it goes per lead). The claim this stage
 self-certifies is the Gate 0/1 verdict — and it has asymmetric, expensive
 failure modes — so the verifier re-checks it on every promotion and every kill.
 
-**Budget ~2 fetches per lead (site + one search), not a crawl.** The full
-5-stop walk happens later, in batch-audit, on Qualifying survivors only. A
-qualifying fetch that turns into a 10-page crawl has drifted — stop it.
+**Resolve each floor with the cheapest tool that settles it; decide, don't
+defer.** Firecrawl first for anything on the open web; a no-login Apify actor
+(`apify li-profile` / `ig --mode details` / `youtube`) only for a follower count
+Firecrawl can't read off a login/JS-walled channel. The old qualifier stalled
+leads at "unconfirmed audience" whenever Firecrawl couldn't see the number — the
+fix is to spend the few-cent actor call, not to defer. Still no crawl: the full
+5-stop walk happens later in batch-audit on survivors; a fetch that turns into a
+10-page crawl has drifted — stop it. The full per-datum tool map + cost
+discipline lives in `.claude/agents/qualifier-worker.md`.
 
 **CRM (all reads and writes):**
 `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`
@@ -39,6 +45,12 @@ English. Full targeting spec: `docs/uae-track/03-targeting-and-sourcing.md`.
 
 ## The run — orchestrator
 
+**Once, up front (before spawning workers):** `pip install -q -r requirements.txt`
+(a missing dep once silently broke the whole `main.py` CLI and degraded every
+worker to Firecrawl-only while `APIFY_TOKEN` was present), then `python main.py
+apify limits` — pass the `near_cap` flag into every worker prompt so they skip the
+actors if the monthly budget is tight. One check, not one per lead.
+
 **Size the batch to downstream demand.** Pull the `Sourced` rows, but qualify
 only enough to keep the Walk Queue full, not the whole pile — batch-audit's run
 cap is 20 and walks size to send headroom, so qualifying 60 rows into a queue
@@ -48,7 +60,8 @@ the next run.
 **Fan out, don't loop.** Split the batch into slices (roughly 15 rows each) and
 spawn one **`qualifier-worker`** per slice, at most 5 running at once. Each
 worker runs the Gate 0 → Gate 1 mechanics below over its slice — Gate 0 first
-(all four), then Gate 1 on Gate 0 survivors only, ~2 fetches per row,
+(all four), then Gate 1 on Gate 0 survivors only, resolving each blocked datum
+with the cheapest tool (Firecrawl first, then the count-only actor per channel),
 `audit/gates.py` for the machine-checkable half (audience 1,500, activity 30
 days, funnel present; UAE residency comes back needs-review for the judgment
 layer). Rows are disjoint by construction, so each worker **writes its own
@@ -71,28 +84,30 @@ each worker executes; the orchestration above wraps them (`docs/agent-orchestrat
 A genuinely tiny pile (a handful of rows) can run inline with no fan-out — the
 orchestration earns its keep on a real batch, not on three rows.
 
-### Gate 0 — all four must be true. Any fail = Disqualified, move on
+### Gate 0 — all four must be true. Resolve, then decide; any fail = Disqualified
 
-- **UAE-based:** site footer/About/LinkedIn location says Dubai, Abu
-  Dhabi, Sharjah, or UAE. "Serves the region" from elsewhere = Fail.
-  Genuinely can't tell = leave City `Unconfirmed` and Gate 0
-  `Not checked`, flag for a second look — don't guess either way.
-- **Has a funnel or paid product:** the site shows a sales page,
-  checkout, course, or paid digital offer. Call-only, DM-only, or
-  brochure-only = Fail.
-- **Activity recency:** something posted, emailed, or launched in the
-  last 30 days (one `firecrawl_search`, or visible on the site/profile).
-  Dormant = Fail.
-- **Audience floor:** 1,500+ on their largest visible channel. Under it
-  with no bigger owned channel in sight = Fail. **A Pass needs a real
-  number, not a vibe** — a follower/subscriber count you actually saw. If
-  the number isn't cheaply visible, do NOT stamp `Gate 0` = Pass on a soft
-  claim ("looks big," "well above floor," a likes count read as followers):
-  leave `Gate 0` = `Not checked` with the number unconfirmed in Notes, same
-  as the can't-tell UAE-base rule above. A soft "Pass" is exactly what sent
-  three leads into a batch that each burned a full walk before failing on
-  the real number — an unconfirmed floor must stay visibly unconfirmed, not
-  ride into the Walk Queue as a confirmed pass.
+- **UAE-based:** site footer/About/LinkedIn location says Dubai, Abu Dhabi,
+  Sharjah, or UAE. "Serves the region" from elsewhere = Fail. Not on the site?
+  resolve it — `li-profile.location.full`, or a UAE phone (+971) in a
+  YouTube/site `description` — before deferring. Only genuinely conflicting or
+  unfindable → City `Unconfirmed`, Gate 0 `Not checked`.
+- **Has a funnel or paid product:** the site shows a sales page, checkout,
+  course, or paid digital offer. Call-only, DM-only, or brochure-only = Fail.
+  (Firecrawl the resolved Site URL — this floor stays Firecrawl, no paid
+  detector.)
+- **Activity recency:** something posted, emailed, or launched in the last 30
+  days — Firecrawl the site/blog/`/videos` page, else `li-posts --since month`
+  / `ig --mode posts --newer-than "30 days"`. Dormant = Fail.
+- **Audience floor:** 1,500+ on their largest channel. **Resolve the real
+  number with the count-only actor for that channel** (`li-profile`
+  followerCount / `ig` followersCount / `youtube` subscriberCount) when
+  Firecrawl can't see it — do NOT leave it `Not checked` just because it wasn't
+  on the homepage. **Never stamp Pass on a guessed number** (a likes count read
+  as followers, "looks big"): the actor's real count is a Pass; a guess is not.
+  Only when no channel yields a countable number → the honest verdict is a Fail
+  (or `Not checked` if a plausible channel just couldn't be located), never a
+  soft Pass — that soft pass once sent three leads into walks that all failed on
+  the real number.
 
 ### Gate 1 — the solo test (2 seconds, on Gate 0 survivors only)
 
@@ -106,9 +121,10 @@ Own face, own story, single-person About = Pass.
 
 - **Fail** → `Gate 0`/`Gate 1` = Fail (whichever failed), Status =
   `Disqualified`, one-line reason in Notes. Set and move on, do not linger.
-- **Can't-tell on UAE-base or audience** → leave the failing check
-  `Not checked`, the value `Unconfirmed` in Notes, Status stays `Sourced`,
-  flag for a second look. Do NOT guess it into a Pass or a Fail.
+- **Genuinely can't resolve** (after trying the cheap tools) → leave the failing
+  check `Not checked`, `Unconfirmed` + what you tried in Notes, Status stays
+  `Sourced`. Do NOT guess it into a Pass or a Fail — but "I didn't try the actor"
+  is not "can't resolve."
 - **Pass both** → `Gate 0` = Pass, `Gate 1` = Pass, Status = `Qualifying`,
   plus City / Platform / Audience Size / Coach Type filled with whatever
   the triage fetches surfaced.
@@ -134,14 +150,16 @@ it needs a walked, verified finding behind it.
   and never creates new candidates. Finding more leads is `source-leads`'s
   job — do not drift into it.
 - **No funnel walks.** The walk is batch-audit's job, on `Qualifying` rows,
-  with the vision gate. Budget ~2 fetches per lead here. A qualifying fetch
-  that turns into a crawl has drifted — stop it.
-- **Never guess a gate input.** An unconfirmed UAE-base or audience number
-  stays visibly unconfirmed (`Not checked`, `Unconfirmed` in Notes) — never
-  a soft Pass. A guessed number poisons the Walk Queue and burns a walk.
-- **Never log in to, act as, or automate anything through Haytham's
-  accounts on any platform.** Read-only public fetching via Firecrawl is
-  the ceiling.
+  with the vision gate. A follower-count actor call or a light scrape per datum
+  is fine; a fetch that turns into a crawl has drifted — stop it.
+- **Never guess a gate input, but resolve it first.** An unconfirmed UAE-base or
+  audience number stays visibly unconfirmed (`Not checked`, `Unconfirmed`) —
+  never a soft Pass. The fix is the cheap actor call that gets the real number,
+  not a guess and not a lazy defer. A guessed number poisons the Walk Queue and
+  burns a walk.
+- **Never log in to, act as, or automate anything through Haytham's accounts on
+  any platform.** Read-only, no-login fetching — Firecrawl plus the no-login
+  Apify actors — is the ceiling.
 - Never write to the parenting DB. This skill reads and writes the UAE Lead
   CRM only.
 - Out of scope stays out: agencies/teams, non-English funnels, coaches
