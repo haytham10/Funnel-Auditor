@@ -40,7 +40,7 @@ Ran the merged draft-first `haytham-hook-finder` batch over the full Audit Ready
 ### Open follow-ups
 - [ ] Haytham: review the 6 Draft Ready drafts in Gmail and send/schedule by hand. On confirmed send, uae-tick logs Touch 1 + flips Findings Bank #1 → USED-T1 + clears the `run haytham-hook-finder` Notes lines.
 - [ ] Caroline Bakker: `heal@sacredwarriormedia.com` is a bounce-risk accept (email-verify WARN) — watch for a bounce on her first send.
-- [ ] Samira Alexander: shows Draft Ready but Notes say the draft is held pending Haytham confirming her refreshed hook still pairs with the re-walked dead-Calendly finding. Not drafted in this batch — needs his call.
+- [x] Samira Alexander: Haytham confirmed the hook pairs (Jul 17 "time to show up / come join me" IG post vs the sitewide dead Book-button Calendly — invitation live, door stuck). Drafted 07-19, Inbox 2, subject "time to show up" → held Draft Ready (7th draft this batch). crm-gate send PASS, email-check PASS (catch-all accepted, not re-verified).
 
 ## 2026-07-19 — Dev: Qualifying resolve-then-decide + merged draft-first hook+draft stage
 Follow-on dev session to the 4-stage rebuild (#60), on `claude/email-draft-examples-skills-5cp2w0`, restarted from `uae-track`. Two changes.
