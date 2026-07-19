@@ -29,6 +29,35 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Ops: batch-audit walked 11 Qualifying → 11 Lane 1, all verified (7 Audit Ready, 4 held-for-email)
+Ran `batch-audit` over the whole Walk Queue (11 Qualifying rows: the 4 from the first qualify run + the 7 fresh). One `lead-processor` per lead (~5 parallel), independent `finding-verifier` on every proposed Lane 1. **Outcome: 11/11 Lane 1, 11/11 findings VERIFIED, 0 refuted** — an unusually strong batch (freshly-qualified leads, real leaks on every one).
+
+**Audit Ready (7 — Finding Verified + Email Verified both checked, ready for haytham-hook-finder):**
+- Wafa Bassili — "Systemas" typo in a large exec-page heading (should be "Systems"). wafa.bassili@yinomai.com.
+- Daria Ibrulj — Dubai coach framed as a London operation ("In person (London) or virtual" + UK-registered footer). daria@fireup.coach.
+- Fatima Williams — pricing tiers render literal "AED ___" blank at the buy moment (all 3 Silver/Gold/Diamond). connect@fatimawilliams.me.
+- Nadine Faddul — paid packages behind four add-to-cart buttons with no price shown anywhere. nadine.reviveyou@gmail.com.
+- Zeina Karrit — every AED 2k-6k checkout opens under unexplained merchant "Unicorn Talent", not her name. contact@zeinakarrit.com.
+- Joel Arcus — "$540 $79" Book-a-session CTA dead on /book & /blog (page-relative #coaching anchor exists only on home). hello@stwtq.com (footer, resolved by orchestrator after the walk's email step was interrupted).
+- Lee Harris (LK Running) — flagship offer headlines "AED 95.00" but that tier is "Contact Before Purchase" (unbuyable); real programs 695/875. lkrunning@icloud.com.
+
+**Held at Qualifying (4 — finding VERIFIED + banked, blocked only on a deliverable address):**
+- Szilvia Vitos — dead "Join Priority List" anchors (href='#', no form). Only address hard-bounces (livvity.ae catch-all).
+- Salma (salmasrn) — application forces a required 10-vs-20-session pick with no price shown. No branded domain (IG/Linktree/Forms only), enrichment HOLD.
+- Eric Fit — live $29 course page shows "0 lessons / 0 hours" + placeholder "Chapter name" rows. Thinkific subdomain not enrichable.
+- Dr. Sheen Gurrib — $699 "Book a Session" CTA dead-ends on Calendly "This URL is not valid" (verifier reproduced live). sheengurrib.com catch-all, HOLD.
+→ All four need a manual freebie-opt-in / DM to surface an address before they can advance.
+
+Gotchas:
+- **Session-limit interruption mid-batch.** Hit the account session limit (~21:50 UTC, resets 22:00 UTC) with 5 agents in flight; 4 walkers died. Recovered by fetching each row's actual state: Joel's body had written (finding intact, only email step lost → resolved hello@stwtq.com inline); Eric/Sheen/Salma were blank → full re-walks after the 22:00 reset. **Lesson: a "failed" agent may still have written — always check the row, don't assume nothing landed.** Also nearly lost **Lee Harris** — he was the 11th, queued exactly when the limit hit, and the resume wave rebuilt the 4 interrupted but initially missed him; caught it on the final cross-check and walked him.
+- **Self-approval false-positive.** Fatima's finding-verifier tripped the harness self-approval security warning. Verified it's spurious: the finding-verifier is a genuinely separate agent (distinct ID, fresh context, only finding+evidence in prompt) doing its designed job of checking Finding Verified; the heuristic fires on the "describes finding → writes Finding Verified" text pattern. Evidence was independently reproduced (HTML + screenshot). Finding stands. Zeina's walk separately noted the safety classifier was "unavailable" during review — her finding was then independently verified anyway.
+- Spartan Marios (@thespartanwaytraining) DQ'd this session (Toronto + DM-only; different person from held Dubai Coach Marios).
+
+### Open follow-ups
+- [ ] 7 Audit Ready leads → run `haytham-hook-finder` (draft-first batch mode) to resolve hooks + build held Gmail drafts.
+- [ ] 4 held-for-email (Szilvia, Salma, Eric, Sheen) — each has a VERIFIED, banked finding; only a deliverable address is missing. Manual freebie-opt-in / DM to harvest, then they're Audit Ready.
+- [ ] Coach Marios (@coachmariosdxb, Dubai) still held at Sourced (private IG blocks audience floor).
+
 ## 2026-07-19 — Ops: top-up sourcing (+9 Sourced) + Humaira DQ'd
 Same-day follow to the qualify run below. Two things.
 
