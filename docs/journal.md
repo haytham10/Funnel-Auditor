@@ -67,12 +67,14 @@ Entry template:
   considering as a proper `main.py apify find-email` command if this recurs —
   but it's cost per result and the catch-all problem still caps its value on
   domains like sheinvests.me / rapidmindredesign.com.
+- **UPDATE (same day):** Haytham ACCEPTED both catch-all addresses. Samira
+  (`samira@rapidmindredesign.com`) and Kalyani (`kalyani@sheinvests.me`) now
+  `Email Verified` ✅ → both moved to **Audit Ready**. So 3 leads reached Audit
+  Ready from this pass (Jamila + Samira + Kalyani), all ready for
+  `haytham-hook-finder`.
 ### Open follow-ups
-- [ ] Haytham: accept-or-reject the two WARN/catch-all addresses (Samira
-  `samira@rapidmindredesign.com`, Kalyani `kalyani@sheinvests.me`) — checking
-  `Email Verified` on either moves it toward Audit Ready.
-- [ ] Jamila is Audit Ready — ready for `haytham-hook-finder` (intel already in
-  her Notes).
+- [ ] Run `haytham-hook-finder` on the 3 new Audit Ready leads (Jamila, Samira,
+  Kalyani) — hook intel for Jamila already in her Notes.
 - [ ] Bonge / Danish: manual email find (Flodesk / IG DM) or park; reconcile
   Danish's UAE residency first.
 
