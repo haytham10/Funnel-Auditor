@@ -29,6 +29,27 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Dev: UAE-first email examples + full agent-layer rebuild into a verified 4-stage pipeline
+Big dev session, no ops. Three workstreams, all on `claude/email-draft-examples-skills-5cp2w0` (3 commits).
+
+**1. Email-draft examples, UAE-first.** `references/examples.md` was 100% parenting-track and pre-pivot. Reshaped UAE-first from REAL sent copy in the CRM Email Thread Logs: Aliya opener (WORK hook), Carol Glynn cold opener + cold Touch-2 carrying a NEW banked finding (the payload rule / anti-Heba contrast), Donna full warm arc incl. the real price-discovery email. Trimmed parenting to top anchors (Amanda / Helen priced-close / Emily Ray Lane 2 + the two anti-patterns); cut Louise (dup of Helen + the 550 AED error), Catherine, Pam, Lisa Smith, Ghadir. Reframed the Heba same-finding-bump section as parenting-era, superseded by the UAE carrier rule. **Baked-in note: no real UAE money-email example exists yet — every Price Discovery Answer/Anchor in the CRM is still null (nobody has answered the price question); Helen stays the priced-close shape anchor.**
+
+**2. Skill staleness sweep (all flagged).** batch-audit 15-vs-20 cap; pipeline-tick "one domain"→Inbox 1; qualify-leads `send-cap status`→`--all` + per-inbox; process-lead + crm-operating-spec "one shared domain"→sending domain; opener-finder singular ceiling; funnel-auditor description.
+
+**3. Agent-layer rebuild — the main event.** Root cause of low agent quality (this journal, Corrie/Roota): every stage let ONE context self-certify the claim that ships. Fix = one shared chassis (`docs/agent-orchestration.md`): fan out least-privilege workers → an INDEPENDENT verifier re-checks the self-certified claim → cross-check Notion → size the batch to downstream demand. Applied to all four stages:
+- **Walk:** lead-processor now PROPOSES the finding (tools allowlist so "never send" is tool-enforced, pinned model, ~130 dup lines → pointer to process-lead, JSON return); new **finding-verifier** re-derives it from the screenshots and is the ONLY thing that checks `Finding Verified`. Propagated to process-lead / opener-finder / schema.
+- **Hook (highest-value):** hook-finder batch mode → orchestrator; new **hook-worker** (proposes, writes nothing) + **hook-verifier** (re-fetches the cited URL, re-matches quote/date, rejects generic copy — enforces "never fabricate a hook").
+- **Qualify:** qualify-leads → orchestrator (batch-of-rows grain); new **qualifier-worker** + **qualifier-verifier** (re-checks every promotion/kill, audience provenance).
+- **Source:** source-leads → orchestrator (fan out by vein, workers RETURN, orchestrator owns cross-vein + live-CRM dedup); new **sourcing-worker** + **sourcing-verifier** (link/offer/audience-seen).
+- batch-audit: cap fix, Step 2.5 verifier dispatch, quality tripwire (pause on ≥2 refutes), prompt checklists, demand-driven sizing. CLAUDE.md pipeline + Key-pieces reworked to point at the chassis.
+
+Decisions: **opus pinned on every worker + verifier** — efficiency comes from least-privilege tools + de-dup + verifier-only-on-consequential-subset + demand-driven sizing, NOT model downgrade (cheap worker feeding a verifier = garbage-in); sourcing/qualifying workers are the tier-down candidates if cost ever bites. **crm_gate.py unchanged** — same checkboxes, trustworthy provenance now (no CRM migration). Drafting stays in-context (already code-gated by draft_lint + the PreToolUse guard + crm-gate send).
+
+### Open follow-ups
+- [ ] **Live smoke-test before a real batch** (plan's verification, NOT run this session — the agent files are written but never exercised end-to-end): one Qualifying lead → lead-processor → finding-verifier (plant a bad finding, expect REFUTED + box unchecked); one Audit Ready lead → hook-worker → hook-verifier (plant a fabricated citation, expect REFUTED). Then a small real batch-audit run to confirm the wiring.
+- [ ] **Fingerprint gap:** `skills_authoritative.py` globs `skills/*/SKILL.md`, not `.claude/agents/*.md` — the 8 agent files sit outside SessionStart authority. Consider extending the glob to `agents/*.md`. Mitigated by keeping agent files thin (logic lives in the fingerprinted process-lead).
+- [ ] Notion SQL (`query-data-sources`) hit its free-tier cap mid-session; `notion-fetch`/`notion-search` kept working. Use those or wait for reset if it recurs.
+
 ## 2026-07-19 — Second wave: 4 fresh audits + hook→drafts → entire Qualifying bucket (12) resolved, 9 drafts held
 Continued the sweep. The whole Qualifying bucket is now terminal: **9 Draft Ready, 1 Lane 2 (Roota), 2 DQ (Danish Gate 0, Sahar unreachable).**
 - **4 never-walked fresh leads audited** (lead-processor agents), all landed verified Lane 1 findings — notably a run of dead-link/booking leaks:
