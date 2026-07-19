@@ -29,6 +29,28 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Ops: qualified the full Sourced pile (12 rows) → 4 to Walk Queue
+Ran `qualify-leads` over all 12 `Sourced` rows (the whole pile; Walk Queue was near-empty at 2, so downstream demand was wide open). First live exercise of the resolve-then-decide overhaul (#61) — and it worked: every one of the 12 had been stalled at Gate 0 `Not checked` solely because Firecrawl search couldn't read a login-walled follower count, and the workers resolved all 12 audience floors with cheap count-only actor calls (fractions of a cent each, Apify at 3.8% of the monthly cap).
+
+Chassis: 2 `qualifier-worker`s over slices of 6 (parallel) → 1 `qualifier-verifier` over every promotion + kill.
+
+**Result — 4 promoted, 7 disqualified, 1 held:**
+- **→ Qualifying:** Wafa Bassili (LI 3,901), Nadine Faddul (LI 2,771; Site URL swapped noomii→revive-you.com), Daria Ibrulj (LI 2,127), Szilvia Vitos (LI 10,275).
+- **→ Disqualified (audience floor):** Hasina (IG 432/LI 298), Coach Mezyan (~70, directory-only), Ramy Elgebaly (LI 1,332, just under), Tahani Ahmed (LI 159), Blair Hoover (LI 1,050/IG 78).
+- **→ Disqualified (Gate 1 solo-Fail, despite clearing Gate 0):** Rajiv Sharma (LI 23K, but NLP Limited is a multi-country training co with staff), Dr. Shamma Lootah (IG ~4.1K, but "Co-Owner" of the multi-expert Holistic Culture platform).
+- **Held at Sourced:** Humaira Nasim — audience clears (LI 4,097) but 30-day activity genuinely unconfirmable (LI silent >30d, owned humairanasim.com 404s, last dated trace Apr 2026). Needs a human recency check, not another actor call.
+
+**Verifier:** 0 of 10 overturned, and all five re-pulled LI counts reproduced to the exact digit — this batch's actor provenance is solid.
+
+Gotchas:
+- **Duplicate Blair rows.** Two `cyofinance.com` "Blair Hoover" rows existed (13:09 canonical still Sourced + 22:05 dup already Disqualified). The slice-A worker mis-skipped the canonical one as "the dup" and never qualified it — caught it in the fresh CRM query, handed it to the verifier, which resolved it to Disqualified on a real seen number (LI 1,050/IG 78). Lesson: a worker "already Disqualified — skipping as dup" claim needs the orchestrator to confirm *which* row got left behind.
+- Szilvia's most recent LI post is 34 days (4 past the strict 30-day floor); passed on a non-dormancy read (weekly May–Jun cadence, live booking funnel, 10K audience, peak-Dubai-summer gap). Borderline — pre-flight will re-check activity cheaply if she stays silent.
+- Hit Notion's free-tier hourly SQL-query cap mid-run (~6 `query_data_sources` calls). Page-level `notion-fetch`/`notion-update-page` (what the agents use) is a separate endpoint and kept working. Budget SQL queries on ops runs.
+
+### Open follow-ups
+- [ ] Walk Queue now holds 6 `Qualifying` rows (2 prior + 4 new) — ready for `batch-audit` (cap 20, combined send ceiling 40/day across both inboxes).
+- [ ] Humaira Nasim held at Sourced pending a human 30-day-activity check; her owned humairanasim.com 404s (possible future finding if she's still active elsewhere).
+
 ## 2026-07-19 — Dev: Qualifying resolve-then-decide + merged draft-first hook+draft stage
 Follow-on dev session to the 4-stage rebuild (#60), on `claude/email-draft-examples-skills-5cp2w0`, restarted from `uae-track`. Two changes.
 
