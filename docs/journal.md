@@ -40,10 +40,11 @@ Prepared tomorrow's due follow-ups so Haytham can schedule them in the morning. 
 - No CRM writes: a draft is not a send. Status stays Outreach Sent; Touch #/Last Contacted/Thread Log/bank #2 → USED-T2 move only on actual departure (uae-tick reconciles on the send-day).
 - **Two warm rows due 07-20 left for Haytham's call, NOT batch-drafted:** **Christina Steinhoff** (Inbox 1) — replied twice with an identical canned "call/message my phone +971-562737368" autoresponder; low-signal, possibly an auto-reply. **Lisa Hugo** (Inbox 2) — turn-two (finding #2, podcast fix) already SENT 07-17 (the "held draft" note in her bank was stale; no Gmail draft exists); she engaged then went quiet after the finding-#1 correction. Both want individual warm handling, not a scheduled cold bump.
 
+**Update (same day): Haytham SCHEDULED all 14 in Gmail for 07-20.** No "Scheduled" status exists for a mid-sequence Outreach Sent row, so instead each of the 14 rows got a `Notes` marker: `T2 scheduled 2026-07-20 (Inbox N), held draft threaded — log Touch 2 on departure, bank #2 → USED-T2`. This is the reality record that stops tomorrow's tick from re-drafting a duplicate Touch 2 (Chetna already ate one duplicate-send incident on 07-18) and reminds it to log on departure. Send-day 07-20 load is now: **Inbox 1 = 16 (8 openers + 8 follow-ups), Inbox 2 = 13 (7 openers + 6 follow-ups)**, both ≤ 20.
+
 ### Open follow-ups
-- [ ] Haytham: schedule the 14 held follow-up drafts for ~09:00 Dubai 07-20 (8 Inbox 1 + 6 Inbox 2).
 - [ ] Decide Christina + Lisa warm moves (offered to draft either on request).
-- [ ] uae-tick 07-20: on each follow-up's departure, log Touch 2 (Last Contacted, Next Action +6 → Touch 3 day 9, Thread Log, bank #2 → USED-T2). Jana's Touch 2 spends no bank (loom-offer).
+- [ ] uae-tick 07-20: rows carry the `T2 scheduled` Notes marker — do NOT re-draft; on each follow-up's departure, log Touch 2 (Last Contacted, Next Action +6 → Touch 3 day 9, Thread Log, bank #2 → USED-T2, clear the marker). Jana's Touch 2 spends no bank (loom-offer). Watch Neha's contact@ for a second bounce (two strikes = stop).
 
 ## 2026-07-19 — Ops: all Draft Ready scheduled for 2026-07-20 + Samira duplicate flagged
 - Haytham scheduled EVERY Draft Ready lead in Gmail for send-day 2026-07-20 (~09:00 Dubai). **8 in Inbox 1:** Nabil, Caroline, Aleli (this session) + pre-existing Sadia Khan, Bonge Gumede, Monika Singh, Asma Ahmad, Dr. Jamila Al Hosani. **8 in Inbox 2:** Sabeen, Sanjukta, Trisha, Samira (this session) + Kalyani Seth Soni, Dr. Corrie Block, Nikki Evans + a Samira duplicate. **15 leads, 16 sends.**
