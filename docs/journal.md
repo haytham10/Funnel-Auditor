@@ -29,6 +29,53 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Email-blocked Qualifying leads: hygiene fix + creative Apify email-FINDER pass
+- **Context:** 5 Qualifying leads had a verified finding but were stuck on a
+  dead/missing email (Bonge, Jamila, Danish, Samira, Kalyani). Samira & Kalyani
+  bounced today but still read `Email Verified` ✅ with the dead address in
+  `Email` — corrupt send-gate state. Unchecked both + cleared the dead
+  addresses (and Bonge's dead contact@).
+- **`main.py email-enrich` only GUESSES name@domain and verifies — it never
+  FINDS a published address.** So it re-derived Samira's already-dead
+  `samira@samiraalexander.com` and the verifier falsely PASSed it. Ground-truth
+  bounce beats verifier PASS — did not adopt.
+- **New technique — no-login email FINDER via Apify (not in the vetted set):**
+  used `caprolok/website-email-phone-finder` ($0.02/result, crawls a domain for
+  published emails/phones) + `vulnv/linkedin-email-finder`, driven off each
+  lead's IG external links (via the existing `apify ig --mode details --raw`)
+  and Taplink/link-hub scrapes (Firecrawl). Whole run ~$0.13 of the $29 cap.
+- **Results:**
+  - **Jamila Al Hosani — FULLY UNBLOCKED → Audit Ready.** Her Taplink hub
+    published `Jamila.Alhosany1@gmail.com` (verify PASS, deliverable). Adopted,
+    `Email Verified` ✅. Finding already verified → both gates pass. Also banked
+    hook intel (real site escape2happiness.com, LinkedIn, TikTok, WhatsApp).
+  - **Samira → candidate found.** Her IG Calendly slug led to her REAL active
+    brand `rapidmindredesign.com` (phone on the site matches her CRM phone).
+    Adopted `samira@rapidmindredesign.com` into `Email`, `Email Verified` NO —
+    WARN/catch-all, Haytham's call. Different domain than the dead one.
+  - **Kalyani → candidate found.** Site crawl surfaced personal
+    `kalyani@sheinvests.me` (vs dead info@). WARN/catch-all → Haytham's call,
+    `Email Verified` NO.
+  - **Bonge — still blocked.** 2nd domain apbybongegumede.com only yields her
+    platform vendor's support@system2.fitness; runs a Flodesk community. No
+    personal address anywhere.
+  - **Danish — still blocked + GATE-0 FLAG.** No owned domain, YT email
+    captcha-gated, no LinkedIn. His bio (20yr comedy / South-Asia influencer /
+    3M followers) suggests the earlier-rejected "Karachi namesake" Gmail may be
+    him — reconcile UAE-residency before more effort.
+- **Actor note:** `caprolok/website-email-phone-finder` was the MVP and is worth
+  considering as a proper `main.py apify find-email` command if this recurs —
+  but it's cost per result and the catch-all problem still caps its value on
+  domains like sheinvests.me / rapidmindredesign.com.
+### Open follow-ups
+- [ ] Haytham: accept-or-reject the two WARN/catch-all addresses (Samira
+  `samira@rapidmindredesign.com`, Kalyani `kalyani@sheinvests.me`) — checking
+  `Email Verified` on either moves it toward Audit Ready.
+- [ ] Jamila is Audit Ready — ready for `haytham-hook-finder` (intel already in
+  her Notes).
+- [ ] Bonge / Danish: manual email find (Flodesk / IG DM) or park; reconcile
+  Danish's UAE residency first.
+
 ## 2026-07-19 — Lucia Csobonyei turn-two SENT (Touch 2, Inbox 2), logged
 - **Lucia's turn-two warm reply went out** (Inbox 2 / gethaytham.com, direct
   API path, threaded on "wake-up calls"). It reframes off the prospect read
