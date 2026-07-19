@@ -500,6 +500,44 @@ def _list_rows(items, render_row) -> str:
     return '<ul class="rows">' + "".join(render_row(it) for it in items) + "</ul>"
 
 
+def _followup_inbox_breakdown(snapshot: dict) -> str:
+    """Per-inbox due-today count + headroom left for NEW openers, so 'how many
+    fresh opener drafts do I need tomorrow' never requires hand-tallying the
+    follow-up list against each inbox's cap. Follow-ups eat a inbox's send
+    budget first (hard rule, CLAUDE.md); this is that arithmetic done once."""
+    inbox_list = snapshot.get("inboxes") or []
+    if not inbox_list:
+        return ""
+    fus = snapshot.get("due_followups")
+    if fus is None:
+        return f'<div class="fu-breakdown">{_empty("Awaiting data.")}</div>'
+
+    counts: dict[str, int] = {}
+    unassigned = 0
+    for f in fus:
+        label = f.get("inbox")
+        if label:
+            counts[label] = counts.get(label, 0) + 1
+        else:
+            unassigned += 1
+
+    chips = []
+    for m in inbox_list:
+        label = m.get("label")
+        cap = int(m.get("cap") or 0)
+        due = counts.get(label, 0)
+        room = max(cap - due, 0)
+        room_cls = "crit-t" if room == 0 else ("warn-t" if cap and room <= max(cap * 0.2, 2) else "")
+        chips.append(
+            f'<div class="fu-ib"><span class="fu-ib-label">{_esc(label)}</span>'
+            f'<span class="fu-ib-stat">{due} due <span class="mut">/ {cap} cap</span></span>'
+            f'<span class="fu-ib-room {room_cls}">{room} left for new openers</span></div>'
+        )
+    if unassigned:
+        chips.append(f'<div class="fu-ib mut">{unassigned} follow-up(s) with no inbox tag</div>')
+    return f'<div class="fu-breakdown">{"".join(chips)}</div>'
+
+
 def _today_tab(snapshot: dict) -> str:
     meters = "".join(_meter_card(m) for m in snapshot.get("inboxes", []))
     day_toggle = (
@@ -541,7 +579,8 @@ def _today_tab(snapshot: dict) -> str:
         body = _empty("Nothing due today.")
     else:
         body = _list_rows(fus, followup_row)
-    out += f'<div class="card" id="sec-followups"><h2>Follow-ups due</h2>{body}</div>'
+    breakdown = _followup_inbox_breakdown(snapshot)
+    out += f'<div class="card" id="sec-followups"><h2>Follow-ups due</h2>{breakdown}{body}</div>'
 
     sq = snapshot.get("send_queue")
     if sq is None:
@@ -804,6 +843,12 @@ h1{font-size:clamp(20px,3vw,26px);margin:0;letter-spacing:-.01em}
 .r-sub{font-size:12.5px;color:var(--ink2)}
 .pill{font-size:11px;font-weight:600;padding:1px 8px;border-radius:20px;background:var(--accent-track);color:var(--accent);white-space:nowrap}
 .mut-pill{background:transparent;border:1px solid var(--hair);color:var(--mut)}
+
+.fu-breakdown{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.fu-ib{border:1px solid var(--hair);border-radius:10px;padding:6px 10px;font-size:12px;display:flex;align-items:center;gap:8px;background:var(--page)}
+.fu-ib-label{font-weight:650}
+.fu-ib-stat{color:var(--ink2)}
+.fu-ib-room{color:var(--accent);font-weight:600}
 
 .f-row{display:grid;grid-template-columns:minmax(110px,160px) 1fr 40px;align-items:center;gap:10px;padding:3px 0;border-radius:6px}
 .f-row:hover .f-fill{filter:brightness(1.12)}
