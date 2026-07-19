@@ -236,6 +236,19 @@ files of the sales/freebie pages — copy is where non-mechanical leaks
 live. Run `python main.py vision list evidence/<slug>` first to see the
 exact list of paths this crawl requires.
 
+**Firecrawl mobile-render caution (learned 2026-07-19):** Firecrawl's
+MOBILE screenshots are NOT reliable for layout-shape findings on some sites
+— they produce full-page stitching artifacts and false overlaps/cutoffs
+(this is what generated two findings that Haytham refuted on his real phone,
+Corrie Block + Roota Mittal, and burned two re-walks). So a
+**cutoff / overflow / clipping / overlap / cropped-off-the-edge** finding
+seen ONLY in a Firecrawl mobile capture does NOT count until it is
+reconfirmed on a real render — the Playwright walk (`python main.py walk` /
+`cta-probe`), a desktop capture, or the raw HTML. A layout finding that
+survives only in the mobile screenshot is dead on arrival. Content/text/
+headline mismatches read from the HTML (e.g. a wrong-city title tag) are
+safe — this caution is about pixel-layout claims only.
+
 **Read each screenshot with the Read tool directly — it downscales tall
 fullPage captures for you. Do NOT shell out to Python/PIL to slice, crop,
 or resize a screenshot.** (`pillow` is in requirements.txt if you ever

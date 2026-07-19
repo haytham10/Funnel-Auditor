@@ -29,6 +29,91 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Second wave: 4 fresh audits + hook→drafts → entire Qualifying bucket (12) resolved, 9 drafts held
+Continued the sweep. The whole Qualifying bucket is now terminal: **9 Draft Ready, 1 Lane 2 (Roota), 2 DQ (Danish Gate 0, Sahar unreachable).**
+- **4 never-walked fresh leads audited** (lead-processor agents), all landed verified Lane 1 findings — notably a run of dead-link/booking leaks:
+  - **Monika Singh → Audit Ready → Draft Ready.** Finding: flagship group program is waitlist-only, no intake date/price. Email `monika.s@monikasphere.com` PASS. Hook: her Jul 14 IG "the ordinary days you almost skipped" POV. Draft "the days you almost skip" (Inbox 1).
+  - **Sadia Khan → Audit Ready → Draft Ready.** Finding: "Book a 1:1 Session" buttons all load a dead Calendly. Her domain is catch-all (enrich HOLD) → Haytham supplied `Therapybysadia@gmail.com` from YouTube (verify PASS). Hook: her own "3M Method" (Master Yourself/Women/Relationships), namesake-locked to the Dubai Sadia via a YT episode transcript. Draft "master yourself first" (Inbox 1).
+  - **Asma Ahmad → Audit Ready → Draft Ready.** Finding: sitewide "Free Clarity Webinar" CTA 404s to a dead Lovable app. Email `info@luminapathscoaching.com` catch-all, Haytham accepted. Hook: her "Soulful Serenity" masterclass. **Timing fix:** hook said "tonight" (Jul 19 event) but Touch-1 openers roll to the 07-20 send-day, so I reworded it to past tense ("last night"), trashed the stale draft, rebuilt it ("soulful serenity last night", Inbox 1).
+  - **Sahar Huneidi Palmer → still Qualifying (email-blocked).** Finding: two e-courses show AED 0.00 on the paid storefront (vision 12/12). Email genuinely dead: `sahar@saharhuneidi.com` FAIL x2, and enrich proved the domain is NOT catch-all (MXroute infra), so it's a real dead mailbox, not an anti-harvest false-negative — even though her WordPress site aggressively ASN-bans (it blocked Haytham's own Maroc Telecom AS36903 from viewing the site). Her YouTube "About" lists the same dead address. Only unlocks via a manual test-send or the WhatsApp pivot (+971 55 635 1302). **DQ'd 2026-07-19 (Haytham's call)** — no reachable email, Lost Reason Other; gates + finding held, so revivable if a working address ever surfaces.
+- **Corrie draft rebuilt by hand.** The agent's first version was missing the "Hey Corrie" greeting AND offered the Loom in Touch 1 (the other 5 openers end on a bare question; Loom is a later-touch carrier). Haytham trashed it; I hand-wrote a clean replacement ("the uncoachable ceo", greeting + bare question, no Loom).
+- **Independently rechecked all drafts** (Haytham: "I don't trust the agents"): pulled the actual Gmail bodies on BOTH transports, ran each through `audit/draft_lint.py` + copy-rule checks (em-dash/jargon/weak-closer/Haytham-signoff), and cross-checked every draft's to-address, inbox, hook, and finding against the CRM. All matched; the only miss was Corrie's greeting/Loom (fixed).
+- **9 drafts now Draft Ready (all held, send tomorrow 07-20):** Inbox 1 = Jamila, Bonge, Asma, Sadia, Monika; Inbox 2 = Kalyani, Samira, Nikki, Corrie. Send-day 07-20 load: ~10 follow-ups + 5 openers on Inbox 1, 4 openers on Inbox 2 — under the per-inbox 20 ceiling, but Inbox 1 is filling.
+### Open follow-ups (manual, Haytham)
+- [ ] Send the 9 held Touch-1 drafts tomorrow (07-20); run `crm-gate send` per inbox at send time (Inbox 1 is the tighter one).
+- [x] Sahar DQ'd (unreachable by email) — revive only if a working address ever surfaces (manual YouTube read / she fixes the mailbox), then it's a fresh start from her verified finding.
+- [ ] Delete any residual stale Inbox 2 draft (Roota "your khaleej times feature") by hand — no delete API on that transport.
+- [ ] Run hook→draft nothing further needed on this bucket; next is sending + reply-handling.
+
+## 2026-07-19 — Blocked Qualifying pile worked to conclusion (8 leads, ~9 agents): 4 drafts held, 2 re-walk→Audit Ready, 1 Lane 2, 1 DQ
+Ran a wave of subagents over the stuck Qualifying leads after the email-finder pass. Every lead reached a real terminal-ish state. All drafts are HELD (nothing sent).
+- **Bonge Gumede → Draft Ready (Inbox 1).** Email cracked: Haytham found `gumedebongebusiness@gmail.com` on her YouTube (the one surface crawlers can't reach — YT business email is captcha-gated); verify PASS → adopted, Email Verified YES. The Shopify `contact@` re-verified FAIL (matches its prior double-bounce). Hook = her "fitness is for being physically USEFUL, not physically expressive" framework (June 29 IG post, verified current). Touch-1 draft subject "building capable bodies" (stale-May-banner finding).
+- **Danish Ali → DISQUALIFIED (Gate 0, not UAE).** Haytham added `danishali.help@gmail.com` (verify PASS) + `dan1ali@yahoo.com` (WARN). But a residency check found strong Pakistan signal (IG "reloading in Pakistan", "NIC Karachi hosted a coaching session with Danish Ali Malik", TikTok actor/comedian, "pioneered influencer marketing in South Asia") and ZERO UAE signal — the earlier-rejected "Karachi namesake" IS him; City=Dubai was a sourcing error. Set Status Disqualified, Gate 0 Fail, City Unconfirmed, Lost Reason "Wrong fit". A working email is moot when Gate 0 fails. (Haytham confirmed the DQ.)
+- **Kalyani Seth Soni → Draft Ready (Inbox 2).** Drafted to the accepted `kalyani@sheinvests.me` (info@ was dead). Hook = her She Invests Show podcast (AI/Money ep w/ Abha Malpani Naismith); finding = checkout trust-stats shrink vs sales page. Subject "the ai and money episode".
+- **Jamila Al Hosani → Draft Ready (Inbox 1).** Full hook→draft. Hook = her near-daily Arabic LinkedIn leadership posts (each closes with "رسالة التمكين" + a practical self-assessment tool). Subject "the best performer isn't the leader"; finding = "Price on request" sitewide vs live AED 550/750 booking.
+- **Samira Alexander → Draft Ready (Inbox 2).** RE-WALKED her REAL funnel `rapidmindredesign.com` (not the peripheral Baxsan resell .store the old finding lived on). NEW vision-confirmed finding: every "Book" CTA sitewide lands on a dead Calendly ("This Calendly URL is not valid") — her only conversion action is broken. Baxsan finding archived, Site URL switched, Finding Verified YES. Hook REFRESHED to her Jul 17 IG "time to show up / anxiety to abundance" post (pairs tightly with the dead button). Subject "showing up after ten years".
+- **Nikki Evans → Audit Ready (needs hook-finder).** RE-WALKED the REBUILT site. Old "4 unranked offers/no opt-in" finding RETIRED (homepage now has ranked CTAs). NEW verified finding: /contact page never migrated in the rebuild — title tag + Google meta still read "Best Life Coach in Sydney" while every other page says "Mindset Coach Dubai". Site URL fixed, Finding Verified YES, SMYKM hook reset to "not run yet" (old LIFEFREQ/shadow-work hook is dead; live brand is Mind Health School / Emotional Mastery).
+- **Corrie Block → Audit Ready (needs hook-finder).** RE-WALKED via Playwright (Firecrawl mobile screenshots confirmed UNTRUSTWORTHY on this site — full-page stitching artifacts; this is why both prior findings got refuted). Both prior findings stay retired. NEW verified finding, and it CONFIRMS Haytham's own verbal lead: his flagship Spartan CEO masterclass page (/training-topics/spartan-ceo) opens with the WRONG program's headline ("Unlock the Full Potential of Your Team") + generic team/HR copy — "Spartan CEO" appears nowhere visible. Content/headline mismatch (raw HTML + Playwright verified), NOT a layout break, so it survives the mobile-render caution. Finding Verified YES, hook reset.
+- **Roota Mittal → Lane 2 (no leak).** RE-WALKED; the refuted Skool /plans overlap confirmed a render artifact (matches Haytham's phone refute). No other real felt leak on her thin Skool surface; she's a well-run operator. Correct outcome is Lane 2, not a forced send. NOTE: the agent wrongly left her at Qualifying thinking "Lane 2" isn't a Status option — it IS (schema + the earlier migration). I corrected Status → "Lane 2".
+### Lessons banked
+- **Firecrawl mobile screenshots are unreliable for cutoff/overlap/clipping/layout claims on some sites** (Corrie + Roota both confirmed — stitching artifacts, false overlaps). Verify any layout-style finding on Playwright/desktop or raw HTML before trusting it. Content/headline mismatches (read from HTML) are safe.
+- **`caprolok/website-email-phone-finder` + domain-hopping via IG external links + Taplink scrapes** is the email-FINDER combo that worked; but a captcha-gated YouTube business email needs Haytham's manual eyes (cracked both Bonge's real address and Danish's).
+- **Lane 2 is a Status value** — no-leak leads go to Status "Lane 2", not Qualifying.
+- **Notion single-source SQL has an hourly rate limit** that got exhausted mid-session — property writes (update_page) still work, but SQL queries stall; gate sends on send-pattern inference if needed (uae-tick owns the authoritative daily counts).
+### Open follow-ups (manual, Haytham)
+- [ ] Review + send the 4 held Touch-1 drafts: Jamila (Inbox 1), Kalyani (Inbox 2), Samira (Inbox 2), Bonge (Inbox 1). All roll to send-day 2026-07-20 (drafted past noon Dubai). Run `crm-gate send` per inbox at actual send time.
+- [ ] DELETE 2 stale Inbox 2 Gmail drafts by hand (no delete API): Corrie "impossible to ignore" + Roota "your khaleej times feature" (both built on refuted findings).
+- [ ] Run `haytham-hook-finder` on Nikki + Corrie (both Audit Ready, hooks reset to "not run yet"), then draft.
+
+## 2026-07-19 — Email-blocked Qualifying leads: hygiene fix + creative Apify email-FINDER pass
+- **Context:** 5 Qualifying leads had a verified finding but were stuck on a
+  dead/missing email (Bonge, Jamila, Danish, Samira, Kalyani). Samira & Kalyani
+  bounced today but still read `Email Verified` ✅ with the dead address in
+  `Email` — corrupt send-gate state. Unchecked both + cleared the dead
+  addresses (and Bonge's dead contact@).
+- **`main.py email-enrich` only GUESSES name@domain and verifies — it never
+  FINDS a published address.** So it re-derived Samira's already-dead
+  `samira@samiraalexander.com` and the verifier falsely PASSed it. Ground-truth
+  bounce beats verifier PASS — did not adopt.
+- **New technique — no-login email FINDER via Apify (not in the vetted set):**
+  used `caprolok/website-email-phone-finder` ($0.02/result, crawls a domain for
+  published emails/phones) + `vulnv/linkedin-email-finder`, driven off each
+  lead's IG external links (via the existing `apify ig --mode details --raw`)
+  and Taplink/link-hub scrapes (Firecrawl). Whole run ~$0.13 of the $29 cap.
+- **Results:**
+  - **Jamila Al Hosani — FULLY UNBLOCKED → Audit Ready.** Her Taplink hub
+    published `Jamila.Alhosany1@gmail.com` (verify PASS, deliverable). Adopted,
+    `Email Verified` ✅. Finding already verified → both gates pass. Also banked
+    hook intel (real site escape2happiness.com, LinkedIn, TikTok, WhatsApp).
+  - **Samira → candidate found.** Her IG Calendly slug led to her REAL active
+    brand `rapidmindredesign.com` (phone on the site matches her CRM phone).
+    Adopted `samira@rapidmindredesign.com` into `Email`, `Email Verified` NO —
+    WARN/catch-all, Haytham's call. Different domain than the dead one.
+  - **Kalyani → candidate found.** Site crawl surfaced personal
+    `kalyani@sheinvests.me` (vs dead info@). WARN/catch-all → Haytham's call,
+    `Email Verified` NO.
+  - **Bonge — still blocked.** 2nd domain apbybongegumede.com only yields her
+    platform vendor's support@system2.fitness; runs a Flodesk community. No
+    personal address anywhere.
+  - **Danish — still blocked + GATE-0 FLAG.** No owned domain, YT email
+    captcha-gated, no LinkedIn. His bio (20yr comedy / South-Asia influencer /
+    3M followers) suggests the earlier-rejected "Karachi namesake" Gmail may be
+    him — reconcile UAE-residency before more effort.
+- **Actor note:** `caprolok/website-email-phone-finder` was the MVP and is worth
+  considering as a proper `main.py apify find-email` command if this recurs —
+  but it's cost per result and the catch-all problem still caps its value on
+  domains like sheinvests.me / rapidmindredesign.com.
+- **UPDATE (same day):** Haytham ACCEPTED both catch-all addresses. Samira
+  (`samira@rapidmindredesign.com`) and Kalyani (`kalyani@sheinvests.me`) now
+  `Email Verified` ✅ → both moved to **Audit Ready**. So 3 leads reached Audit
+  Ready from this pass (Jamila + Samira + Kalyani), all ready for
+  `haytham-hook-finder`.
+### Open follow-ups
+- [ ] Run `haytham-hook-finder` on the 3 new Audit Ready leads (Jamila, Samira,
+  Kalyani) — hook intel for Jamila already in her Notes.
+- [ ] Bonge / Danish: manual email find (Flodesk / IG DM) or park; reconcile
+  Danish's UAE residency first.
+
 ## 2026-07-19 — Lucia Csobonyei turn-two SENT (Touch 2, Inbox 2), logged
 - **Lucia's turn-two warm reply went out** (Inbox 2 / gethaytham.com, direct
   API path, threaded on "wake-up calls"). It reframes off the prospect read

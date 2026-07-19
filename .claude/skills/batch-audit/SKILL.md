@@ -87,9 +87,9 @@ block defined in the agent file.
 
 Batch rules the orchestrator enforces:
 - A floor fail or Lane 3 is a fine outcome: parked properly (Gate fail,
-  Disqualified, one-line reason) counts as done. So does Lane 2 (holds at
-  Qualifying as a warm-up lead — no verified finding means no cold send,
-  by design).
+  Disqualified, one-line reason) counts as done. So does Lane 2 (set to
+  Status `Lane 2`, the dedicated no-leak status — no verified finding means
+  no cold send, by design).
 - If one agent errors or its crawl breaks, record it under Blocked and
   keep the batch moving — never let one bad site stall the session.
 - Never spawn two agents for the same lead, and never re-run a lead that
@@ -133,8 +133,9 @@ Then one brief, in this order:
    whose address came back `EMAIL VERIFY: WARN/FAIL` is NOT here — it's in
    §4 (held), holding at Qualifying.
 3. **Warm-up holds (Lane 2)**: committed buyers with no felt leak — the
-   warm-up angle, one line each. These stay at Qualifying and never enter
-   the cold send queue; Haytham works them by hand if and when he wants.
+   warm-up angle, one line each. These are set to Status `Lane 2` (the
+   dedicated no-leak status) and never enter the cold send queue; Haytham
+   works them by hand if and when he wants.
 4. **Held for other reasons**: Lane 1 leads with a verified finding still
    short of Audit Ready — an address that came back `EMAIL VERIFY:
    WARN/FAIL` (holding at Qualifying, needs a better address or Haytham's

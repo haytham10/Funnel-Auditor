@@ -61,7 +61,8 @@ including every skill it chains into (`haytham-opener-finder`,
    Apify audience lookup (pre-flight already spent the one attempt). A gate
    fail or Lane 3 is a fine outcome — park it properly (Gate = Fail, Status
    = Disqualified, one-line reason) and finish. Lane 2 is also a fine
-   outcome — it holds at Qualifying with the warm-up angle in Notes; no
+   outcome — set Status = `Lane 2` (the dedicated no-leak status, added
+   2026-07-16; NOT a Qualifying hold) with the warm-up angle in Notes; no
    verified finding means no cold send.
 4. Write the walk to the lead's Notion page in the exact schema
    (`haytham-opener-finder/references/schema.md`). The row already exists —
@@ -86,7 +87,12 @@ including every skill it chains into (`haytham-opener-finder`,
    nominative fallback before giving up: `python main.py email-enrich "<name>"
    <Site URL>`. `EMAIL ENRICH: PASS` = an adopted, verified address (it IS an
    `EMAIL VERIFY: PASS`) → write `Email`, check `Email Verified`, note it was
-   enrichment-derived; `HOLD`/`NONE` → leave it unfound, hold at Qualifying.
+   enrichment-derived; `HOLD`/`NONE` → before giving up, try the email-FINDER
+   escalation (no-login, discovers a *published* address vs enrich's guessing):
+   `caprolok/website-email-phone-finder` on the lead's own + secondary brand
+   domains, domain-hop via the IG bio's external links / Taplink hub, then
+   `email-verify` — see `docs/uae-track/apify-actors.md` "email-FINDER
+   escalation". If that too finds nothing → leave it unfound, hold at Qualifying.
    The engine already converged to ONE address — never send two spellings.
    **Audit Ready requires BOTH `Finding Verified` and
    `Email Verified` checked** — otherwise the lead holds at Qualifying with
@@ -162,7 +168,7 @@ EMAIL VERIFIED: <Lane 1: the literal `EMAIL VERIFY: PASS|WARN|FAIL` line, OR
   | "n/a (no address)">
 DRAFT: <for Lane 1, always "held — needs haytham-hook-finder" (you never
   draft on a fresh "not run yet" hook line, regardless of address status) |
-  "n/a (Lane 2 warm-up hold)" | "n/a (parked)">
+  "n/a (Lane 2 — no send)" | "n/a (parked)">
 PASTED EVIDENCE: <the literal `python main.py vision check` line covering
   hook/ images if any were attached, or "none attached">
 SITE VISION: <the literal `vision check` line for the site screenshots.

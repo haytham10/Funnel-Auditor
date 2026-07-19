@@ -117,11 +117,14 @@ To set it: add `APIFY_TOKEN` as an environment secret on the Claude Code
 environment (Settings → environment). Once set, every `apify` run command
 works with no further wiring.
 
-## The ZeroBounce key (email verification's default path)
+## The ZeroBounce key (email verification's fallback path)
 
-`main.py email-verify` and `main.py email-enrich` read **`ZEROBOUNCE_API_KEY`**
-from the environment (`audit/email_verifier.py`) — same rule as
-`APIFY_TOKEN`: an environment secret on the runner, never in code. Sign up
+`main.py email-verify` and `main.py email-enrich` fall back to
+**`ZEROBOUNCE_API_KEY`** (`audit/email_verifier.py`) when Apify is at/near
+its monthly cap or `EMAIL_VERIFY_PROVIDER=zerobounce` is set — Apify/
+MillionVerifier is the day-to-day default again as of 2026-07-18 (see
+above). Same rule as `APIFY_TOKEN`: an environment secret on the runner,
+never in code. Sign up
 at zerobounce.net for the free tier (100 verification credits/month, no
 credit card, credits don't expire) — that comfortably covers this system's
 real volume without touching Apify's cap. A missing key fails closed
@@ -274,6 +277,36 @@ first rather than assume the quota is open.
   returns `catch_all`/`catch-all` → WARN → HOLD, so no specific mailbox is
   confirmable). A `PASS` line is by construction an `EMAIL VERIFY: PASS` on
   the adopted address. See `audit/email_enrich.py`, `audit/email_verifier.py`.
+  **Key limitation:** `email-enrich` only GUESSES `name@own-domain` shapes and
+  verifies them — it does NOT discover a published address, and on a
+  catch-all domain it re-derives dead mailboxes the verifier may falsely PASS
+  (2026-07-19: it re-produced a lead's already-bounced `first@` on a
+  catch-all — a real bounce beats a verifier PASS, don't adopt it).
+
+- **No published address found — email-FINDER escalation (validated 2026-07-19,
+  not a wired `main.py` command yet).** When the walk surfaced no address and
+  `email-enrich` returns `HOLD`/`NONE`, discover a real published address
+  before giving up, then verify it with `main.py email-verify`:
+  - **`caprolok/website-email-phone-finder`** (~$0.02/result, no-login) crawls
+    a domain and returns published emails/phones. Run it on the lead's own
+    domain AND on any *secondary* brand domains — coaches often route mail on a
+    different brand than their funnel domain. This is the workhorse; it cracked
+    3 of 5 blocked leads in one pass.
+  - **Domain-hop via the profile's link hub:** pull `apify ig <url> --mode
+    details --raw` to read the IG bio's external links (Calendly slug, Taplink/
+    Linktree/Beacons, a second site), then crawl/scrape those — that is how a
+    lead's real active-brand domain (with her personal address) surfaced when
+    her funnel domain was a dead storefront. Firecrawl-scrape a Taplink/
+    Linktree hub directly for a `mailto:`.
+  - **`vulnv/linkedin-email-finder`** resolves an email behind a LinkedIn
+    profile URL (hit-or-miss).
+  - **Captcha-gated YouTube business emails need Haytham's manual eyes** — the
+    crawlers can't reach them; two blocked leads were only cracked by him
+    reading the address off the YouTube "About" page by hand.
+  These run through `audit/apify.run_actor` directly (not the vetted CLI
+  wrappers), so they are NOT cost-gated by the CLI — keep the target list
+  tight. Check `apify limits` once first. Read-only, no-login — within the
+  hard rules.
 
 ## Examples
 
