@@ -202,6 +202,18 @@ the system. It goes at the top of hygiene.
 Query rows where Next Action ≤ today and Status not in (Won, Lost,
 Disqualified).
 
+**EVERY due follow-up gets drafted and prepared the night before its
+send-day. No exceptions.** Warm, cold, ambiguous, or a canned-autoresponder
+"reply" — draft it. Never hold one back as a "judgment call" or surface it
+as a decision for Haytham to make instead of a finished draft. He reviews
+and schedules prepared drafts; he does not chase down the ones a tick
+decided to skip. A due follow-up with no draft is a missed send, full stop.
+If a row is genuinely ambiguous (an autoresponder, a delicate warm thread),
+draft the honest best move AND note the ambiguity in the brief — but the
+draft exists either way. (Learned 2026-07-19: two warm-but-due rows,
+Christina + Lisa, were surfaced un-drafted; the rule is now that they never
+would be.)
+
 For each due row, identify the touch type from Sequence + Touch # + Status
 (cold Touch 2/3, warm bump, dormant back-from-the-dead, post-offer
 silence handling) and draft it with the **haytham-email-draft** skill —

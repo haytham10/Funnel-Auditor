@@ -44,8 +44,10 @@ Prepared tomorrow's due follow-ups so Haytham can schedule them in the morning. 
 
 **Lisa Hugo warm bump drafted + scheduled (07-20, Inbox 2).** Her turn-two (07-17) already carried finding #2 (podcast ep 71/70/69 mislabeled "Episode 68") AND offered the Loom; she went quiet on it. So 07-20 is a short warm nudge on the un-answered walkthrough offer, no new finding. Held draft threaded in Inbox 2; on departure log Touch 3 warm (no bank spend). Inbox 2 send-day 07-20 now = 14 (7 openers + 6 cold T2 + 1 warm) ≤ 20. Notes marker set on her row.
 
+**RULE LOCKED IN (Haytham, firm): EVERY due follow-up is prepared and scheduled the night before — no holding any back as a "judgment call," warm or ambiguous included.** Christina Steinhoff (Inbox 1, due 07-20) was wrongly left un-drafted; now drafted + held: a warm reply that reframes "not booking a session" and re-offers the Loom on the 2 findings already sent (no new finding), threaded in her outreach thread. Her phone-booking autoresponder (+971-562737368) stays Haytham's to action by hand if he wants the call channel. Inbox 1 send-day 07-20 now = 17 (8 openers + 8 cold T2 + Christina) ≤ 20. Encoded the rule into `uae-tick` SKILL.md step 3 so no future tick repeats the mistake.
+
 ### Open follow-ups
-- [ ] Christina Steinhoff (Inbox 1, due 07-20) still un-drafted on purpose: her only "replies" are an identical canned autoresponder pushing phone booking (+971-562737368) fired on both touches — a warm email bump may be the wrong move vs Haytham texting the number himself. Offered to draft; awaiting his call.
+- [ ] uae-tick 07-20: Christina + Lisa carry warm-bump Notes markers (log Touch 3 warm on departure, no bank spend); the 14 cold rows carry cold-T2 markers (log Touch 2, bank #2 → USED-T2). Do NOT re-draft any of them.
 - [ ] uae-tick 07-20: rows carry the `T2 scheduled` Notes marker — do NOT re-draft; on each follow-up's departure, log Touch 2 (Last Contacted, Next Action +6 → Touch 3 day 9, Thread Log, bank #2 → USED-T2, clear the marker). Jana's Touch 2 spends no bank (loom-offer). Watch Neha's contact@ for a second bounce (two strikes = stop).
 
 ## 2026-07-19 — Ops: all Draft Ready scheduled for 2026-07-20 + Samira duplicate flagged
