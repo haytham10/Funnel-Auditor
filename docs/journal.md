@@ -29,6 +29,23 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Lucia Csobonyei turn-two SENT (Touch 2, Inbox 2), logged
+- **Lucia's turn-two warm reply went out** (Inbox 2 / gethaytham.com, direct
+  API path, threaded on "wake-up calls"). It reframes off the prospect read
+  ("my first email sounded like I wanted coaching. I don't."), grants her
+  fit-first / quiz logic, and offers the Loom walk. No price, no link, signed
+  Haytham. Cleared draft_lint + the copy checks.
+- **Logged on Haytham's confirmed send:** Touch # 1→2, Email Thread Log Touch 2
+  block appended, Last Contacted 07-19, Next Action → 07-22 (warm nudge if
+  quiet). Sequence stays Warm, Status stays Reply Received (Loom is offered,
+  not yet an artifact — UAE has no "Loom Sent" status). Notes marker
+  "turn-two must reframe" resolved. Findings Bank untouched (#2 USED-T1; #3/#4
+  still UNUSED).
+### Open follow-ups
+- [ ] When she okays the walk: record the Loom same day, then send the **price
+  discovery question** (still never asked) BEFORE any number of ours lands.
+- [ ] If quiet by 07-22: warm nudge (do not ask price discovery into silence).
+
 ## 2026-07-19 — New "Lane 2" status + migration; Ben Pringle note fixed; Lucia replied (turn-two drafted, held)
 - **New CRM Status option "Lane 2" added by Haytham; migrated all 12 `Lane 2: No
   leak`-tagged leads into it** — 6 from Dormant (Yasmina Nagnoug, Ola Gramovich,
