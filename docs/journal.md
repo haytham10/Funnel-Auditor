@@ -29,6 +29,22 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Ops: 14 cold Touch-2 follow-ups drafted (held) for send-day 2026-07-20
+Prepared tomorrow's due follow-ups so Haytham can schedule them in the morning. Query: Next Action ≤ 07-20, cold, Outreach Sent → 14 leads, all Touch 1 sent 07-17 (day-3 bump).
+
+- **All 14 `crm-gate send --touch 2` PASS.** Carrier = `second-finding` (bank #2) for 13; **Jana Masri Vintrova** carried `loom-offer` (single-finding row, no #2). Each draft is a threaded reply in the existing thread, same subject, second finding as a felt cost + innocent explanation, fix left vague, one fresh question.
+- **Inbox 1 (8, Gmail MCP drafts):** Kelly Allison, Aliya Rajah, Jana Masri Vintrova, Neha Nimje, Sarah Aboubi, Adam Ashcroft, Marie Graver, Ewa Ledeboer.
+- **Inbox 2 (6, gmail-gethaytham drafts):** Jihane Labib, Sarah Boutros, Aman Merchant, Tanner Shuck, Chetna Chakravarthy, Avneet Kohli.
+- **Send-day 07-20 ceiling holds (cap 20/inbox):** Inbox 1 = 8 scheduled openers + 8 follow-ups = 16 ≤ 20; Inbox 2 = 7 scheduled openers + 6 follow-ups = 13 ≤ 20. Room to spare on both.
+- **Neha threading note:** Touch 1 to `neha@bizexconsultancy.com` bounced (550) on 07-17 and was resent to the verified `contact@bizexconsultancy.com` (thread 19f6f429dc3ffb9f) — follow-up threaded onto the live contact@ thread, not the bounced one.
+- No CRM writes: a draft is not a send. Status stays Outreach Sent; Touch #/Last Contacted/Thread Log/bank #2 → USED-T2 move only on actual departure (uae-tick reconciles on the send-day).
+- **Two warm rows due 07-20 left for Haytham's call, NOT batch-drafted:** **Christina Steinhoff** (Inbox 1) — replied twice with an identical canned "call/message my phone +971-562737368" autoresponder; low-signal, possibly an auto-reply. **Lisa Hugo** (Inbox 2) — turn-two (finding #2, podcast fix) already SENT 07-17 (the "held draft" note in her bank was stale; no Gmail draft exists); she engaged then went quiet after the finding-#1 correction. Both want individual warm handling, not a scheduled cold bump.
+
+### Open follow-ups
+- [ ] Haytham: schedule the 14 held follow-up drafts for ~09:00 Dubai 07-20 (8 Inbox 1 + 6 Inbox 2).
+- [ ] Decide Christina + Lisa warm moves (offered to draft either on request).
+- [ ] uae-tick 07-20: on each follow-up's departure, log Touch 2 (Last Contacted, Next Action +6 → Touch 3 day 9, Thread Log, bank #2 → USED-T2). Jana's Touch 2 spends no bank (loom-offer).
+
 ## 2026-07-19 — Ops: all Draft Ready scheduled for 2026-07-20 + Samira duplicate flagged
 - Haytham scheduled EVERY Draft Ready lead in Gmail for send-day 2026-07-20 (~09:00 Dubai). **8 in Inbox 1:** Nabil, Caroline, Aleli (this session) + pre-existing Sadia Khan, Bonge Gumede, Monika Singh, Asma Ahmad, Dr. Jamila Al Hosani. **8 in Inbox 2:** Sabeen, Sanjukta, Trisha, Samira (this session) + Kalyani Seth Soni, Dr. Corrie Block, Nikki Evans + a Samira duplicate. **15 leads, 16 sends.**
 - Flipped all 15 CRM rows `Draft Ready → Scheduled`. Nothing else moved — Touch #/Last Contacted/Thread Log/Findings Bank move only on actual departure; uae-tick reconciles → `Outreach Sent` on the send-day.
