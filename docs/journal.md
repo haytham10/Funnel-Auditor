@@ -29,6 +29,86 @@ Entry template:
 
 ---
 
+## 2026-07-19 — New "Lane 2" status + migration; Ben Pringle note fixed; Lucia replied (turn-two drafted, held)
+- **New CRM Status option "Lane 2" added by Haytham; migrated all 12 `Lane 2: No
+  leak`-tagged leads into it** — 6 from Dormant (Yasmina Nagnoug, Ola Gramovich,
+  Nicolas Provencal, Dr. Mona AlHebsi, Alex Makarovski, Coach Islam) + 6 from
+  Disqualified (Coach G, Jessica Morari, Dan Chadwick, Tina Ghazi, Anthony Walsh,
+  Sheikh Nadir). The Disqualified 6 were a judgment call (moving them un-kills
+  gate-failed leads) — Haytham confirmed move all. None had been touched, so
+  nothing live was disturbed. This gives no-leak leads a proper home instead of
+  being mixed into Dormant/Disqualified (resolves the earlier hygiene flag).
+- **Ben Pringle Notes were wrong (stale mid-process snapshot) — rewrote them.**
+  Old note said finding invalidated / Finding Verified NO / "re-walk queued,
+  reset to Qualifying." Reality (per page body): the re-walk WAS completed
+  2026-07-18, found a NEW verified Lane 1 finding (his GBP40 Dubai Football Guide
+  vanished from the Stan store), Finding Verified is back to YES, and Touch 3
+  already went out on it. **Correction to this session's own earlier hygiene read:
+  Ben is NOT an open re-walk item** — that claim leaned on the truncated Notes;
+  the body proved the walk was done. He's a live warm thread at Touch 3, awaiting
+  reply, next check 07-21.
+- **Lucia Csobonyei replied (Inbox 2) — logged verbatim, Warm.** Status
+  Outreach Sent -> Reply Received, Sequence Cold -> Warm. She defended the
+  no-visible-price finding as INTENTIONAL (fit-first / apply-to-work-with-me),
+  volunteered her own selling prices (Rewire to Results 18,000 AED / Clear One
+  Problem 980 AED — that's her price as a SELLER, NOT a Price Discovery Answer,
+  so that field stays empty), and appears to have read the opener as me being a
+  prospective client ("if you interested for yourself"). Turn-two drafted to
+  reframe (not a prospect) + grant the fit-first logic + offer the Loom, no price.
+  **Draft is HELD at Haytham's request — not pushed to Gmail, not logged as sent.**
+- **Ops learning — reading Inbox 2 replies:** the Gmail MCP is bound to Inbox 1
+  (auto-mate.one) ONLY. Inbox 2 (gethaytham.com) replies are NOT visible to the
+  MCP `search_threads`; read them via `python main.py gmail-gethaytham
+  search|thread|message` (direct Gmail API path, per audit/inboxes.py). Needs
+  `pip install -r requirements.txt` first in a fresh container.
+- Notion free-plan SQL query quota was exhausted again mid-session (during the
+  Lane 2 work) — page-ID writes still work, but couldn't re-run a `GROUP BY
+  Status` to visually confirm the Lane 2 column = 12. Eyeball it in Notion.
+### Open follow-ups
+- [ ] Lucia turn-two draft is written and HELD — push to Inbox 2 as a Gmail draft
+      (via `gmail-gethaytham draft`, same thread) when Haytham approves, then log.
+- [ ] Eyeball Notion: the new Lane 2 status column should read 12.
+
+## 2026-07-19 — CRM hygiene sweep (clean) + Christina Steinhoff reclassified; WhatsApp cold-texting is an account-safety risk
+- **Hygiene sweep** (the one the 07-19 tick couldn't finish on quota) re-run clean:
+  ALL mechanical checks passed — 0 future-dated Last Contacted, 0 Touch#=0 on
+  Outreach Sent, 0 missed Findings Bank UNUSED->USED flips (Shankar 1&2 USED,
+  Marie 1 USED both verified correct), 0 stale pre-send markers (the two rows
+  that matched carried the historical phrase "hook found VIA haytham-hook-finder",
+  not a pending marker), 0 stale warm threads, 0 over-a-week un-walked Qualifying.
+  Nothing auto-fixed because nothing needed it.
+- **Attribution splits (Step 6, also skipped last tick):** over 67 cold-touched
+  leads, all 5 warm replies (Ben, Donna, Christina, William, Lisa) came from
+  **Google Footprint** sourcing (~13%, 5/39). Every other channel is 0 replies
+  across 28 sends (LinkedIn 0/14, Coach Directory 0/6, Event Speaker 0/3,
+  Podcast 0/2, IG 0/2, Lateral 0/1). Small n, but a clean directional case to
+  concentrate sourcing on Google Footprint. Finding Type of repliers: Dead/stale
+  x2, Other x3. Lane: every sent lead + every reply is Lane 1 (Lane 2/3 never
+  sent), so no Lane comparison possible this round.
+- **Judgment flags surfaced (not auto-fixed):** 4 Lane-2 "no leak" leads
+  (Yasmina Nagnoug, Nicolas Provencal, Alex Makarovski, Coach Islam) sit at
+  Dormant while their own notes say "holds at Qualifying" — status/note
+  disagree, confirm intended parking status. Murielle Larriere went Dormant
+  after only Touch 1 (cold seq is 3) — confirm early drop vs premature Dormant.
+- **Christina Steinhoff reclassified Warm->Cold.** Her 07-19 "reply" was a
+  CONFIRMED autoresponder (word-for-word the 07-16 auto-reply, same 1-min
+  latency). Per its instruction, Haytham texted the +971562737368 number on
+  WhatsApp — **his number got spam-flagged and feature-blocked for 6h after the
+  first message.** The line is an automated WhatsApp Business gate; both her
+  published channels (email + phone) are automated walls, no human reachable.
+  Row set back to Status Outreach Sent / Sequence Cold / Touch 3 due 2026-07-25;
+  if no human reply, Dormant. Email Thread Log + Notes updated to record all of it.
+- **LESSON (account-safety, treat as a rule):** do NOT cold-text leads on
+  WhatsApp from Haytham's personal number. One unsolicited message to a
+  non-contact got reported/blocked within 6h. Same family of mistake as the IG
+  ban — different platform, same "don't put Haytham's own account at risk" rule.
+  A lead that only exposes an autoresponder email + a phone number is likely a
+  bot moat, not a reachable person; don't chase it through personal channels.
+### Open follow-ups
+- [ ] Confirm the 4 Lane-2 Dormant rows' intended status (Dormant vs Qualifying-hold).
+- [ ] Confirm Murielle Larriere's early Dormant (bounce/unreachable vs premature).
+- [ ] Christina Touch 3 due 2026-07-25 (Inbox 1); park Dormant if no human reply.
+
 ## 2026-07-19 — uae-tick: reconciled 25 already-departed sends, 2 bounces, 1 probable autoresponder
 - Ran the daily uae-tick. Unusual shape this run: 25 emails had already left both
   inboxes before the tick started (12 Inbox 1 Touch-2 follow-ups + Noona's
