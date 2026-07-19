@@ -29,6 +29,19 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Ops: hook+draft stage → 6 Audit Ready leads drafted (Draft Ready)
+Ran the merged draft-first `haytham-hook-finder` batch over the full Audit Ready view (6 leads). All 6 taken from empty-hook → held Gmail draft.
+
+- **The 6:** Nabil El Fquir, Caroline Bakker, Aleli Carissa Gimena (→ Inbox 1); Sabeen Javed, Sanjukta Ghosh, Trisha Hazarika (→ Inbox 2). All Lane 1, both hard gates already set. 3/3 inbox split via `inbox route` (headroom policy) on tomorrow's fresh send-day.
+- **Hooks:** 6 hook-workers fanned out → 6 hook-verifiers re-fetched each citation and wrote the line. **6/6 VERIFIED, all WORK-anchored, zero refutations** (quality tripwire not hit). Sources: Nabil Jul 15 LinkedIn networking-reframe post; Sabeen Jul 4 LinkedIn Founding-Cohort launch; Sanjukta Jul 18 World Listening Day post; Aleli Jul 18 IG "Desire Everything, Need Nothing" call theme; Trisha Jul 17 "Friday Things" discovery-call post; Caroline her book *The Healing Journey* origin story (Goodreads-verified, ~18mo old but genuinely hers — only thin IG in 60d).
+- **Gate/draft:** email-check all pass (Aleli WARN role-account `hello@`, accepted; already Email Verified). `crm-gate send --touch 1` PASS on all 6, gated against tomorrow's ceiling (past-noon roll → send-day 2026-07-20). Drafts created (Inbox 1 = Gmail MCP, Inbox 2 = `gmail-gethaytham draft`), Status → Draft Ready, draft marker in Notes. Touch #/Last Contacted/Thread Log/Findings Bank left untouched (move on confirmed send).
+- **Gotcha:** Notion MCP `query_data_sources` was hard-capped for the hour (free-tier entitlement), so no `WHERE Status='Audit Ready'` query. Fell back to semantic search (missed Caroline Bakker entirely) — Haytham's Audit Ready screenshot was the authoritative list that caught her. Worth remembering when the SQL cap hits mid-run.
+
+### Open follow-ups
+- [ ] Haytham: review the 6 Draft Ready drafts in Gmail and send/schedule by hand. On confirmed send, uae-tick logs Touch 1 + flips Findings Bank #1 → USED-T1 + clears the `run haytham-hook-finder` Notes lines.
+- [ ] Caroline Bakker: `heal@sacredwarriormedia.com` is a bounce-risk accept (email-verify WARN) — watch for a bounce on her first send.
+- [ ] Samira Alexander: shows Draft Ready but Notes say the draft is held pending Haytham confirming her refreshed hook still pairs with the re-walked dead-Calendly finding. Not drafted in this batch — needs his call.
+
 ## 2026-07-19 — Dev: Qualifying resolve-then-decide + merged draft-first hook+draft stage
 Follow-on dev session to the 4-stage rebuild (#60), on `claude/email-draft-examples-skills-5cp2w0`, restarted from `uae-track`. Two changes.
 
