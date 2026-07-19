@@ -24,10 +24,10 @@ The walk fills / updates:
 | Gate 0 | select | Pass / Fail. Set from the four floors (UAE-based, funnel exists, 30-day activity, 1,500 audience). |
 | Gate 1 | select | Pass / Fail. The solo-operator test. |
 | Lane | select | "Lane 1: Felt leak" / "Lane 2: No leak" / "Lane 3: Skip" |
-| Finding Verified | checkbox | **Check ONLY for Lane 1 with a visually-confirmed finding.** This is the hard send gate. Lane 2/3 never carry it. |
+| Finding Verified | checkbox | **The walker never checks this — it PROPOSES the finding and leaves this unchecked.** It is the hard send gate, checked only by the independent `finding-verifier` on a VERIFIED verdict. Lane 2/3 never carry it. |
 | Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Prefer "Dead/stale element" for time-bound breakage (stale cohort/webinar dates, empty calendars, dead links, expired events, placeholders) — most warm repliers in the old track lived there. Set from bank #1. |
 | Findings Bank | text | **Lane 1 only.** Every visually-confirmed finding that survived both filters, ranked strongest first, one compact line each, all UNUSED on a fresh walk: `1. UNUSED \| <finding, one felt-cost phrase>`. The send gate parses these lines (`crm-gate send --carries second-finding` needs an UNUSED entry past #1), so keep the exact `N. UNUSED \| text` shape. Never mark anything USED here — only confirmed-send logging flips statuses. Lane 2/3: leave empty. |
-| Status | select | "Audit Ready" if Lane 1 + both gates Pass + Finding Verified. "Lane 2" if Lane 2 — the dedicated no-leak status (added 2026-07-16; it was a Qualifying hold before that). "Disqualified" if Lane 3 or any gate fail. |
+| Status | select | A freshly walked Lane 1 lead stays "Qualifying" (finding proposed, not yet verified); it becomes "Audit Ready" only after the `finding-verifier` returns VERIFIED and `Email Verified` is set. "Lane 2" if Lane 2 — the dedicated no-leak status (added 2026-07-16; it was a Qualifying hold before that). "Disqualified" if Lane 3 or any gate fail. |
 | Est. Value | select | "Track A ($200)" default / "Track B ($700)" when real launch or sales volume is visible / "Unknown". |
 | Notes | text | One line. Strongest finding, warm-up angle, or one-line flag. Full detail goes in the body. Email-source problems go FIRST. |
 

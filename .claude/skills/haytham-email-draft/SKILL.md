@@ -47,13 +47,17 @@ Do these in sequence. Do not skip ahead to writing.
    for this lead before drafting — don't assume none does just because
    nothing was pasted.
 
-   **If that hook line cites specific IG post content** (a date, a quote,
-   an engagement number, "her post about X"): `haytham-hook-finder`
-   already gates on `vision_manifest.json` showing that exact image
-   `read: true` before writing it, so a hook present on the page has
-   already cleared that check. If you have independent reason to doubt it
-   (e.g. Haytham pasted a hook by hand in chat rather than through that
-   skill), verify the same way before using it, or fall back to opening B.
+   **If that hook line cites specific public content** (a date, a quote,
+   an engagement number, "her post about X"): a hook resolved through
+   `haytham-hook-finder`'s batch path has already been **independently
+   citation-verified** by the `hook-verifier` agent (the cited URL
+   re-fetched and the quote/date re-matched in a context that never saw the
+   search), and a pasted-image hook additionally gates on
+   `vision_manifest.json` showing that exact image `read: true`. So a hook
+   resolved through that skill has already cleared the check. If you have
+   independent reason to doubt it (e.g. Haytham pasted a hook by hand in
+   chat rather than through that skill), verify the same way before using
+   it, or fall back to opening B.
    An email built on an unverified IG-post hook is exactly the failure
    this check exists to catch — a real draft once opened on a specific
    post's likes and comment-to-DM pricing that, per the session's own tool

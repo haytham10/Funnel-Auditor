@@ -363,12 +363,21 @@ ranked strongest first — the body's Findings Bank section plus the
 parses); #1 is the opener, the rest is Touch 2/3 material that must not be
 discarded. Write the page body and properties to the UAE CRM in the exact
 schema.md format, including the Evidence section with the literal
-vision-check line. `Finding Verified` gets checked ONLY for a Lane 1 lead
-with a visually-confirmed finding — it is one of the two hard send gates
-(the other is `Email Verified`, set in Step 5). **Do not promote Status to
-Audit Ready here** — a Lane 1 lead stays Qualifying until Step 5 confirms
-deliverability and checks `Email Verified`; Audit Ready must mean sendable
-pending only the hook. The `SMYKM hook:` line gets written as the
+vision-check line AND the exact evidence paths each finding rests on (the
+`screenshot_desktop`/`screenshot_mobile`/text file), so the verifier can
+find them. **You PROPOSE the strongest finding — you do NOT check `Finding
+Verified` yourself.** That box is one of the two hard send gates (the other
+is `Email Verified`, Step 5), and the walker who found a finding cannot also
+certify it — that self-certification is exactly what shipped false Lane-1
+findings. `Finding Verified` is checked ONLY by the independent
+`finding-verifier`, which re-derives the finding from the cited screenshots
+in a context that never saw your reasoning. **Leave a Lane 1 lead at
+Qualifying with `Finding Verified` unchecked**; it becomes Audit Ready only
+after the finding-verifier returns VERIFIED and Step 5 has set `Email
+Verified`. Who dispatches the verifier: in a batch, the `batch-audit`
+orchestrator does it after you return; in a standalone single-lead run,
+dispatch `finding-verifier` yourself (a cheap adversarial re-check) before
+declaring the lead Audit Ready. See `docs/agent-orchestration.md`. The `SMYKM hook:` line gets written as the
 placeholder `not run yet — see haytham-hook-finder`. **This placeholder
 blocks Step 6 below.** `haytham-hook-finder` is a separate, manual step
 Haytham runs on this same lead to clear the block — its evidence sources
@@ -535,8 +544,10 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
   screenshots read" without that exact command having printed `VISION
   PASS: COMPLETE` first is a false statement, full stop.
 - **`Finding Verified` is checked only on a visually-confirmed Lane 1
-  finding.** It is a send gate. Checking it to make a lead sendable is
-  the exact corruption this track's data cannot survive.
+  finding, and only by the independent `finding-verifier` — never by the
+  walker that proposed it.** It is a send gate. Self-certifying it, or
+  checking it to make a lead sendable, is the exact corruption this track's
+  data cannot survive.
 - **`Email Verified` is checked only on an `EMAIL VERIFY: PASS`** (or by
   Haytham's hand to accept a catch_all/unknown risk). It is the other send
   gate — `email-check` PASS (syntax+MX) is NOT enough; it cleared two

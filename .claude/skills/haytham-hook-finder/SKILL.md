@@ -60,15 +60,41 @@ already be Audit Ready with a funnel walk written by
 `haytham-opener-finder` — if it isn't, say so and point Haytham to that
 skill first; don't run a hook search on a lead with no lane verdict yet.
 
-**Batch mode (2026-07-14).** When Haytham says "hook the queue," "hook
-them all," "batch hooks," or names several leads: query the CRM for
-every `Audit Ready` row whose `SMYKM Hook` property is empty (hook line
-still "not run yet") and run Steps 1-4 on each, one lead at a time, same
-evidence discipline per lead — batch mode changes the invocation
-overhead, never the citation bar. Then present ONE review table: lead /
-hook (or "no hook found") / type label / cited source. Every hook line
-is written to Notion as it resolves (Step 4 per lead, as always); the
-table is his single review pass instead of sixteen separate asks.
+**Batch mode — a verified orchestrator (2026-07-14; rebuilt as a fan-out
+2026-07-19).** When Haytham says "hook the queue," "hook them all," "batch
+hooks," or names several leads, run this skill as an orchestrator over the
+shared chassis (`docs/agent-orchestration.md`), not a serial loop:
+
+1. Query the CRM for every `Audit Ready` row whose `SMYKM Hook` property is
+   empty (hook line still "not run yet"). Size the batch to send headroom
+   (`python main.py inbox counts` + `python main.py send-cap status --all`) — a
+   hook with nowhere to send this week can wait for the next.
+2. Check `python main.py apify limits` ONCE up front (Step 1.0 below), and pass
+   the `near_cap` note into every worker prompt, not one discovery per lead.
+3. Fan out one **`hook-worker`** agent per lead, at most 5 running at once. Each
+   runs Steps 1-3 (gather cited public evidence, find the hook, self-check the
+   citation) and **RETURNS a proposed hook + its citation** (the URL/image, the
+   exact quote/date, the WORK|LIFE|METRIC label) or "no hook found". A worker
+   does NOT write the hook line — a proposed hook is not a resolved one.
+4. For each proposed hook, dispatch a **`hook-verifier`** — the highest-value
+   check in the pipeline, because "never fabricate a hook" is the #1 rule and a
+   citation is mechanically checkable. It independently re-fetches the cited URL
+   in a context that never saw the worker's search and confirms the
+   quote/date/claim actually appears (and isn't generic marketing copy), then
+   WRITES the resolved `SMYKM hook:` line to Notion (Step 4 format): VERIFIED →
+   the hook; REFUTED or INCONCLUSIVE → `no hook found in public evidence — draft
+   opens on the finding alone` (a real, valid resolution — SMYKM opening B, not
+   a failure). Workers that returned "no hook found" skip the verifier.
+5. Present ONE review table: lead / hook (or "no hook found") / type / cited
+   source / **verification verdict**. Haytham reviews only citation-clean hooks;
+   a REFUTED hook never reaches him as a hook. If the verifier REFUTES ≥2 of the
+   first wave, pause and surface it before spending the rest of the queue.
+
+Single-lead mode (Haytham names one lead) stays the inline Steps 1-5 below — the
+human is right there to catch a bad citation — but Step 3's discipline applies in
+full, now including the independent re-fetch + quote-match before the line is
+written. The batch path is what makes that re-check independent, via
+`hook-verifier`.
 
 **Auto-draft on approval (the round-trip killer).** End the batch (or
 single-lead) hand-off with: "hooks resolved — say the word and the
