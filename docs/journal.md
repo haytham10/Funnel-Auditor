@@ -29,6 +29,47 @@ Entry template:
 
 ---
 
+## 2026-07-19 — uae-tick: reconciled 25 already-departed sends, 2 bounces, 1 probable autoresponder
+- Ran the daily uae-tick. Unusual shape this run: 25 emails had already left both
+  inboxes before the tick started (12 Inbox 1 Touch-2 follow-ups + Noona's
+  scheduled Touch 1 + Christina's Touch 2, all auto-mate.one; 10 Inbox 2
+  scheduled Touch-1 openers + 2 bounces, all gethaytham.com) — none logged to
+  Notion yet. Fanned out ~25 parallel subagents (one per lead, worktree-isolated)
+  to do full confirmed-send reconciliation against fetched Gmail thread content:
+  Touch #, Sequence, Status, Last Contacted/Next Action, Findings Bank
+  UNUSED->USED-TN flip, Notes, and the Email Thread Log entry — verified each
+  against the actual Gmail message before writing, not just asserted.
+- **2 new bounces**, both Inbox 2, both "Address not found": Samira Alexander
+  (samira@samiraalexander.com, an Apify-enrich guess that had verified PASS
+  the day before) and Kalyani Seth Soni (info@sheinvests.me, already flagged
+  WARN/catch-all at verify time — the risk materialized). Both reverted to
+  Qualifying, no touch counted, logged to docs/deliverability-log.md.
+- **Christina Steinhoff's reply is very likely an autoresponder, not a person**
+  — it landed 1 minute after Touch 2 sent and is near word-for-word identical
+  to her Touch 1 auto-reply from 07-16 (same 1-minute latency, merge-tag
+  artifacts on the first one). Logged as Reply Received/Warm per protocol
+  since the rule is to record what came in, but flagged loudly in the brief —
+  needs a human check (text the phone number in her signature) before treating
+  it as a live warm thread.
+- Ceilings held clean: Inbox 1 13/20, Inbox 2 13/20 (13 includes the 2
+  bounces — a bounce still counts against ceiling, it departed the inbox).
+  Neither inbox has held its ramp step 7 days yet, so no ramp reminder.
+- Send queue was empty (no Audit Ready/Draft Ready rows) — bottleneck is walks,
+  not sends, consistent with the standing note in CLAUDE.md.
+- First scoreboard run (no prior one found in this journal) — ~66 unique leads
+  cold-touched, 4 confirmed replies + 1 uncertain (Christina) ≈ 6-7.5% reply
+  rate by lead, 0 discovery answers logged yet (Donna Brown's is pending), 0
+  offers, 0 closes.
+### Open follow-ups
+- [ ] Donna Brown's price discovery answer — log VERBATIM the moment it lands,
+      do not wait for the next tick.
+- [ ] Confirm whether Christina Steinhoff's reply is a real person or fully
+      automated before drafting anything further to her.
+- [ ] Notion's SQL query quota (free plan) was exhausted mid-tick, so the
+      hygiene sweep (future-dated Last Contacted, Touch#=0 on Outreach Sent)
+      and the Finding Type/Source Channel/Lane attribution splits couldn't run
+      this pass — re-run clean next tick.
+
 ## 2026-07-18 — Instagram fetch split into two dedicated Apify actors
 - Swapped the single `apify/instagram-scraper` for `apify/instagram-profile-scraper`
   (`--mode details`, `usernames` input) + `apify/instagram-post-scraper` (posts +
