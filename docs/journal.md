@@ -29,6 +29,22 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Second wave: 4 fresh audits + hook→drafts → entire Qualifying bucket (12) resolved, 9 drafts held
+Continued the sweep. The whole Qualifying bucket is now terminal: **9 Draft Ready, 1 email-blocked (Sahar), 1 Lane 2 (Roota), 1 DQ (Danish).**
+- **4 never-walked fresh leads audited** (lead-processor agents), all landed verified Lane 1 findings — notably a run of dead-link/booking leaks:
+  - **Monika Singh → Audit Ready → Draft Ready.** Finding: flagship group program is waitlist-only, no intake date/price. Email `monika.s@monikasphere.com` PASS. Hook: her Jul 14 IG "the ordinary days you almost skipped" POV. Draft "the days you almost skip" (Inbox 1).
+  - **Sadia Khan → Audit Ready → Draft Ready.** Finding: "Book a 1:1 Session" buttons all load a dead Calendly. Her domain is catch-all (enrich HOLD) → Haytham supplied `Therapybysadia@gmail.com` from YouTube (verify PASS). Hook: her own "3M Method" (Master Yourself/Women/Relationships), namesake-locked to the Dubai Sadia via a YT episode transcript. Draft "master yourself first" (Inbox 1).
+  - **Asma Ahmad → Audit Ready → Draft Ready.** Finding: sitewide "Free Clarity Webinar" CTA 404s to a dead Lovable app. Email `info@luminapathscoaching.com` catch-all, Haytham accepted. Hook: her "Soulful Serenity" masterclass. **Timing fix:** hook said "tonight" (Jul 19 event) but Touch-1 openers roll to the 07-20 send-day, so I reworded it to past tense ("last night"), trashed the stale draft, rebuilt it ("soulful serenity last night", Inbox 1).
+  - **Sahar Huneidi Palmer → still Qualifying (email-blocked).** Finding: two e-courses show AED 0.00 on the paid storefront (vision 12/12). Email genuinely dead: `sahar@saharhuneidi.com` FAIL x2, and enrich proved the domain is NOT catch-all (MXroute infra), so it's a real dead mailbox, not an anti-harvest false-negative — even though her WordPress site aggressively ASN-bans (it blocked Haytham's own Maroc Telecom AS36903 from viewing the site). Her YouTube "About" lists the same dead address. Only unlocks via a manual test-send or the WhatsApp pivot (+971 55 635 1302).
+- **Corrie draft rebuilt by hand.** The agent's first version was missing the "Hey Corrie" greeting AND offered the Loom in Touch 1 (the other 5 openers end on a bare question; Loom is a later-touch carrier). Haytham trashed it; I hand-wrote a clean replacement ("the uncoachable ceo", greeting + bare question, no Loom).
+- **Independently rechecked all drafts** (Haytham: "I don't trust the agents"): pulled the actual Gmail bodies on BOTH transports, ran each through `audit/draft_lint.py` + copy-rule checks (em-dash/jargon/weak-closer/Haytham-signoff), and cross-checked every draft's to-address, inbox, hook, and finding against the CRM. All matched; the only miss was Corrie's greeting/Loom (fixed).
+- **9 drafts now Draft Ready (all held, send tomorrow 07-20):** Inbox 1 = Jamila, Bonge, Asma, Sadia, Monika; Inbox 2 = Kalyani, Samira, Nikki, Corrie. Send-day 07-20 load: ~10 follow-ups + 5 openers on Inbox 1, 4 openers on Inbox 2 — under the per-inbox 20 ceiling, but Inbox 1 is filling.
+### Open follow-ups (manual, Haytham)
+- [ ] Send the 9 held Touch-1 drafts tomorrow (07-20); run `crm-gate send` per inbox at send time (Inbox 1 is the tighter one).
+- [ ] Sahar: manual test-send to `sahar@saharhuneidi.com` (definitive), read the YouTube "About" again for any alternate, or pivot to WhatsApp. If an address lands she's otherwise ready.
+- [ ] Delete any residual stale Inbox 2 draft (Roota "your khaleej times feature") by hand — no delete API on that transport.
+- [ ] Run hook→draft nothing further needed on this bucket; next is sending + reply-handling.
+
 ## 2026-07-19 — Blocked Qualifying pile worked to conclusion (8 leads, ~9 agents): 4 drafts held, 2 re-walk→Audit Ready, 1 Lane 2, 1 DQ
 Ran a wave of subagents over the stuck Qualifying leads after the email-finder pass. Every lead reached a real terminal-ish state. All drafts are HELD (nothing sent).
 - **Bonge Gumede → Draft Ready (Inbox 1).** Email cracked: Haytham found `gumedebongebusiness@gmail.com` on her YouTube (the one surface crawlers can't reach — YT business email is captcha-gated); verify PASS → adopted, Email Verified YES. The Shopify `contact@` re-verified FAIL (matches its prior double-bounce). Hook = her "fitness is for being physically USEFUL, not physically expressive" framework (June 29 IG post, verified current). Touch-1 draft subject "building capable bodies" (stale-May-banner finding).
