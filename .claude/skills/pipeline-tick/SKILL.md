@@ -41,8 +41,9 @@ Last Contacted.
 Query rows where Next Action ≤ today and Status not in (Won, Lost,
 Disqualified).
 
-**The leash (2026-07-14 — this track shares the UAE track's one domain,
-and its bump batches were the biggest spam signal in the sent log):**
+**The leash (2026-07-14 — this track rides Inbox 1 (auto-mate.one), shared
+with the UAE track, and its bump batches were the biggest spam signal in the
+sent log):**
 
 - **Max 5 parenting sends per day**, inside the shared ceiling — never in
   addition to it. Warm threads and scheduled dormant revivals only.

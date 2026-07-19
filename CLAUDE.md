@@ -43,11 +43,12 @@ this repo is built to keep separate.
 
 ## The UAE pipeline in one line
 
-`source-leads` (dynamic sourcing across whatever vein produces → CRM as
-Sourced, a reachable link + audience size per row) → `qualify-leads`
-(mechanical Gate 0/1 over Sourced → Qualifying) →
-`/batch-audit` (one
-lead-processor agent per lead, ~5 parallel, cap 20) → per lead:
+`source-leads` (fan out one worker per vein → workers RETURN candidates →
+orchestrator dedups across veins + the live CRM → `sourcing-verifier` confirms
+link/offer/audience → CRM as Sourced) → `qualify-leads` (fan out
+qualifier-workers over slices of Sourced rows → `qualifier-verifier` re-checks
+every promotion/kill → Qualifying) → `/batch-audit` (one lead-processor agent
+per lead, ~5 parallel, cap 20) → per lead:
 **pre-flight qualification first** (the cheap floors — UAE-base, gatekeeper,
 paid-offer-exists, 30-day activity, 1,500 audience — settled from one search
 + at most one light profile scrape + one entry-page fetch, BEFORE the walk,
@@ -57,8 +58,10 @@ inconclusive+weak holds at Qualifying) → machine walk on survivors only
 (Firecrawl-primary fetch, parallel scrapes, Playwright fallback; `cta-probe`
 for single-page JS-button resolution) → **mandatory vision pass** → Gate 0
 confirm (funnel floor) → opener-finder (lane + finding + innocent
-explanation + findings bank + 3-line Loom skeleton; `Finding Verified`
-checked only on a visually-confirmed Lane 1 finding) → CRM write → email
+explanation + findings bank + 3-line Loom skeleton) — the walk **proposes** the
+finding; an independent `finding-verifier` re-derives it from the screenshots and
+is the ONLY thing that checks `Finding Verified` (verified → Audit Ready) → CRM
+write → email
 address (shape checked by `main.py email-check`; FAIL never enters the CRM;
 then Lane 1 deliverability confirmed by `main.py email-verify` → `Email
 Verified`; if the walk found NO address, `main.py email-enrich` derives
@@ -66,8 +69,10 @@ name-based candidates against the lead's own domain and verifies them in one
 batched call, adopting at most one — a PASS there is a verify PASS that checks
 `Email Verified`; both hard gates required for Audit Ready) →
 **held** (no Gmail draft yet) → Haytham runs `haytham-hook-finder`
-(single lead or batch mode over all Audit Ready; real public evidence:
-LinkedIn, podcasts, YouTube, About page) → he approves the hooks → Gmail
+(single lead, or **batch mode = fan out `hook-worker` per Audit Ready lead →
+`hook-verifier` re-fetches the cited source and confirms the quote before the
+hook is trusted**; real public evidence: LinkedIn, podcasts, YouTube, About page)
+→ he approves the hooks → Gmail
 DRAFTS created in the same session (SMYKM opening A or B), Status =
 `Draft Ready` → Haytham sends by hand (or schedules — Status
 `Scheduled`) → tick reconciles Gmail reality → `Outreach Sent` → reply →
@@ -233,19 +238,35 @@ the vision gate).
   own-site/social noise.
 
 **Skills** (`.claude/skills/…` — when one applies, read its SKILL.md on disk)
-- `source-leads` — collect-only sourcing into `Sourced` (dynamic vein, no
-  gating; bootstrap fill + everyday top-up).
-- `qualify-leads` — Gate 0/1 over `Sourced` → `Qualifying` (~2 fetches, no
-  walk). Sibling of batch-audit: this gates, that walks.
-- `batch-audit` + `.claude/agents/lead-processor.md` — batch walk
-  orchestrator over the Walk Queue (~5 parallel, cap 20) + the per-lead
-  subagent's structured return.
-- `process-lead` — per-lead: walk → vision → floors → opener → **held** at
-  the Gmail draft until `haytham-hook-finder` resolves the hook.
+- **All four stage skills share one orchestration chassis
+  (`docs/agent-orchestration.md`): fan out least-privilege workers → an
+  independent verifier re-checks the one claim the stage self-certifies → the
+  orchestrator cross-checks Notion → the batch is sized to downstream demand.**
+  The per-stage worker/verifier agents live in `.claude/agents/`; that split is
+  the fix for low agent-output quality (no stage certifies its own work).
+- `source-leads` — sourcing orchestrator: fan out `sourcing-worker` per vein
+  (they RETURN candidates), the orchestrator owns cross-vein + live-CRM dedup,
+  `sourcing-verifier` confirms link/offer/audience → `Sourced`. Collect-only, no
+  gating; bootstrap fill + everyday top-up.
+- `qualify-leads` — qualifying orchestrator: fan out `qualifier-worker` over
+  slices of `Sourced` (~2 fetches/row), `qualifier-verifier` re-checks every
+  promotion/kill (audience provenance — the soft pass that burned walks) →
+  `Qualifying`. Sibling of batch-audit: this gates, that walks.
+- `batch-audit` + `.claude/agents/lead-processor.md` + `finding-verifier.md` —
+  walk orchestrator over the Walk Queue (~5 parallel, cap 20): the walker
+  PROPOSES the finding + returns a structured JSON block, the `finding-verifier`
+  re-derives it from the screenshots and is the only thing that checks
+  `Finding Verified`.
+- `process-lead` — per-lead flow of record + the canonical hard rules: walk →
+  vision → floors → opener → **propose** → **held** at the Gmail draft until
+  `haytham-hook-finder` resolves the hook.
 - `haytham-opener-finder` — Gate 0/1 + the 5-stop walk → lane + finding +
-  innocent explanation + CRM body format. Stops at the finding, NOT the hook.
-- `haytham-hook-finder` — separate, manually triggered: real cited public
-  evidence → the SMYKM hook line, never fabricated. Gates the draft.
+  innocent explanation + CRM body format. PROPOSES the finding (the
+  finding-verifier certifies), stops before the hook.
+- `haytham-hook-finder` + `hook-worker.md` + `hook-verifier.md` — separate,
+  manually triggered: real cited public evidence → the SMYKM hook line, never
+  fabricated; batch mode fans out per Audit Ready lead and the `hook-verifier`
+  re-fetches the cited source before the hook is trusted. Gates the draft.
 - `haytham-email-draft` — voice, mechanics, gate, logging, both tracks (UAE
   AED + price-discovery layer in `references/uae-track.md`).
 - `uae-tick` / `pipeline-tick` — the UAE / parenting daily loops.

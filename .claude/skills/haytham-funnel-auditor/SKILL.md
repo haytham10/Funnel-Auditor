@@ -1,6 +1,6 @@
 ---
 name: haytham-funnel-auditor
-description: Full senior-level funnel audit for parenting/faith-based coaching funnels — goes beyond visible leaks into copy, offer architecture, and sequencing failures. Use this skill WHENEVER Haytham asks for a full audit, a deep read, "what's wrong with this funnel," "is the copy working," "why isn't this converting," or anything that requires diagnosing invisible failures across copy, offer, and structure. Also use when preparing for a Loom, a discovery call, or a paid audit deliverable. This is the master-builder read, not the opener-finder. The opener-finder is for sourcing leads. This skill is for diagnosing funnels in depth.
+description: Full senior-level funnel audit for parenting/faith-based coaching funnels — goes beyond visible leaks into copy, offer architecture, and sequencing failures. Use this skill WHENEVER Haytham asks for a full audit, a deep read, "what's wrong with this funnel," "is the copy working," "why isn't this converting," or anything that requires diagnosing invisible failures across copy, offer, and structure. Also use when preparing for a Loom, a discovery call, or a paid audit deliverable. This is the master-builder read, not the opener-finder — the opener-finder walks and classifies a funnel to find the cold-open finding (sourcing is the separate source-leads skill), while this skill diagnoses a funnel in depth for a Loom, a call, or a paid audit. The deep-audit method itself is track-agnostic (UAE or parenting).
 ---
 
 # Haytham Funnel Auditor

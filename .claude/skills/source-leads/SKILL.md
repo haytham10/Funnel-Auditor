@@ -44,9 +44,15 @@ Full targeting spec: `docs/uae-track/03-targeting-and-sourcing.md`.
 
 ## Before the run — two one-time checks
 
-**Dedup first, once:** pull the CRM's existing Contact Names + Site URLs
-in one SQL query at the start of the run. Skip anything already logged,
-in any status. Never create a duplicate row.
+**Dedup snapshot, once (the orchestrator holds it):** pull the CRM's existing
+Contact Names + Site URLs in one query at the start of the run. This snapshot is
+shared into every worker's prompt AND is the orchestrator's final dedup key.
+Under fan-out it is necessary but **not sufficient** — sibling workers on
+adjacent veins surface the same coach, and each worker's snapshot goes stale the
+moment a sibling logs one, so the **orchestrator must dedup the merged candidate
+set by normalized host + contact name across all workers AND against this
+snapshot before it writes any row** (in any status, Disqualified included).
+Never create a duplicate.
 
 **Check the Apify quota once, up front, if this run will touch LinkedIn or
 Instagram** (`ig`, `li-posts`, `li-profile` — the only Apify actors this
@@ -56,6 +62,43 @@ limits`. **Instagram is the pricey actor** — use it sparingly. If
 `near_cap` is `true`, skip those two actors for the whole run and work on
 Firecrawl signal alone — note it in the run report, don't silently
 degrade.
+
+---
+
+## The run — orchestrator
+
+Sourcing fans out **by vein, not by lead** — there is no lead yet; each worker's
+job is to FIND candidates on one surface. Run this skill over the shared chassis
+(`docs/agent-orchestration.md`):
+
+1. **Size to demand.** Bootstrap mines hard (60-70); top-up is ~15-20, biased to
+   what's new. Don't over-source into a `Sourced` pile `qualify-leads` can't work
+   through — keep the buffer full, not flooded.
+2. **Fan out one `sourcing-worker` per productive vein**, at most 5 running at
+   once (platform-footprint, link-in-bio, directories, LinkedIn, podcasts/events,
+   Instagram, lateral — the menu below). Each worker gets the ask + the dedup
+   snapshot + the Apify `near_cap` note, works its vein, and **RETURNS a
+   candidate list** — it never writes a row. (Workers can't see each other, so a
+   worker write would duplicate what a sibling vein just found; only the
+   orchestrator holds the whole picture.)
+3. **Merge + dedup (orchestrator-only, the load-bearing new work).** Union the
+   worker returns, normalize each Site URL to a host, and drop exact name/host
+   matches against the dedup snapshot AND cross-worker collisions (the same coach
+   surfaced by two veins — lateral especially). `python main.py
+   classify-footprint` dedups within one platform vein; the cross-vein +
+   live-CRM dedup is yours, here, before any write.
+4. **Verify before logging.** Hand the merged survivors to a `sourcing-verifier`:
+   it re-fetches each candidate's link and confirms it loads (not 404 / parked /
+   bot-wall), that a **real purchasable offer** is actually present (not DM-only
+   or a free lead-magnet Linktree), and that any Audience Size is a number
+   **seen, not guessed**. It drops the failures with a reason.
+5. **Write, batched.** The orchestrator creates the verifier-cleared survivors as
+   `Sourced` rows (`notion-create-pages`, multiples per call), then the run report.
+
+The veins menu, the per-candidate log fields, and the dynamic discipline below
+are the **worker's** playbook; sizing, merge/dedup, verification, and the write
+are the **orchestrator's**. A tiny top-up (a handful of names from one vein) can
+run inline with no fan-out.
 
 ---
 
@@ -155,8 +198,11 @@ purchasable:
 - A candidate whose link to a real offer you can't find in one obvious hop
   does NOT get a row — same "seen, no offer found" list.
 
-Create rows in batches (notion-create-pages takes multiples), not one call
-per lead.
+**Only the orchestrator writes rows.** A `sourcing-worker` RETURNS these fields
+per candidate; it never calls `notion-create-pages` (it can't see what a sibling
+vein already surfaced, so a worker write would duplicate). After the merge/dedup
+and the `sourcing-verifier` pass, the orchestrator creates the survivors in
+batches (`notion-create-pages` takes multiples), not one call per lead.
 
 Do NOT qualify, do NOT walk funnels, do NOT reject anyone except obvious
 non-candidates (not a coach, not plausibly UAE, no reachable offer). The
