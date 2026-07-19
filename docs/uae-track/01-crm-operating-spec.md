@@ -118,7 +118,10 @@ cold-sends them.
 
 **`Draft Ready` and `Scheduled` (added 2026-07-14) make Gmail state
 queryable.** `Draft Ready` = hook resolved + a Touch 1 draft sitting in
-Gmail awaiting Haytham's send. `Scheduled` = Haytham scheduled the send in
+Gmail awaiting Haytham's send. As of 2026-07-19 the hook resolution AND the
+draft are one **merged hook+draft stage** (`haytham-hook-finder`, draft-first):
+Audit Ready → Draft Ready happens in a single pass, so Haytham reviews finished
+drafts in Gmail rather than approving bare hooks. `Scheduled` = Haytham scheduled the send in
 Gmail and it has not departed yet — the message is in neither `in:sent`
 nor drafts, which is why this state exists: without it, scheduled sends
 are invisible to the daily count and get logged with future dates. Both
@@ -143,7 +146,7 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 | Qualifying → Audit Ready | `Gate 0` = Pass, `Gate 1` = Pass, funnel walk done, `Lane` set, `Finding Verified` = checked, AND `Email Verified` = checked (deliverability confirmed via `email-verify`, or Haytham accepted a catch_all/unknown risk by hand). Both hard gates are set before a lead is declared sendable — a verified finding on an address that bounces still burns the domain. |
 | Qualifying → Disqualified | Either gate = Fail. Set and move on, do not linger. |
 | Qualifying → Lane 2 | Walk complete, both gates Pass, but no felt leak survives the two filters (`Lane` = `Lane 2: No leak`). `Finding Verified` stays unchecked. Warm-up angle in Notes; no cold send. Do NOT leave these at Qualifying. |
-| Audit Ready → Draft Ready | SMYKM hook line resolved (hook-finder ran), `Inbox` assigned if still blank (`python main.py inbox route` → set the label), `crm-gate send … --inbox "<label>"` PASS (which now requires `Email Verified` checked, not just an `@`-shaped address), Gmail draft created IN THAT INBOX (Inbox 1 → Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham draft`). Sets nothing else — a draft is not a send. |
+| Audit Ready → Draft Ready | The merged **hook+draft stage** (`haytham-hook-finder`, draft-first) does this in one pass: SMYKM hook line resolved (hook-worker → hook-verifier writes the line), `Inbox` assigned if still blank (`python main.py inbox route` → set the label), `crm-gate send … --inbox "<label>"` PASS (which now requires `Email Verified` checked, not just an `@`-shaped address), Gmail draft created IN THAT INBOX (Inbox 1 → Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham draft`). Sets nothing else — a draft is not a send. |
 | Draft Ready → Scheduled | Haytham scheduled the send in Gmail (tick detects it in the scheduled queue, or he says so). |
 | Audit Ready / Draft Ready / Scheduled → Outreach Sent | Touch #1 ACTUALLY departed (matching message in Gmail sent mail). Set `Last Contacted` (real departure date), `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must have printed PASS at queue time.** |
 | Outreach Sent → Reply Received | They replied. Set `Sequence` = Warm |

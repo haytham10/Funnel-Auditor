@@ -25,13 +25,19 @@ pattern in one file also kills the drift that produced bugs like batch-audit's
 | 1 Source | `source-leads` | `sourcing-worker` | `sourcing-verifier` | one worker per **vein** | "this candidate is reachable / has a real offer / is unique / audience is a real number" |
 | 2 Qualify | `qualify-leads` | `qualifier-worker` | `qualifier-verifier` | one worker per **slice of Sourced rows** | the Gate 0 / Gate 1 verdict (esp. audience provenance) on every promotion and kill |
 | 3 Walk | `batch-audit` | `lead-processor` | `finding-verifier` | one worker per **lead** | the strongest finding (the thing that ships a cold email) |
-| 4 Hook | `haytham-hook-finder` (batch) | `hook-worker` | `hook-verifier` | one worker per **Audit Ready lead** | the hook's citation (URL resolves, the quote/date actually appears) |
+| 4 Hook + draft | `haytham-hook-finder` (batch, draft-first) | `hook-worker` | `hook-verifier` | one worker per **Audit Ready lead** | the hook's citation (URL resolves, quote/date appears); the orchestrator then drafts each resolved lead → held Gmail draft |
 
 Drafting (`haytham-email-draft`) is deliberately **not** fanned out — its
 catastrophic failures are already code-gated (`audit/draft_lint.py`, the
 `gmail_draft_link_guard.py` PreToolUse hook, `crm-gate send`), so it stays an
-in-context draft→gate→10/10 loop. An optional read-only `draft-critic` can add a
-second pair of eyes on the subjective voice items only.
+in-context draft→gate→10/10 loop, run by the stage-4 orchestrator per resolved
+lead (**draft-first**, 2026-07-19): after the `hook-verifier` writes each hook
+line, the orchestrator drafts that lead into a HELD Gmail draft (`Status = Draft
+Ready`) — the human review lands on the finished drafts in Gmail, not on a
+bare-hook approval table. The draft step re-reads the Notion hook line the
+verifier wrote (never the worker's proposal), so the anti-fabrication
+independence holds. An optional read-only `draft-critic` can add a second pair of
+eyes on the subjective voice items only.
 
 CRM: `collection://5efbdd9b-1e19-468c-96db-f94a525846e0` (REST DB
 `5a9fc583160046d1a64c4e65cc804229`). **Never** the parenting DB

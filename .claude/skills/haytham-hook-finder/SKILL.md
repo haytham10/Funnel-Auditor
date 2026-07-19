@@ -1,6 +1,6 @@
 ---
 name: haytham-hook-finder
-description: Pull real public evidence for an Audit Ready UAE lead — LinkedIn posts, podcast appearances, YouTube, their own About page — and find the SMYKM hook, the one line only this person would recognize (their own framework, a real recent post or episode, a personal update), then write just that line to their Notion page in the UAE Lead CRM. Use this skill WHENEVER Haytham says "find the hook," "SMYKM this," "hook Jane," "add a hook," asks for a stronger opener on a lead that's already Audit Ready, or process-lead/batch-audit reports a lead "held — needs haytham-hook-finder." This is a separate, manually-triggered step from haytham-opener-finder — the walk assigns the lane, finding, and innocent explanation; this skill's only job is the hook, and it must come from real, cited public evidence, never fabricated and never from generic site marketing copy. It is a required gate, not an optional upgrade: haytham-email-draft will not draft for a lead until this skill resolves the hook line. It does not touch the lane, the finding, the innocent explanation, or draft any email.
+description: Pull real public evidence for an Audit Ready UAE lead — LinkedIn posts, podcast appearances, YouTube, their own About page — and find the SMYKM hook, the one line only this person would recognize (their own framework, a real recent post or episode, a personal update), then write just that line to their Notion page in the UAE Lead CRM. Use this skill WHENEVER Haytham says "find the hook," "SMYKM this," "hook Jane," "add a hook," asks for a stronger opener on a lead that's already Audit Ready, or process-lead/batch-audit reports a lead "held — needs haytham-hook-finder." This is a separate, manually-triggered step from haytham-opener-finder — the walk assigns the lane, finding, and innocent explanation; this skill's only job is the hook, and it must come from real, cited public evidence, never fabricated and never from generic site marketing copy. It is a required gate, not an optional upgrade: no lead gets a Gmail draft until this skill resolves the hook line. As of 2026-07-19 it is draft-first: after resolving (and independently verifying) each hook, it carries the lead through to a HELD Gmail draft for review, so Haytham reviews finished drafts, not bare hooks. It never touches the lane, the finding, or the innocent explanation, and it never sends — the system ends at Gmail drafts.
 ---
 
 # Haytham Hook Finder — real public evidence → SMYKM hook → one line in Notion
@@ -42,12 +42,13 @@ strength:
    citation discipline as every source above.
 
 This is manual, not automatic — Haytham triggers it by name — but it is
-**required** before `haytham-email-draft` will draft anything for this
-lead. `process-lead` and `haytham-email-draft` both hard-block on a
-`SMYKM hook:` line that still says "not run yet," so every Lane 1 lead
-sits waiting for this skill to run before it can get a Gmail draft. Once
-this skill resolves the line (a real hook, or a confirmed "no hook
-found"), the draft can go ahead.
+**required** before any Gmail draft. `process-lead` and `haytham-email-draft`
+both hard-block on a `SMYKM hook:` line that still says "not run yet," so every
+Lane 1 lead sits waiting for this skill to run. As of 2026-07-19 the skill is
+**draft-first**: once it resolves the line (a real hook, independently verified,
+or a confirmed "no hook found"), it goes straight on to build the held Gmail
+draft for that lead (batch mode; see the Input section) — Haytham reviews the
+finished drafts, not bare hooks.
 
 **CRM:** `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`. Never the old parenting DB.
 
@@ -60,58 +61,67 @@ already be Audit Ready with a funnel walk written by
 `haytham-opener-finder` — if it isn't, say so and point Haytham to that
 skill first; don't run a hook search on a lead with no lane verdict yet.
 
-**Batch mode — a verified orchestrator (2026-07-14; rebuilt as a fan-out
-2026-07-19).** When Haytham says "hook the queue," "hook them all," "batch
-hooks," or names several leads, run this skill as an orchestrator over the
-shared chassis (`docs/agent-orchestration.md`), not a serial loop:
+**Batch mode — a verified hook→draft stage (2026-07-14 orchestrator; 2026-07-19
+draft-first).** When Haytham says "hook the queue," "draft the queue," "hook them
+all," or names several Audit Ready leads, run this as ONE stage that takes each
+lead all the way to a held Gmail draft — he reviews the finished drafts, not bare
+hooks. Over the shared chassis (`docs/agent-orchestration.md`):
 
-1. Query the CRM for every `Audit Ready` row whose `SMYKM Hook` property is
-   empty (hook line still "not run yet"). Size the batch to send headroom
+1. Query the CRM for every `Audit Ready` row whose `SMYKM Hook` property is empty
+   (hook line still "not run yet"). Size the batch to send headroom
    (`python main.py inbox counts` + `python main.py send-cap status --all`) — a
-   hook with nowhere to send this week can wait for the next.
-2. Check `python main.py apify limits` ONCE up front (Step 1.0 below), and pass
-   the `near_cap` note into every worker prompt, not one discovery per lead.
-3. Fan out one **`hook-worker`** agent per lead, at most 5 running at once. Each
-   runs Steps 1-3 (gather cited public evidence, find the hook, self-check the
-   citation) and **RETURNS a proposed hook + its citation** (the URL/image, the
-   exact quote/date, the WORK|LIFE|METRIC label) or "no hook found". A worker
-   does NOT write the hook line — a proposed hook is not a resolved one.
-4. For each proposed hook, dispatch a **`hook-verifier`** — the highest-value
-   check in the pipeline, because "never fabricate a hook" is the #1 rule and a
-   citation is mechanically checkable. It independently re-fetches the cited URL
-   in a context that never saw the worker's search and confirms the
-   quote/date/claim actually appears (and isn't generic marketing copy), then
-   WRITES the resolved `SMYKM hook:` line to Notion (Step 4 format): VERIFIED →
-   the hook; REFUTED or INCONCLUSIVE → `no hook found in public evidence — draft
-   opens on the finding alone` (a real, valid resolution — SMYKM opening B, not
-   a failure). Workers that returned "no hook found" skip the verifier.
-5. Present ONE review table: lead / hook (or "no hook found") / type / cited
-   source / **verification verdict**. Haytham reviews only citation-clean hooks;
-   a REFUTED hook never reaches him as a hook. If the verifier REFUTES ≥2 of the
-   first wave, pause and surface it before spending the rest of the queue.
+   draft with nowhere to send this week can wait for the next.
+2. Once up front: `pip install -q -r requirements.txt`, then `python main.py apify
+   limits` — pass the `near_cap` note into every worker prompt (one check, not
+   one per lead).
+3. Fan out one **`hook-worker`** per lead, at most 5 running at once. Each runs
+   Steps 1-3 (gather cited public evidence, find the hook, self-check the
+   citation) and **RETURNS a proposed hook + its citation** (URL/image, the exact
+   quote/date, the WORK|LIFE|METRIC label) or "no hook found". A worker does NOT
+   write the hook line.
+4. **Resolve each lead's `SMYKM hook:` line:**
+   - Proposed hook → dispatch a **`hook-verifier`** (the anti-fabrication gate —
+     "never fabricate a hook" is the #1 rule and a citation is mechanically
+     checkable). In a context that never saw the worker's search it re-fetches
+     the cited URL, confirms the quote/date/claim appears (and isn't generic
+     marketing copy), then WRITES the line: VERIFIED → the hook; REFUTED or
+     INCONCLUSIVE → `no hook found in public evidence — draft opens on the finding
+     alone` (a valid resolution — SMYKM opening B, not a failure).
+   - Worker returned "no hook found" → the orchestrator writes that same
+     finding-only line directly (nothing to verify — no fabrication risk).
+   **Quality tripwire:** if the verifier REFUTES ≥2 of the first wave, pause and
+   surface to Haytham before drafting the rest of the queue.
+5. **Draft each resolved lead — this is the merge; there is no separate
+   bare-hook approval step.** As soon as a lead's line is resolved, run the draft
+   step below for it. It ends in a held Gmail draft + `Status = Draft Ready`, or a
+   named hold if a gate fails. Drafting stays **orchestrator-run** and **re-reads
+   the Notion hook line the verifier wrote** — it never trusts the worker's
+   proposal directly; that independence is the anti-fabrication gate and it must
+   not collapse into one context.
+6. Present ONE **brief** (a report, not an approval gate): drafted (lead ·
+   hook-or-finding-only · inbox · subject) · held-with-reason (gate/email FAIL,
+   no address) · verifier notes. Haytham reviews the finished `Draft Ready` drafts
+   in Gmail and sends or schedules them by hand.
 
-Single-lead mode (Haytham names one lead) stays the inline Steps 1-5 below — the
-human is right there to catch a bad citation — but Step 3's discipline applies in
-full, now including the independent re-fetch + quote-match before the line is
-written. The batch path is what makes that re-check independent, via
-`hook-verifier`.
+**The draft step (run per resolved lead, this same session):** `haytham-email-
+draft` (full loop, UAE rules — opening A on a real hook, opening B on "no hook
+found") → `python main.py email-check <addr>` → **assign the inbox if the row's
+`Inbox` is blank** (`python main.py inbox route --current "<row's Inbox>" --count
+"Inbox 1=<n>" --count "Inbox 2=<n>"`, write the label back to Notion) → `python
+main.py crm-gate send <row.json> --touch 1 --followups-due M --inbox "<assigned
+Inbox>"` (quote the PASS line). On PASS, create the Gmail DRAFT **in that inbox**
+(Inbox 1 → Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham
+draft`) and set `Status = Draft Ready` + a `Gmail draft ready (Touch 1) —
+"<subject>"` Notes line. Set **nothing else** — Touch #, Last Contacted, Email
+Thread Log, and the Findings Bank flip move only on a confirmed send (uae-tick's
+job). Any gate/email FAIL or no address → skip the draft, name the reason in the
+brief. Drafts only; sending stays his hand, from Gmail.
 
-**Auto-draft on approval (the round-trip killer).** End the batch (or
-single-lead) hand-off with: "hooks resolved — say the word and the
-drafts get created in this same session." When Haytham approves ("draft
-them," "go," or per-lead picks/edits — an edited hook gets written back
-to Notion first), immediately run the full Touch 1 draft flow for each
-approved lead in this same session: `haytham-email-draft` (full loop,
-UAE rules), `python main.py email-check`, then **assign the sending inbox
-if the row's `Inbox` is blank** (`python main.py inbox route --current
-"<row's Inbox>" --count "Inbox 1=<n>" --count "Inbox 2=<n>"`, write the
-chosen label back to Notion), then `python main.py crm-gate send … --touch
-1 --followups-due M --inbox "<assigned Inbox>"` per lead (quote both
-lines). Create the Gmail DRAFT for each PASS **in that inbox** (Inbox 1 →
-Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham
-draft`), and set Status = `Draft Ready`. Held leads (gate FAIL, email-check
-FAIL, no address) get named with reasons. Drafts only — sending stays his
-hand, from Gmail.
+Single-lead mode (Haytham names one lead) runs the inline Steps 1-5 below, then
+the same draft step — carrying through to a held draft by default. If he only
+wants the hook resolved, he says "just the hook" and it stops at the line. The
+independent re-fetch + quote-match still applies (via `hook-verifier` in a batch;
+by hand in a single-lead session).
 
 ---
 
@@ -252,16 +262,15 @@ skill has no opinion on any of those and must not rewrite them.
 
 ---
 
-## Step 5 — Hand off
+## Step 5 — Hand off (the brief)
 
-Tell Haytham: the hook (or that none was found), its type label, and its
-exact source (URL or image path) with the read/fetch status — in batch
-mode, the one review table. This resolves the block on
-`haytham-email-draft` — close with "say the word and the drafts get
-created in this same session." On his approval, the auto-draft flow in
-the Input section runs right here (email-check + crm-gate per lead,
-Gmail DRAFTS, Status = Draft Ready); the hook search itself never
-drafts without that approval.
+Draft-first: the drafts are already made. After the draft step (Input section)
+has run per resolved lead, present ONE **brief** — drafted (lead · hook or
+finding-only · inbox · subject) · held-with-reason (gate/email FAIL, no address)
+· any verifier notes. That is the hand-off: Haytham reviews the finished
+`Draft Ready` drafts in Gmail and sends or schedules them by hand. There is no
+separate bare-hook approval step. (A single-lead "just the hook" run stops at the
+resolved line and hands off the hook only.)
 
 ---
 
@@ -282,6 +291,6 @@ drafts without that approval.
 - It does not build a hook from generic site marketing copy, a press blurb,
   or a directory listing. If that's all that exists, that's a "no hook
   found" — the finding-only opener (SMYKM opening B) is the honest draft.
-- It does not send email, ever. It touches Gmail only in the
-  auto-draft-on-approval flow (creating DRAFTS after Haytham explicitly
-  approves the resolved hooks), never during the hook search itself.
+- It does not send email, ever. It creates held Gmail DRAFTS (the draft-first
+  step, after each hook is independently verified and the send gate passes) and
+  stops there — sending is Haytham's hand, from Gmail.
