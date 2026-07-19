@@ -100,18 +100,27 @@ Entry template:
   double-charge she misread, carries the two remaining findings, closes steering
   her toward handing it over (she said "I'll revisit it myself" — gratitude-trap
   risk).
-- Timing decision: don't ask permission to send (she already said yes); record
-  the Loom and schedule the send for ~8am Dubai so it tops her inbox in the
-  morning instead of pinging at 10pm. Haytham can't record now — **doing it
-  tonight.**
-- Ceiling: Inbox 2 at 8/20 today, room for the warm reply (counts against
-  whichever Dubai-day it actually departs).
+- **UPDATE (later 07-18/19):** Haytham recorded the Loom same night, rewrote the
+  reply himself (better than mine), and folded the **price-discovery question**
+  into the close: "if someone took the whole site top to bottom, everything
+  sorted and off your plate, what would you expect that to run?" Scope widened
+  from the fixes to the whole site on purpose (lifts her anchor; read it in that
+  context). Loom link: loom.com/share/9333b35228e344c5b40900a5612b5ac4.
+- **SENT** (accidental click, but a good email) 2026-07-19 ~04:18 Dubai, Inbox 2,
+  Touch 3. Full confirmed-send logging done: Status `Reply Received` →
+  `Price Discovery Sent`, Touch # → 3, Last Contacted 07-19, Next Action 07-22,
+  Findings Bank #3 → USED-T3 (Loom spent it), #4 (Stripe branding) still UNUSED /
+  held. Thread log + Price Discovery section updated. This is now a
+  **Price Discovery Sent** lead — her next reply IS the study data.
+- Loom itself covered findings #1 (double-charge, re-shown to fix her earlier
+  misread), #2 (35% vs 29%), #3 (course-name mismatch). #4 held back.
 ### Open follow-ups
-- [ ] Haytham records the walkthrough Loom tonight, swaps the `[Loom link]` into
-      the Inbox 2 draft (with `https://` scheme), schedules/sends ~8am Dubai.
-- [ ] On confirmed send: Touch # → 3, Status `Reply Received` → `Loom Sent`, Last
-      Contacted → real send date, Next Action → warm cadence (~2-3 days). No new
-      bank flip (Loom bundles remaining findings as delivery, not a fresh touch).
+- [ ] Watch Inbox 2 for Donna's reply. The MOMENT a number (or refusal) lands:
+      log it VERBATIM into `Price Discovery Answer`, set `Discovery Anchor` per
+      the uae-track mapping. Do NOT wait for a tick — this is the track's whole
+      point. Then `crm-gate offer` gates any priced email.
+- [ ] If quiet by ~07-22: warm bump. #4 (Stripe 'Coaching Business' branding) is
+      the unused held finding for it.
 
 ## 2026-07-18 — Luca & Larry "findings invalid" — over-retirement corrected
 - Haytham flagged, while prepping tomorrow's follow-ups, that Luca Allam and Dr
