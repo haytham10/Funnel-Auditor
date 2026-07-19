@@ -79,6 +79,49 @@ Entry template:
 - [ ] Haytham to schedule the 3 drafts in Gmail for 07-19, then confirm sends so the tick
   flips each to Outreach Sent (Touch #1, Last Contacted, Findings Bank #1 → USED-T1).
 
+## 2026-07-18 — Donna Brown replied yes to the walkthrough (Inbox 2)
+- Donna Brown (Leadership/Life coach, Dubai, Inbox 2, Track A) replied a second
+  time on her thread (subj "your core blueprint bundle"), at 22:05 Dubai:
+  "Thank you for your message... Sure happy to know what I can do better.. By the
+  way, how did you come across my page?" — a **warm yes to the Loom walkthrough**
+  plus a trust-check question.
+- Thread state: Touch 1 = finding #1 (Core Blueprint checkout double-charge) →
+  her reply #1 slightly **misread** it (thinks the worry is that the bundle
+  duplicates the course; the real flag is the checkout add-on bump stacking the
+  AED 1,997 bundle on top of the AED 597 course). Touch 2 = finding #2 (Save 35%
+  badge is really ~29%) + loom-offer → her reply #2 above.
+- Logged her reply verbatim to the Email Thread Log; Notes refreshed; Next Action
+  pulled to today. Status stays `Reply Received`, Sequence `Warm`, Touch # 2 (no
+  send yet). Findings Bank #3 (course-name mismatch) + #4 (Stripe branded
+  "Coaching Business") still UNUSED — Loom material.
+- **Drafted the turn-two Loom-delivery reply** and created the Gmail draft in
+  Inbox 2 (threaded, subject unchanged), held on a `[Loom link]` placeholder.
+  Answers her question honestly (Google-footprint sourcing), re-shows the
+  double-charge she misread, carries the two remaining findings, closes steering
+  her toward handing it over (she said "I'll revisit it myself" — gratitude-trap
+  risk).
+- **UPDATE (later 07-18/19):** Haytham recorded the Loom same night, rewrote the
+  reply himself (better than mine), and folded the **price-discovery question**
+  into the close: "if someone took the whole site top to bottom, everything
+  sorted and off your plate, what would you expect that to run?" Scope widened
+  from the fixes to the whole site on purpose (lifts her anchor; read it in that
+  context). Loom link: loom.com/share/9333b35228e344c5b40900a5612b5ac4.
+- **SENT** (accidental click, but a good email) 2026-07-19 ~04:18 Dubai, Inbox 2,
+  Touch 3. Full confirmed-send logging done: Status `Reply Received` →
+  `Price Discovery Sent`, Touch # → 3, Last Contacted 07-19, Next Action 07-22,
+  Findings Bank #3 → USED-T3 (Loom spent it), #4 (Stripe branding) still UNUSED /
+  held. Thread log + Price Discovery section updated. This is now a
+  **Price Discovery Sent** lead — her next reply IS the study data.
+- Loom itself covered findings #1 (double-charge, re-shown to fix her earlier
+  misread), #2 (35% vs 29%), #3 (course-name mismatch). #4 held back.
+### Open follow-ups
+- [ ] Watch Inbox 2 for Donna's reply. The MOMENT a number (or refusal) lands:
+      log it VERBATIM into `Price Discovery Answer`, set `Discovery Anchor` per
+      the uae-track mapping. Do NOT wait for a tick — this is the track's whole
+      point. Then `crm-gate offer` gates any priced email.
+- [ ] If quiet by ~07-22: warm bump. #4 (Stripe 'Coaching Business' branding) is
+      the unused held finding for it.
+
 ## 2026-07-18 — Luca & Larry "findings invalid" — over-retirement corrected
 - Haytham flagged, while prepping tomorrow's follow-ups, that Luca Allam and Dr
   Larry Davies findings "don't hold anymore." Re-walked both funnels live.
