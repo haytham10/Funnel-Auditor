@@ -44,10 +44,17 @@ Gotchas:
 - **Notion free-tier SQL cap.** Hit the `query_data_sources` hourly free-tier limit early (during the qualify run) and it stayed capped through the top-up. Worked around it with `notion-query-database-view` on the unfiltered **Pipeline Board** view (separate endpoint, NOT capped) — paginated all 328 rows (4×100) to build the load-bearing dedup snapshot. Page-level fetch/update/create also stayed uncapped. If SQL is capped, the board-view paginate is the fallback for a full-CRM read.
 - Dedup discipline paid off: workers were handed all 328 existing names + 250 owned domains as a file and self-skipped ~44 collisions across the 4 veins; 0 dupes written.
 
+**Qualified the fresh 9 same session → 7 promoted, 1 DQ, 1 held.** 2 workers → verifier (8/8 CONFIRMED, 0 overturned).
+- **→ Qualifying (7):** Fatima Williams (LI 46,038), Zeina Karrit (LI 50,477; UAE-base pin Unconfirmed→Dubai + profile added), Joel Arcus (LI 5,203; profile added), Dr. Sheen Gurrib (IG **861,467** — JS counters resolved; verifier re-pulled, real follower count not a misread), Salma (IG 7,422), Eric Fit (IG **330,318**; verifier re-confirmed real), **Lee Harris** (LK Running's real coach, resolved from the FZ-LLE brand; IG 3,782 — worker wrote 2,201, verifier caught it, corrected on the row).
+- **→ Disqualified (1):** Wendy Alexander — Gate 0 UAE-base Fail. She's CURRENTLY US/Atlanta (IG about-country=US, Stan America/New_York TZ, "lived in Dubai 20 yrs" past tense). The sourcing caveat (UAE unconfirmed on-page) was the right flag; the actor settled it as a true kill. IG 12,068 (moot).
+- **Held at Sourced (1):** Coach Marios — UAE-base + Stripe funnel + solo 1:1 all confirmed, but IG @coachmariosdxb is PRIVATE; audience floor unresolvable by any cheap tool (3 actor attempts + Firecrawl login-wall + handle search all null). Honest Not-checked hold, needs a manual audience read.
+
+Net: sourcing→qualified in one session, 7 of 9 fresh leads reached the Walk Queue. Two 300k-800k IG creators (Sheen, Eric) are the standouts. Verifier value shown twice: caught the Lee Harris count mismatch and confirmed the two huge audiences were real (not likes-misreads) before trusting them.
+
 ### Open follow-ups
-- [ ] These 9 need `qualify-leads` (Gate 0 + Gate 1) before the Walk Queue. Carry the verifier caveats: Wendy + Zeina UAE-base unconfirmed; LK Running coach-name/solo unconfirmed; Salma offer is application-gated (confirm price).
+- [ ] Coach Marios held at Sourced — private IG blocks the audience floor; needs a manual follower read to qualify or kill.
 - [ ] Jimena (jimenafreespirit.com) — DNS failed twice in verify but her Linktree is live; retry next sourcing pass rather than lose the name.
-- [ ] Walk Queue holds 6 `Qualifying` rows ready for `batch-audit`.
+- [ ] Walk Queue now holds **13 `Qualifying` rows** (6 prior + 7 fresh) — ready for `batch-audit` (cap 20; combined send ceiling 40/day).
 
 ## 2026-07-19 — Ops: qualified the full Sourced pile (12 rows) → 4 to Walk Queue
 Ran `qualify-leads` over all 12 `Sourced` rows (the whole pile; Walk Queue was near-empty at 2, so downstream demand was wide open). First live exercise of the resolve-then-decide overhaul (#61) — and it worked: every one of the 12 had been stalled at Gate 0 `Not checked` solely because Firecrawl search couldn't read a login-walled follower count, and the workers resolved all 12 audience floors with cheap count-only actor calls (fractions of a cent each, Apify at 3.8% of the monthly cap).
