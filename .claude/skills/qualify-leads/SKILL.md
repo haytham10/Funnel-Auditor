@@ -13,9 +13,14 @@ walk on the survivors. This skill sits in the middle and does the gating —
 nothing else.
 
 It's the sibling of `batch-audit`: both process rows that already exist in
-the CRM at a given status. batch-audit walks `Qualifying` rows; this skill
-gates `Sourced` rows. The difference is depth — a gate is ~2 fetches, a
-walk is a full crawl + vision pass.
+the CRM at a given status, and both now run the **same verified orchestration**
+(`docs/agent-orchestration.md`) — fan out workers, then independently verify
+the claim the stage self-certifies. batch-audit walks `Qualifying` rows one
+agent per lead; this skill gates `Sourced` rows a *slice of rows* per agent
+(a gate is ~2 fetches, far too cheap to justify one cold agent per row; the
+walk is a full crawl + vision pass, so it goes per lead). The claim this stage
+self-certifies is the Gate 0/1 verdict — and it has asymmetric, expensive
+failure modes — so the verifier re-checks it on every promotion and every kill.
 
 **Budget ~2 fetches per lead (site + one search), not a crawl.** The full
 5-stop walk happens later, in batch-audit, on Qualifying survivors only. A
@@ -32,17 +37,39 @@ English. Full targeting spec: `docs/uae-track/03-targeting-and-sourcing.md`.
 
 ---
 
-## The run
+## The run — orchestrator
 
-Pull every `Sourced` row. For each, run the gates MECHANICALLY, in order —
-Gate 0 first (all four), then Gate 1 on Gate 0 survivors only. Set the
-result and move on. Do not linger, do not walk, do not enrich beyond what
-the two triage fetches surface.
+**Size the batch to downstream demand.** Pull the `Sourced` rows, but qualify
+only enough to keep the Walk Queue full, not the whole pile — batch-audit's run
+cap is 20 and walks size to send headroom, so qualifying 60 rows into a queue
+that can absorb 20 this week just ages the extra verdicts. Name the leftover for
+the next run.
 
-The machine-checkable half of Gate 0 is available from `audit/gates.py`
-(audience 1,500, activity 30 days, funnel present; UAE residency comes back
-as needs-review for the judgment layer) — use it where it helps, but the
-judgment calls below are yours.
+**Fan out, don't loop.** Split the batch into slices (roughly 15 rows each) and
+spawn one **`qualifier-worker`** per slice, at most 5 running at once. Each
+worker runs the Gate 0 → Gate 1 mechanics below over its slice — Gate 0 first
+(all four), then Gate 1 on Gate 0 survivors only, ~2 fetches per row,
+`audit/gates.py` for the machine-checkable half (audience 1,500, activity 30
+days, funnel present; UAE residency comes back needs-review for the judgment
+layer). Rows are disjoint by construction, so each worker **writes its own
+verdicts** — there is no cross-worker merge. It returns a per-row summary block.
+
+**Verify, don't trust.** Then spawn a **`qualifier-verifier`** over every
+**promotion and every kill** the workers made. It re-runs `audit/gates.py` and
+re-confirms the three judgment inputs the worker self-certified: the audience
+number's provenance (a real *seen* count, not a vibe — the soft pass that once
+sent three leads into full walks), the UAE-base evidence, and the solo/team
+read. The failure modes are asymmetric and both expensive: a false **Qualify**
+burns a full 185–268K-token walk downstream; a false **Disqualify** kills a real
+lead for good (`source-leads` never re-sources a hard Disqualify). The verifier
+flips any verdict it can't stand behind back to `Sourced` / `Not checked` with
+the reason; only verifier-confirmed promotions reach the Walk Queue. If it
+overturns ≥2 of the first wave, pause and surface it before spending the rest.
+
+The Gate 0 / Gate 1 mechanics and the writes-per-lead below are the per-row spec
+each worker executes; the orchestration above wraps them (`docs/agent-orchestration.md`).
+A genuinely tiny pile (a handful of rows) can run inline with no fan-out — the
+orchestration earns its keep on a real batch, not on three rows.
 
 ### Gate 0 — all four must be true. Any fail = Disqualified, move on
 
@@ -94,9 +121,10 @@ The sourced → qualified funnel math: N raw pulled, N Gate-0 fails (broken
 out by which floor), N Gate-1 fails, N left `Not checked` / unconfirmed, N
 promoted to `Qualifying`. Then the Walk Queue count and the reminder of
 what's next: batch-audit works the Walk Queue at up to 20 per run — walks/day
-must keep pace with the send ceiling (`python main.py send-cap status`,
-ramping 20 → 25 → 30), since every opener under it needs a walked, verified
-finding behind it.
+must keep pace with the **combined** send ceiling across both inboxes
+(`python main.py send-cap status --all`, each inbox ramping 20 → 25 → 30 on its
+own, so capacity is additive, not one pooled number), since every opener under
+it needs a walked, verified finding behind it.
 
 ---
 

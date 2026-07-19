@@ -36,10 +36,14 @@ the walk already ran nominative enrichment, so re-running it won't fix those.
 Also list rows with NO Site URL at the end as "need the site link" —
 never try to fill it from anything but a public web search.
 
-Cap a single run at **20 leads** — a full day of sends at the ramp's
-first ceiling step, so a bigger batch of walks has nowhere to go anyway.
-More than 20 in the queue: work the first 20 and name what's left for
-the next run.
+**The run cap = 20 leads** ("the run cap" everywhere below) — a full day of
+sends at one inbox's first ceiling step. But size the actual batch to
+**downstream send headroom**, not blindly to 20: check `python main.py inbox
+counts` + `python main.py send-cap status --all`; if the next send-day's opener
+headroom across both inboxes is only ~8, walking 20 just ages findings with
+nowhere to go — walk to the headroom, capped at the run cap. More than that in
+the queue: work up to the run cap and name what's left. A walk with nowhere to
+send is a wasted walk (`docs/agent-orchestration.md`, demand-driven sizing).
 
 State the batch in one line ("Working 6: Jane, Maria, …") and start. Do
 not wait for confirmation — he handed the batch over by logging it. If
@@ -72,18 +76,23 @@ once he's said yes.
 
 For each lead, spawn a **lead-processor** agent (`.claude/agents/
 lead-processor.md`). Its prompt must contain everything it needs — agents
-start cold: the lead's Notion page URL/ID, Contact Name, Site URL, Profile
-URL, Audience Size, City, Source Channel, the Apify-quota note above, plus
-any batch-specific note Haytham gave. Tell it the row already exists —
-update, don't duplicate.
+start cold. **Prompt-assembly checklist (a missing field silently degrades that
+walk):** the lead's Notion page URL/ID, Contact Name, Site URL, Profile URL,
+Audience Size, City, Source Channel, the Apify-quota note above, any
+batch-specific note Haytham gave, "the row already exists — update, don't
+duplicate," and the reminder that it **proposes** the finding and must NOT check
+`Finding Verified` (the finding-verifier does that in Step 2.5).
 
-Concurrency: keep **at most 5 agents running**; as one completes, launch
-the next. Each agent works one lead start-to-finish per the process-lead
-skill — machine walk, vision pass, floors, opener-finder walk + Notion
-write, email address — and holds at the Gmail draft (every lead comes back
-with the hook line "not run yet," and drafting is blocked until
-`haytham-hook-finder` runs on that lead). It returns the structured LEAD
-block defined in the agent file.
+Concurrency: keep **at most 5 agents running at once, of any kind** —
+lead-processors and the Step 2.5 finding-verifiers share that budget. As one
+completes, launch the next; verifiers are short and drain fast. Each
+lead-processor works one lead start-to-finish per the process-lead skill —
+machine walk, vision pass, floors, opener-finder walk + Notion write, email
+address — and holds at the Gmail draft (every lead comes back with the hook line
+"not run yet," and drafting is blocked until `haytham-hook-finder` runs on that
+lead). It returns the structured JSON block defined in the agent file, with the
+finding **proposed** (`finding_verified: "proposed"`) and the exact evidence
+paths it rests on.
 
 Batch rules the orchestrator enforces:
 - A floor fail or Lane 3 is a fine outcome: parked properly (Gate fail,
@@ -111,14 +120,42 @@ monitor it yourself rather than re-dispatching the agent. Record the
 takeover in the batch brief the same as any other lead; it still counts as
 worked, not Blocked, if you finished it.
 
-## Step 3 — Verify, then the batch brief (one message)
+## Step 2.5 — Verify each Lane 1 finding (independent)
 
-Spot-check before reporting: for each Lane 1/2 result, confirm the Notion
-page body actually carries the fresh walk (one `notion-fetch`, cheap), and
-for each Lane 1, that `Finding Verified` is actually checked in the
-properties. No Gmail drafts are expected from this run — don't check
-`list_drafts` for them. An agent that claimed success but wrote nothing
-goes under Blocked, not Done.
+A lead-processor PROPOSES its finding and never checks `Finding Verified` — that
+self-certification is exactly what shipped false Lane-1 findings, so an
+independent pass certifies (`docs/agent-orchestration.md`). For every return with
+**Lane 1** and a proposed finding, spawn a **`finding-verifier`**
+(`.claude/agents/finding-verifier.md`); it shares the ≤5 concurrency budget with
+the still-running walkers. **Verifier prompt-assembly checklist:** the finding
+text, the innocent explanation, the lane, the lead's Notion page URL/ID, the
+`evidence/<slug>` dir, and the **exact cited paths** from the worker's
+`finding_evidence_paths`, with the framing "assume it's false until a cited
+screenshot forces you to agree." Lane 2 / Lane 3 / gate-fail returns skip the
+verifier — they never send.
+
+Act on each verdict:
+- **VERIFIED** → the verifier already checked `Finding Verified` and promoted
+  (Audit Ready if `Email Verified` is set, else held at Qualifying). Ready for §2.
+- **REFUTED** → the finding is dead. If the walk still found real structure
+  (plausibly Lane 1, wrong finding), re-dispatch **one** lead-processor with the
+  refutation as guidance (cap at one re-walk); otherwise set it to Lane 2.
+- **INCONCLUSIVE** → holds at Qualifying with the reason.
+
+**Quality tripwire:** if the verifier REFUTES **≥2 of the first wave's Lane 1
+findings**, pause the batch and surface it to Haytham before spending the rest of
+the queue — a high refute rate is the machine catching its own bad night.
+
+## Step 3 — Cross-check, then the batch brief (one message)
+
+Cross-check before reporting — the return block is a report, never the source of
+truth. For each Lane 1/2 result, `notion-fetch` the row and confirm the body
+carries the fresh walk AND matches the return block (the finding text, the
+`Findings Bank` count, the literal `VISION PASS:` line). For each Lane 1,
+`Finding Verified` should now be checked **by the finding-verifier** (VERIFIED
+leads) or explicitly not (REFUTED/INCONCLUSIVE) — a box the walker checked itself,
+or a claim of success over a row that wasn't written, goes under Blocked, not
+Done. No Gmail drafts are expected from this run — don't check `list_drafts`.
 
 Then one brief, in this order:
 
@@ -126,7 +163,8 @@ Then one brief, in this order:
    Finding Verified? / email status (incl. the `EMAIL VERIFY` verdict for
    Lane 1) / vision-pass line / flags rejected.
 2. **Needs hook-finder**: every Lane 1 lead that is actually Audit Ready —
-   `Finding Verified` AND `Email Verified` both checked (verified finding +
+   `Finding Verified` AND `Email Verified` both checked (an independently
+   VERIFIED finding — the finding-verifier's verdict, not the walker's — plus
    a deliverability-confirmed address) — the walk finding + innocent
    explanation in full, one line each, ready to draft the moment Haytham
    runs `haytham-hook-finder` on it and asks for the draft. A Lane 1 lead
@@ -144,7 +182,7 @@ Then one brief, in this order:
 5. **Parked**: gate fails and Lane 3 leads with their one-line reasons.
 6. **Blocked**: rows needing a site link, an email address, or a re-run
    after a crawl failure, each with the specific manual step.
-7. **Leftover queue**: anything past the 15-cap, named for the next run.
+7. **Leftover queue**: anything past the run cap (20), named for the next run.
 
 Sending is Haytham's hand, from Gmail, and every cold send passes
 `python main.py crm-gate send` at queue time (uae-tick owns that).
