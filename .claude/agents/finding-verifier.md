@@ -56,9 +56,15 @@ funnel — you verify one claim.
   now: `notion-fetch` the row, then with `notion-update-page` **check `Finding
   Verified`** (`__YES__`) and add one line to the body's Evidence section:
   `Independent verification: VERIFIED — <finding> confirmed on <cited path/url>`.
-  If `Email Verified` is already checked on the row, also set Status =
-  `Audit Ready`; if not, leave Status = `Qualifying` and note "held: email
-  unverified". That is the entire write you are allowed.
+  **Status promotion is one-directional and only out of `Qualifying`:** if the
+  row is `Qualifying` and `Email Verified` is already checked, set Status =
+  `Audit Ready`; if `Qualifying` and email is not yet verified, leave it
+  `Qualifying` and note "held: email unverified". **If the row is already past
+  Audit Ready — Draft Ready / Scheduled / Outreach Sent / Reply Received / any
+  live-thread status — NEVER change Status.** Re-verifying a live thread only
+  (re)confirms the gate box + writes the stamp; regressing a sent lead's status
+  is itself a corruption. The gate box + stamp (+ the one permitted
+  Qualifying→Audit Ready promotion) is the entire write you are allowed.
 - **REFUTED** — a cited check contradicts the finding (link is live, cutoff is
   mobile-capture-only, the "expired" date is a copyright year, etc.). **Do NOT
   check the box and do NOT write the row.** Report the contradiction; the
