@@ -29,6 +29,26 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Ops: top-up sourcing (+9 Sourced) + Humaira DQ'd
+Same-day follow to the qualify run below. Two things.
+
+**1. Humaira Nasim DQ'd.** Was held at Sourced (audience cleared LI 4,097 but 30-day activity unconfirmable). Haytham's call: Disqualified on the activity-recency floor (Gate 0 Fail) — LI silent >30d, owned humairanasim.com 404s, last trace Apr 2026. So the qualify batch final = 4 Qualifying / 8 Disqualified / 0 held.
+
+**2. Top-up sourcing run → +9 Sourced.** Fanned out 4 `sourcing-worker`s over fresh-biased veins (chassis: workers RETURN candidates → orchestrator dedup → `sourcing-verifier` → batched write). 12 raw candidates → verifier cleared 9, dropped 3.
+- **Written (9):** Fatima Williams (career, 45k LinkedIn on-page, AED tiers + checkout — standout), Zeina Karrit (career/exec, native-AED Stripe 2k-6k AED), Joel Arcus (life/leadership, Stripe 1:1), Dr. Sheen Gurrib (content-biz, Gumroad course + 1:1), Salma/salmasrn (fitness, IG 7,422, paid PT), Coach Marios (fitness/life, Stripe program), Eric Fit (fitness, $29 Thinkific course), LK Running Performance (running, AED checkouts), Wendy Alexander (business, Stan store $9.99-$497).
+- **Dropped by verifier (3):** Reim El Houni / Mission Visible (team — named "Network of Mentors" + Community Directors, Gate-1 obvious), Adam Zargar / UAE Coaching (enquiry-only, multi-coach org, no purchasable offer), Jimena (DNS inconclusive — retry candidate, not a kill).
+
+**Vein signal for next run:** link-in-bio (stan.store/beacons/linktr.ee) + Instagram + podcasts/events all PRODUCED then dried. **Platform footer-signature (kajabi/systeme/kartra/podia) is DRY** — ~17 passes, 0 fresh; every UAE solo coach on those platforms is already in the CRM. Skip it next time. Lateral off named anchors was also dry this run.
+
+Gotchas:
+- **Notion free-tier SQL cap.** Hit the `query_data_sources` hourly free-tier limit early (during the qualify run) and it stayed capped through the top-up. Worked around it with `notion-query-database-view` on the unfiltered **Pipeline Board** view (separate endpoint, NOT capped) — paginated all 328 rows (4×100) to build the load-bearing dedup snapshot. Page-level fetch/update/create also stayed uncapped. If SQL is capped, the board-view paginate is the fallback for a full-CRM read.
+- Dedup discipline paid off: workers were handed all 328 existing names + 250 owned domains as a file and self-skipped ~44 collisions across the 4 veins; 0 dupes written.
+
+### Open follow-ups
+- [ ] These 9 need `qualify-leads` (Gate 0 + Gate 1) before the Walk Queue. Carry the verifier caveats: Wendy + Zeina UAE-base unconfirmed; LK Running coach-name/solo unconfirmed; Salma offer is application-gated (confirm price).
+- [ ] Jimena (jimenafreespirit.com) — DNS failed twice in verify but her Linktree is live; retry next sourcing pass rather than lose the name.
+- [ ] Walk Queue holds 6 `Qualifying` rows ready for `batch-audit`.
+
 ## 2026-07-19 — Ops: qualified the full Sourced pile (12 rows) → 4 to Walk Queue
 Ran `qualify-leads` over all 12 `Sourced` rows (the whole pile; Walk Queue was near-empty at 2, so downstream demand was wide open). First live exercise of the resolve-then-decide overhaul (#61) — and it worked: every one of the 12 had been stalled at Gate 0 `Not checked` solely because Firecrawl search couldn't read a login-walled follower count, and the workers resolved all 12 audience floors with cheap count-only actor calls (fractions of a cent each, Apify at 3.8% of the monthly cap).
 
