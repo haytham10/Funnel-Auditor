@@ -73,7 +73,7 @@ SQLite table name is the data source URL, quoted:
 | `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` |
 | `Findings Bank` | text | Every verified finding from the walk, ranked strongest first, one per line: `1. USED-T1 \| finding` / `2. UNUSED \| finding`. #1 is the opener; touches 2-3 draw the next UNUSED entry. Written by the walk; statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property. |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
-| `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14) |
+| `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14; `Lane 2`, added 2026-07-16) |
 | `Inbox` | select | `Inbox 1` `Inbox 2` (added 2026-07-16). Which sending inbox this lead's whole thread goes out of — a LOGICAL label, mapped to a real address + transport by the registry (`audit/inboxes.py`; Inbox 1 = auto-mate.one via Gmail MCP, Inbox 2 = gethaytham.com via `main.py gmail-gethaytham`). Assigned once, sticky for the life of the thread. Blank = unassigned; routing fills it when the lead first enters the send queue. Each inbox has its OWN send ceiling. |
 | `Sequence` | select | `Cold` `Warm` |
 | `Touch #` | number | Increment on every send incl. follow-ups. |
@@ -105,7 +105,16 @@ Sourced → Qualifying → Audit Ready → Draft Ready → (Scheduled) → Outre
   → Reply Received → Price Discovery Sent → Offer Sent → Call Booked → Won
 ```
 
-Terminal / off-ramps: `Lost`, `Dormant`, `Disqualified`
+Terminal / off-ramps: `Lost`, `Dormant`, `Disqualified`, `Lane 2`
+
+**`Lane 2` (added 2026-07-16) is the home for walked leads with no felt
+leak** (`Lane` = `Lane 2: No leak`) — both gates can pass but nothing
+survived the two filters, so there is no verified finding and no cold send.
+Before this status existed, no-leak leads were parked at `Qualifying`,
+which was ambiguous (indistinguishable from a not-yet-walked lead); they
+now get their own off-ramp. `Finding Verified` stays unchecked. Haytham can
+work these by hand with the warm-up angle in Notes, but the machine never
+cold-sends them.
 
 **`Draft Ready` and `Scheduled` (added 2026-07-14) make Gmail state
 queryable.** `Draft Ready` = hook resolved + a Touch 1 draft sitting in
@@ -133,6 +142,7 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 | Sourced → Qualifying | Name + site captured |
 | Qualifying → Audit Ready | `Gate 0` = Pass, `Gate 1` = Pass, funnel walk done, `Lane` set, `Finding Verified` = checked, AND `Email Verified` = checked (deliverability confirmed via `email-verify`, or Haytham accepted a catch_all/unknown risk by hand). Both hard gates are set before a lead is declared sendable — a verified finding on an address that bounces still burns the domain. |
 | Qualifying → Disqualified | Either gate = Fail. Set and move on, do not linger. |
+| Qualifying → Lane 2 | Walk complete, both gates Pass, but no felt leak survives the two filters (`Lane` = `Lane 2: No leak`). `Finding Verified` stays unchecked. Warm-up angle in Notes; no cold send. Do NOT leave these at Qualifying. |
 | Audit Ready → Draft Ready | SMYKM hook line resolved (hook-finder ran), `Inbox` assigned if still blank (`python main.py inbox route` → set the label), `crm-gate send … --inbox "<label>"` PASS (which now requires `Email Verified` checked, not just an `@`-shaped address), Gmail draft created IN THAT INBOX (Inbox 1 → Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham draft`). Sets nothing else — a draft is not a send. |
 | Draft Ready → Scheduled | Haytham scheduled the send in Gmail (tick detects it in the scheduled queue, or he says so). |
 | Audit Ready / Draft Ready / Scheduled → Outreach Sent | Touch #1 ACTUALLY departed (matching message in Gmail sent mail). Set `Last Contacted` (real departure date), `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must have printed PASS at queue time.** |

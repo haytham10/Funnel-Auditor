@@ -135,7 +135,7 @@ Sort into exactly one lane:
 
 **Bank everything that survived, not just the winner.** Every visually-confirmed finding that passes both filters goes into the lead's Findings Bank, ranked strongest first (tier first, then sting). #1 is the opener; #2 onward is what cold Touch 2/3 draws on (`crm-gate send --carries second-finding` checks the bank, so a discarded finding is a follow-up that can't happen). Unverified candidates and filter-fails never enter the bank — it holds openable findings only, just ranked.
 
-**Lane 2 — WARM-UP (committed buyer, no felt leak).** No finding survives both filters, but the lead is clearly a committed operator (paid ladder, multiple offers, email capture, active engagement). Most Gate 1 survivors land here and that is NORMAL — a felt leak on a real buyer runs roughly 20-25%. Note the warm-up angle (a genuine peer entry anchored to something specific and real they're doing right now). **A Lane 2 lead does not get `Finding Verified` and does not reach Audit Ready** — it holds at Qualifying as a long-play/warm-up lead. The hard gate is deliberate: no send without a verified finding.
+**Lane 2 — WARM-UP (committed buyer, no felt leak).** No finding survives both filters, but the lead is clearly a committed operator (paid ladder, multiple offers, email capture, active engagement). Most Gate 1 survivors land here and that is NORMAL — a felt leak on a real buyer runs roughly 20-25%. Note the warm-up angle (a genuine peer entry anchored to something specific and real they're doing right now). **A Lane 2 lead does not get `Finding Verified` and does not reach Audit Ready** — it moves to Status `Lane 2` (the dedicated no-leak status, added 2026-07-16; not a Qualifying hold) as a long-play/warm-up lead. The hard gate is deliberate: no send without a verified finding.
 
 **Lane 3 — SKIP (not a buyer).** Hobbyist floor, no income signal, MLM, or gatekeeper. Set Status = Disqualified. No opener. A felt leak on a non-buyer is still a skip — leak does not equal buyer.
 
@@ -170,7 +170,7 @@ Lane 3: one-line reason, nothing else.
 Fetch the lead's Notion page first to get the current state. Then write the walk output to the page body in the exact format from `references/schema.md`. Update the properties at the same time — see the property table there. In particular:
 
 - **`Finding Verified` gets checked ONLY for a Lane 1 lead whose finding you visually confirmed** (vision pass or Haytham's own observation) from a clean state. This checkbox is the hard send gate (`python main.py crm-gate send` fails without it). Checking it on a thin or unconfirmed finding is the exact failure this track exists to avoid.
-- **Status:** Lane 1 with gates passed + finding verified → `Audit Ready`. Lane 2 → stays `Qualifying` (warm-up hold, Notes carries the angle). Lane 3 or any gate fail → `Disqualified`.
+- **Status:** Lane 1 with gates passed + finding verified → `Audit Ready`. Lane 2 → Status `Lane 2` (the dedicated no-leak status, added 2026-07-16; Notes carries the warm-up angle). Lane 3 or any gate fail → `Disqualified`.
 - **Est. Value:** `Track A ($200)` by default; `Track B ($700)` only when real launch or sales volume is visible; `Unknown` if you can't tell.
 - **`Findings Bank` (property):** the ranked verified findings in compact machine-parseable lines, `1. UNUSED | <finding>` (one per line, all UNUSED on a fresh walk — send-confirmation logging is what flips them to `USED-TN` later). The send gate parses this property, so the format matters. Lane 2/3: leave empty.
 
