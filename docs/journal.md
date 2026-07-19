@@ -29,6 +29,14 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Ops: all Draft Ready scheduled for 2026-07-20 + Samira duplicate flagged
+- Haytham scheduled EVERY Draft Ready lead in Gmail for send-day 2026-07-20 (~09:00 Dubai). **8 in Inbox 1:** Nabil, Caroline, Aleli (this session) + pre-existing Sadia Khan, Bonge Gumede, Monika Singh, Asma Ahmad, Dr. Jamila Al Hosani. **8 in Inbox 2:** Sabeen, Sanjukta, Trisha, Samira (this session) + Kalyani Seth Soni, Dr. Corrie Block, Nikki Evans + a Samira duplicate. **15 leads, 16 sends.**
+- Flipped all 15 CRM rows `Draft Ready → Scheduled`. Nothing else moved — Touch #/Last Contacted/Thread Log/Findings Bank move only on actual departure; uae-tick reconciles → `Outreach Sent` on the send-day.
+- ⚠ **Samira Alexander has TWO scheduled sends** for 2026-07-20: mine (subject "time to show up", body "Ten years mostly behind the scenes") and a stale prior-session draft (body "Ten years of doing the work quietly... into something calmer"). Couldn't read the stale one's recipient or cancel it via tooling (message/thread `message` lookups 404 once scheduled; `drafts` list empties). Flagged on her Notion page.
+### Open follow-ups
+- [ ] Haytham: CANCEL the duplicate Samira scheduled send in Gmail before the AM send (keep "time to show up").
+- [ ] uae-tick 2026-07-20: reconcile the 16 scheduled sends → Outreach Sent (Touch 1, Last Contacted, Thread Log, Findings Bank #1 → USED-T1) as each departs; watch Caroline's heal@ for a bounce.
+
 ## 2026-07-19 — Ops: hook+draft stage → 6 Audit Ready leads drafted (Draft Ready)
 Ran the merged draft-first `haytham-hook-finder` batch over the full Audit Ready view (6 leads). All 6 taken from empty-hook → held Gmail draft.
 
