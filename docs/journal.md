@@ -29,6 +29,46 @@ Entry template:
 
 ---
 
+## 2026-07-19 — CRM hygiene sweep (clean) + Christina Steinhoff reclassified; WhatsApp cold-texting is an account-safety risk
+- **Hygiene sweep** (the one the 07-19 tick couldn't finish on quota) re-run clean:
+  ALL mechanical checks passed — 0 future-dated Last Contacted, 0 Touch#=0 on
+  Outreach Sent, 0 missed Findings Bank UNUSED->USED flips (Shankar 1&2 USED,
+  Marie 1 USED both verified correct), 0 stale pre-send markers (the two rows
+  that matched carried the historical phrase "hook found VIA haytham-hook-finder",
+  not a pending marker), 0 stale warm threads, 0 over-a-week un-walked Qualifying.
+  Nothing auto-fixed because nothing needed it.
+- **Attribution splits (Step 6, also skipped last tick):** over 67 cold-touched
+  leads, all 5 warm replies (Ben, Donna, Christina, William, Lisa) came from
+  **Google Footprint** sourcing (~13%, 5/39). Every other channel is 0 replies
+  across 28 sends (LinkedIn 0/14, Coach Directory 0/6, Event Speaker 0/3,
+  Podcast 0/2, IG 0/2, Lateral 0/1). Small n, but a clean directional case to
+  concentrate sourcing on Google Footprint. Finding Type of repliers: Dead/stale
+  x2, Other x3. Lane: every sent lead + every reply is Lane 1 (Lane 2/3 never
+  sent), so no Lane comparison possible this round.
+- **Judgment flags surfaced (not auto-fixed):** 4 Lane-2 "no leak" leads
+  (Yasmina Nagnoug, Nicolas Provencal, Alex Makarovski, Coach Islam) sit at
+  Dormant while their own notes say "holds at Qualifying" — status/note
+  disagree, confirm intended parking status. Murielle Larriere went Dormant
+  after only Touch 1 (cold seq is 3) — confirm early drop vs premature Dormant.
+- **Christina Steinhoff reclassified Warm->Cold.** Her 07-19 "reply" was a
+  CONFIRMED autoresponder (word-for-word the 07-16 auto-reply, same 1-min
+  latency). Per its instruction, Haytham texted the +971562737368 number on
+  WhatsApp — **his number got spam-flagged and feature-blocked for 6h after the
+  first message.** The line is an automated WhatsApp Business gate; both her
+  published channels (email + phone) are automated walls, no human reachable.
+  Row set back to Status Outreach Sent / Sequence Cold / Touch 3 due 2026-07-25;
+  if no human reply, Dormant. Email Thread Log + Notes updated to record all of it.
+- **LESSON (account-safety, treat as a rule):** do NOT cold-text leads on
+  WhatsApp from Haytham's personal number. One unsolicited message to a
+  non-contact got reported/blocked within 6h. Same family of mistake as the IG
+  ban — different platform, same "don't put Haytham's own account at risk" rule.
+  A lead that only exposes an autoresponder email + a phone number is likely a
+  bot moat, not a reachable person; don't chase it through personal channels.
+### Open follow-ups
+- [ ] Confirm the 4 Lane-2 Dormant rows' intended status (Dormant vs Qualifying-hold).
+- [ ] Confirm Murielle Larriere's early Dormant (bounce/unreachable vs premature).
+- [ ] Christina Touch 3 due 2026-07-25 (Inbox 1); park Dormant if no human reply.
+
 ## 2026-07-19 — uae-tick: reconciled 25 already-departed sends, 2 bounces, 1 probable autoresponder
 - Ran the daily uae-tick. Unusual shape this run: 25 emails had already left both
   inboxes before the tick started (12 Inbox 1 Touch-2 follow-ups + Noona's
