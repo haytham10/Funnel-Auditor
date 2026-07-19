@@ -69,20 +69,20 @@ name-based candidates against the lead's own domain and verifies them in one
 batched call, adopting at most one — a PASS there is a verify PASS that checks
 `Email Verified`; both hard gates required for Audit Ready) →
 **held** (no Gmail draft yet) → Haytham runs `haytham-hook-finder`
-(single lead, or **batch mode = fan out `hook-worker` per Audit Ready lead →
-`hook-verifier` re-fetches the cited source and confirms the quote before the
-hook is trusted**; real public evidence: LinkedIn, podcasts, YouTube, About page)
-→ he approves the hooks → Gmail
-DRAFTS created in the same session (SMYKM opening A or B), Status =
-`Draft Ready` → Haytham sends by hand (or schedules — Status
-`Scheduled`) → tick reconciles Gmail reality → `Outreach Sent` → reply →
+(single lead, or **batch mode = draft-first: fan out `hook-worker` per Audit
+Ready lead → `hook-verifier` re-fetches the cited source and confirms the quote
+before the hook is trusted → the stage drafts each resolved lead**; real public
+evidence: LinkedIn, podcasts, YouTube, About page) → the held Gmail
+DRAFTS are created in the same session (SMYKM opening A or B), Status =
+`Draft Ready` → Haytham reviews the finished drafts in Gmail and sends by hand
+(or schedules — Status `Scheduled`) → tick reconciles Gmail reality → `Outreach Sent` → reply →
 turn-two artifact → **price discovery question** (answer logged VERBATIM
 + anchor set) → priced offer (735 AED Track A / 2,575 AED Track B, gated
 by `crm-gate offer`) → close. `uae-tick` runs the daily loop; the send-day
 is the Dubai calendar day everywhere.
 
-Haytham's manual jobs: firing sourcing/qualifying runs, reviewing hook batches,
-reviewing and sending (or scheduling) drafts from Gmail, recording the
+Haytham's manual jobs: firing sourcing/qualifying/hook+draft runs,
+reviewing and sending (or scheduling) the held drafts from Gmail, recording the
 turn-two artifact, confirming sends for logging, and appending test
 scores to `docs/deliverability-log.md`.
 
@@ -258,15 +258,19 @@ the vision gate).
   re-derives it from the screenshots and is the only thing that checks
   `Finding Verified`.
 - `process-lead` — per-lead flow of record + the canonical hard rules: walk →
-  vision → floors → opener → **propose** → **held** at the Gmail draft until
-  `haytham-hook-finder` resolves the hook.
+  vision → floors → opener → **propose** → **held** at Audit Ready (no Gmail
+  draft yet) until the `haytham-hook-finder` hook+draft stage runs.
 - `haytham-opener-finder` — Gate 0/1 + the 5-stop walk → lane + finding +
   innocent explanation + CRM body format. PROPOSES the finding (the
   finding-verifier certifies), stops before the hook.
-- `haytham-hook-finder` + `hook-worker.md` + `hook-verifier.md` — separate,
-  manually triggered: real cited public evidence → the SMYKM hook line, never
-  fabricated; batch mode fans out per Audit Ready lead and the `hook-verifier`
-  re-fetches the cited source before the hook is trusted. Gates the draft.
+- `haytham-hook-finder` + `hook-worker.md` + `hook-verifier.md` — the
+  **hook+draft stage**, manually triggered: real cited public evidence → the
+  SMYKM hook line, never fabricated; batch mode fans out per Audit Ready lead,
+  the `hook-verifier` re-fetches the cited source and writes the resolved line,
+  then the orchestrator **drafts each resolved lead** into a HELD Gmail draft
+  (`Status = Draft Ready`) — Haytham reviews the finished drafts in Gmail, not a
+  bare-hook table. The draft step re-reads the verifier's Notion line, so the
+  anti-fabrication independence holds.
 - `haytham-email-draft` — voice, mechanics, gate, logging, both tracks (UAE
   AED + price-discovery layer in `references/uae-track.md`).
 - `uae-tick` / `pipeline-tick` — the UAE / parenting daily loops.

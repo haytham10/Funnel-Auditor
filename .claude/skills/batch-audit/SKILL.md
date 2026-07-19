@@ -1,6 +1,6 @@
 ---
 name: batch-audit
-description: Work a whole batch of UAE leads in one run, pulled from the UAE Lead CRM's Walk Queue instead of pasted into chat, in parallel with one lead-processor agent per lead. Use WHENEVER Haytham says "batch audit," "work the queue," "work the walk queue," "run the walks," or names several leads already logged in the CRM — and when a scheduled Routine fires it. It queries the UAE Lead CRM for Qualifying rows ready for a walk, runs the process-lead flow on each (machine walk → vision pass → Gate 0 floors → opener-finder → Notion write → email address), and finishes with one batch brief. Gmail drafts are held: no lead gets a draft in this run — that only happens after Haytham runs `haytham-hook-finder` on a lead and asks for the draft. It never sends, and never logs in to or automates anything through Haytham's own platform accounts.
+description: Work a whole batch of UAE leads in one run, pulled from the UAE Lead CRM's Walk Queue instead of pasted into chat, in parallel with one lead-processor agent per lead. Use WHENEVER Haytham says "batch audit," "work the queue," "work the walk queue," "run the walks," or names several leads already logged in the CRM — and when a scheduled Routine fires it. It queries the UAE Lead CRM for Qualifying rows ready for a walk, runs the process-lead flow on each (machine walk → vision pass → Gate 0 floors → opener-finder → Notion write → email address), and finishes with one batch brief. Gmail drafts are held: no lead gets a draft in this run — the walk ends held at Audit Ready, and drafting happens later in the merged hook+draft stage (`haytham-hook-finder`, draft-first). It never sends, and never logs in to or automates anything through Haytham's own platform accounts.
 ---
 
 # Batch Audit — walk queue → worked pipeline, in parallel
@@ -88,11 +88,11 @@ lead-processors and the Step 2.5 finding-verifiers share that budget. As one
 completes, launch the next; verifiers are short and drain fast. Each
 lead-processor works one lead start-to-finish per the process-lead skill —
 machine walk, vision pass, floors, opener-finder walk + Notion write, email
-address — and holds at the Gmail draft (every lead comes back with the hook line
-"not run yet," and drafting is blocked until `haytham-hook-finder` runs on that
-lead). It returns the structured JSON block defined in the agent file, with the
-finding **proposed** (`finding_verified: "proposed"`) and the exact evidence
-paths it rests on.
+address — and holds at Audit Ready, no Gmail draft (every lead comes back with the
+hook line "not run yet"; the walk never drafts — the merged hook+draft stage
+`haytham-hook-finder` does that later). It returns the structured JSON block
+defined in the agent file, with the finding **proposed** (`finding_verified:
+"proposed"`) and the exact evidence paths it rests on.
 
 Batch rules the orchestrator enforces:
 - A floor fail or Lane 3 is a fine outcome: parked properly (Gate fail,
@@ -162,14 +162,15 @@ Then one brief, in this order:
 1. **Table**: lead / gates / lane / strongest finding in one line /
    Finding Verified? / email status (incl. the `EMAIL VERIFY` verdict for
    Lane 1) / vision-pass line / flags rejected.
-2. **Needs hook-finder**: every Lane 1 lead that is actually Audit Ready —
-   `Finding Verified` AND `Email Verified` both checked (an independently
-   VERIFIED finding — the finding-verifier's verdict, not the walker's — plus
-   a deliverability-confirmed address) — the walk finding + innocent
-   explanation in full, one line each, ready to draft the moment Haytham
-   runs `haytham-hook-finder` on it and asks for the draft. A Lane 1 lead
-   whose address came back `EMAIL VERIFY: WARN/FAIL` is NOT here — it's in
-   §4 (held), holding at Qualifying.
+2. **Ready for the hook+draft stage**: every Lane 1 lead that is actually
+   Audit Ready — `Finding Verified` AND `Email Verified` both checked (an
+   independently VERIFIED finding — the finding-verifier's verdict, not the
+   walker's — plus a deliverability-confirmed address) — the walk finding +
+   innocent explanation in full, one line each. These are the queue for the
+   merged **hook+draft stage** (`haytham-hook-finder`, draft-first): when
+   Haytham runs it, it resolves the hook and creates the held Gmail draft in
+   one pass. A Lane 1 lead whose address came back `EMAIL VERIFY: WARN/FAIL`
+   is NOT here — it's in §4 (held), holding at Qualifying.
 3. **Warm-up holds (Lane 2)**: committed buyers with no felt leak — the
    warm-up angle, one line each. These are set to Status `Lane 2` (the
    dedicated no-leak status) and never enter the cold send queue; Haytham
@@ -206,6 +207,7 @@ actually left.
 - Notion is the source of truth; agents re-read the row before writing it.
 - Creating a Gmail draft never advances Status/Touch #/Last Contacted.
 - No agent creates a Gmail draft in this run. The hook line always reads
-  "not run yet" straight out of opener-finder, and drafting is blocked
-  until Haytham runs `haytham-hook-finder` on a lead.
+  "not run yet" straight out of opener-finder; the walk holds at Audit Ready,
+  and drafting belongs to the merged hook+draft stage (`haytham-hook-finder`,
+  draft-first), which Haytham runs separately.
 - Never write a UAE lead into the parenting DB.

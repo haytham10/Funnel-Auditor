@@ -9,6 +9,8 @@ Draft outreach that reads like a real person who walked their funnel, admired th
 
 The whole problem this skill solves: the draft has to be right on the first try, without the user pushing. The way that happens is the draft passes a silent loop BEFORE the user ever sees it. The loop is: draft → burrito test → gate → identify specific failures → rewrite only the failing element → run gate again from the top → repeat until every check clears and the internal score is 10/10. Never show a draft that hasn't cleared the full loop. The user should never need to ask for a redo.
 
+**Two invocation modes.** As of 2026-07-19 the merged **hook+draft stage** (`haytham-hook-finder` batch, draft-first) runs this loop automatically per resolved Audit Ready lead — after the hook line is independently verified, it invokes this composer, clears the `crm-gate send` gate, and creates the held Gmail draft (`Status = Draft Ready`) so Haytham reviews finished drafts, not bare hooks. This skill also still runs **standalone** for every interactive draft — follow-ups, warm replies, turn-two, price discovery, money emails, objection replies, reactivation — the same loop either way. The mechanics below are the single source of truth for both.
+
 ## The non-negotiable order of operations
 
 Do these in sequence. Do not skip ahead to writing.

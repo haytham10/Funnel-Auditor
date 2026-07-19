@@ -732,7 +732,7 @@ def cmd_apify(args) -> None:
     `verify-email`/`search`/`footprint` check the quota first and redirect
     to their no-Apify alternative if capped, rather than running into a 402
     — see `_APIFY_ALTERNATIVES`. There's no such redirect for `ig`/
-    `li-posts`/`li-profile`: those have no substitute, so they always run.
+    `li-posts`/`li-profile`/`youtube`: those have no substitute, so they always run.
 
     Every run is also cost-gated (audit/apify.py's approval threshold,
     $0.10): a call whose estimated cost is unknown or over threshold
@@ -767,6 +767,8 @@ def cmd_apify(args) -> None:
         elif cmd == "li-profile":
             out = apify.linkedin_profile(args.url, with_email=args.email, raw=args.raw,
                                          approved=approved)
+        elif cmd == "youtube":
+            out = apify.youtube_channel(args.channel, raw=args.raw, approved=approved)
         elif cmd == "verify-email":
             out = apify.verify_emails(args.addresses, raw=args.raw, approved=approved)
         elif cmd == "search":
@@ -1125,6 +1127,13 @@ def main() -> None:
     a_lipr.add_argument("--approve-cost", action="store_true",
                         help="Haytham has approved this run's estimated cost (only needed if "
                              "it's over $0.10 — see audit/apify.py's cost approval gate)")
+
+    a_yt = apify_sub.add_parser("youtube", help="YouTube channel info — subscriber count + stats (the audience-floor number Firecrawl can't read for YT-native coaches)")
+    a_yt.add_argument("channel", help="channel URL or @handle")
+    a_yt.add_argument("--raw", action="store_true")
+    a_yt.add_argument("--approve-cost", action="store_true",
+                      help="Haytham has approved this run's estimated cost (only needed if "
+                           "it's over $0.10 — see audit/apify.py's cost approval gate)")
 
     a_ver = apify_sub.add_parser("verify-email", help="verify one or more addresses before they enter the CRM")
     a_ver.add_argument("addresses", nargs="+")

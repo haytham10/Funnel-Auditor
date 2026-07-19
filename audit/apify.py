@@ -42,8 +42,18 @@ reason to look before a run that costs real money.
     ig_post     apify/instagram-post-scraper            recent posts w/ captions (date-filterable, can skip pinned); single-post detail
     li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
     li_profile  apimaestro/linkedin-profile-detail      headline/about/experience; optional email-search mode (finds an address)
+    yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number Firecrawl can't read for YT-native coaches)
     email       account56/email-verifier                MillionVerifier-backed address verification
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
+
+    (yt_channel added 2026-07-19 for the qualifier's audience floor: a coach
+    whose only sizeable channel is YouTube (subscriber count is JS/login-walled
+    to Firecrawl) otherwise stalls at "unconfirmed audience." One channel = one
+    dataset-item at $0.0005, so a single-lead call clears the gate ~200x over.
+    It returns the SUBSCRIBER COUNT, not a latest-upload date — YouTube activity
+    recency stays a free Firecrawl scrape of the channel's /videos page, per the
+    Firecrawl-first rule. Handle path via `youtubeHandles`; /channel/UC.. and
+    /c/.. URLs via `startUrls`.)
 
     (Instagram split from the single apify/instagram-scraper into the two
     dedicated actors above 2026-07-18: the unified actor's `details` mode is
@@ -80,7 +90,7 @@ reason to look before a run that costs real money.
 ## Cost approval gate
 
 Every wrapper below (`instagram`, `instagram_post`, `linkedin_posts`,
-`linkedin_profile`, `verify_emails`, `google_search`) estimates the run's
+`linkedin_profile`, `youtube_channel`, `verify_emails`, `google_search`) estimates the run's
 cost BEFORE calling Apify — its primary charge event's live per-unit price
 (read from `GET /v2/acts/<id>`, at this account's actual plan tier) times
 the item count the call implies (`resultsLimit`, `maxPosts`,
@@ -126,6 +136,7 @@ ACTORS = {
     "ig_post": "apify~instagram-post-scraper",
     "li_posts": "harvestapi~linkedin-profile-posts",
     "li_profile": "apimaestro~linkedin-profile-detail",
+    "yt_channel": "apidojo~youtube-channel-information-scraper",
     "email": "account56~email-verifier",
     "search": "apify~google-search-scraper",
 }
@@ -564,6 +575,43 @@ def linkedin_profile(url: str, with_email: bool = False, raw: bool = False,
         }
         out.append({k: v for k, v in rec.items() if v not in (None, "", [])})
     return out
+
+
+def _yt_run_input(channel: str) -> dict:
+    """Map a YouTube channel URL or @handle to the apidojo actor's input.
+    Bare handles and youtube.com/@handle URLs go via `youtubeHandles` (the
+    path that reliably resolves a single channel); /channel/UC.., /c/.., and
+    /user/.. URLs go via `startUrls`. Always caps at one item."""
+    s = channel.strip()
+    low = s.lower()
+    if any(p in low for p in ("youtube.com/channel/", "youtube.com/c/", "youtube.com/user/")):
+        return {"startUrls": [s], "maxItems": 1}
+    if "youtube.com/@" in low:
+        h = "@" + low.split("youtube.com/@", 1)[1].split("/", 1)[0].split("?", 1)[0]
+    elif s.startswith("@"):
+        h = s
+    elif "youtube.com" in low:
+        # some other youtube URL shape — let the actor resolve it as a start URL
+        return {"startUrls": [s], "maxItems": 1}
+    else:
+        h = "@" + s.lstrip("@")
+    return {"youtubeHandles": [h], "maxItems": 1}
+
+
+def youtube_channel(channel: str, raw: bool = False, approved: bool = False) -> list[dict]:
+    """YouTube channel info — the subscriber COUNT (the audience-floor number
+    Firecrawl can't read off a JS/login-walled channel page) for a YT-native
+    coach. Takes a channel URL or @handle. Returns subscriberCount + basic
+    stats; it does NOT return a latest-upload date, so get YouTube activity
+    recency from a Firecrawl scrape of the channel's /videos page instead.
+    Cost-gated (1 channel = 1 dataset-item, ~$0.0005)."""
+    _require_cost_approval(ACTORS["yt_channel"], 1, approved)
+    items = run_actor(ACTORS["yt_channel"], _yt_run_input(channel), memory_mbytes=512)
+    if raw:
+        return items
+    return [_lean(i, ("name", "handle", "url", "subscriberCount", "videoCount",
+                      "viewCount", "joinedAt", "description"))
+            for i in items]
 
 
 def verify_emails(emails: list[str], raw: bool = False, approved: bool = False) -> list[dict]:

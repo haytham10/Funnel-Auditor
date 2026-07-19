@@ -1,9 +1,9 @@
 ---
 name: process-lead
-description: Take a sourced UAE coach lead (name + site URL, usually from the UAE Lead CRM's Walk Queue) through the machine walk, vision pass, Gate 0 floors, and opener-finder walk, logging everything to the UAE Lead CRM. Use this skill WHENEVER Haytham pastes a new lead — a name, a site URL, a LinkedIn profile, optionally notes or screenshots — or says "process this lead," "run this one," "walk this one," "new lead," or pastes several candidates. It runs the machine funnel walk (Firecrawl-primary fetch, Python-owned scope/analysis, Playwright fallback), does the mandatory vision pass over the screenshots, enforces the UAE Gate 0 floors, logs to the UAE CRM, and hands the evidence to the opener-finder. The Gmail DRAFT step is held until `haytham-hook-finder` has resolved the SMYKM hook line for this lead — it never drafts on a fresh "not run yet" hook. It never sends anything, and never logs in to or automates anything through Haytham's own platform accounts.
+description: Take a sourced UAE coach lead (name + site URL, usually from the UAE Lead CRM's Walk Queue) through the machine walk, vision pass, Gate 0 floors, and opener-finder walk, logging everything to the UAE Lead CRM. Use this skill WHENEVER Haytham pastes a new lead — a name, a site URL, a LinkedIn profile, optionally notes or screenshots — or says "process this lead," "run this one," "walk this one," "new lead," or pastes several candidates. It runs the machine funnel walk (Firecrawl-primary fetch, Python-owned scope/analysis, Playwright fallback), does the mandatory vision pass over the screenshots, enforces the UAE Gate 0 floors, logs to the UAE CRM, and hands the evidence to the opener-finder — ending held at Audit Ready. It does NOT create the Gmail draft: the merged hook+draft stage (`haytham-hook-finder`, draft-first) resolves the SMYKM hook line and builds the held draft. It never sends anything, and never logs in to or automates anything through Haytham's own platform accounts.
 ---
 
-# Process Lead — intake → walk → vision pass → Notion → opener → (hook-finder) → Gmail draft
+# Process Lead — intake → walk → vision pass → Notion → opener → held at Audit Ready
 
 One command per candidate. Sourcing is dynamic and no-login now
 (`source-leads` skill — platform + link-in-bio footprints, directories,
@@ -470,59 +470,35 @@ same opener to two guessed spellings.
 If the email came from a source the walk flagged as broken/suspect, Status
 stays Qualifying and that flag goes in Notes as the FIRST line.
 
-## Step 6 — The draft → Gmail, held until the hook is resolved
+## Step 6 — Hand off: held at Audit Ready (the hook+draft stage drafts)
 
-**Check the `SMYKM hook:` line just written in Step 4 before doing anything
-else here.** If it still reads `not run yet — see haytham-hook-finder`,
-**stop — do not invoke haytham-email-draft, do not create a Gmail draft.**
-Append to Notes: `Hook not yet found — run haytham-hook-finder, then ask to
-draft this lead's email.` Report this lead's DRAFT status as "held — needs
-haytham-hook-finder" and move on. This applies to every fresh lead, since
-opener-finder always writes that placeholder — a Gmail draft only gets
-created once Haytham has explicitly run `haytham-hook-finder` on this lead
-(producing either a real hook or a confirmed "no hook found") and then asks
-for the draft.
+**The walk ends here. process-lead does not create the Gmail draft** — that
+moved to the merged **hook+draft stage** (`haytham-hook-finder`, draft-first as
+of 2026-07-19), which resolves the SMYKM hook AND builds the held Gmail draft in
+one pass, so Haytham reviews finished drafts, not bare hooks. Duplicating the
+draft mechanics here (and in that stage) is exactly the drift
+`docs/agent-orchestration.md` exists to kill, so this step is a hand-off, not a
+draft.
 
-Only once the hook line reads `no hook found in public evidence...` or
-holds an actual hook, and there's a usable, non-suspect email address,
-invoke the **haytham-email-draft** skill for the Touch 1 opener (it reads
-`references/uae-track.md` for this track's rules). Full silent loop, voice
-rules, gate — as that skill specifies. Additionally, before creating the
-draft, dump the fresh row to JSON and run `python main.py crm-gate send
-<row.json> --sends-today N --touch 1 --followups-due M --inbox "<the
-lead's Inbox>"` (assign the inbox first if the row's `Inbox` is blank:
-`python main.py inbox route`, write the label back; N = today's TOTAL
-sends out of THAT inbox, from its own sent count — `python main.py inbox
-counts` gives Inbox 2's number and the query for Inbox 1; M = follow-ups
-still owed today on that inbox — they eat its budget before any opener;
-uae-tick owns both numbers on a normal day) — a FAIL means the lead isn't
-actually sendable (finding
-unverified, address unverified/`Email Verified` unchecked, no address, or
-no opener headroom left under the ceiling) and the draft holds with that
-reason. On a lead worked through Step 5 the `Email Verified` box is already
-set, so the gate's deliverability check passes here — it's the backstop for
-a row that skipped or failed that step.
+A lead that cleared the walk sits **held at Audit Ready** (Lane 1, both hard
+gates — `Finding Verified` + `Email Verified` — set) or **Qualifying** (a gate
+unmet, per Step 5), with the `SMYKM hook:` line still reading `not run yet — see
+haytham-hook-finder`. Append one Notes breadcrumb — `Held at Audit Ready — run
+haytham-hook-finder (hook+draft stage) to draft` — so the state is legible in the
+row and uae-tick clears it on the eventual send. Report this lead's DRAFT status
+as "held — needs haytham-hook-finder" and stop. **Do NOT invoke haytham-email-
+draft or create a Gmail draft here** — on a fresh lead opener-finder always writes
+that "not run yet" placeholder, and drafting is the hook+draft stage's job.
 
-Then, without waiting for approval:
-- Pick the variant that came through the gate strongest and **create the
-  Gmail DRAFT** (never send) to the lead's address with that subject and
-  body. Haytham reviews, edits, and sends from Gmail by hand.
-- Set Status = `Draft Ready` (the status that means "hook resolved, draft
-  sitting in Gmail") and append one line to the lead's Notes: `Gmail
-  draft ready (Touch 1) — "<subject>" — <date>`. Do NOT touch Touch #,
-  Last Contacted, or the Email Thread Log — those record sends, and
-  nothing has been sent. (`Outreach Sent` is set only when the message
-  actually departs; uae-tick reconciles Draft Ready/Scheduled rows
-  against Gmail every morning.)
-- In the verdict, show the drafted variant in full plus the runner-up
-  variants labeled, so he can swap in Gmail if he prefers another.
-
-Held instead of drafted (say which and why): hook not yet resolved,
-suspect-source address, generic address when the finding is personal,
-crm-gate send FAIL, or the email-draft gate never passed.
-
-Logging ("log this" / tick reply detection) still happens ONLY when
-Haytham confirms an email actually left. A Gmail draft is not a send.
+When Haytham runs `haytham-hook-finder` on this lead (single-lead or the batch
+"hook the queue"), that stage resolves the hook (a real cited hook or a confirmed
+"no hook found"), runs the send gate (`python main.py crm-gate send`), creates the
+held Gmail draft in the lead's assigned inbox, and sets `Status = Draft Ready` +
+the `Gmail draft ready (Touch 1) — "<subject>"` Notes line. Touch #, Last
+Contacted, and the Email Thread Log stay untouched until a send actually departs
+(uae-tick reconciles Draft Ready/Scheduled rows against Gmail every morning). A
+Gmail draft is not a send, and logging ("log this" / tick reply detection) still
+happens ONLY when Haytham confirms an email left.
 
 ## Hard rules
 
@@ -554,15 +530,17 @@ Haytham confirms an email actually left. A Gmail draft is not a send.
   addresses that then hard-bounced. A bounce burns the sending domain,
   so checking this box on an unverified address is the same class of
   corruption as faking `Finding Verified`.
-- This flow does not find a SMYKM hook — that's `haytham-hook-finder`,
-  triggered manually by Haytham, from cited public evidence.
-- **Never invoke haytham-email-draft or create a Gmail draft while the
-  `SMYKM hook:` line still reads "not run yet."** That line means the hook
-  hasn't been looked for, not that none exists.
+- This flow does not find a SMYKM hook or create the Gmail draft — both are
+  the merged hook+draft stage's job (`haytham-hook-finder`, draft-first),
+  triggered manually by Haytham, from cited public evidence. process-lead
+  ends held at Audit Ready.
+- **Never invoke haytham-email-draft or create a Gmail draft in this flow.**
+  The walk hands off held; the hook+draft stage does the drafting once the
+  `SMYKM hook:` line is resolved (a fresh lead's line always reads "not run
+  yet," which means the hook hasn't been looked for, not that none exists).
 - Never write a UAE lead into the parenting DB, or vice versa.
 - One lead's full run ends with: gate verdicts, lane verdict, strongest
   finding, innocent explanation, Finding Verified state, SMYKM hook status
-  ("not run yet" means the draft is held, not that it went out anyway),
-  email address status, the literal `VISION PASS: ...` line,
-  rejected-flags count, and the Gmail-draft status. That's the complete
-  hand-off.
+  ("not run yet" means held for the hook+draft stage), email address status,
+  the literal `VISION PASS: ...` line, rejected-flags count, and the
+  held-at-Audit-Ready / needs-hook status. That's the complete hand-off.

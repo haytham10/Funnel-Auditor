@@ -142,6 +142,7 @@ Code environment (Settings → environment).
 | `apify li-profile <url>` | apimaestro/linkedin-profile-detail | headline / about / experience; `--email` mode finds an address |
 | `apify ig <url>` | apify/instagram-post-scraper (posts) · apify/instagram-profile-scraper (`--mode details`) | IG recent posts w/ captions (`--skip-pinned` to drop pinned); `--mode details` for bio/followers (`--include-about` for the paid about-account block) |
 | `apify ig-post <url>` | apify/instagram-post-scraper | full detail on one IG post (caption + top comments) |
+| `apify youtube <url\|@handle>` | apidojo/youtube-channel-information-scraper | YouTube channel **subscriber count** + stats — the audience-floor number Firecrawl can't read for YT-native coaches (the channel `description` the trim keeps often also carries the funnel link, a UAE phone, and social links, i.e. Site-URL + UAE-base signals in the same call) |
 | `apify verify-email <addr…>` | account56/email-verifier | manual cross-check — `main.py email-verify`/`email-enrich` call this same actor by default now (restored 2026-07-18); use this form directly only to bypass the CLI's gate line |
 | `apify search "<q>"` / `apify footprint <platform>` | apify/google-search-scraper | *manual fallback only* — default is still `main.py classify-footprint` fed by `firecrawl_search` (`audit/footprint.py`); this was never about the cap |
 | `apify actors "<q>"` | (Store search) | discover/compare actors — **no token needed** |
@@ -184,9 +185,21 @@ dropped with it (`--mode` is now just `posts`/`details`). The CLI command
 names (`apify ig`, `apify ig-post`) are unchanged, so `haytham-hook-finder`
 needed no change.
 
-Everything web-fetchable (podcasts, YouTube, About pages, funnel walks,
-checkout probes) stays on **Firecrawl** — cheaper and already connected.
-Adding actors is surface area and cost, not capability. If a new need is
+**YouTube channel-info added 2026-07-19 (`apify youtube`).** A coach whose only
+sizeable audience is YouTube used to stall at the qualifier's audience floor —
+the subscriber count is JS/login-walled, so Firecrawl can't read it. This actor
+returns it for **$0.0005/channel** (one `dataset-item`; a single-lead call clears
+the $0.10 gate ~200x over). It returns the SUBSCRIBER COUNT, **not** a
+latest-upload date — YouTube *activity* recency stays a free Firecrawl scrape of
+the channel's `/videos` page. Input: `youtubeHandles` for `@handle` /
+`youtube.com/@…`; `startUrls` for `/channel/UC…`, `/c/…`, `/user/…`. The kept
+`description` field frequently carries the funnel link + a UAE phone, so the same
+call often resolves the Site-URL swap and a UAE-base signal too.
+
+Everything web-fetchable (podcasts, YouTube **content/videos**, About pages,
+funnel walks, checkout probes) stays on **Firecrawl** — cheaper and already
+connected (the one YouTube exception is the subscriber COUNT above, which is not
+web-fetchable). Adding actors is surface area and cost, not capability. If a new need is
 genuinely web-unreachable, add it here deliberately, not by reflex.
 
 ## Check the quota once, not per lead
