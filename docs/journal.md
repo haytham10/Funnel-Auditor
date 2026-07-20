@@ -10,6 +10,132 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-20 — Re-checked the 3 remaining unconfirmed Sourced leads
+
+After the apify.py error-surfacing fix, went back through the other 3
+leads that stayed `Sourced`/unconfirmed out of today's qualify run (Coach
+Marios/Coach Bethany were the apify-bug ones, covered separately) —
+resolved 2 of 3:
+
+- **Andrew Nicholson → `Qualifying`.** His IG handle was wrong the whole
+  run: `@padelperformanceclub` is an unrelated clothing brand. Scraped his
+  own site's outbound links and found the real handle,
+  `padel_performance_program` — 8,873 followers, posting daily, bio matches
+  his coaching exactly. Audience floor clears comfortably.
+- **Dr. Marjan Dorkhan → `Disqualified` (activity, now a confirmed fail
+  not a guess).** Found her LinkedIn (1,690 followers, clears the audience
+  floor she was originally killed for) but her own posting history shows a
+  genuine 30-day activity fail: last personal post 5 months ago, everything
+  recent is her day-job dental clinic's company page. This replaces the
+  earlier "Not checked" with a real, resolved verdict — she's a
+  recheck-later candidate since it's an activity-only fail, not niche/geo.
+- **Priya (Living liife) — stays `Sourced`, still genuinely unresolved.**
+  Second search pass for her real name (Priyanka) + NLP/theta-healing/Dubai
+  only surfaced unrelated Priyas (Priya Singh, Priya Jain — different
+  studios). No site or social linked from her Skilldeer listing. Correctly
+  left unconfirmed rather than guessed.
+
+Net effect on the Walk Queue: 11 rows at `Qualifying` now (was 10).
+
+## 2026-07-20 — Fix: apify ig details silently swallowed actor errors
+
+Root-caused the "apify ig misrouting" note from today's qualify run.
+**Not** a `--mode` routing bug — verified `--mode details` correctly hits
+`apify~instagram-profile-scraper` (real followersCount reproduced on a known
+handle). The real bug: when that actor can't resolve an account (private,
+renamed, nonexistent), it returns a per-item `{"error": "not_found",
+"errorDescription": "Post does not exist"}` instead of a non-2xx HTTP
+response — `_lean()`'s field allow-list in `audit/apify.py` doesn't include
+`error`/`errorDescription`, so the failure silently vanished, leaving what
+looked like an empty-but-valid profile (`{"username":..., "url":...}`)
+instead of a visible failure. That confusing shape is what read as a
+routing bug to the qualifier-verifier.
+
+Fix: `audit/apify.py` — new `_raise_on_actor_error()` checks dataset items
+for an `error` field before leaning and raises a clear `ApifyError`
+("actor could not resolve X: <reason> — likely private/renamed/nonexistent,
+not a code/routing issue") instead of silently stripping it. Wired into
+both `instagram()` branches (`details` and `posts`). `--raw` still bypasses
+it (raw callers see the full actor response either way). Verified against
+a known-good handle (`@instagram`, real follower count) for no regression,
+and against `coachmariosdxb`/`coachbethan` (now raise clearly instead of
+returning an empty-looking success).
+
+Re-checked the two leads this blocked: tried several handle variants for
+both (Coach Marios: `coach.marios.dxb`, `coach_marios_dxb`; Coach Bethany:
+`coachbethany`, which resolved to an unrelated US football coach, not her)
+— genuinely unresolvable via any available tool (Firecrawl can't reach
+instagram.com at all, Google no longer indexes IG profile snippets). Their
+CRM Notes updated to record this precisely so it doesn't get re-litigated
+as a "tool bug" next time. Both correctly stay `Sourced`/Not checked per
+the qualify-leads skill (never guess an unresolvable floor into a Fail).
+
+## 2026-07-20 — Qualify run: 10 promoted to Walk Queue, 3 killed, 5 held unconfirmed
+
+Ran `qualify-leads` over the 18 fresh `Sourced` rows from today's top-up (chassis-
+compliant): 2 `qualifier-worker`s gated 9 rows each (Gate 0 → Gate 1, resolving
+audience with LinkedIn/IG/YouTube actor calls where Firecrawl couldn't read a
+count), then a `qualifier-verifier` re-checked every promotion and every kill in
+a fresh context.
+
+- **Promoted to `Qualifying` (10, all verifier-CONFIRMED):** Wardah Harharah,
+  Sam Fouladgar, Tanner Shuck, Dan Chadwick, Caleb Jones, Nikoleta Perinova,
+  Moza Alfardh (1,951 — close to the 1,500 floor, held up), Ayo Nova, Mawada
+  Alwazir, Jonny Parr. Two SERP-snippet audience numbers the verifier flagged
+  for re-check (Tanner Shuck, Dan Chadwick) both reproduced via direct actor
+  call — Tanner's was actually understated (266K SERP vs 353,965 actual).
+- **Disqualified (3, verifier-CONFIRMED):** Coach El (6 Skool members, hard
+  audience fail), Mohammad Elsaghir (0 LinkedIn posts in 30 days, Skilldeer
+  page dead since 2021), Stefano Fichera (647 on LinkedIn, largest channel,
+  below floor).
+- **Verifier overturned 1 kill:** Dr. Marjan Dorkhan — a worker had failed her
+  on "no owned audience channel," but that's an unresolved floor, not a seen
+  sub-1,500 number; the skill is explicit that unresolvable stays
+  `Sourced`/`Not checked`, never a guessed `Disqualified` (a hard Disqualify
+  never gets re-sourced). Flipped back to `Sourced`, Gate 0 `Not checked`.
+- **Stays `Sourced`, genuinely unconfirmed (5):** Coach Marios, Coach Bethany,
+  Priya (Living liife), Andrew Nicholson (name collision + brand-name IG
+  handle made the audience channel unlocatable after 3 searches), Dr. Marjan
+  Dorkhan (above).
+- **Data-hygiene fix:** Ayo Nova's `Audience Size` was reconciled from a stale
+  12,929 (an old sourcing-time read) to the verifier-reproduced LinkedIn
+  number, 2,754 — both clear the floor, only the stored number was off.
+- **0 of 10 promotions overturned** — well under the ≥2 threshold, no batch
+  redo needed.
+- **Walk Queue now has 10 rows at `Qualifying`**, up from 0. Next step is
+  `batch-audit`/`process-lead` to walk them.
+
+## 2026-07-20 — Sourcing top-up: 17 new Sourced rows across 5 veins
+
+Ran a top-up sourcing run (source-leads skill, chassis-compliant): pulled the
+full 338-row CRM dedup snapshot, checked Apify quota (6.1% of cap, healthy),
+fanned out 5 `sourcing-worker`s in parallel (platform footprint, link-in-bio,
+LinkedIn, coach directories, podcasts/events), merged + cross-vein-deduped
+their 18 raw candidates, ran a `sourcing-verifier` pass, then wrote the 17
+cleared survivors as `Sourced` rows.
+
+- **Produced:** coach directories 7 (Skilldeer/Mentaa priced booking pages —
+  strong new vein, marketplace listing = the funnel), LinkedIn 4 (Ayo Nova,
+  Jonny Parr, Wardah Harharah + Chenyang Zhao dropped by verifier — see
+  below), platform footprint 4 (Tanner Shuck, Andrew Nicholson, Coach El,
+  Caleb Jones — kajabi-footer/skool/kartra subdomains), link-in-bio 3 (Dan
+  Chadwick, Nikoleta Perinova, Coach Bethany).
+- **Dry:** podcasts/events came up with zero new candidates — heavily
+  pre-mined (10 dedup hits), remaining surface skews agency/B2B/non-UAE. Flag
+  for next run: point elsewhere.
+- **Verifier dropped 1:** Chenyang Zhao (teamaspirecoaching.com) — reads as a
+  small team ("your success coach", in-house psychotherapist, weekly team
+  Zoom) not solo, plus no purchasable offer (application-only, staging-domain
+  CTA). Two flagged candidates resolved to PASS on re-check: Dr. Marjan
+  Dorkhan (price found, 985/1,095 AED) and Jonny Parr (UAE base confirmed —
+  Sharjah, stated on-site).
+- **Standout audience:** Ayo Nova, 12,929 (thebrilliantwoman.com, Scale
+  Mastermind $599-799/mo via live Stripe checkout). Coach El logged with a
+  genuine but tiny audience (~6 members) — likely a Gate 0 audience-floor
+  fail downstream, noted in Notes rather than dropped at sourcing.
+- **CRM now has 18 rows at `Sourced`** (17 new + 1 carryover). Next step is
+  `qualify-leads` on this pile before any of it reaches the Walk Queue.
+
 **How to write it:** at the end of a session with anything worth remembering,
 add a new `## ` block at the TOP (newest first), then commit + push. A
 journal-only commit is fine on an ops-only session — the point is that it
