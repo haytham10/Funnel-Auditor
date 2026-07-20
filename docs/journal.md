@@ -29,6 +29,24 @@ Entry template:
 
 ---
 
+## 2026-07-20 — Ops: uae-tick reconciled 30 sent rows, Rita Baki said yes to the Loom
+Ran the daily uae-tick over both inboxes. The heavy lift was reconciling yesterday's scheduled batch against Gmail reality — nothing new was drafted today (no follow-ups due except one Loom action).
+
+- **Reconciled 30 rows to match Gmail departures**, full confirmed-send checklist each (Touch #, Last Contacted, Next Action, Findings Bank flip, pre-send Notes markers cleared):
+  - 15 fresh Touch-1 openers departed this morning (8 Inbox 1: Sadia Khan, Bonge Gumede, Monika Singh, Asma Ahmad, Aleli Carissa Gimena, Caroline Bakker, Nabil El Fquir, Dr. Jamila Al Hosani; 7 Inbox 2: Dr. Corrie Block, Trisha Hazarika, Samira Alexander, Nikki Evans, Sanjukta Ghosh, Sabeen Javed, Kalyani Seth Soni). Asma Ahmad's row had a blank `Inbox` property despite her draft living in Inbox 1 — set it during reconciliation.
+  - 14 cold Touch-2 sends from the 07-19 batch departed on schedule (8 Inbox 1 + 6 Inbox 2, per yesterday's list) — bank #2 flipped USED-T2 on each (Jana Masri Vintrova excepted, single-finding row, loom-offer carrier, no bank spend).
+  - Lisa Hugo's warm Touch-3 bump departed (Inbox 2) — logged, no bank spend.
+- **Send-day 07-20 load, cap 20/inbox:** Inbox 1 = 16 (8 openers + 8 T2), Inbox 2 = 14 (7 openers + 6 T2 + Lisa). Both ≤ 20, headroom 4/6.
+- **Rita Baki replied 07-20 07:28 Dubai, verbatim: "Yes please, a walkthrough would be great. Thank you for offering."** — said yes to the Loom offer from Touch 2. Logged to her Email Thread Log + Notes. This needs Haytham to record and send the Loom before price discovery can go out — flagged at the top of the brief, not something the tick can draft.
+- **Bottleneck confirmed: hook+draft stage, not sends.** 10 Audit Ready leads (Daria Ibrulj, Szilvia Vitos, Wafa Bassili, Nadine Faddul, Joel Arcus, Eric Fit, Dr. Sheen Gurrib, Fatima Williams, Lee Harris, Zeina Karrit) are sitting on both hard gates with zero SMYKM Hook — none can draft until `haytham-hook-finder` runs. Today's 10 slots of send headroom go unused without it.
+- **Gotcha:** Notion's `notion-query-data-sources` SQL tool hit its free-plan hourly quota partway through the tick (`entitlement_required` error) — pipeline-stage counts (Sourced/Qualifying totals) were unavailable for the rest of the run. Everything touching send state, replies, and hygiene was already queried before the cap hit, so the brief itself wasn't degraded, but a future tick that front-loads big SELECT * pulls should watch for this ceiling.
+- **Gotcha:** Notion's `notion-update-page` `page_id` param requires a dashed UUID — passing the `https://app.notion.com/<32-hex>` URL straight (as `notion-fetch` accepts) 400s. Converting to `8-4-4-4-12` dashes fixed it; worth remembering next time a tick does bulk writes.
+- No new bounces or hygiene breaks — clean sweep (no impossible Offer Sent states, no un-flipped bank entries, no leftover pre-send Notes markers, no future-dated Last Contacted). Pipeline is under a week old, so no scoreboard due yet.
+### Open follow-ups
+- [ ] Haytham: record + send the Loom walkthrough for Rita Baki, then ask price discovery.
+- [ ] Run `haytham-hook-finder` on the 10 Audit Ready leads to unblock today's send headroom.
+- [ ] Watch Neha Nimje's swapped address (contact@bizexconsultancy.com) for a second bounce.
+
 ## 2026-07-19 — Ops: 15 follow-ups drafted + scheduled for send-day 2026-07-20
 Prepared every due follow-up (Next Action ≤ 07-20) and Haytham scheduled them all in Gmail for ~09:00 Dubai 07-20. **15 sends: 14 cold Touch-2 + 1 warm (Lisa).**
 
