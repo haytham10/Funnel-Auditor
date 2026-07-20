@@ -10,6 +10,37 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-20 — Sourcing top-up: 17 new Sourced rows across 5 veins
+
+Ran a top-up sourcing run (source-leads skill, chassis-compliant): pulled the
+full 338-row CRM dedup snapshot, checked Apify quota (6.1% of cap, healthy),
+fanned out 5 `sourcing-worker`s in parallel (platform footprint, link-in-bio,
+LinkedIn, coach directories, podcasts/events), merged + cross-vein-deduped
+their 18 raw candidates, ran a `sourcing-verifier` pass, then wrote the 17
+cleared survivors as `Sourced` rows.
+
+- **Produced:** coach directories 7 (Skilldeer/Mentaa priced booking pages —
+  strong new vein, marketplace listing = the funnel), LinkedIn 4 (Ayo Nova,
+  Jonny Parr, Wardah Harharah + Chenyang Zhao dropped by verifier — see
+  below), platform footprint 4 (Tanner Shuck, Andrew Nicholson, Coach El,
+  Caleb Jones — kajabi-footer/skool/kartra subdomains), link-in-bio 3 (Dan
+  Chadwick, Nikoleta Perinova, Coach Bethany).
+- **Dry:** podcasts/events came up with zero new candidates — heavily
+  pre-mined (10 dedup hits), remaining surface skews agency/B2B/non-UAE. Flag
+  for next run: point elsewhere.
+- **Verifier dropped 1:** Chenyang Zhao (teamaspirecoaching.com) — reads as a
+  small team ("your success coach", in-house psychotherapist, weekly team
+  Zoom) not solo, plus no purchasable offer (application-only, staging-domain
+  CTA). Two flagged candidates resolved to PASS on re-check: Dr. Marjan
+  Dorkhan (price found, 985/1,095 AED) and Jonny Parr (UAE base confirmed —
+  Sharjah, stated on-site).
+- **Standout audience:** Ayo Nova, 12,929 (thebrilliantwoman.com, Scale
+  Mastermind $599-799/mo via live Stripe checkout). Coach El logged with a
+  genuine but tiny audience (~6 members) — likely a Gate 0 audience-floor
+  fail downstream, noted in Notes rather than dropped at sourcing.
+- **CRM now has 18 rows at `Sourced`** (17 new + 1 carryover). Next step is
+  `qualify-leads` on this pile before any of it reaches the Walk Queue.
+
 **How to write it:** at the end of a session with anything worth remembering,
 add a new `## ` block at the TOP (newest first), then commit + push. A
 journal-only commit is fine on an ops-only session — the point is that it
