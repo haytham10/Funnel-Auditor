@@ -10,6 +10,52 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-20 — UAE top-up sourcing: market genuinely drying, 5 logged vs 15-20 target
+
+Ran `source-leads` at top-up volume via the shared orchestration chassis (4
+sourcing-worker waves + a sourcing-verifier pass), starting from only 3 rows
+at `Sourced` (well under the 40+ stop threshold). Result: **5 new `Sourced`
+rows**, not the usual 15-20 — every vein independently reported "drying."
+
+- **Google Footprint (default channel), rotated to the stalest platform x
+  geo combos:** Systeme x Abu Dhabi (stale since 07-13) + Teachable x
+  Sharjah, then Kajabi x Sharjah + Skool x Sharjah (Sharjah had literally
+  zero footprint rows ever — the least-worked geo in the CRM). Sharjah
+  returned nothing new for any platform; Systeme x Abu Dhabi's subdomain
+  query was pure noise (escort/jet-charter/cruise spam). Broadening Kajabi
+  and Skool to plain UAE surfaced 2 genuinely new candidates before hitting
+  a wall of ~355-row CRM dedups and non-UAE coaches merely mentioning
+  Dubai. Combined: 3 candidates (Haya AlDoserri/Teachable, Reim El
+  Houni/Kajabi, Timothy Fare-Matthews/Skool, 72-member audience confirmed).
+- **Fallback 1 — ICF Directory** (stalest channel by last-Created, only 5
+  rows ever, untouched since 07-16): thin by nature for this ICP — ICF UAE
+  is dominated by corporate/bespoke executive coaches who sell via
+  discovery call, not a self-serve funnel. 2 candidates (Rita Sanna
+  cleared; Dr. Vanessa Moussa dropped by the verifier — real ICF Dubai
+  coach but the offer is entirely call-gated, no visible price/checkout,
+  so it failed the "real purchasable offer" bar).
+- **Fallback 2 — Podcasts/Events:** 9 searches, mostly international
+  speakers, unresolvable IG reels, and already-CRM'd big UAE names. 1
+  candidate (Tracy Harmoush, Playbook fitness-app membership).
+- **sourcing-verifier** re-fetched all 6 merged candidates independently:
+  cleared 5, dropped Dr. Vanessa Moussa (call-gated, no offer). Haya
+  AlDoserri kept with City = Unconfirmed (UAE-vs-Bahrain residence
+  unresolved — past employment in both, AUS grad, surname reads Bahraini;
+  flagged for `qualify-leads` to settle, not a plain non-UAE miss).
+- **Wrote 5 rows to the UAE Lead CRM as `Sourced`** (batched
+  `notion-create-pages`): Haya AlDoserri, Reim El Houni, Timothy
+  Fare-Matthews (audience 72), Rita Sanna, Tracy Harmoush. CRM now holds
+  ~8 at `Sourced` (3 pre-existing + 5 new) — still well under the 40+ cap,
+  needs another top-up soon.
+- **The honest read:** this is the finite-market signal the sourcing
+  discipline warns about, not a bad run — 3 independent veins (footprint,
+  ICF, podcasts/events) all converged on the same "mined out" conclusion
+  against the CRM's 355-row history. Next top-up should try link-in-bio
+  footprint or LinkedIn (both under-worked relative to Coach Directory/
+  Google Footprint's saturation) rather than re-hitting these three.
+- **Next step, unchanged:** `qualify-leads` (Gate 0 + Gate 1) needs to run
+  over the `Sourced` pile before any of this reaches the Walk Queue.
+
 ## 2026-07-20 — Re-checked the 3 remaining unconfirmed Sourced leads
 
 After the apify.py error-surfacing fix, went back through the other 3
