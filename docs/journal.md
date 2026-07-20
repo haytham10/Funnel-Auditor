@@ -29,6 +29,23 @@ Entry template:
 
 ---
 
+## 2026-07-19 — Ops: 15 follow-ups drafted + scheduled for send-day 2026-07-20
+Prepared every due follow-up (Next Action ≤ 07-20) and Haytham scheduled them all in Gmail for ~09:00 Dubai 07-20. **15 sends: 14 cold Touch-2 + 1 warm (Lisa).**
+
+- **14 cold Touch-2 (day-3 bump, Touch 1 sent 07-17), all `crm-gate send --touch 2` PASS.** Carrier = `second-finding` (bank #2) for 13; **Jana Masri Vintrova** = `loom-offer` (single-finding row). Each a threaded reply, same subject, second finding as a felt cost + innocent explanation, fix vague, one question.
+  - Inbox 1 (8): Kelly Allison, Aliya Rajah, Jana Masri Vintrova, Neha Nimje, Sarah Aboubi, Adam Ashcroft, Marie Graver, Ewa Ledeboer.
+  - Inbox 2 (6): Jihane Labib, Sarah Boutros, Aman Merchant, Tanner Shuck, Chetna Chakravarthy, Avneet Kohli.
+- **Lisa Hugo — warm bump (Inbox 2).** Her turn-two (07-17) already carried finding #2 (podcast ep 71/70/69 mislabeled "Episode 68") + offered the Loom; she went quiet. So 07-20 is a short nudge on the un-answered walkthrough offer, no new finding. Logs Touch 3 warm on departure (no bank spend).
+- **Send-day 07-20 load, cap 20/inbox:** Inbox 1 = 16 (8 openers + 8 T2), Inbox 2 = 14 (7 openers + 6 T2 + Lisa). Both ≤ 20.
+- **Scheduled-state recorded on rows:** mid-sequence Outreach Sent rows have no "Scheduled" status, so each got a `Notes` marker (`T2/warm bump scheduled 07-20 … log on departure`) so tomorrow's tick logs instead of re-drafting a duplicate (Chetna ate one duplicate-send on 07-18). No other CRM writes — a draft is not a send.
+- **Neha threading:** Touch 1 to `neha@…` bounced (550) 07-17, resent to verified `contact@bizexconsultancy.com` (thread 19f6f429dc3ffb9f); follow-up threaded onto the live contact@ thread. Watch for a second bounce (two strikes = stop).
+- **Christina Steinhoff → confirmed out-of-office autoresponder, PARKED to 07-25.** Both "replies" were the same OOO auto-reply (identical wording, ~1-min latency, unfilled merge tags); Haytham's WhatsApp test to +971-562737368 got his number spam-flagged/blocked 6h (automated gate). Not warm: reverted Warm→Cold, Reply Received→Outreach Sent, Next Action → 07-25 (cold Touch 3). Her warm draft cancelled (verified gone from drafts + scheduled queue), Notes cleaned. **Do NOT retry WhatsApp — account-safety.**
+- **Rule locked in (Haytham, firm):** never hold a due follow-up back as a "judgment call" — draft EVERY due one (warm/cold/ambiguous); Haytham reviews finished drafts. Encoded in `uae-tick` SKILL.md step 3. (The rule is "always draft," not "draft the night before" — uae-tick is a morning routine; tonight's night-before batch prep was a manual on-request workflow.)
+
+### Open follow-ups
+- [ ] uae-tick 07-20: on each follow-up's departure, log it and clear its Notes marker — 14 cold rows → Touch 2 (Next Action +6 → Touch 3 day 9, bank #2 → USED-T2; Jana spends no bank); Lisa → Touch 3 warm (Next Action +2-3d, no bank). Do NOT re-draft any of them. Christina is NOT due 07-20 (parked 07-25). Watch Neha's contact@ for a bounce.
+- [ ] Christina Touch 3 due 07-25 (Inbox 1): bank #1+#2 spent → carries loom-offer or the disambiguating question; Dormant after if still no human reply.
+
 ## 2026-07-19 — Ops: all Draft Ready scheduled for 2026-07-20 + Samira duplicate flagged
 - Haytham scheduled EVERY Draft Ready lead in Gmail for send-day 2026-07-20 (~09:00 Dubai). **8 in Inbox 1:** Nabil, Caroline, Aleli (this session) + pre-existing Sadia Khan, Bonge Gumede, Monika Singh, Asma Ahmad, Dr. Jamila Al Hosani. **8 in Inbox 2:** Sabeen, Sanjukta, Trisha, Samira (this session) + Kalyani Seth Soni, Dr. Corrie Block, Nikki Evans + a Samira duplicate. **15 leads, 16 sends.**
 - Flipped all 15 CRM rows `Draft Ready → Scheduled`. Nothing else moved — Touch #/Last Contacted/Thread Log/Findings Bank move only on actual departure; uae-tick reconciles → `Outreach Sent` on the send-day.
