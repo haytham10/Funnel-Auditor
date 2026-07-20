@@ -10,6 +10,33 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-20 — Re-checked the 3 remaining unconfirmed Sourced leads
+
+After the apify.py error-surfacing fix, went back through the other 3
+leads that stayed `Sourced`/unconfirmed out of today's qualify run (Coach
+Marios/Coach Bethany were the apify-bug ones, covered separately) —
+resolved 2 of 3:
+
+- **Andrew Nicholson → `Qualifying`.** His IG handle was wrong the whole
+  run: `@padelperformanceclub` is an unrelated clothing brand. Scraped his
+  own site's outbound links and found the real handle,
+  `padel_performance_program` — 8,873 followers, posting daily, bio matches
+  his coaching exactly. Audience floor clears comfortably.
+- **Dr. Marjan Dorkhan → `Disqualified` (activity, now a confirmed fail
+  not a guess).** Found her LinkedIn (1,690 followers, clears the audience
+  floor she was originally killed for) but her own posting history shows a
+  genuine 30-day activity fail: last personal post 5 months ago, everything
+  recent is her day-job dental clinic's company page. This replaces the
+  earlier "Not checked" with a real, resolved verdict — she's a
+  recheck-later candidate since it's an activity-only fail, not niche/geo.
+- **Priya (Living liife) — stays `Sourced`, still genuinely unresolved.**
+  Second search pass for her real name (Priyanka) + NLP/theta-healing/Dubai
+  only surfaced unrelated Priyas (Priya Singh, Priya Jain — different
+  studios). No site or social linked from her Skilldeer listing. Correctly
+  left unconfirmed rather than guessed.
+
+Net effect on the Walk Queue: 11 rows at `Qualifying` now (was 10).
+
 ## 2026-07-20 — Fix: apify ig details silently swallowed actor errors
 
 Root-caused the "apify ig misrouting" note from today's qualify run.
