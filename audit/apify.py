@@ -440,6 +440,28 @@ def _lean(item: dict, keep: tuple[str, ...] | None = None) -> dict:
     return {k: v for k, v in item.items() if k not in _NOISE_KEYS}
 
 
+def _raise_on_actor_error(items: list[dict], target: str) -> None:
+    """Some actors report a per-item failure (bad handle, private/renamed/
+    deleted account, rate limit) as an `error`/`errorDescription` field in an
+    otherwise-normal dataset item rather than a non-2xx HTTP response —
+    `run_actor` has no non-2xx to catch, so that failure sailed through as a
+    "successful" empty-ish result. Worse, `_lean()`'s allow-list keeps only
+    known-good fields, so `error`/`errorDescription` silently vanished,
+    leaving what looked like an empty-but-valid profile instead of a failure
+    — the exact shape that read as a routing bug on 2026-07-20 (it wasn't;
+    `--mode details` was hitting the right actor the whole time) when it was
+    actually the account being unresolvable and the failure being swallowed
+    before anyone saw it. Surface it loud and early instead."""
+    for item in items:
+        if isinstance(item, dict) and item.get("error"):
+            desc = item.get("errorDescription", item["error"])
+            raise ApifyError(
+                f"actor could not resolve {target!r}: {desc} (raw error: {item['error']!r}). "
+                "Likely private, renamed, or nonexistent — not a code/routing issue. "
+                "Re-run with --raw to see the full actor response."
+            )
+
+
 def _ig_username(url_or_handle: str) -> str:
     """Reduce a profile URL or @handle to the bare username the
     instagram-profile-scraper's `usernames` field wants. A plain handle
@@ -477,12 +499,14 @@ def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
 
     if mode == "details":
         _require_cost_approval(ACTORS["ig_profile"], 1, approved)
-        run: dict[str, Any] = {"usernames": [_ig_username(url)]}
+        username = _ig_username(url)
+        run: dict[str, Any] = {"usernames": [username]}
         if include_about:
             run["includeAboutSection"] = True
         items = run_actor(ACTORS["ig_profile"], run, memory_mbytes=1024)
         if raw:
             return items
+        _raise_on_actor_error(items, username)
         keep = ("username", "fullName", "biography", "followersCount",
                 "postsCount", "url", "latestPosts", "about")
         return [_lean(i, keep) for i in items]
@@ -497,6 +521,7 @@ def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
     items = run_actor(ACTORS["ig_post"], run, memory_mbytes=1024)
     if raw:
         return items
+    _raise_on_actor_error(items, url)
     return [_lean(i, ("ownerUsername", "shortCode", "url", "timestamp", "caption",
                       "likesCount", "commentsCount", "type", "hashtags"))
             for i in items]

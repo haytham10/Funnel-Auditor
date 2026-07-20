@@ -10,6 +10,39 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-20 — Fix: apify ig details silently swallowed actor errors
+
+Root-caused the "apify ig misrouting" note from today's qualify run.
+**Not** a `--mode` routing bug — verified `--mode details` correctly hits
+`apify~instagram-profile-scraper` (real followersCount reproduced on a known
+handle). The real bug: when that actor can't resolve an account (private,
+renamed, nonexistent), it returns a per-item `{"error": "not_found",
+"errorDescription": "Post does not exist"}` instead of a non-2xx HTTP
+response — `_lean()`'s field allow-list in `audit/apify.py` doesn't include
+`error`/`errorDescription`, so the failure silently vanished, leaving what
+looked like an empty-but-valid profile (`{"username":..., "url":...}`)
+instead of a visible failure. That confusing shape is what read as a
+routing bug to the qualifier-verifier.
+
+Fix: `audit/apify.py` — new `_raise_on_actor_error()` checks dataset items
+for an `error` field before leaning and raises a clear `ApifyError`
+("actor could not resolve X: <reason> — likely private/renamed/nonexistent,
+not a code/routing issue") instead of silently stripping it. Wired into
+both `instagram()` branches (`details` and `posts`). `--raw` still bypasses
+it (raw callers see the full actor response either way). Verified against
+a known-good handle (`@instagram`, real follower count) for no regression,
+and against `coachmariosdxb`/`coachbethan` (now raise clearly instead of
+returning an empty-looking success).
+
+Re-checked the two leads this blocked: tried several handle variants for
+both (Coach Marios: `coach.marios.dxb`, `coach_marios_dxb`; Coach Bethany:
+`coachbethany`, which resolved to an unrelated US football coach, not her)
+— genuinely unresolvable via any available tool (Firecrawl can't reach
+instagram.com at all, Google no longer indexes IG profile snippets). Their
+CRM Notes updated to record this precisely so it doesn't get re-litigated
+as a "tool bug" next time. Both correctly stay `Sourced`/Not checked per
+the qualify-leads skill (never guess an unresolvable floor into a Fail).
+
 ## 2026-07-20 — Qualify run: 10 promoted to Walk Queue, 3 killed, 5 held unconfirmed
 
 Ran `qualify-leads` over the 18 fresh `Sourced` rows from today's top-up (chassis-
