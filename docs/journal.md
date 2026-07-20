@@ -10,6 +10,41 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-20 — Qualify run: 10 promoted to Walk Queue, 3 killed, 5 held unconfirmed
+
+Ran `qualify-leads` over the 18 fresh `Sourced` rows from today's top-up (chassis-
+compliant): 2 `qualifier-worker`s gated 9 rows each (Gate 0 → Gate 1, resolving
+audience with LinkedIn/IG/YouTube actor calls where Firecrawl couldn't read a
+count), then a `qualifier-verifier` re-checked every promotion and every kill in
+a fresh context.
+
+- **Promoted to `Qualifying` (10, all verifier-CONFIRMED):** Wardah Harharah,
+  Sam Fouladgar, Tanner Shuck, Dan Chadwick, Caleb Jones, Nikoleta Perinova,
+  Moza Alfardh (1,951 — close to the 1,500 floor, held up), Ayo Nova, Mawada
+  Alwazir, Jonny Parr. Two SERP-snippet audience numbers the verifier flagged
+  for re-check (Tanner Shuck, Dan Chadwick) both reproduced via direct actor
+  call — Tanner's was actually understated (266K SERP vs 353,965 actual).
+- **Disqualified (3, verifier-CONFIRMED):** Coach El (6 Skool members, hard
+  audience fail), Mohammad Elsaghir (0 LinkedIn posts in 30 days, Skilldeer
+  page dead since 2021), Stefano Fichera (647 on LinkedIn, largest channel,
+  below floor).
+- **Verifier overturned 1 kill:** Dr. Marjan Dorkhan — a worker had failed her
+  on "no owned audience channel," but that's an unresolved floor, not a seen
+  sub-1,500 number; the skill is explicit that unresolvable stays
+  `Sourced`/`Not checked`, never a guessed `Disqualified` (a hard Disqualify
+  never gets re-sourced). Flipped back to `Sourced`, Gate 0 `Not checked`.
+- **Stays `Sourced`, genuinely unconfirmed (5):** Coach Marios, Coach Bethany,
+  Priya (Living liife), Andrew Nicholson (name collision + brand-name IG
+  handle made the audience channel unlocatable after 3 searches), Dr. Marjan
+  Dorkhan (above).
+- **Data-hygiene fix:** Ayo Nova's `Audience Size` was reconciled from a stale
+  12,929 (an old sourcing-time read) to the verifier-reproduced LinkedIn
+  number, 2,754 — both clear the floor, only the stored number was off.
+- **0 of 10 promotions overturned** — well under the ≥2 threshold, no batch
+  redo needed.
+- **Walk Queue now has 10 rows at `Qualifying`**, up from 0. Next step is
+  `batch-audit`/`process-lead` to walk them.
+
 ## 2026-07-20 — Sourcing top-up: 17 new Sourced rows across 5 veins
 
 Ran a top-up sourcing run (source-leads skill, chassis-compliant): pulled the
