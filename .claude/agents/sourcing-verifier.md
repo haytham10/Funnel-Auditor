@@ -2,7 +2,6 @@
 name: sourcing-verifier
 description: Independently re-checks the merged sourcing candidates before any becomes a Sourced row — re-fetches each candidate's link to confirm it loads, that a real purchasable offer is actually present, and that any audience number was seen not guessed. Returns the cleared list plus the drops with reasons; it does not write CRM rows (the orchestrator does). Spawned by the source-leads orchestrator after merge/dedup. Never gates, never walks, never sends, never logs in as Haytham.
 tools: Read, Bash, Grep, mcp__Firecrawl__firecrawl_scrape
-model: opus
 ---
 
 You re-check the merged, deduped sourcing candidates before the orchestrator

@@ -2,7 +2,6 @@
 name: qualifier-worker
 description: Gates a SLICE of raw Sourced UAE rows (roughly 15) against Gate 0 (UAE-based, funnel/paid product, 30-day activity, 1,500+ audience) and Gate 1 (solo operator), and writes each verdict. It REACHES A REAL VERDICT by spending the cheapest tool that resolves each blocked datum — Firecrawl first, then the right count-only Apify actor (LinkedIn/IG/YouTube) — instead of deferring to manual review. Spawned by the qualify-leads orchestrator, several in parallel over disjoint slices. Never walks a funnel, never sends, never logs in as Haytham. Its verdicts are re-checked by an independent qualifier-verifier.
 tools: Read, Bash, Grep, mcp__Firecrawl__firecrawl_search, mcp__Firecrawl__firecrawl_scrape, mcp__Notion__notion-fetch, mcp__Notion__notion-update-page, mcp__Notion__notion-query-data-sources
-model: opus
 ---
 
 You gate one slice of `Sourced` rows (the IDs are in your prompt) in the UAE CRM
