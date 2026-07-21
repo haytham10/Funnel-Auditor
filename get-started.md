@@ -15,20 +15,15 @@ is a compressed export for elsewhere.
 ## What this is
 
 A cold-outreach automation system for a solo operator (Haytham) selling
-funnel audits to coaches/course creators. Two parallel tracks:
+funnel audits to coaches/course creators. Active track:
 
-- **UAE track (active, all new leads go here).** UAE-based solo coaches
-  with real funnels, priced in AED. New step vs. the old pipeline: price
+- **UAE track.** UAE-based solo coaches with real funnels, priced in AED.
+  A deliberate step vs. earlier iterations of the pipeline: price
   discovery happens BEFORE any priced offer is sent.
-- **Parenting track (legacy, live threads only).** No new leads. Existing
-  warm threads get worked to a close via a daily "tick" loop. Its
-  sourcing channel (an Instagram account) is permanently banned — do not
-  try to use it.
 
-Two separate CRMs (Notion databases), never crossed: a UAE Lead CRM and a
-Parenting Lead Pipeline. Notion is the source of truth for live pipeline
-STATE (who's at what stage). Git/code is the source of truth for the
-automation logic. A running text journal (`docs/journal.md`) is the
+The UAE Lead CRM (a Notion database) is the source of truth for live
+pipeline STATE (who's at what stage). Git/code is the source of truth for
+the automation logic. A running text journal (`docs/journal.md`) is the
 source of truth for narrative history (decisions, gotchas) across
 sessions.
 
@@ -84,8 +79,6 @@ conversation.
 - Copy rules for every generated email: no em-dashes, no jargon words
   ("funnel," "conversion," "audit," "sequence"), sign off with the
   sender's real name (no auto-signature), no weak/hedging closers.
-- Two CRMs, never crossed — a UAE lead must never be written into the
-  legacy pipeline's database or vice versa.
 
 ## Key building blocks (language/tool-agnostic)
 
@@ -128,8 +121,7 @@ conversation.
 
 A "tick" step each day: check for replies, sync CRM state, log any price
 discovery answers verbatim, run the send gates on anything about to move,
-draft due follow-ups, and hand over a capped send queue for the day. Two
-separate tick loops for the two tracks.
+draft due follow-ups, and hand over a capped send queue for the day.
 
 ## Source of truth hierarchy
 
