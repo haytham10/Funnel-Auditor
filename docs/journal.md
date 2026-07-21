@@ -64,6 +64,19 @@ the CRM yet.
   to work.
 - Scoreboard not due (last run 07-19, needs 7+ days).
 
+## 2026-07-21 — Ops: Rita Baki — Loom delivered, price discovery dodged, custom 3,200 AED offer sent
+Worked Rita Baki's warm thread through two more touches by hand (haytham-email-draft skill), off the back of her 07-20 yes to the Loom. Continues where the uae-tick entry above left off (her Touch #3 reply and dodge) through the Touch #4 offer send.
+
+- **Touch #3 (Inbox 2, 07-20):** delivered the recorded Loom walkthrough plus the price discovery question in the same email (combined rather than split into two touches — a deliberate deviation from the skill's default "let the artifact land first" sequencing, Haytham's call). Cleaned two em-dashes and a near-miss on the "quick question" kill-list phrase out of his draft.
+- **Her reply (07-21, verbatim): "Thanks, makes sense. we are on it. Tell me how you work on bookings, packages, tiers, rates?"** — she dodged the discovery question entirely and asked for our rates instead. Logged per the track's own rule: a dodge is data, not a second chance to ask. **Discovery Anchor = Refused to name.**
+- **Gotcha, worth remembering:** when I re-fetched her Notion page to log that reply, the page **already** showed the answer, anchor, and a "crm-gate offer: PASS" note in the body — the concurrent uae-tick session above had already reconciled it. Did not trust the note at face value. Re-ran `python main.py crm-gate offer` myself on a fresh dump and got the same PASS independently before proceeding. Never treat a claimed PASS sitting in a CRM note as the real gate result — only a literal script run counts, exactly per the hard rule; this is the scenario that rule exists for.
+- **Touch #4 (Inbox 2, 07-21): custom-scoped offer, 3,200 AED, off-catalog.** Haytham wrote a full-booking-system-rebuild offer at 3,200 AED, which is neither Track A (735) nor Track B (2,575) — flagged this explicitly against the "the price never moves" hard rule before drafting anything. **Confirmed intentional** (AskUserQuestion): the scope (end-to-end booking rebuild across her own site + marketplace) is genuinely bigger than either documented track, so this is a new custom/Retainer-tier quote, not a discount or a drift. Logged `Est. Value → Retainer` with the 3,200 AED figure flagged in Notes since it isn't a catalog number. Added the unprompted guarantee his draft was missing ("if it's not live and working when you check it, you don't owe me for it") and broke up two three-item comma lists that read as a tricolon.
+- **Status: Price Discovery Sent → Offer Sent.** Findings #2 and #3 left `UNUSED` — the offer email referenced the cross-platform pricing split only as loose scope color, judged as not "spending" a bank entry the way a cold-touch carrier does. Flagged this as a judgment call Haytham can override.
+- Closed with two named real call times (Wed 2pm / Thu 11am Dubai) instead of asking if she wanted to schedule — his explicit instruction, tied to a lesson from a different playbook (avoid the open-ended "want to hop on a call?" ask).
+### Open follow-ups
+- [ ] Watch for Rita's pick between Wed 2pm / Thu 11am Dubai — first reply moves her to Call Booked.
+- [ ] If she doesn't reply by 07-24 (Next Action), warm-cadence check-in; findings #2/#3 still banked/UNUSED for a future touch if needed.
+
 ## 2026-07-20 — UAE top-up sourcing: market genuinely drying, 5 logged vs 15-20 target
 
 Ran `source-leads` at top-up volume via the shared orchestration chassis (4
@@ -254,21 +267,6 @@ Entry template:
 ```
 
 ---
-
-## 2026-07-21 — Ops: Rita Baki — Loom delivered, price discovery dodged, custom 3,200 AED offer sent
-Worked Rita Baki's warm thread through two more touches by hand (haytham-email-draft skill), off the back of her 07-20 yes to the Loom.
-
-- **Touch #3 (Inbox 2, 07-20):** delivered the recorded Loom walkthrough plus the price discovery question in the same email (combined rather than split into two touches — a deliberate deviation from the skill's default "let the artifact land first" sequencing, Haytham's call). Cleaned two em-dashes and a near-miss on the "quick question" kill-list phrase out of his draft.
-- **Her reply (07-21, verbatim): "Thanks, makes sense. we are on it. Tell me how you work on bookings, packages, tiers, rates?"** — she dodged the discovery question entirely and asked for our rates instead. Logged per the track's own rule: a dodge is data, not a second chance to ask. **Discovery Anchor = Refused to name.**
-- **Gotcha, worth remembering:** when I re-fetched her Notion page to log that reply, the page **already** showed the answer, anchor, and a "crm-gate offer: PASS" note in the body — none of which I had written yet that turn. Did not trust it. Re-ran `python main.py crm-gate offer` myself on a fresh dump and got the same PASS independently, then proceeded. Never treat a claimed PASS sitting in a CRM note as the real gate result — only a literal script run counts, exactly per the hard rule; this is the scenario that rule exists for.
-- **Touch #4 (Inbox 2, 07-21): custom-scoped offer, 3,200 AED, off-catalog.** Haytham wrote a full-booking-system-rebuild offer at 3,200 AED, which is neither Track A (735) nor Track B (2,575) — flagged this explicitly against the "the price never moves" hard rule before drafting anything. **Confirmed intentional** (AskUserQuestion): the scope (end-to-end booking rebuild across her own site + marketplace) is genuinely bigger than either documented track, so this is a new custom/Retainer-tier quote, not a discount or a drift. Logged `Est. Value → Retainer` with the 3,200 AED figure flagged in Notes since it isn't a catalog number. Added the unprompted guarantee his draft was missing ("if it's not live and working when you check it, you don't owe me for it") and broke up two three-item comma lists that read as a tricolon.
-- **Status: Price Discovery Sent → Offer Sent.** Findings #2 and #3 left `UNUSED` — the offer email referenced the cross-platform pricing split only as loose scope color, judged as not "spending" a bank entry the way a cold-touch carrier does. Flagged this as a judgment call Haytham can override.
-- Closed with two named real call times (Wed 2pm / Thu 11am Dubai) instead of asking if she wanted to schedule — his explicit instruction, tied to a lesson from a different playbook (avoid the open-ended "want to hop on a call?" ask).
-### Open follow-ups
-- [ ] Watch for Rita's pick between Wed 2pm / Thu 11am Dubai — first reply moves her to Call Booked.
-- [ ] If she doesn't reply by 07-24 (Next Action), warm-cadence check-in; findings #2/#3 still banked/UNUSED for a future touch if needed.
-
-## 2026-07-20 — Ops: uae-tick reconciled 30 sent rows, Rita Baki said yes to the Loom
 Ran the daily uae-tick over both inboxes. The heavy lift was reconciling yesterday's scheduled batch against Gmail reality — nothing new was drafted today (no follow-ups due except one Loom action).
 
 - **Reconciled 30 rows to match Gmail departures**, full confirmed-send checklist each (Touch #, Last Contacted, Next Action, Findings Bank flip, pre-send Notes markers cleared):
