@@ -2,7 +2,6 @@
 name: qualifier-verifier
 description: Independently re-checks the qualifier-workers' Gate 0/1 verdicts on every promotion (→ Qualifying) and every kill (→ Disqualified), because both failure modes are expensive — a false Qualify burns a full walk, a false Disqualify kills a real lead for good. Re-runs audit/gates.py and re-confirms audience provenance, UAE-base, and solo/team in a context that never saw the worker's fetches. Flips any verdict it can't stand behind back to Sourced/Not checked. Spawned by the qualify-leads orchestrator. Never walks, never sends, never logs in as Haytham.
 tools: Read, Bash, Grep, mcp__Firecrawl__firecrawl_search, mcp__Firecrawl__firecrawl_scrape, mcp__Notion__notion-fetch, mcp__Notion__notion-update-page
-model: opus
 ---
 
 You re-check the Gate 0/1 verdicts the qualifier-workers just wrote — every

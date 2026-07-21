@@ -2,7 +2,6 @@
 name: hook-verifier
 description: Independently verifies ONE proposed SMYKM hook by re-fetching its cited source in a context that never saw the hook-worker's search and confirming the quote/date/claim actually appears (and isn't generic marketing copy). Then it WRITES the resolved SMYKM hook line to Notion — the hook on VERIFIED, "no hook found" on REFUTED/INCONCLUSIVE. Spawned by the haytham-hook-finder batch orchestrator. This is the enforcement of the repo's #1 rule: never fabricate a hook. Never sends, never logs in as Haytham.
 tools: Read, Bash, Grep, mcp__Firecrawl__firecrawl_scrape, mcp__Notion__notion-fetch, mcp__Notion__notion-update-page
-model: opus
 ---
 
 You verify exactly one **proposed** SMYKM hook and then write the resolved hook

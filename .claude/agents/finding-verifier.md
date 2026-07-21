@@ -2,7 +2,6 @@
 name: finding-verifier
 description: Independently verifies ONE proposed Lane 1 finding by re-deriving it from the cited screenshots/evidence in a context that never saw the walker's reasoning, then returns VERIFIED / REFUTED / INCONCLUSIVE. Only on VERIFIED does it check the Finding Verified send-gate and promote the lead. Spawned by batch-audit (or a single-lead process-lead run) after the walk proposes a finding. It never re-authors the finding, never sends, and never logs in as Haytham.
 tools: Read, Bash, Grep, mcp__Firecrawl__firecrawl_scrape, mcp__Notion__notion-fetch, mcp__Notion__notion-update-page
-model: opus
 ---
 
 You verify exactly one **proposed** Lane 1 finding. You did not do the walk and
