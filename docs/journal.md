@@ -10,6 +10,60 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-21 — uae-tick: reconciled a 19-lead Scheduled batch (1 bounce), Rita Baki offer-ready, pipeline dry
+
+Ran the daily uae-tick. The bulk of the work was reconciliation: a prior
+session's draft-first hook+draft batch had scheduled 19 Touch-1 sends that
+all departed 05:00-07:00 Dubai this morning with none of it reflected in
+the CRM yet.
+
+- **Reconciled all 19 Scheduled rows** (3 parallel subagents on the
+  mechanical 17 + 2 handled directly for their extra wrinkles):
+  - 17 clean Touch-1 sends → Outreach Sent, full checklist (Touch #,
+    dates, Findings Bank #1 flipped USED-T1, Notes cleaned, Email Thread
+    Log entries): Daria Ibrulj, Szilvia Vitos, Nadine Faddul, Joel Arcus,
+    Eric Fit, Dr. Sheen Gurrib, Fatima Williams, Lee Harris, Zeina Karrit,
+    Wardah Harharah, Dan Chadwick, Caleb Jones, Nikoleta Perinova, Ayo
+    Nova, Mawada Alwazir, Jonny Parr, Andrew Nicholson (9 Inbox 1 + 8
+    Inbox 2).
+  - **Wafa Bassili** sent + replied 9 minutes later ("Thanks for
+    flagging. Noted") → Reply Received/Warm directly, skipping a
+    plain Outreach Sent stop. Thin reply — flagged for a value-add
+    follow-up (turn-two artifact) rather than pushing to discovery.
+  - **Sam Fouladgar hard-bounced** (Recipient Unknown) despite the
+    07-20 WARN override materializing as a real bounce. Reverted to
+    Qualifying, Email Verified unchecked, bounce logged to
+    `docs/deliverability-log.md`. Needs a fresh address before any
+    resend.
+- Also reconciled two Touch-2 follow-ups that departed today (**Rima
+  Zanoun**, **Salma El Shurafa** — both carried their bank #2 finding,
+  both gate PASS) and **Ben Pringle's** Touch 4 warm bump (Loom offer
+  on the vanished-guide finding, still no reply).
+- **Rita Baki replied** to the Touch 3 + Loom + price-discovery combo
+  send: *"Thanks, makes sense. we are on it. Tell me how you work on
+  bookings, packages, tiers, rates?"* — deflected the anchor question
+  back at our rates instead of naming a number. Logged verbatim,
+  `Discovery Anchor: Refused to name`, `crm-gate offer` PASS. Ready for
+  the money email on Haytham's go-ahead.
+- **Send-day 07-21 load, cap 20/inbox:** Inbox 1 = 10 (all Touch-1 +
+  Ben's bump), Inbox 2 = 12 (8 Touch-1 + 2 Touch-2 + Sam's bounced
+  attempt). Both well under cap.
+- **Inbox 1 hit its 7-day ramp-eligibility mark today** (20/day since
+  07-14) but `deliverability-log.md` shows 3 hard bounces on Inbox 1 in
+  that same window (Chiara/Adil 07-16, Neha 07-17) — flagged the tension
+  in the brief rather than just parroting the ramp reminder. Inbox 2 not
+  eligible until 07-23.
+- **Pipeline is dry at the top: Audit Ready / Draft Ready / Scheduled
+  are all at zero** (confirmed across all 360 CRM rows via a background
+  count sweep — Notion's SQL query tool hit its hourly free-plan limit
+  mid-tick, worked around via view-mode queries + a background agent).
+  Walk Queue has no live Gate0/1-passed candidates; Qualifying/Sourced
+  sits at only 9 raw rows. Bottleneck has moved from walks/hooks to
+  sourcing — matches the 07-20 note that the market is drying up.
+  `source-leads` top-up is the next move before batch-audit has anything
+  to work.
+- Scoreboard not due (last run 07-19, needs 7+ days).
+
 ## 2026-07-20 — UAE top-up sourcing: market genuinely drying, 5 logged vs 15-20 target
 
 Ran `source-leads` at top-up volume via the shared orchestration chassis (4
