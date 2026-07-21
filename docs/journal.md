@@ -10,6 +10,32 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-21 — Wafa Bassili: turn-two sent, declined, marked Lost
+
+Drafted and worked her full turn-two arc after this morning's uae-tick
+flagged her thin Touch-1 reply ("Thanks for flagging. Noted") for a
+value-add follow-up rather than a straight push to price discovery.
+
+- Drafted two variants (haytham-email-draft skill): one spending bank #2
+  (the pre-form CTA garble) as the reason to offer a walkthrough, one a
+  bare Loom offer. User picked the bank-#2 variant, then flagged the
+  "I help coaches grow" line — the first pass ("I go through pages...")
+  read as hobbyist leak-hunting instead of an outcome. Rewrote to lead
+  with growth/no-tech-worry before the ask.
+- Created the Gmail draft directly in Inbox 2 (gethaytham.com, direct
+  API path), correctly threaded as a reply to her Touch-1 message.
+  User confirmed send.
+- Logged the confirmed send: Touch # → 2, Findings Bank #2 flipped
+  USED-T2, Notes/Email Thread Log updated (Status stayed Reply Received
+  — a Loom offer isn't a stage transition until it's actually recorded
+  and delivered).
+- **She replied within the hour, verbatim: "thank you for flagging the
+  typo. I didn't request a website review. Leave it there."** — an
+  explicit decline, not a stall. Marked **Lost / Not interested**, Next
+  Action cleared, Email Thread Log closed out with her exact words.
+  Correctly did not default to "Dormant" here — that status is for a
+  cold thread going quiet, not an explicit no on a warm one.
+
 ## 2026-07-21 — uae-tick: reconciled a 19-lead Scheduled batch (1 bounce), Rita Baki offer-ready, pipeline dry
 
 Ran the daily uae-tick. The bulk of the work was reconciliation: a prior
