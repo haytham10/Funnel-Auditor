@@ -26,6 +26,7 @@ Entries before 2026-07-16 predate the two-inbox split and are Inbox 1
 
 ## Log
 
+- 2026-07-21 — [Inbox 2] — [bounce] — coach@samfouladgar.com hard-bounced (Recipient Unknown / not found at samfouladgar.com) on Touch 1 send 2026-07-21, despite EMAIL VERIFY: WARN override approved 2026-07-20
 - 2026-07-19 — [Inbox 2] — [bounce] — Kalyani Seth Soni (info@sheinvests.me) hard-bounced 2026-07-19, scheduled Touch 1 'season 3 of the she invests show': mailer-daemon 'Address not found'. Address was already flagged WARN/catch-all at email-verify (2026-07-18), risk accepted by hand — bounce confirms the risk materialized. Row reverted to Qualifying; Touch #/Findings Bank not spent.
 - 2026-07-19 — [Inbox 2] — [bounce] — Samira Alexander (samira@samiraalexander.com) hard-bounced 2026-07-19, scheduled Touch 1 'the relationship with yourself': mailer-daemon 'Address not found'. Address was Apify-enrich-guessed (first@ pattern) and verified deliverable 2026-07-18 — verifier PASS did not hold. Row reverted to Qualifying; Touch #/Findings Bank not spent.
 - 2026-07-18 — [Inbox 1] — [bounce] — contact@dubaifrenchtuitions.com (UAE lead Murielle Larriere, Touch 1 sent 07-15) confirmed hard bounce 2026-07-18 06:20 UTC ('Message not delivered... recipient server did not accept') after two days of temporary-delay notices (07-16, 07-17). Row already Dormant/dead-address per CRM Notes; no further action needed on the row itself.
