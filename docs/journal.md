@@ -58,6 +58,24 @@ double-drafted.
   appended to `deliverability-log.md` this run.
 - Scoreboard not due (last run ~07-19/20, needs 7+ days).
 
+**Bug found (Haytham, same day): the reply sweep missed a real reply.**
+Ben Pringle replied 2026-07-23 16:08 UTC ("What do you want mate?",
+`INBOX` label, well inside the `after:2026/07/21` sweep window) but
+`mcp__Gmail__search_threads` (both a plain query and an exact-phrase
+quote) returned his thread WITHOUT that message — it stopped at his
+07-21 Touch 4 send. `mcp__Gmail__get_thread` on the same thread ID
+returned it fine. Root cause looks like a search-index lag on that MCP
+tool, not a query-syntax problem (in:inbox after:date worked correctly
+for messages from 07-22 same sweep). **Fix for next time: when a warm
+thread stays quiet past its expected reply window, re-verify with
+get_thread on the known thread ID before assuming genuine silence —
+don't trust search_threads alone for a lead that matters.** Drafted the
+generic "just floating this back up" bump on top of an unseen reply,
+which read badly against his actual message; Haytham deleted it.
+Corrected: logged his reply verbatim on the page, drafted a real answer
+(what Haytham does + the Dubai Football Guide finding + re-offered Loom),
+held as a draft, not sent.
+
 **Correction (Haytham, same day):** the uniform `Next Action: 2026-07-25`
 across the due list wasn't a formula quirk, it was deliberate — he shifted
 all Next Action dates +2 days CRM-wide to match the real 2-day gap since
