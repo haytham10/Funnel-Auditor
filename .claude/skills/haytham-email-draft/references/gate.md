@@ -41,7 +41,7 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 
 - [ ] Does the draft carry exactly ONE new thing: the next UNUSED entry from the row's `Findings Bank`, the Loom offer, or the disambiguating question? A draft that only bumps (time passing, "still there?", a re-ask) fails — a bare bump is a wasted send and a spam signal.
 - [ ] Does what the draft carries MATCH what `crm-gate send --touch N --carries …` was told (and did it print PASS on a fresh row dump)? Declaring loom-offer and drafting a bare bump is lying to the gate.
-- [ ] If it carries a second finding: is it from the bank (never invented at draft time), named as a felt cost with its innocent explanation, fix left vague? Naming a second cost is fine; teaching a second fix is the Adrienne mistake (three complete free diagnoses, zero replies). Full fixes stay in the Loom or "The Next Three" after a price is on the table.
+- [ ] If it carries a second finding: is it from the bank (never invented at draft time, never the RESERVED deep finding), named as a felt cost with its innocent explanation, fix left vague? Naming a second cost is fine; teaching a second fix is the Adrienne mistake (three complete free diagnoses, zero replies). If it's a deep finding, name that it exists and costs her, never the fix. Full fixes stay in the Loom or "The Next Three" after a price is on the table.
 - [ ] If it carries the Loom offer: one line, an offer not a link, no price.
 - [ ] If it carries the disambiguating question: direct binary, no soft exit ("Should I stop following up, or is this still on your radar?").
 - [ ] Same subject, same thread as touch 1.
@@ -69,8 +69,13 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 - [ ] UAE lead with a Below anchor logged: does the draft lead even harder with the risk reversal (her anchor says risk is the objection), while the number stays exactly the track price?
 - [ ] Is the guarantee stated boldly and unprompted, before any objection, not held back for if she pushes?
 - [ ] Is there exactly one CTA — the price plus one concrete next step (payment link, "want me to start today")? Not a price plus a scheduling ask, that's two CTAs.
-- [ ] Free-value cap: has this thread already had one finding plus at most one Loom? If more free diagnosis is about to be given before any price is on the table, stop — that is the gratitude-trap mistake, not a money email.
+- [ ] Free-value cap (count): has this thread already had one finding plus at most one Loom? If more free diagnosis is about to be given before any price is on the table, stop — that is the gratitude-trap mistake, not a money email.
+- [ ] Free-value cap (depth): does the draft hand over the fix or full diagnosis of a DEEP finding? It must not. Shallow findings may be named freely; a deep finding can only be NAMED as an existing cost, its fix kept offline. The `RESERVED` deep finding is never in an email at all. (See mechanics.md free-value cap.)
 - [ ] If this is a bonus-stall response (she hesitated after a price was already given), does the draft add a named bonus or restructure a term, and leave the number itself untouched?
+- [ ] Small-deal close (sub-$1k / Track A): if she asked "how much?", does the draft answer with the flat number directly rather than dodging to a call? (The one allowed detour is the single price-discovery question, which then names the number next message.)
+- [ ] Does the standing risk-reversal ride with the quote in the same breath ("if it doesn't work, you pay nothing"), unprompted?
+- [ ] On a logistics/procurement/trust question, does the draft offer a channel switch (WhatsApp, especially for a UAE lead) after answering?
+- [ ] After the one ask, does the draft stop, no second reassurance, no re-opened doubt, no unprompted extra bonus?
 
 ## Length and imperfection
 

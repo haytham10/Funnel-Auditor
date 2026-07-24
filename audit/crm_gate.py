@@ -47,10 +47,18 @@ or "Yes"/"No" — all accepted.
 
 `Findings Bank` property format, one finding per line, ranked strongest
 first (written by the walk, statuses flipped only at confirmed-send
-logging):
+logging). The optional DEPTH tag (SHALLOW/DEEP) drives bait-and-reserve:
+a shallow finding is self-fixable (worth ~$0 as a sale), a deep finding
+needs expertise (worth paying for), and a RESERVED deep finding is the
+call bait, held out of email entirely — it is never drawn as a
+second-finding (see next_unused_finding):
 
-    1. USED-T1 | checkout button 404s on mobile
-    2. UNUSED | replay page still shows the March cohort dates
+    1. USED-T1 | SHALLOW | checkout button 404s on mobile
+    2. UNUSED | DEEP | pricing split across 4 platforms, buyers bounce at the seam
+    3. RESERVED | DEEP | entire program is readable free on the blog
+
+Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
+(depth = None), so existing rows gate exactly as before.
 """
 
 from __future__ import annotations
@@ -71,7 +79,13 @@ _ANSWER_PLACEHOLDERS = {
 
 _CHECKED = {True, 1, "1", "true", "yes", "checked", "__yes__"}
 
-_BANK_LINE = re.compile(r"^\s*(\d+)\.\s*(UNUSED|USED-T\d)\s*\|\s*(\S.*?)\s*$", re.IGNORECASE)
+# `N. STATUS | DEPTH | finding`. STATUS ∈ UNUSED / USED-Tn / RESERVED; the
+# DEPTH group (SHALLOW/DEEP) is OPTIONAL so legacy `N. STATUS | finding` rows
+# still match (depth → None). Groups: 1=rank, 2=status, 3=depth|None, 4=finding.
+_BANK_LINE = re.compile(
+    r"^\s*(\d+)\.\s*(UNUSED|USED-T\d|RESERVED)\s*\|\s*(?:(SHALLOW|DEEP)\s*\|\s*)?(\S.*?)\s*$",
+    re.IGNORECASE,
+)
 
 
 def _load_row(row_json: str | Path) -> dict:
@@ -89,24 +103,45 @@ def _is_checked(value) -> bool:
 
 
 def parse_findings_bank(value) -> list[dict]:
-    """Parse the `Findings Bank` property into [{rank, status, finding}, ...]."""
+    """Parse the `Findings Bank` property into [{rank, status, depth, finding}, ...].
+
+    `depth` is "SHALLOW"/"DEEP" when the line carries a depth tag, else None
+    (legacy `N. STATUS | finding` rows). `status` is UNUSED / USED-Tn / RESERVED.
+    """
     entries = []
     for line in _norm(value).splitlines():
         m = _BANK_LINE.match(line)
         if m:
+            depth = m.group(3)
             entries.append({
                 "rank": int(m.group(1)),
                 "status": m.group(2).upper(),
-                "finding": m.group(3),
+                "depth": depth.upper() if depth else None,
+                "finding": m.group(4),
             })
     return entries
 
 
 def next_unused_finding(row: dict) -> dict | None:
-    """The highest-ranked UNUSED bank entry past #1 (#1 belongs to touch 1)."""
+    """The highest-ranked UNUSED bank entry past #1 (#1 belongs to touch 1).
+
+    Only UNUSED entries are candidates, so a RESERVED deep finding (the call
+    bait) is never drawn here — it can never be spent as `--carries
+    second-finding`, which is the whole point of reserving it.
+    """
     candidates = [e for e in parse_findings_bank(row.get("Findings Bank"))
                   if e["status"] == "UNUSED" and e["rank"] >= 2]
     return min(candidates, key=lambda e: e["rank"]) if candidates else None
+
+
+def reserved_deep_finding(row: dict) -> dict | None:
+    """The deep finding held in reserve as the call bait (RESERVED status), or
+    None if the bank holds none. This finding is never emailed — it is the
+    reason to get on a call, so the send gate reports it but never spends it."""
+    for e in parse_findings_bank(row.get("Findings Bank")):
+        if e["status"] == "RESERVED":
+            return e
+    return None
 
 
 def check_offer(row: dict) -> tuple[bool, list[str]]:
@@ -274,6 +309,31 @@ def check_send(
                 f"touch {touch} carries {carries}, "
                 f"sends today {sends_today} < {cap_state.cap_phrase()}"
             )
+
+    # Bait-and-reserve visibility (not a hard gate). The bank should hold at
+    # least one DEEP finding, and one deep finding marked RESERVED is the call
+    # bait — held out of email entirely. A lead with only shallow findings still
+    # sends (a shallow finding earns the reply), it is just flagged low-value:
+    # reply-likely, close-unlikely, because the coach self-fixes what she's shown.
+    # Silent on legacy rows that carry no depth tags at all (backward compatible).
+    bank = parse_findings_bank(row.get("Findings Bank"))
+    depths_tagged = any(e["depth"] is not None for e in bank)
+    reserved = reserved_deep_finding(row)
+    if reserved is not None:
+        notes.append(
+            f'deep finding held in reserve (call bait, never emailed): "{reserved["finding"]}"'
+        )
+    elif depths_tagged and not any(e["depth"] == "DEEP" for e in bank):
+        notes.append(
+            "WARNING low-value: bank has no DEEP finding — reply-likely, close-unlikely; "
+            "a shallow finding earns the reply but the coach self-fixes it, so there is "
+            "nothing un-self-fixable to reserve as the reason for a call"
+        )
+    elif depths_tagged:
+        notes.append(
+            "WARNING a DEEP finding exists but none is marked RESERVED — mark one RESERVED "
+            "so the call bait is held out of email instead of given away"
+        )
 
     return (not problems), problems, notes
 

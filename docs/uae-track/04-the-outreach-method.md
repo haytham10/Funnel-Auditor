@@ -178,7 +178,7 @@ Day 0, day 3, day 9, then Dormant. Same subject, same thread. There is no touch 
 
 Touches 2 and 3 must each carry exactly one NEW thing (enforced at the gate, `crm-gate send --carries …`):
 
-- **The next banked finding** — the walk banks every finding that survives both filters, ranked; touch 1 takes #1, later touches draw the next UNUSED entry. Named as a felt cost with its innocent explanation, fix left vague — naming a second cost is not the Adrienne mistake, teaching a second fix is.
+- **The next banked finding** — the walk banks every finding that survives both filters, ranked depth-first (deep over shallow, then tier, then sting); touch 1 takes #1 (the opener, which may be shallow — it earns the reply), later touches draw the next UNUSED entry. The one deep finding held `RESERVED` as call bait is never drawn here — it stays out of email as the reason to get on a call. Named as a felt cost with its innocent explanation, fix left vague — and if it's a deep finding, name that it exists and costs her, never the fix. Naming a second cost is not the Adrienne mistake, teaching a second fix is.
 - **The Loom offer** — "want me to record a quick walkthrough showing what I'd fix? easier to show than explain." An offer, never a link, on a cold thread.
 - **The disambiguating question** — the direct binary ("Should I stop following up, or is this still on your radar?"). The natural touch 3 closer.
 

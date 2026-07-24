@@ -10,6 +10,69 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-24 — Dev: finding-depth tiers + bait-and-reserve (P1) + warm-reply craft (P2)
+
+Branch `claude/finding-depth-tiers-jydpvw`. Two linked problems: (1) upstream —
+openers led with the most falsifiable finding, which is almost always the most
+trivial/self-fixable one, so leads read the opener, fixed the small thing free
+(Rita booking redirect, Avneet test-SKU+logo, Lisa "on fix this"), and had no
+reason left to pay; (2) downstream — warm replies reverted to opener/pitch
+machinery (a five-word "What do you want mate?" drew a four-paragraph pitch).
+
+**Problem 1 (finding depth):**
+- **New depth axis** (orthogonal to Tier A/B/C severity) in
+  `haytham-opener-finder/references/walk.md`: SHALLOW/self-fixable (janitorial —
+  dead links, test SKUs, forms that should be schedulers, wrong logos) vs
+  DEEP/un-self-fixable (pricing architecture, no owned audience, product-value
+  leakage), with concrete deep examples pulled from the funnel-auditor diagnosis
+  matrices + the real leads. Key rule: **depth is independent of provability.**
+- **Ranking flip:** opener-finder SKILL.md now ranks **depth-first (deep over
+  shallow), then tier, then sting** (was "tier first, then sting"). "Most
+  falsifiable" is no longer "best."
+- **Bait-and-reserve with CODE TEETH:** the `Findings Bank` line format gained a
+  backward-compatible optional depth token + a new `RESERVED` status
+  (`N. STATUS | DEPTH | finding`). `audit/crm_gate.py`: `_BANK_LINE` regex
+  extended, `parse_findings_bank` carries `depth`, new `reserved_deep_finding()`
+  helper, `next_unused_finding` now provably never draws a RESERVED entry (the
+  deep call-bait can't be spent as a second-finding), and `check_send` emits a
+  reserve note / low-value WARNING (never a hard fail). Legacy `N. STATUS |
+  finding` rows still parse identically — verified.
+- **Free-value cap extended to DEPTH:** shallow findings namable freely, a deep
+  finding's fix/diagnosis is call-only (name it exists + costs her, never the
+  how); RESERVED deep finding never emailed. New hard rule in mechanics.md +
+  gate.md.
+- Format spec mirrored in all 3 defs (crm_gate docstring, schema.md,
+  01-crm-operating-spec.md) — drift-grepped clean. Agent contracts
+  (lead-processor return JSON gains `deep_reserved` + `low_value`;
+  finding-verifier gets a report-only reserve check) + process-lead/batch-audit
+  wording updated.
+
+**Problem 2 (warm replies):**
+- Dense **"Warm replies (the turn-two craft)"** section added to mechanics.md
+  (was 1 line): core "match the reply, answer, one step, stop" + good/bad pairs
+  for all 5 reply types (blunt, brush-off, price question, logistics, five-Q
+  deflection).
+- **Reinforcement-loop / new-payload rule rescoped to COLD only** (mechanics.md
+  line 17 was the leak); warm counter-rule made explicit.
+- New critical-failure entry **"Warm reply written as an opener/pitch"** (the
+  "What do you want mate?" anti-pattern).
+- **Small-deal closing** block (Track A / sub-$1k): answer price directly, the
+  "range" = the two tracks (735 AED floor / 2,575 AED ceiling, each flat — no
+  within-track range, no change to "price never moves"), standing risk-reversal
+  on every quote, WhatsApp switch (esp. UAE), stop after the ask. Matching
+  gate.md boxes.
+
+**Decisions locked in (defaults, offered but not overridden):** price "range" =
+the two tracks (preserves every fixed-price hard rule); reserve got code teeth;
+low-value flag is lightweight (Notes + body + gate note, no Notion schema
+change). **Note for review:** a deep finding at bank #2 CAN still be emailed as
+a second-finding (named as cost, fix withheld) — only the RESERVED one is held
+entirely; that's intended (deep second-finding = the felt-cost teaser).
+
+Tests: new `tests/test_findings_bank_depth.py` (8) + legacy send-gate (9) +
+email-verify (16) all green. `rich` isn't installed in this container so
+`main.py` CLI can't import; exercised `crm_gate.print_send` directly instead.
+
 ## 2026-07-24 — uae-tick: 26 due follow-up drafts (17 Inbox1 + 9 Inbox2), reply sweep clean, send queue dry
 
 Ran the daily uae-tick after a 3-day gap (last tick 07-21; no journaled ops

@@ -41,7 +41,13 @@ the reason this file exists on top of process-lead:
    fallback once wedged a whole batch for 2h.)
 
 2. **You PROPOSE the finding; you do NOT certify it.** Write the full page body,
-   bank every visually-confirmed finding (`N. UNUSED | …` lines), set `Email
+   bank every visually-confirmed finding depth-first (`N. STATUS | DEPTH | …`
+   lines — STATUS `UNUSED`, or `RESERVED` for the one deep finding held as call
+   bait; DEPTH `SHALLOW`/`DEEP`, see `haytham-opener-finder/references/walk.md`).
+   Rank deep over shallow: the opener may be shallow but at least one deep
+   finding must be held RESERVED as the reason for a call, never emailed. If no
+   deep finding survives both filters, put `low-value: no deep finding to
+   reserve` as the FIRST line of `Notes`. Set `Email
    Verified` from the literal `email-verify` output (that is a tool result, not
    a private judgment — keep it), and record in the body's Evidence section the
    **exact evidence paths** each finding rests on
@@ -83,9 +89,11 @@ computed facts.
   "gate1": "Pass | Fail",
   "lane": 1,
   "status": "Qualifying | Lane 2 | Disqualified",
-  "finding": "<one line — the strongest visually-confirmed PROPOSED finding, or null>",
+  "finding": "<one line — the chosen opener finding (may be shallow), or null>",
   "finding_evidence_paths": ["evidence/<slug>/site/<file>.png", "..."],
   "banked": 3,
+  "deep_reserved": "<the deep finding held RESERVED as call bait, or null if none>",
+  "low_value": false,
   "innocent": "<the innocent explanation, or null>",
   "loom_skeleton": "written | n/a",
   "finding_verified": "proposed",
@@ -106,5 +114,11 @@ computed facts.
   verdict; that is not yours to set.
 - `finding_evidence_paths` is load-bearing: the verifier re-derives the finding
   from exactly these paths, so list the real files, not a description.
+- `deep_reserved` is the un-self-fixable finding you marked `RESERVED` in the
+  bank as the reason for a call — the thing that actually closes. It is null
+  only when the walk found no deep finding; when null, set `low_value: true`.
+- `low_value` is `true` when the bank holds no deep finding (reply-likely,
+  close-unlikely). The lead can still be worked for the reply, but flag it
+  honestly rather than pretending a shallow finding will close.
 - If any step hard-fails, still return the block with what you have and put the
   failure in `notes` — never leave the orchestrator guessing.

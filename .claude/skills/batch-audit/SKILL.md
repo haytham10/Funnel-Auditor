@@ -159,9 +159,12 @@ Done. No Gmail drafts are expected from this run — don't check `list_drafts`.
 
 Then one brief, in this order:
 
-1. **Table**: lead / gates / lane / strongest finding in one line /
+1. **Table**: lead / gates / lane / opener finding in one line / depth of
+   the bank (deep finding held RESERVED, or `low-value` if none) /
    Finding Verified? / email status (incl. the `EMAIL VERIFY` verdict for
-   Lane 1) / vision-pass line / flags rejected.
+   Lane 1) / vision-pass line / flags rejected. Surface `low_value: true`
+   leads plainly — they'll reply but likely won't close, so Haytham can
+   choose where to spend hook+draft effort.
 2. **Ready for the hook+draft stage**: every Lane 1 lead that is actually
    Audit Ready — `Finding Verified` AND `Email Verified` both checked (an
    independently VERIFIED finding — the finding-verifier's verdict, not the
