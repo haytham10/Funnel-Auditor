@@ -108,8 +108,24 @@ draft` (full loop, UAE rules — opening A on a real hook, opening B on "no hook
 found") → `python main.py email-check <addr>` → **assign the inbox if the row's
 `Inbox` is blank** (`python main.py inbox route --current "<row's Inbox>" --count
 "Inbox 1=<n>" --count "Inbox 2=<n>"`, write the label back to Notion) → `python
-main.py crm-gate send <row.json> --touch 1 --followups-due M --inbox "<assigned
-Inbox>"` (quote the PASS line). On PASS, create the Gmail DRAFT **in that inbox**
+main.py crm-gate send <row.json> --touch 1 --followups-due M --opener-rank <N>
+--inbox "<assigned Inbox>"` (quote the PASS line).
+
+**`--opener-rank` is not optional bookkeeping — read the Findings Bank property
+itself, not the page-body "strongest verified finding" narrative, to pick what
+the email is actually built from.** The two can disagree: a walk's narrative
+prose may describe the most compelling finding even when the bank correctly
+tagged that exact finding `RESERVED | DEEP` (the call bait, held for the call).
+Build the draft from the bank's lowest-ranked `UNUSED` entry (bank #1) and pass
+its rank as `--opener-rank`. If the rank you intended turns out to be
+`RESERVED`, or doesn't match the lowest `UNUSED` rank, the gate now hard-fails
+— fix the draft to use the correct bank entry, don't argue with the gate. (Added
+2026-07-24 after a real incident: a draft was built from the narrative instead
+of the bank, and emailed the exact finding the bank was reserving as deep
+call-bait. `crm-gate send` previously only *noted* that a deep finding was held
+in reserve — it never checked that the drafted email wasn't the reserved one.)
+
+On PASS, create the Gmail DRAFT **in that inbox**
 (Inbox 1 → Gmail MCP `create_draft`; Inbox 2 → `python main.py gmail-gethaytham
 draft`) and set `Status = Draft Ready` + a `Gmail draft ready (Touch 1) —
 "<subject>"` Notes line. Set **nothing else** — Touch #, Last Contacted, Email

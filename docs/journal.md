@@ -10,6 +10,39 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-24 — Dev: close a real bait-and-reserve enforcement gap (Tracy Harmoush incident)
+
+Same-day follow-on to the finding-depth tiers commit below. Ran qualify-leads →
+batch-audit → haytham-hook-finder on 3 fresh Qualifying rows (Rita Sanna,
+Timothy Fare-Matthews, Tracy Harmoush). Two of three drafted clean; **Tracy
+Harmoush's Touch 1 draft was built from the page-body "strongest verified
+finding" narrative instead of the Findings Bank's rank order, and ended up
+emailing the exact `$1` broken-promo-code finding the bank had correctly
+tagged `RESERVED | DEEP`** — the deep call-bait finding that's supposed to
+stay off-email entirely. `crm-gate send` printed a clean PASS because nothing
+in it cross-checked the drafted content against the bank; the bait-and-reserve
+check only ever emitted an informational note ("deep finding held in
+reserve"), never a hard fail, and had no way to know the note didn't match
+what actually went in the email.
+
+**Fix (`audit/crm_gate.py`):** new `opener_finding(row)` helper (the
+lowest-ranked `UNUSED` bank entry — the only thing a touch 1 email may be
+built from). `check_send` gains `--opener-rank`, required for touch 1
+whenever the Findings Bank is populated: hard-fails if the declared rank is
+`RESERVED`, doesn't match the true bank #1, or is missing. Legacy rows with
+no bank stay ungated. Wired through `main.py`'s CLI. 6 new regression tests
+in `tests/test_findings_bank_depth.py` (15/15 pass; full suite 170/170).
+Updated `haytham-hook-finder/SKILL.md` and
+`haytham-email-draft/references/uae-track.md` to say explicitly: read the
+Findings Bank property, not the page-body narrative, when picking what a
+touch 1 opener carries — the two can and did disagree.
+
+**Manual cleanup still owed:** Tracy's flawed Gmail draft (message
+`19f9436b39f9ec92`, Inbox 2/gethaytham.com transport) has no delete API on
+that path — needs deleting/unscheduling by hand in Gmail before send-day
+07-25. The corrected draft (message `19f946a99da85891`, opens on the real
+bank #1 terms-link-404 finding) is the one to send instead.
+
 ## 2026-07-24 — Dev: finding-depth tiers + bait-and-reserve (P1) + warm-reply craft (P2)
 
 Branch `claude/finding-depth-tiers-jydpvw`. Two linked problems: (1) upstream —

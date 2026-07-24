@@ -332,9 +332,21 @@ def cmd_crm_gate(args) -> None:
               "that just bumps is a wasted send and a spam signal; declare what new "
               "thing this one carries.")
         sys.exit(2)
+    if args.touch == 1 and args.opener_rank is None:
+        from audit.crm_gate import parse_findings_bank
+        row = json.loads(Path(args.row_json).read_text())
+        if parse_findings_bank(row.get("Findings Bank")):
+            print("CRM GATE (send): FAIL — --opener-rank is required for a touch 1 "
+                  "opener when the Findings Bank is populated: which bank rank the "
+                  "draft's email content was actually built from. (Added 2026-07-24 — "
+                  "a draft was once built from the page-body finding narrative instead "
+                  "of the bank order, and emailed the exact finding the bank had "
+                  "reserved as deep call-bait. This is the check that would have "
+                  "caught it.)")
+            sys.exit(2)
     sys.exit(crm_gate.print_send(
         args.row_json, args.sends_today, args.touch, args.followups_due, args.carries,
-        inbox=args.inbox, sends_next_day=args.sends_next_day,
+        inbox=args.inbox, sends_next_day=args.sends_next_day, opener_rank=args.opener_rank,
     ))
 
 
@@ -912,6 +924,13 @@ def main() -> None:
     p_crm.add_argument("--carries", choices=["second-finding", "loom-offer", "disambiguating-question"],
                        help="(send gate, touch 2/3) the new thing this follow-up carries; "
                             "second-finding is checked against the row's Findings Bank")
+    p_crm.add_argument("--opener-rank", type=int, default=None,
+                       help="(send gate, touch 1) which Findings Bank rank the draft's email "
+                            "content was actually built from — required whenever the bank is "
+                            "populated. Checked against the lowest-ranked UNUSED entry; a "
+                            "RESERVED rank or a mismatch fails. Added 2026-07-24 to stop a "
+                            "draft from being built off the page-body finding narrative and "
+                            "emailing the exact finding the bank had reserved as deep call-bait")
     p_crm.add_argument("--inbox", default=None,
                        help="(send gate) which sending inbox this send leaves from — its ceiling is "
                             "independent (default: primary, haytham@auto-mate.one)")

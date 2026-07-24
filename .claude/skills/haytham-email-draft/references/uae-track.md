@@ -67,7 +67,16 @@ follow-up enters the queue — `--inbox` is the lead's assigned `Inbox`
 label, and `--sends-today` is THAT inbox's own count, since each inbox has
 its own ceiling):
 
-- **Touch 1:** the strongest verified finding — `Findings Bank` #1.
+- **Touch 1:** `Findings Bank` #1 — the lowest-ranked `UNUSED` entry,
+  **never** whatever the page body's "strongest verified finding" prose
+  names, if the two disagree. They can disagree: a walk's narrative may
+  describe the most compelling finding even when the bank correctly tagged
+  that exact one `RESERVED | DEEP` (the call bait). Read the bank property
+  itself, and pass `--opener-rank <N>` on the touch 1 `crm-gate send` call
+  so the gate can confirm the rank you built from isn't `RESERVED` and is
+  actually the lowest `UNUSED` rank. (Added 2026-07-24 — a draft was once
+  built from the narrative instead of the bank and emailed the exact
+  finding the bank was reserving for the call.)
 - **Touch 2 (day 3) and Touch 3 (day 9):** exactly one of
   - `second-finding` — the next UNUSED `Findings Bank` entry (the gate
     checks it exists and never draws the `RESERVED` deep finding, which is
