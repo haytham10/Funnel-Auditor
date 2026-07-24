@@ -10,6 +10,63 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-24 — uae-tick: 26 due follow-up drafts (17 Inbox1 + 9 Inbox2), reply sweep clean, send queue dry
+
+Ran the daily uae-tick after a 3-day gap (last tick 07-21; no journaled ops
+07-22/07-23). Found a concurrent session had already worked several warm
+threads minutes before this tick started (Lee Harris price-discovery
+reply, Donna Brown explicit decline, William Brown + Lucia Csobonyei warm
+bumps, plus 6 new leads walked to Outreach Sent — Suzanne Saleh, Nick
+Carling, Marie Hondekyn, Michele Barouki, Josh McCartney). Verified each
+against fresh Gmail/Notion state before proceeding so nothing got
+double-drafted.
+
+- **Reply sweep (both inboxes, since 07-21): clean.** No new unhandled
+  replies — Donna Brown's decline and Lee Harris's non-reply were already
+  reconciled by the earlier session; Rita Baki's thread unchanged
+  (awaiting her Wed/Thu call pick, not yet due).
+- **26 due follow-up drafts created, all gated where the cold sequence
+  applies:**
+  - **15 cold Touch 2** (day-3 bump, `crm-gate send --touch 2` PASS):
+    13 carried `second-finding` (an UNUSED bank #2 existed); **Nabil El
+    Fquir** and **Caroline Bakker** had no second bank entry, so gated
+    `loom-offer` instead — exactly the case the gate exists to catch.
+  - **8 cold Touch 3** (day-9, final cold touch, `crm-gate send --touch 3`
+    PASS, `disambiguating-question`, no bank on any of the 8): Danielle
+    Smith, Monica Wadwa, Bettina Koster, Jasmin Manke, Kelly Lynch,
+    Elizaveta, Susan Fulignati, Shelley Bosworth — each closes "should I
+    stop following up, or is this still on your radar."
+  - **3 warm bumps** (no numeric gate, per skill — cold gate only covers
+    touch 1-3): Ben Pringle (Inbox 1), Lisa Hugo + Avneet Kohli (Inbox 2,
+    the latter nudging past-due Wed/Thu call times on her custom Retainer
+    quote).
+  - Inbox 1 totals today: 1 already sent (Lee Harris) + 17 queued = 18,
+    well under the 25 cap. Inbox 2: 2 already sent (William Brown, Lucia)
+    + 9 queued = 11, under the 20 cap.
+- **Discovery ladder: empty.** No `Reply Received` row was both warm and
+  past its turn-two with no discovery question asked yet — the live warm
+  threads (Lisa, William, Ben) haven't re-engaged past their Loom offers,
+  so asking discovery now would be asking into a stall.
+- **Send queue (Touch 1 openers): empty.** Audit Ready / Draft Ready both
+  at zero — confirms the 07-21 note that the bottleneck is walks/hooks,
+  not sends. Today's batch-audit run fed Outreach Sent leads, not fresh
+  Audit Ready ones, since all 6 newly-walked leads got Touch 1 same-day.
+- **Ramp reminder: Inbox 2 (20/day) has held 8 days** — eligible for the
+  25/day step if deliverability held. Did not run `send-cap set` (never
+  automatic); surfaced for Haytham's call.
+- No new bounces/spam flags in either inbox's sweep window — nothing
+  appended to `deliverability-log.md` this run.
+- Scoreboard not due (last run ~07-19/20, needs 7+ days).
+
+### Open follow-ups
+- [ ] Confirm the 26 drafts (Gmail, both inboxes) and send/schedule.
+- [ ] Watch Lee Harris's price discovery answer (question sent 07-22, no
+      reply yet); log verbatim + anchor the moment it lands.
+- [ ] Avneet Kohli: her Tue/Wed call offer has lapsed twice now: if
+      today's nudge also goes unanswered, next tick should treat this as
+      a stalling signal, not another bare bump.
+- [ ] Inbox 2 ramp: Haytham's call on 20 -> 25/day.
+
 ## 2026-07-21 — Wafa Bassili: turn-two sent, declined, marked Lost
 
 Drafted and worked her full turn-two arc after this morning's uae-tick
