@@ -99,6 +99,72 @@ def test_legacy_bank_stays_silent():
     assert not any("low-value" in n or "reserve" in n.lower() for n in notes)
 
 
+# --- opener-rank: touch 1 must be built from bank #1, never the reserved deep
+# finding (regression for the 2026-07-24 Tracy Harmoush incident: a draft was
+# built from the page-body finding narrative instead of the bank order, and
+# emailed the exact finding the bank had reserved as call bait) --------------
+
+from datetime import datetime as _datetime
+_BEFORE_NOON_DUBAI = _datetime(2026, 7, 24, 9, 0)  # side-step the noon cutoff branch
+
+
+def _opener(bank, opener_rank=None, **kw):
+    row = dict(_BASE, **{"Findings Bank": bank})
+    base = dict(row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP,
+                now=_BEFORE_NOON_DUBAI, opener_rank=opener_rank)
+    base.update(kw)
+    return crm_gate.check_send(**base)
+
+
+def test_opener_rank_required_when_bank_populated():
+    ok, problems, notes = _opener(_TAGGED)
+    assert not ok
+    assert any("--opener-rank is required" in p for p in problems)
+
+
+def test_opener_rank_pointing_at_reserved_fails():
+    ok, problems, notes = _opener(_TAGGED, opener_rank=3)
+    assert not ok
+    assert any("is RESERVED" in p and "whole program readable free" in p for p in problems)
+
+
+def test_opener_rank_pointing_at_wrong_unused_rank_fails():
+    # rank 2 is a real UNUSED entry, but rank 1 is the actual opener (lowest rank)
+    ok, problems, notes = _opener(_TAGGED, opener_rank=2)
+    assert not ok
+    assert any("is not the opener" in p and "bank #1" in p for p in problems)
+
+
+def test_opener_rank_matching_bank_one_passes():
+    ok, problems, notes = _opener(_TAGGED, opener_rank=1)
+    assert ok and not problems
+    assert any("opener draws bank #1" in n for n in notes)
+
+
+def test_opener_rank_unknown_rank_fails():
+    ok, problems, notes = _opener(_TAGGED, opener_rank=99)
+    assert not ok
+    assert any("does not match any Findings Bank entry" in p for p in problems)
+
+
+def test_opener_rank_ignored_on_legacy_empty_bank():
+    # a row with no Findings Bank at all (single-finding lead, or pre-migration
+    # row) must stay ungated — nothing to cross-check against.
+    row = dict(_BASE, **{"Findings Bank": ""})
+    ok, problems, notes = crm_gate.check_send(
+        row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP,
+        now=_BEFORE_NOON_DUBAI,
+    )
+    assert ok
+    assert not any("opener-rank" in p for p in problems)
+
+
+def test_opener_finding_helper_returns_lowest_unused_rank():
+    entry = crm_gate.opener_finding({"Findings Bank": _TAGGED})
+    assert entry is not None and entry["rank"] == 1
+    assert entry["finding"] == "checkout 404s on mobile"
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):

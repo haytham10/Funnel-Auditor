@@ -144,6 +144,26 @@ def reserved_deep_finding(row: dict) -> dict | None:
     return None
 
 
+def opener_finding(row: dict) -> dict | None:
+    """The one finding a touch 1 opener must be built from: the lowest-ranked
+    UNUSED bank entry (bank #1, chosen depth-first at walk time). Never a
+    RESERVED entry — that's the call bait, held out of email entirely.
+
+    Added 2026-07-24 after a real incident: a walk's page-body "strongest
+    verified finding" narrative described the same issue the Findings Bank
+    correctly tagged `RESERVED | DEEP`, and the draft step built the Touch 1
+    email from that narrative instead of the bank's rank order — emailing
+    the exact finding the bank was reserving as call bait. `check_send` had
+    no way to catch this because nothing cross-checked what the draft
+    actually said against the bank. `--opener-rank` closes that gap: the
+    draft step must declare which bank rank its email content came from, and
+    this function is what it's checked against.
+    """
+    candidates = [e for e in parse_findings_bank(row.get("Findings Bank"))
+                  if e["status"] == "UNUSED"]
+    return min(candidates, key=lambda e: e["rank"]) if candidates else None
+
+
 def check_offer(row: dict) -> tuple[bool, list[str]]:
     """Gate for Reply/Discovery → Offer Sent (and for drafting any priced offer)."""
     problems: list[str] = []
@@ -175,6 +195,7 @@ def check_send(
     inbox: str | None = None,
     now=None,
     sends_next_day: int | None = None,
+    opener_rank: int | None = None,
 ) -> tuple[bool, list[str], list[str]]:
     """Gate for queueing/logging any cold send on this lead.
 
@@ -197,6 +218,19 @@ def check_send(
                     gated against tomorrow's ceiling using this count, not
                     today's already-spent one. Follow-ups/warm replies are
                     never rolled: they still go out today.
+    opener_rank   — touch 1 only, required whenever the Findings Bank is
+                    populated: which bank rank the draft's email content was
+                    actually built from. Checked against opener_finding()
+                    (the lowest-ranked UNUSED entry) — a mismatch, or a rank
+                    that turns out to be RESERVED, is a hard fail. Added
+                    2026-07-24 after a real incident: a walk's page-body
+                    narrative described the same finding the Findings Bank
+                    correctly reserved as deep call-bait, and the draft was
+                    built from that narrative instead of the bank order,
+                    emailing the exact finding the bank was holding back.
+                    Nothing previously cross-checked drafted content against
+                    the bank, so it passed clean. Legacy rows with no bank
+                    at all stay ungated (opener_rank is simply ignored).
 
     Returns (ok, problems, notes) — notes are PASS-line detail.
     """
@@ -252,6 +286,40 @@ def check_send(
         else:
             base_count = sends_today
             day_phrase = f"send-day {sday} (today)"
+
+        bank_entries = parse_findings_bank(row.get("Findings Bank"))
+        if bank_entries:
+            correct = opener_finding(row)
+            if opener_rank is None:
+                problems.append(
+                    "--opener-rank is required for a touch 1 opener when the Findings Bank "
+                    "is populated — declare which bank rank the draft's email content was "
+                    "built from, so the gate can confirm it isn't the RESERVED deep "
+                    "call-bait finding"
+                )
+            else:
+                entry = next((e for e in bank_entries if e["rank"] == opener_rank), None)
+                if entry is None:
+                    problems.append(
+                        f"--opener-rank {opener_rank} does not match any Findings Bank entry"
+                    )
+                elif entry["status"] == "RESERVED":
+                    where = f'bank #{correct["rank"]} instead' if correct else "an UNUSED entry instead"
+                    problems.append(
+                        f'--opener-rank {opener_rank} is RESERVED ("{entry["finding"]}") — the '
+                        f"deep call-bait finding must never be emailed; the opener must draw {where}"
+                    )
+                elif correct is not None and entry["rank"] != correct["rank"]:
+                    problems.append(
+                        f'--opener-rank {opener_rank} ("{entry["finding"]}") is not the opener — '
+                        f'bank #{correct["rank"]} ("{correct["finding"]}") is the lowest-ranked '
+                        "UNUSED entry and is what the draft must be built from"
+                    )
+                else:
+                    notes.append(
+                        f'opener draws bank #{entry["rank"]} ({entry["status"]}): '
+                        f'"{entry["finding"]}"'
+                    )
 
         if followups_due is None:
             problems.append(
@@ -360,6 +428,7 @@ def print_send(
     carries: str | None = None,
     inbox: str | None = None,
     sends_next_day: int | None = None,
+    opener_rank: int | None = None,
 ) -> int:
     if inbox is not None and not inboxes.is_registered(inbox):
         print(
@@ -372,7 +441,7 @@ def print_send(
     cap_state = send_cap.load_cap(inbox)
     ok, problems, notes = check_send(
         row, sends_today, touch, followups_due, carries, cap_state=cap_state,
-        sends_next_day=sends_next_day,
+        sends_next_day=sends_next_day, opener_rank=opener_rank,
     )
     name = _norm(row.get("Contact Name")) or "unnamed lead"
     tag = f" [{cap_state.inbox}]"
