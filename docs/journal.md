@@ -58,8 +58,20 @@ double-drafted.
   appended to `deliverability-log.md` this run.
 - Scoreboard not due (last run ~07-19/20, needs 7+ days).
 
+**Correction (Haytham, same day):** the uniform `Next Action: 2026-07-25`
+across the due list wasn't a formula quirk, it was deliberate — he shifted
+all Next Action dates +2 days CRM-wide to match the real 2-day gap since
+the 07-22 work (no tick ran 07-22/07-23; today was the catch-up/prep day).
+**These 26 drafts go out tomorrow (07-25), not today** — send/schedule
+them then, and split Inbox 1's 17 into two sittings (pacing cap is 10 per
+inbox per sitting; well under the 25 cap in total, but still worth
+spreading). Next session: a `Next Action` a day or two past a batch's
+natural cadence is not automatically staleness — check for a deliberate
+shift like this before assuming a missed tick.
+
 ### Open follow-ups
-- [ ] Confirm the 26 drafts (Gmail, both inboxes) and send/schedule.
+- [ ] Send/schedule the 26 drafts tomorrow (07-25), Inbox 1 split across
+      two sittings.
 - [ ] Watch Lee Harris's price discovery answer (question sent 07-22, no
       reply yet); log verbatim + anchor the moment it lands.
 - [ ] Avneet Kohli: her Tue/Wed call offer has lapsed twice now: if
