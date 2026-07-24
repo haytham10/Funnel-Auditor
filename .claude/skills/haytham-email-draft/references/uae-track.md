@@ -1,10 +1,19 @@
-# UAE Track — pricing register + the price discovery email
+# UAE Track — the offer register, the turn-two, and the money email
 
 Read this whenever the lead lives in the UAE Lead CRM
 (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`). Everything in
 voice.md, gate.md, mechanics.md, and critical-failures.md still applies in
 full — this file adds the UAE-specific layer on top: how prices are
-quoted, and the one email type that exists only in this track.
+quoted, what the turn-two sells, the guarantees, and the downsell ladder.
+
+> **Changed 2026-07-24.** This file used to be built around the price
+> discovery email, and price discovery used to be a hard gate before any
+> priced offer. That premise has been falsified (100 touched leads, the
+> question asked 3 times, 3 answers, all `Refused to name`, 0 numbers).
+> Nobody names a budget to a stranger over email. The question moved to
+> the call; the gate moved to "have you earned the right to name a
+> number"; and the turn-two stopped offering a free Loom and started
+> offering a paid fix. See docs/journal.md, 2026-07-24.
 
 ---
 
@@ -23,21 +32,142 @@ quoted, and the one email type that exists only in this track.
   same price. Saying "for UAE clients I do 735 AED" implies a special
   rate that invites negotiation.
 - All the money-email field rules from mechanics.md apply unchanged:
-  guarantee stated boldly and unprompted, one CTA (price + one concrete
+  guarantees stated boldly and unprompted, one CTA (price + one concrete
   next step), bonuses answer stalls, the number never drops.
+
+---
+
+## THE 48-HOUR LEAK FIX — 500 AED, paid after (the turn-two offer)
+
+The rung the ladder was missing. It converts a stranger into a customer,
+which is the only thing that has never happened on this track.
+
+- **500 AED, paid after.** Access on their side, the specific banked
+  finding fixed and live within 48 hours, they pay only once it's live and
+  working.
+- **Alternative: 365 AED paid up front**, which also includes the full
+  12-point teardown of the rest of the funnel. Offer this only if they
+  hesitate on the shape, never as the opening number.
+- **It is NOT gated by `crm-gate offer`.** The Leak Fix is the thing that
+  EARNS the right to name the Sprint number, so gating it would deadlock
+  the motion. Only the priced Sprint / Track A / Track B money email needs
+  a gate PASS.
+- Why this replaced the Loom: a Loom is high-effort for the prospect
+  (watch a video, then decide) and low dream-outcome (you describing a
+  problem they now feel worse about). It was offered to Ben Pringle, Lisa
+  Hugo and Lucia Csobonyei and taken by none of them. The paid fix is the
+  same finding, but the offer is their problem going away, at zero risk,
+  for the price of a dinner.
+
+**The turn-two script** (adjust to the thread, never paste — the bespoke
+check applies):
+
+> Rather than talk about it, want me to just fix it? Access on your side,
+> live in 48 hours, and you only pay if it's working. 500 AED. If it's
+> easier, here's my calendar and I'll walk you through what I'd do first:
+> [link]
+
+**Every turn-two ends in a single-tap next step or a paid tiny yes.**
+Never a discovery question, never a menu, never a soft exit. Those two
+endings are the only legal ones.
+
+Logging: a sold Leak Fix moves the row to `Leak Fix Sold`, then
+`Leak Fix Delivered` once it's live, with the amount in `Cash Collected`
+and `Est. Value` = `Leak Fix (500 AED)`.
+
+---
+
+## THE SPRINT — the priced offer, as a stack
+
+**"The Booked-Out Funnel — 5-Day Sprint for UAE Coaches" · 2,575 AED.**
+(Name alternates to test: "The 5-Day Leak-to-Launch", "The Dubai Coach
+Funnel Sprint".) Never quote it as "I'll fix your funnel for 2,575 AED" —
+that is directly price-comparable to a Fiverr gig. A stack whose summed
+value dwarfs the price is comparable to nothing.
+
+| Component | Value |
+| --- | --- |
+| The Leak Map — written 12-point audit of every leak, fixed or not | 900 AED |
+| Rebuilt opt-in + sales page (copy, design, build) | 4,500 AED |
+| Checkout / booking flow fixed + tested end-to-end from a clean device | 1,200 AED |
+| 5-email welcome sequence written and installed | 2,000 AED |
+| Mobile + speed pass | 800 AED |
+| Loom handover walkthrough | 600 AED |
+| **Stacked value** | **10,000 AED** |
+
+**Bonuses, each killing one objection:**
+- **The Leak Map** (900 AED) — "what if you miss something"
+- **The Send-Ready Launch Kit** (1,500 AED) — 5 emails + 10 captions to
+  point traffic at the new funnel; kills "then what, it just sits there"
+- **The 30-Day Tune-Up** (1,200 AED) — one revision round after real data;
+  kills "what if it doesn't work first time"
+
+**Scarcity, both honest and true** (never invent either):
+- Growth-rate cap: "I take 2 new builds a week. Solo, no team, that's the
+  real ceiling."
+- Rolling slot urgency: "next open build slot is [date]."
+
+⚠️ **The price holds at 2,575 AED.** Do NOT quote 3,600. Zero closes have
+landed; raising the price and restructuring the offer at once means you
+won't know which one moved. 3,600 is the documented next step, gated on 2
+closes (docs/uae-track/02-the-offer-gso-v2.md).
+
+---
+
+## THE GUARANTEES — both, named, stacked, unprompted
+
+Risk is the #1 objection, and the market brief's own conclusion is that
+the blocker is trust. Both guarantees go in every money email, stated
+boldly before any objection arrives, by name:
+
+1. **The Live-or-Free Guarantee.**
+   > Your funnel is live, tested end-to-end from a clean device, and
+   > taking bookings within 5 working days of getting access. If it isn't,
+   > you don't pay, and you keep everything I've built.
+
+2. **The First Booking Guarantee.**
+   > If you don't take one booking through the new funnel within 30 days
+   > of launch, I keep working, copy, offer, sequence, free, until you do.
+   > Condition: you send traffic to it.
+
+**The condition on ② is load-bearing** and is never dropped to sound
+generous. It aligns incentives and screens out buyers who won't do the
+work; without it the guarantee is unbounded and reads as desperate.
+
+---
+
+## THE DOWNSELL LADDER — never drop the price for the same thing
+
+The standing rule is "the price never drops, the scope does". Without a
+named ladder that resolves in the moment, which is exactly when people
+cave. Work the rungs in order:
+
+1. **Payment Plan Downsell** — 1,300 AED to start, 1,275 AED on launch
+   day. Same total, same scope. ("It costs too much" almost always means
+   "it costs too much up front.")
+2. **Feature Downsell, "The Minimum"** — one flagship page done right
+   (copy, design, build, mobile), 1,800 AED. Named deliberately: "The
+   Minimum" implies they should get at least that.
+3. **The 1-10 check, after two downsells** — "how badly do you want this
+   fixed, 1 to 10?" 8+ → put them on the payment plan. 7 or below →
+   recombine to whatever their 10 actually is, or let it go.
+
+Never invent a rung, never invent a discount, never skip to rung 3.
 
 ## The lifecycle this track logs against
 
 ```
-Sourced → Qualifying → Audit Ready → Outreach Sent → Reply Received
-  → Price Discovery Sent → Offer Sent → Call Booked → Won
+Sourced → Qualifying → Audit Ready → Draft Ready → (Scheduled)
+  → Outreach Sent → Reply Received
+  → [Leak Fix Sold → Leak Fix Delivered  OR  Call Booked]
+  → Offer Sent → Won
 ```
 
 Off-ramps: Lost, Dormant, Disqualified. There is no "Loom Sent" status in
-this CRM — the artifact (turn-two walkthrough) happens inside Reply
-Received and is logged in the page body's Email Thread Log with an
-`Artifact:` line. Status changes on sends (only after Haytham confirms a
-send, as always):
+this CRM, and no Loom offer either — the turn-two artifact is the paid
+Leak Fix, offered inside Reply Received and logged in the page body's
+Email Thread Log with an `Artifact:` line. Status changes on sends (only
+after Haytham confirms a send, as always):
 
 - First send: Audit Ready → Outreach Sent (Touch # = 1, Sequence = Cold).
   The opener carries the #1 finding from the row's `Findings Bank`.
@@ -47,12 +177,18 @@ send, as always):
   Each follow-up must carry something new — see "What each cold touch
   carries" below.
 - She replies: → Reply Received, Sequence = Warm.
-- The discovery question goes out: → Price Discovery Sent.
-- Her answer is logged (verbatim + anchor set) and the priced offer goes
-  out: → Offer Sent. **`python main.py crm-gate offer` must print PASS
-  before the offer email is even drafted.**
-- Call booked / paid: → Call Booked / Won. Explicit no or warm-thread
-  ghost after 8-10 touches: → Lost with Lost Reason.
+- The turn-two offers the paid Leak Fix or a call. She buys it: →
+  `Leak Fix Sold`, then `Leak Fix Delivered` once it's live (log
+  `Cash Collected`). She books instead: → `Call Booked`.
+- She asks what it costs, at any point: check `Asked For Price`. That is
+  the highest-intent signal in the CRM and it earns the money email on its
+  own.
+- The priced Sprint offer goes out: → Offer Sent. **`python main.py
+  crm-gate offer` must print PASS before that offer email is even
+  drafted** — it now checks that she has EARNED a number (an earned status,
+  or `Asked For Price`), not that she named one.
+- Paid: → Won. Explicit no or warm-thread ghost after 8-10 touches: →
+  Lost with Lost Reason.
 
 ---
 
@@ -85,7 +221,11 @@ its own ceiling):
     cost is not the Adrienne mistake, teaching a second fix is. If the
     second finding is deep, name that it exists and costs her, never the
     fix (the deep-finding fix is call-only — see mechanics.md free-value cap).
-  - `loom-offer` — one line, an offer not a link, no price.
+  - `leak-fix-offer` — one line offering the paid 48-Hour Leak Fix (500
+    AED, paid after) or the calendar. On a COLD thread it stays a one-line
+    offer, no link. (`loom-offer` is still accepted by the gate as a
+    deprecated alias, so in-flight rows don't break, but nothing new
+    should declare it.)
   - `disambiguating-question` — direct binary, no soft exit ("Should I
     stop following up, or is this still on your radar?"). The natural
     Touch 3 closer.
@@ -96,60 +236,38 @@ bank entry to `USED-TN` in the `Findings Bank` property.
 
 ---
 
-## THE PRICE DISCOVERY EMAIL (new email type, this track's whole reason)
+## PRICE DISCOVERY (retired as an email step — falsified 2026-07-24)
 
-**What it is:** one short reply, sent while the thread is warm, that asks
-what she'd pay or what's stopping her — BEFORE any number of ours is on
-the table. 125 leads and 364 touches produced zero data on why nobody
-bought, because nobody was ever asked. This email is the instrument that
-fixes that.
+**Do not draft a price discovery email.** The question no longer goes out
+over email at all. It is asked on the call, if at all.
 
-**When it goes out:**
-- After she's replied, and normally after the turn-two artifact has
-  landed (the walkthrough creates the warmth this question rides on).
-- If she jumps straight to "how much?" — the discovery question goes in
-  the reply BEFORE the number, using the flip shape below, and the price
-  follows in the next message as promised.
-- NEVER as a response to a stall. If our price is already out and she's
-  gone quiet, that's silence handling (mechanics.md + the disambiguating
-  questions), not discovery — the unanchored data point is already lost.
-  Do not retrofit this question onto a stalled offer.
+**What was tested:** one short reply, sent while the thread was warm,
+asking what she'd pay before any number of ours was on the table. The
+whole track was built on it.
 
-**When it does not go out:**
-- Cold. This is never Touch 1-4 material. A stranger asked "what would
-  you pay" replies to nobody.
-- Twice. One thread gets one discovery question. If she dodges it, the
-  dodge is the data (`Refused to name`).
+**What it produced:** across 100 touched leads, 182 touches and 9 replies,
+the question was asked 3 times. It produced 3 answers, all
+`Refused to name`, and 0 numbers. Two of the three refusers responded by
+asking *us* for a price instead. Nobody names a budget to a stranger over
+email, and the refusal turned out to be a TRUST signal, not a price
+signal.
 
-**The shape:** one real question, answerable in one line, producing a
-number or an obstacle. One sentence of setup at most. No price of ours
-anywhere in the email. All voice rules apply: proper capitalization, no
-em-dashes, no jargon, no weak closers, and it must not read like a survey.
+**What replaced it:**
+- At turn-two, the paid 48-Hour Leak Fix or the calendar — a paid tiny yes
+  or a single tap, never a question.
+- If she asks "how much?", **answer with the number.** Do not flip the
+  question back at her. That flip is what produced two of the three
+  refusals. Check `Asked For Price` on her row, then quote the Sprint with
+  both guarantees.
+- The budget conversation, if it is ever worth having, happens on the
+  call.
 
-**Canonical phrasings** (pick by situation, adjust wording to the thread —
-never paste; the gate's bespoke check applies here too):
+The `Price Discovery Answer` and `Discovery Anchor` fields stay in the CRM
+and stay populated when a lead volunteers anything — the verbatim answers
+are still the best qualitative data in the system. They are **advisory**
+now: `crm-gate offer` reports them, it no longer blocks on them.
 
-1. **Default (artifact landed, moving toward money):**
-   > Quick question before I put a number on this. If everything I walked
-   > you through got fixed and working by the weekend, what would you
-   > expect that to cost?
-
-2. **The flip (she asked "how much?" first):**
-   > I'll give you the exact number in my next message, promise. First,
-   > out of curiosity, what were you expecting it to cost?
-
-   The promise is load-bearing: it commits to naming the price whatever
-   she answers, which is what keeps the question from reading like
-   fishing. Keep the promise — the very next message carries the price.
-
-3. **The obstacle read (warm and friendly but non-committal, money never
-   mentioned):**
-   > Honest question. What would stop you from getting this sorted this
-   > month?
-
-   Produces the objection instead of the number. Both are discovery data.
-
-**Logging (this is the study — sloppy logging defeats the track):**
+**Logging (advisory, but still verbatim when it happens):**
 - `Price Discovery Answer`: her answer VERBATIM. Her exact words, her
   currency, her hedges. Never summarized, never cleaned up.
 - `Discovery Anchor`: compare her number to the track price she'd be
@@ -160,27 +278,31 @@ never paste; the gate's bespoke check applies here too):
   - clearly below → `Below 735 AED` / `Below 2575 AED`
   - no number (dodged, or gave only an obstacle) → `Refused to name` —
     the verbatim answer still carries the data.
-- Status → `Price Discovery Sent` when the question goes out (after
-  Haytham confirms the send); the answer fields fill when she replies.
-- Page body, Price Discovery section: question-sent date, verbatim
-  answer, anchor.
+- `Price Discovery Sent` is a legacy status. Do not move new leads into
+  it. Existing rows sitting there are worked like `Reply Received`.
+- Page body, Price Discovery section: whatever she volunteered, verbatim,
+  with the anchor.
 
 **What her answer changes — and what it never changes:**
 - It never changes the price. A low anchor is market data, not
   permission to discount. This is hard rule territory.
-- It may change WHICH track gets offered (a real-volume operator
-  anchoring high might be a Track B conversation).
+- It may change WHICH offer gets made (a real-volume operator anchoring
+  high might be a Sprint conversation rather than a Leak Fix one).
 - A below-anchor answer changes the offer email's emphasis, not its
-  number: lead harder with the risk reversal and the guarantee, because
-  her anchor says risk is the objection.
+  number: lead harder with both named guarantees.
+- `Refused to name` is a TRUST reading, not a price reading. She withheld
+  a number because she doesn't yet believe the outcome. The answer is more
+  risk reversal, never a smaller number.
 - An obstacle answer feeds the offer email directly: the matching bonus
-  or term restructure goes in up front (mechanics.md field rules).
+  or downsell rung goes in up front.
 
-**The gate:** before drafting the priced offer that follows, dump the
-lead's fresh row to JSON and run `python main.py crm-gate offer
-<row.json>`. It fails unless the verbatim answer is logged and the anchor
-is set. Quote its literal PASS line when reporting the draft. No PASS, no
-offer — take it up with the CRM, not the gate.
+**The gate:** before drafting the priced Sprint offer, dump the lead's
+fresh row to JSON and run `python main.py crm-gate offer <row.json>`. It
+now checks that the lead has EARNED a number — an earned `Status`
+(`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`,
+`Won`) or `Asked For Price` checked. Quote its literal PASS line when
+reporting the draft. No PASS, no money email — take it up with the CRM,
+not the gate. The 500 AED Leak Fix at turn-two is NOT gated.
 
 ---
 
