@@ -10,6 +10,98 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-24 — Price discovery is falsified. The track re-gates on earned right.
+
+**The finding, plainly.** The UAE track was built on one hypothesis: that
+asking a coach what they'd pay, before quoting, would explain why cold leads
+don't close. After 100 touched leads, 182 touches and 9 replies, the question
+was asked 3 times and produced 3 answers, all `Refused to name`, and 0 numbers.
+Two of the three refusers responded by asking us for a price instead. The
+refusal is a trust signal, not a price signal. The question moves to the call;
+the gate moves to "have you earned the right to name a number." **The real
+constraint was never price — it is reply → call, which is 0/9.**
+
+This is a real result. It just isn't the one the track was hoping for.
+
+**What the gate blocked in practice.** Not Avneet and Rita, as first assumed —
+both were already `Offer Sent` with `Refused to name` anchors, so they passed
+the old gate. The leads actually blocked were the four warm ones with nothing
+logged at all: Ben Pringle, William Brown, Lisa Hugo, Lucia Csobonyei, all
+`Reply Received` with a null `Price Discovery Answer`. Those are now unblocked
+the moment they earn it.
+
+**Code (`audit/crm_gate.py`, `main.py`).** `check_offer` now PASSes on either
+of two routes: an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix
+Delivered`, `Offer Sent`, `Won` — Status is a single select and forward
+progress overwrites, so has-been-there counts) or the new `Asked For Price`
+checkbox. `Price Discovery Answer` / `Discovery Anchor` are demoted to
+advisory and reported as notes; a `Refused to name` anchor emits a WARNING
+note saying it is a trust signal and the email should lead harder with the
+guarantees. `check_offer` now returns a 3-tuple `(ok, problems, notes)` to
+match `check_send` (only caller was `print_offer`). **The 500 AED turn-two
+Leak Fix is explicitly exempt from this gate** — it is the rung that earns the
+right, so gating it would deadlock the motion. 18 new tests in
+`tests/test_offer_gate_earned.py` (there were zero on `check_offer` before);
+`check_send` untouched, full suite 197/197.
+
+**Carrier rename.** `CARRIERS` is now `second-finding | leak-fix-offer |
+disambiguating-question`, with `DEPRECATED_CARRIERS = {"loom-offer":
+"leak-fix-offer"}` and a `normalize_carrier()` helper. `--carries loom-offer`
+still PASSes (in-flight rows, queued follow-ups, journal history) and appends
+a deprecation note; failure messages advertise canonical names only. The
+deprecation note is appended LAST so the carrier note stays `notes[0]`, which
+`tests/test_send_gate_dubai.py` asserts positionally.
+
+**Offer rebuild (three changes, price held).**
+1. **The 48-Hour Leak Fix, 500 AED paid after** (365 AED up front incl. the
+   12-point teardown) replaces the free Loom at turn-two. The Loom was offered
+   to Ben Pringle, Lisa Hugo and Lucia Csobonyei and taken by none — high
+   effort for the prospect, low dream outcome. New statuses `Leak Fix Sold` /
+   `Leak Fix Delivered` give a paying customer somewhere to sit.
+2. **Track B becomes a named stack:** "The Booked-Out Funnel — 5-Day Sprint
+   for UAE Coaches", 10,000 AED of components for 2,575 AED, plus three named
+   bonuses and honest scarcity (2 builds/week growth-rate cap).
+3. **Two named guarantees, stacked and unprompted:** Live-or-Free (live and
+   taking bookings within 5 working days or you don't pay and keep the work)
+   and First Booking (no booking in 30 days and I keep working free, condition:
+   you send traffic). There was previously no guarantee anywhere in Track B.
+   Plus a standing named downsell ladder (payment plan 1,300+1,275 → "The
+   Minimum" 1,800 → the 1-10 check).
+
+⚠️ **The price did NOT move. 2,575 AED holds.** 3,600 is documented in
+`02-the-offer-gso-v2.md` as the next step, gated on 2 closes. Zero closes have
+landed; changing the price and the offer at once destroys the read.
+
+**Notion (applied live).** Status +`Leak Fix Sold` +`Leak Fix Delivered` (all
+15 prior options preserved); `Est. Value` +`Leak Fix (500 AED)` +`Sprint (2575
+AED)` +`Funnel Watch (600/mo)` — **note: no comma, Notion rejects commas in
+select option names**; new `Asked For Price` checkbox and `Cash Collected`
+number. Two new views: 💸 Asked For Price (`3a7382c8-4585-81be-9b04-000c02607c46`)
+and 🎯 Constraint Board (`3a7382c8-4585-8145-9a6c-000c59480cf2`, grouped by
+Status over the reply→call stretch). Price Discovery Study renamed to
+"(concluded)" and kept, not deleted. `Asked For Price` checked on Avneet Kohli
+and Rita Baki, both of whom explicitly asked for a costing and both of whom
+were 3-4 days stale — exactly the failure the new view exists to prevent.
+
+**Docs re-pointed** so no file still asserts the old rule: `CLAUDE.md`,
+`get-started.md`, `01-crm-operating-spec.md` (lifecycle, transition table, new
+queries, page-body template now has a `## Money` section), `04-the-outreach-method.md`
+(STANDARD MOTION steps 5-8 + a new `## WHAT IS NOW PROVEN` section carrying the
+falsification), `pipeline.html` (stage 07 "Reply & convert"), `uae-tick`
+(the discovery ladder is now the **conversion ladder**; new hygiene flags for
+stale `Asked For Price` and un-turn-two'd replies; scoreboard tracks the
+constraint), the whole `haytham-email-draft` reference set, and
+`audit/dashboard.py`'s `STATUS_ORDER` (the new statuses would otherwise have
+fallen into the unknown-status bucket).
+
+**Open follow-ups.**
+- Nothing has been sold yet. UAE 4 in `examples.md` is a composite reference
+  draft, not a sent receipt — replace it with the real thread once one runs.
+- The four blocked warm leads (Ben Pringle, William Brown, Lisa Hugo, Lucia
+  Csobonyei) are owed a turn-two carrying the Leak Fix.
+- `Price Discovery Sent` rows still exist and are now worked as
+  `Reply Received`.
+
 ## 2026-07-24 — Dev: close a real bait-and-reserve enforcement gap (Tracy Harmoush incident)
 
 Same-day follow-on to the finding-depth tiers commit below. Ran qualify-leads →

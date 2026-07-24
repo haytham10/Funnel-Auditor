@@ -34,9 +34,9 @@ finding) → finding-verifier (independent check) → CRM write → email
 address resolved + verified → HELD at "Audit Ready" (no draft yet) →
 haytham-hook-finder (finds a real, cited personal hook; independent
 hook-verifier confirms it) → drafts a Gmail draft (held, not sent) →
-human reviews and sends by hand → reply → turn-two → price discovery
-question (answer logged verbatim) → priced offer (735 AED / 2,575 AED) →
-close.
+human reviews and sends by hand → reply → turn-two = the paid 48-Hour Leak
+Fix (500 AED) or a call → Leak Fix Sold/Delivered or Call Booked → priced
+offer (735 AED / 2,575 AED) → close.
 
 ## The core architectural pattern: worker → independent verifier
 
@@ -72,8 +72,12 @@ conversation.
 - Cold sequence is exactly 3 touches (day 0, 3, 9) then stop. Touches 2
   and 3 must each add something genuinely new (a new finding, an offer, a
   disambiguating question) — never a bare "just bumping this."
-- Price discovery (asking what they'd pay) must happen before any priced
-  offer is sent, never as a recovery move after a stall.
+- A lead must have EARNED a number before any priced offer is sent: an
+  earned Status (Leak Fix Sold/Delivered, Call Booked, Won) or the
+  `Asked For Price` checkbox. The 500 AED turn-two Leak Fix is exempt — it
+  is the rung that earns the right. (This replaced the price-discovery
+  gate on 2026-07-24, after asking 100 leads' worth of coaches what they'd
+  pay produced 3 answers, all refusals, and 0 numbers.)
 - Price is fixed: $200 = 735 AED / $700 = 2,575 AED. Never discounted;
   objections get bonuses or restructured terms, not a lower number.
 - Copy rules for every generated email: no em-dashes, no jargon words

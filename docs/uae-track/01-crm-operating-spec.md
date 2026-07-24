@@ -37,8 +37,25 @@ Written for Claude Code. Last updated 2026-07-14.
 | 📤 Send Queue | `39c382c8-4585-81aa-9d49-000c0ad49a3f` |
 | 🔬 Walk Queue | `39c382c8-4585-8194-bba1-000cf32dee66` |
 | 💬 Live Threads | `39c382c8-4585-817f-90e3-000cd221a0a0` |
-| 💰 Price Discovery Study | `39c382c8-4585-812b-8a35-000cc323df37` |
+| 💸 Asked For Price | `3a7382c8-4585-81be-9b04-000c02607c46` (added 2026-07-24) |
+| 🎯 Constraint Board | `3a7382c8-4585-8145-9a6c-000c59480cf2` (added 2026-07-24, board) |
+| 💰 Price Discovery Study (concluded) | `39c382c8-4585-812b-8a35-000cc323df37` |
 | 🔎 Qualifying | `39c382c8-4585-8173-b1e9-000c6eeb772d` |
+
+**💸 Asked For Price** — `Asked For Price` = checked, `Last Contacted` desc.
+The highest-intent leads in the system, and the ones most likely to go stale
+unattended: on the day this view was created it held Avneet Kohli and Rita
+Baki, both 3-4 days cold after explicitly asking what it costs. That failure
+is what the view exists to make impossible.
+
+**🎯 Constraint Board** — grouped by `Status`, filtered to `Reply Received` /
+`Leak Fix Sold` / `Offer Sent` / `Call Booked`. **reply → call is the
+constraint** (0 of 9 replies have ever converted), so it gets its own board
+rather than being a slice of the full pipeline.
+
+**💰 Price Discovery Study (concluded)** — kept for the historical record, not
+worked. 3 rows, all `Refused to name`, 0 numbers. The study is over; see §4
+rule 3.
 
 ### DO NOT TOUCH
 
@@ -73,15 +90,17 @@ SQLite table name is the data source URL, quoted:
 | `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` |
 | `Findings Bank` | text | Every verified finding from the walk, ranked depth-first (deep over shallow, then tier, then sting), one per line: `N. STATUS \| DEPTH \| finding`. `STATUS` ∈ `UNUSED` / `USED-Tn` / `RESERVED` (the one deep finding held as call bait, never emailed); `DEPTH` ∈ `SHALLOW` / `DEEP` (self-fixability). E.g. `1. USED-T1 \| SHALLOW \| booking button drops to a form` / `2. UNUSED \| DEEP \| pricing split across 4 platforms` / `3. RESERVED \| DEEP \| whole program readable free`. #1 is the opener; touches 2-3 draw the next UNUSED entry (never the RESERVED one). Statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property, skips RESERVED, and warns when no DEEP entry exists. Legacy lines without a DEPTH tag still parse. |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
-| `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14; `Lane 2`, added 2026-07-16) |
+| `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14; `Lane 2`, added 2026-07-16; `Leak Fix Sold` and `Leak Fix Delivered`, added 2026-07-24). `Price Discovery Sent` is legacy — no new lead enters it. |
 | `Inbox` | select | `Inbox 1` `Inbox 2` (added 2026-07-16). Which sending inbox this lead's whole thread goes out of — a LOGICAL label, mapped to a real address + transport by the registry (`audit/inboxes.py`; Inbox 1 = auto-mate.one via Gmail MCP, Inbox 2 = gethaytham.com via `main.py gmail-gethaytham`). Assigned once, sticky for the life of the thread. Blank = unassigned; routing fills it when the lead first enters the send queue. Each inbox has its OWN send ceiling. |
 | `Sequence` | select | `Cold` `Warm` |
 | `Touch #` | number | Increment on every send incl. follow-ups. |
 | `Last Contacted` | date | |
 | `Next Action` | date | Today view sorts on this. |
-| `Price Discovery Answer` | text | **VERBATIM.** Never paraphrase. |
-| `Discovery Anchor` | select | Track A: `Above 735 AED` `At 735 AED` `Below 735 AED` · Track B: `Above 2575 AED` `At 2575 AED` `Below 2575 AED` · plus `Refused to name` `Not asked yet` |
-| `Est. Value` | select | `Track A ($200)` `Track B ($700)` `Retainer` `Unknown` |
+| `Asked For Price` | checkbox | Added 2026-07-24. Set when a lead explicitly asks what it costs. **The highest-intent signal in the CRM**, and the second route through `crm-gate offer` on its own. Filterable via the "Asked For Price" view. |
+| `Cash Collected` | number (AED) | Added 2026-07-24. Real money actually received from this lead. All-time total was 0 AED and there was nowhere to record it when that changed. |
+| `Price Discovery Answer` | text | **VERBATIM.** Never paraphrase. **Advisory since 2026-07-24**, not blocking — `crm-gate offer` reports it as a note. Keep collecting it. |
+| `Discovery Anchor` | select | Track A: `Above 735 AED` `At 735 AED` `Below 735 AED` · Track B: `Above 2575 AED` `At 2575 AED` `Below 2575 AED` · plus `Refused to name` `Not asked yet`. **Advisory since 2026-07-24.** `Refused to name` reads as a TRUST signal, not a price signal, and the gate emits a WARNING note saying so. |
+| `Est. Value` | select | `Track A ($200)` `Track B ($700)` `Retainer` `Custom` `Unknown`, plus (added 2026-07-24) `Leak Fix (500 AED)` `Sprint (2575 AED)` `Funnel Watch (600/mo)`. Note: no comma in `Sprint (2575 AED)` — Notion rejects commas in select option names. |
 | `Lost Reason` | select | `No reply` `Price` `Not interested` `Bad timing` `Went elsewhere` `Ghosted after reply` `Wrong fit` `Other` |
 | `Notes` | text | One-line flags only. Detail goes in page body. |
 | `Created` | created_time | system |
@@ -102,10 +121,24 @@ Same pattern for `Last Contacted`.
 
 ```
 Sourced → Qualifying → Audit Ready → Draft Ready → (Scheduled) → Outreach Sent
-  → Reply Received → Price Discovery Sent → Offer Sent → Call Booked → Won
+  → Reply Received
+  → [Leak Fix Sold → Leak Fix Delivered]  OR  [Call Booked]
+  → Offer Sent → Won
 ```
 
 Terminal / off-ramps: `Lost`, `Dormant`, `Disqualified`, `Lane 2`
+
+**`Leak Fix Sold` and `Leak Fix Delivered` (added 2026-07-24) are the paid
+turn-two rungs.** The turn-two offer is the 48-Hour Leak Fix (500 AED, paid
+after; 365 AED up front as the alternative), and before these statuses
+existed a paying customer had nowhere to sit. `Leak Fix Sold` = they said
+yes and access is being arranged; `Leak Fix Delivered` = the fix is live and
+working, `Cash Collected` set. Either one, like `Call Booked`, earns the
+right to the priced Sprint offer.
+
+**`Price Discovery Sent` is LEGACY.** Do not move new leads into it. The
+price discovery question was falsified as an email step on 2026-07-24 (see
+§4 rule 3). Existing rows sitting there are worked like `Reply Received`.
 
 **`Lane 2` (added 2026-07-16) is the home for walked leads with no felt
 leak** (`Lane` = `Lane 2: No leak`) — both gates can pass but nothing
@@ -132,11 +165,13 @@ matching message in Gmail's sent mail, and uae-tick reconciles this every
 morning (Scheduled rows whose message has departed get flipped to
 Outreach Sent with the real departure date).
 
-**The turn-two artifact has no Status of its own.** The artifact offer and
-its delivery (the recorded walkthrough of their live page) happen inside
-`Reply Received` and are logged in the page body's Email Thread Log. The
-discovery question goes out after the reply (usually after the artifact
-lands, riding the warmth it creates) and always BEFORE any priced offer.
+**The turn-two artifact is the paid 48-Hour Leak Fix.** The offer is made
+inside `Reply Received` and logged in the page body's Email Thread Log with
+an `Artifact:` line; if they buy, the row moves to `Leak Fix Sold` and then
+`Leak Fix Delivered`. The retired shape (a free Loom offer, then the price
+discovery question) produced 3 offers and 0 takers, then 3 refusals and 0
+numbers. Every turn-two now ends in a single-tap next step (the calendar) or
+a paid tiny yes (the Leak Fix), never a question and never a soft exit.
 
 ### Transition rules
 
@@ -150,8 +185,12 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 | Draft Ready → Scheduled | Haytham scheduled the send in Gmail (tick detects it in the scheduled queue, or he says so). |
 | Audit Ready / Draft Ready / Scheduled → Outreach Sent | Touch #1 ACTUALLY departed (matching message in Gmail sent mail). Set `Last Contacted` (real departure date), `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must have printed PASS at queue time.** |
 | Outreach Sent → Reply Received | They replied. Set `Sequence` = Warm |
-| Reply Received → Price Discovery Sent | **MANDATORY STEP.** Discovery question sent. |
-| Price Discovery Sent → Offer Sent | Their answer logged verbatim in `Price Discovery Answer`, `Discovery Anchor` set. **Gate: `crm-gate offer` must print PASS first.** |
+| Reply Received → Leak Fix Sold | They accepted the turn-two 48-Hour Leak Fix (500 AED paid after, or 365 AED up front). Set `Est. Value` = `Leak Fix (500 AED)`. NOT gated — the Leak Fix is the rung that earns the priced offer, so gating it would deadlock the motion. |
+| Leak Fix Sold → Leak Fix Delivered | The fix is live and working and they have paid. Set `Cash Collected`. |
+| Reply Received → Call Booked | They took the calendar link instead. |
+| Any → (`Asked For Price` checked) | They explicitly asked what it costs, at any stage. Not a status change — a checkbox, and the highest-intent signal in the CRM. It is the second route through the offer gate on its own. |
+| [Leak Fix Delivered / Leak Fix Sold / Call Booked / `Asked For Price`] → Offer Sent | The lead has EARNED a number. **Gate: `crm-gate offer` must print PASS first** — an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or `Asked For Price` checked. `Price Discovery Answer` / `Discovery Anchor` are advisory and reported, never blocking. |
+| ~~Reply Received → Price Discovery Sent~~ | **RETIRED 2026-07-24.** Do not use. The discovery question no longer goes out over email. |
 | Any → Dormant | 3 cold touches (day 0, 3, 9), no reply. There is no touch 4. Set Next Action to a revival bump 2-3 weeks out. |
 | Any → Lost | Explicit no, or ghost after reply. Always set `Lost Reason`. |
 
@@ -161,11 +200,11 @@ lands, riding the warmth it creates) and always BEFORE any priced offer.
 
 1. **No send without `Finding Verified` = checked AND `Email Verified` = checked.** The finding produces the reply rate; a thin finding burns the lead and the domain. The verified address protects deliverability; a bounce burns that inbox's sending domain the whole ramp is built to protect (`email-check` is syntax+MX only and PASSED for two addresses that then hard-bounced — `email-verify` is the deliverability confirm). Both enforced by `python main.py crm-gate send`, which fails closed on either flag.
 2. **Never past a sending inbox's daily ceiling — PER INBOX, never pooled.** The ceiling is TOTAL sends leaving THAT inbox (openers + follow-ups + warm replies, both tracks). Each inbox is a separate domain with its own reputation, so each has its own independent ramp in `send_cap.json` (keyed by logical label, fails closed to 20 per inbox), moved 20 → 25 → 30 only by Haytham's explicit `python main.py send-cap set --inbox "<label>"` after 7+ days of that inbox's deliverability holding; **30 is the hard cap for ONE inbox — more volume means more inboxes, never a bigger number.** A lead's sends count against its assigned `Inbox`. Follow-ups due on an inbox eat that inbox's budget first; its openers get what's left. Enforced by `crm-gate send --sends-today N --touch T [--followups-due M] --inbox "<label>"` (`--sends-today` = that inbox's own count). Which inbox a new lead lands on: `python main.py inbox route`.
-3. **Price discovery happens BEFORE the priced offer**, not after a stall. This is the entire point of the track. Enforced by `python main.py crm-gate offer`.
-4. **`Price Discovery Answer` is logged verbatim.** Not summarized.
-5. **The price never moves.** Per Grand Slam Offer v2. A low anchor is market data, not an instruction to discount. Objections get bonuses or restructured terms.
+3. **The lead must have EARNED a number before any priced offer.** Either an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or `Asked For Price` checked. Enforced by `python main.py crm-gate offer`. The 500 AED turn-two Leak Fix is exempt — it is the rung that earns the right. *(Changed 2026-07-24. The old rule was "price discovery happens BEFORE the priced offer, this is the entire point of the track". It was tested: across 100 touched leads, 182 touches and 9 replies, the question was asked 3 times, produced 3 answers, all `Refused to name`, and 0 numbers; two of the three refusers asked US for a price instead. Nobody names a budget to a stranger over email. The refusal is a trust signal, not a price signal — the answer to it is more risk reversal, never a smaller number. The question moved to the call.)*
+4. **`Price Discovery Answer` is logged verbatim** whenever a lead volunteers anything. Not summarized. Advisory now, not blocking — still the best qualitative data in the system.
+5. **The price never moves.** Per Grand Slam Offer v2. A low anchor is market data, not an instruction to discount. Objections get bonuses, restructured terms, or a named rung of the downsell ladder. 3,600 AED is the documented next Sprint price and is gated on 2 closes; do not quote it.
 6. **Never write UAE leads into the parenting DB.**
-7. **The cold sequence is 3 touches (day 0, 3, 9), then Dormant — and touches 2-3 must carry something new:** the next UNUSED `Findings Bank` entry, the Loom offer, or the disambiguating question. A bare bump doesn't pass the gate (`--carries`, second-finding claims checked against the bank).
+7. **The cold sequence is 3 touches (day 0, 3, 9), then Dormant — and touches 2-3 must carry something new:** the next UNUSED `Findings Bank` entry, the paid leak-fix offer, or the disambiguating question. A bare bump doesn't pass the gate (`--carries`, second-finding claims checked against the bank; `loom-offer` is still accepted as a deprecated alias for `leak-fix-offer`).
 
 ---
 
@@ -203,7 +242,7 @@ FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
 GROUP BY "Status" ORDER BY cnt DESC
 ```
 
-### Pull the price discovery study
+### Pull the price discovery study (CONCLUDED — historical record only)
 ```sql
 SELECT "Contact Name", "Discovery Anchor", "Price Discovery Answer",
        "Coach Type", "Audience Size", "Status", "Lost Reason"
@@ -211,11 +250,35 @@ FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
 WHERE "Discovery Anchor" != 'Not asked yet'
 ```
 
+### Pull the leads who asked for a price (the highest-intent queue)
+```sql
+SELECT "Contact Name", "Status", "date:Last Contacted:start", "Est. Value", "Email"
+FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
+WHERE "Asked For Price" = '__YES__'
+ORDER BY date("date:Last Contacted:start") DESC
+```
+
+### The constraint: reply → call (or → paid Leak Fix)
+```sql
+SELECT "Status", COUNT(*) AS cnt
+FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
+WHERE "Status" IN ('Reply Received','Leak Fix Sold','Leak Fix Delivered',
+                   'Offer Sent','Call Booked','Won')
+GROUP BY "Status"
+```
+
+### Cash collected, all time
+```sql
+SELECT SUM("Cash Collected") AS aed_collected, COUNT(*) AS paying_leads
+FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
+WHERE "Cash Collected" > 0
+```
+
 ### Find stalled threads (the failure mode from the last pipeline)
 ```sql
 SELECT "Contact Name", "Status", "Touch #", "date:Last Contacted:start"
 FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
-WHERE "Status" IN ('Reply Received','Price Discovery Sent','Offer Sent')
+WHERE "Status" IN ('Reply Received','Leak Fix Sold','Price Discovery Sent','Offer Sent')
   AND date("date:Last Contacted:start") < date('now','-5 days')
 ```
 
@@ -324,10 +387,16 @@ Reply: [verbatim, or "No reply"]
 Artifact: [offered/delivered + date, or omit]
 Next: [date + planned action]
 
-## Price Discovery
-Question sent: [date]
+## Money
+Asked for a price: [yes + date, or no]
+Leak Fix: [offered date / sold date / delivered date, or "not offered"]
+Cash collected: [AED, or 0]
+Offer sent: [date + which offer, or "not yet"]
+
+## Price Discovery (advisory, legacy — only if they volunteered something)
 Their answer (VERBATIM): "..."
-Anchor: above / at / below 735 AED (Track A) or 2575 AED (Track B)
+Anchor: above / at / below 735 AED (Track A) or 2575 AED (Track B), or
+`Refused to name` — which reads as a TRUST signal, not a price signal
 ```
 
 ---
@@ -339,5 +408,14 @@ Only 2 of those 11 ever surfaced a real priced objection. Nobody was ever asked 
 
 The outreach mechanic works. The close does not, and there is no data explaining why.
 
-This track holds the mechanic constant, changes the market (UAE), and adds the one missing step
-(price discovery before the offer). Review date: **2026-08-15**.
+This track held the mechanic constant, changed the market (UAE), and added the one missing step:
+price discovery before the offer.
+
+**That step is falsified as of 2026-07-24.** UAE numbers: 100 touched leads, 182 touches, 9 replies.
+The question was asked 3 times. It produced 3 answers, all `Refused to name`, and **0 numbers**.
+Two of the three refusers responded by asking US for a price instead. Nobody names a budget to a
+stranger over email, and the refusal is a trust signal rather than a price signal.
+
+**The real constraint was never price. It is reply → call, which is 0/9.** So the missing step is
+now a *paid tiny yes* — the 500 AED 48-Hour Leak Fix at turn-two — and the gate moved from "you
+extracted their number" to "you earned the right to name a number." Review date: **2026-08-15**.

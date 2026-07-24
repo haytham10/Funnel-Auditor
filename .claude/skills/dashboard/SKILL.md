@@ -74,12 +74,17 @@ matching snapshot key.
   ```
   Shape: `[{"name","status","last_contacted","note"}, ...]`.
 
-- **`discovery_ladder`** — two queues:
-  - `due_question`: Reply Received leads not yet asked
-    (`"Discovery Anchor" = 'Not asked yet'`) → `[{"name","status","next_action"}]`.
-  - `offer_unlocked`: answer logged (`"Discovery Anchor" != 'Not asked yet'` and
-    a non-placeholder `Price Discovery Answer`) → `[{"name","anchor","answer"}]`
-    (the answer VERBATIM).
+- **`discovery_ladder`** — the CONVERSION ladder (renamed in substance
+  2026-07-24; the JSON key is unchanged so the renderer keeps working). Two
+  queues:
+  - `due_question`: warm leads owed a turn-two — `Status = 'Reply Received'`
+    with no Leak Fix offered yet → `[{"name","status","next_action"}]`. The
+    turn-two carries the paid 48-Hour Leak Fix or the calendar, never the
+    retired price-discovery question.
+  - `offer_unlocked`: leads who have EARNED a number —
+    `"Status" IN ('Call Booked','Leak Fix Sold','Leak Fix Delivered','Offer Sent','Won')`
+    OR `"Asked For Price" = '__YES__'` → `[{"name","anchor","answer"}]` (any
+    logged answer stays VERBATIM; it is advisory now, not the unlock).
 
 - **`due_followups`** — `Next Action` at or before today, in the send sequence:
   ```sql
@@ -96,7 +101,9 @@ matching snapshot key.
   `[{"name","status","inbox","finding_verified","email_verified"}]` — the
   renderer groups by inbox and splits Draft Ready vs Audit Ready.
 
-- **`price_discovery`** — the study (spec §6):
+- **`price_discovery`** — the CONCLUDED study (spec §6). Kept for the
+  historical record: 3 answers, all `Refused to name`, 0 numbers. Nothing new
+  enters it.
   ```sql
   SELECT "Contact Name","Discovery Anchor","Price Discovery Answer","Est. Value"
   FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"

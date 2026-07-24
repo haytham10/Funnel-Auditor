@@ -1,6 +1,6 @@
 ---
 name: uae-tick
-description: The daily outreach ops loop over the UAE Lead CRM and Gmail. Use WHENEVER Haytham says "uae tick," "tick," "morning brief," "what's due," "check the pipeline," "any replies," or when a scheduled Routine fires this skill — for the UAE track (the parenting track's live threads have their own loop, pipeline-tick). It detects replies in Gmail and syncs CRM state (including logging price discovery answers verbatim the moment they land), surfaces leads due the discovery question, runs the crm-gate checks on everything about to move, drafts the follow-up touches that are due, hands over today's send queue capped at the deliverability ceiling, and keeps the weekly scoreboard honest. It creates Gmail DRAFTS only — it never sends, and it never advances Touch #/Status for an email that hasn't actually been sent.
+description: The daily outreach ops loop over the UAE Lead CRM and Gmail. Use WHENEVER Haytham says "uae tick," "tick," "morning brief," "what's due," "check the pipeline," "any replies," or when a scheduled Routine fires this skill — for the UAE track (the parenting track's live threads have their own loop, pipeline-tick). It detects replies in Gmail and syncs CRM state (flagging the moment a lead asks what it costs, and logging any volunteered price answer verbatim), surfaces warm leads due the turn-two paid Leak Fix offer, runs the crm-gate checks on everything about to move, drafts the follow-up touches that are due, hands over today's send queue capped at the deliverability ceiling, and keeps the weekly scoreboard honest. It creates Gmail DRAFTS only — it never sends, and it never advances Touch #/Status for an email that hasn't actually been sent.
 ---
 
 # UAE Tick — replies, discovery, due touches, send queue
@@ -12,7 +12,9 @@ truth — never trust chat memory for pipeline state.
 (REST API database ID: `5a9fc583160046d1a64c4e65cc804229`).
 Views: 🔥 Today `39c382c8-4585-816e-bad3-000c4011b5df`, 📤 Send Queue
 `39c382c8-4585-81aa-9d49-000c0ad49a3f`, 💬 Live Threads
-`39c382c8-4585-817f-90e3-000cd221a0a0`, 💰 Price Discovery Study
+`39c382c8-4585-817f-90e3-000cd221a0a0`, 💸 Asked For Price
+`3a7382c8-4585-81be-9b04-000c02607c46`, 🎯 Constraint Board
+`3a7382c8-4585-8145-9a6c-000c59480cf2`, 💰 Price Discovery Study (concluded)
 `39c382c8-4585-812b-8a35-000cc323df37`.
 **Never touch the old parenting DB** (`c6209e29-55ef-4781-b735-73b2a254e34f`) —
 its live threads belong to `pipeline-tick`.
@@ -82,7 +84,7 @@ Commit and push the file change to uae-track if you make one.
 
 **The budget — computed separately for each inbox, follow-ups first:** for
 inbox X, count today's still-unsent follow-ups whose lead is assigned to X
-(warm replies owed, discovery questions due, cold Touch 2/3 due) = F_X.
+(warm replies owed, turn-twos due, cold Touch 2/3 due) = F_X.
 New-opener headroom on X = X's ceiling − X's sends so far − F_X. Openers
 routed to X get what's LEFT on X — never what X's follow-ups need. Enforced
 per lead by the gate invocations in steps 3 and 4, each passing
@@ -152,14 +154,22 @@ the stall check. For any matched row, fetch the Gmail thread and sync.
   Received (or the later stage that actually applies), Sequence = Warm,
   and quote the reply verbatim in the brief. Append the reply verbatim to
   the lead page's Email Thread Log entry it answers (`Reply:` line).
-- **A reply on a `Price Discovery Sent` lead IS the study data.** The
-  moment it lands: log her answer VERBATIM into `Price Discovery Answer`
-  (her exact words, her currency, her hedges — never summarized), set
-  `Discovery Anchor` per the mapping in
-  `haytham-email-draft/references/uae-track.md` (no number → `Refused to
-  name`), and fill the page body's Price Discovery section. This is the
-  one write that must never wait — an unlogged answer is the old
-  pipeline's data hole all over again.
+- **A reply that asks what it costs → check `Asked For Price` immediately.**
+  This is the highest-intent signal in the CRM and the second route through
+  `crm-gate offer` on its own. It must never wait: an unanswered price
+  question going cold is the failure the 💸 Asked For Price view exists to
+  make impossible.
+- **A reply that accepts the turn-two Leak Fix → Status = `Leak Fix Sold`,**
+  `Est. Value` = `Leak Fix (500 AED)`. Once it is live and paid: `Leak Fix
+  Delivered` + `Cash Collected`. These are the two rungs the pipeline was
+  missing; a paying customer had nowhere to sit before 2026-07-24.
+- **If a lead volunteers a number or an obstacle unprompted:** log it
+  VERBATIM into `Price Discovery Answer` (her exact words, her currency,
+  her hedges — never summarized) and set `Discovery Anchor` per the mapping
+  in `haytham-email-draft/references/uae-track.md` (no number → `Refused to
+  name`). Advisory now, not a gate — but still the best qualitative data in
+  the system, and `Refused to name` reads as a TRUST signal, not a price
+  signal.
 - A reply is the highest-priority item in the brief — warm threads are
   where the meetings come from.
 - Also check for bounces (mailer-daemon in the thread): flag as bad
@@ -169,33 +179,43 @@ Reply-detection updates (Status/Sequence on a real reply, verbatim reply
 + discovery-answer logging) are the ONLY Notion writes this skill makes
 without approval — they record reality, they don't create outreach.
 
-## 2 — The discovery ladder (this track's reason to exist)
+## 2 — The conversion ladder (this track's constraint)
 
-Two queues, surfaced every tick:
+**reply → call/customer is 0 of 9. This section is where that gets fixed.**
+Two queues, surfaced every tick. (Renamed 2026-07-24: this used to be "the
+discovery ladder" and its first queue used to draft the price discovery
+question. That question was falsified as an email step — 100 touched leads,
+asked 3 times, 3 answers, all `Refused to name`, 0 numbers. Do not draft
+one.)
 
-**a) Due the discovery question** — Status = Reply Received, thread warm,
-turn-two done or in motion. For each: draft the price discovery reply
-(email type (e) in `haytham-email-draft`, canonical phrasings in
-`references/uae-track.md` — one question, no price of ours, never after a
-stall). Create the Gmail DRAFT as a reply in the existing thread, subject
-unchanged, **in the lead's assigned inbox** (Inbox 1 → Gmail MCP
-`create_draft` with `replyToMessageId`; Inbox 2 → `python main.py
-gmail-gethaytham draft <to> <subject> <body> --thread-id <t>
---in-reply-to <msgid>`). A discovery reply is a send and counts against
-that inbox's budget.
+**a) Due the turn-two** — Status = Reply Received, thread warm, no Leak Fix
+offered yet. For each: draft the turn-two reply (email type (d) in
+`haytham-email-draft`; the script and rules in `references/uae-track.md`).
+It answers what she actually said, then ends in **the paid 48-Hour Leak
+Fix (500 AED, live in 48 hours, paid only once it's working) or the
+calendar link** — a paid tiny yes or a single tap, never a question,
+never a menu, never a soft exit. Create the Gmail DRAFT as a reply in the
+existing thread, subject unchanged, **in the lead's assigned inbox**
+(Inbox 1 → Gmail MCP `create_draft` with `replyToMessageId`; Inbox 2 →
+`python main.py gmail-gethaytham draft <to> <subject> <body> --thread-id
+<t> --in-reply-to <msgid>`). A turn-two is a send and counts against that
+inbox's budget. **The Leak Fix is NOT gated by `crm-gate offer`** — it is
+the rung that earns the Sprint number.
 
-**b) Answer logged, offer unlocked** — Status = Price Discovery Sent with
-`Price Discovery Answer` filled and `Discovery Anchor` set. For each:
-dump the fresh row to JSON, run `python main.py crm-gate offer
-<row.json>`, and surface the literal output line in the brief. PASS →
-"ready for the money email — say the word." FAIL → what's missing. Do
-not draft the money email unprompted — the offer is Haytham's trigger,
-this tick just tees it up.
+**b) Earned a number, money email unlocked** — Status in `Call Booked` /
+`Leak Fix Sold` / `Leak Fix Delivered` / `Offer Sent` / `Won`, OR
+`Asked For Price` checked. For each: dump the fresh row to JSON, run
+`python main.py crm-gate offer <row.json>`, and surface the literal
+output line in the brief. PASS → "ready for the money email — say the
+word." FAIL → which route is missing. Do not draft the money email
+unprompted — the offer is Haytham's trigger, this tick just tees it up.
 
-**Flag loudly:** any lead at `Offer Sent` whose `Price Discovery Answer`
-is empty or whose anchor is `Not asked yet` — that state should be
-impossible (the gate blocks it) and means a manual transition bypassed
-the system. It goes at the top of hygiene.
+**Flag loudly:** any lead with `Asked For Price` checked and
+`Last Contacted` more than 2 days ago. Someone asked what it costs and
+nobody answered. That is the highest-intent signal in the CRM going cold,
+and it is exactly what happened to Avneet Kohli and Rita Baki (both 3-4
+days stale on 2026-07-24). It goes at the top of hygiene, and the
+💸 Asked For Price view exists to make it visible.
 
 ## 3 — Due follow-ups
 
@@ -225,7 +245,7 @@ uae-track.md, never a re-send of the offer and never a weak closer.
 **Cold Touch 2/3 must carry something new, and the gate checks it.**
 Before drafting, pick the carrier honestly: `second-finding` only if the
 row's `Findings Bank` has an UNUSED entry past #1 (the gate verifies);
-otherwise `loom-offer` (natural Touch 2) or `disambiguating-question`
+otherwise `leak-fix-offer` (natural Touch 2) or `disambiguating-question`
 (natural Touch 3 closer). Dump the fresh row to JSON and run
 `python main.py crm-gate send <row.json> --sends-today <THAT INBOX's total
 incl. already-queued drafts> --touch 2|3 --carries <carrier> --inbox
@@ -318,8 +338,10 @@ line.
 
 ## 5 — Hygiene flags (report, don't auto-fix)
 
-- `Offer Sent` with no verbatim answer/anchor (the impossible state — top
-  of the list).
+- `Asked For Price` checked with `Last Contacted` more than 2 days ago —
+  someone asked what it costs and nobody answered. Top of the list.
+- `Reply Received` with no turn-two drafted and `Last Contacted` more than
+  2 days ago. reply → call is the constraint and this is where it leaks.
 - Audit Ready without `Finding Verified` checked, without `Email Verified`
   checked, or `Finding Verified` checked on a Lane 2/3 row (all incoherent
   — Audit Ready now means both hard gates are set).
@@ -352,9 +374,10 @@ line.
 
 If 7+ days since the last scoreboard (check the HQ hub page or the last
 brief): compute and append to the brief — unique leads cold-touched,
-unique leads replied (reply rate by lead), discovery answers collected
-(the study count), anchors above/at/below, offers out, closes. Rates by
-lead, never by message-row — counting rows once inflated the old
+unique leads replied (reply rate by lead), **replies converted to a Leak
+Fix sale or a booked call (THE constraint metric — it has been 0 of 9)**,
+leads who asked for a price, Leak Fixes sold, `Cash Collected` all-time,
+offers out, closes. Rates by lead, never by message-row — counting rows once inflated the old
 pipeline's numbers and it mattered.
 
 **Attribution splits (what the old track learned only after 125 leads):**
@@ -368,7 +391,7 @@ channel split is what decides where top-up sourcing spends its fetches.
 
 One message, in this order: the per-inbox ceiling block
 (`send-cap status --all`, with any ramp reminder), replies (verbatim, with
-the suggested next move), discovery ladder (due the question / offer
+the suggested next move), conversion ladder (turn-twos due / money email
 unlocked), due follow-ups (with drafts, tagged by inbox), today's send
 queue (grouped by inbox, with gate lines and each inbox's headroom math),
 hygiene flags, scoreboard (weekly). If a section is empty, one line saying

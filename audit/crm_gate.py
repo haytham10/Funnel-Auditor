@@ -9,11 +9,32 @@ verbatim, quote the literal output line" — never paraphrase a PASS.
 
 Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
 
-  offer — a lead cannot reach `Offer Sent` (and no priced offer may be
-          drafted) without a verbatim `Price Discovery Answer` logged AND a
-          `Discovery Anchor` set to something other than "Not asked yet".
-          Price discovery happens BEFORE the priced offer. That is the
-          entire point of the track.
+  offer — a lead cannot reach `Offer Sent` (and no priced Sprint / Track A /
+          Track B offer may be drafted) until they have EARNED the right to be
+          told a number. Two routes earn it, either one is enough: their
+          `Status` is one of the earned set (`Call Booked`, `Leak Fix Sold`,
+          `Leak Fix Delivered`, `Offer Sent`, `Won` — Status is a single select
+          and forward progress overwrites, so a has-been-there status still
+          counts), or `Asked For Price` is checked because they literally asked
+          what it costs. Neither, and a priced email is a cold pitch wearing an
+          offer's clothes.
+
+          SCOPE: this gate governs the priced Sprint / Track A / Track B money
+          email only. The 500 AED 48-Hour Leak Fix offered at turn-two is
+          EXEMPT — it is the rung that earns the right, so gating it would
+          deadlock the motion it exists to start.
+
+          `Price Discovery Answer` and `Discovery Anchor` were the old blockers
+          and are now ADVISORY: they sharpen the number, they no longer license
+          it. Asking a coach what they'd pay was this track's founding premise
+          and it has been falsified — 100 touched leads, 3 answers, 3 ×
+          `Refused to name`, 0 numbers named (docs/journal.md, 2026-07-24).
+          Nobody names a budget to a stranger over email, and the question is
+          now asked on the call. The gate reports both fields as notes on PASS:
+          a missing verbatim answer means you are pricing blind, and an anchor
+          of "Refused to name" is a WARNING, because that is a TRUST signal,
+          not a price signal — the offer email leads harder with the guarantee,
+          it does not move the price.
 
   send  — no send without `Finding Verified` checked, a real `Email` that is
           also `Email Verified` (deliverability confirmed by `email-verify`,
@@ -37,9 +58,10 @@ Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
           The cold sequence is THREE touches (day 0, 3, 9), then Dormant.
           Touches 2 and 3 must each carry something new — `--carries`
           declares it: `second-finding` (checked against the row's
-          `Findings Bank` for an UNUSED entry past #1), `loom-offer`, or
-          `disambiguating-question`. A bare bump is a wasted send and a
-          spam signal; it doesn't pass this gate.
+          `Findings Bank` for an UNUSED entry past #1), `leak-fix-offer`, or
+          `disambiguating-question` (`loom-offer` is still accepted as a
+          deprecated alias for `leak-fix-offer`). A bare bump is a wasted
+          send and a spam signal; it doesn't pass this gate.
 
 Row JSON: a flat object of Notion property names → values, as fetched.
 Checkbox values may arrive as true/false, "__YES__"/"__NO__" (SQL shape),
@@ -70,7 +92,34 @@ from pathlib import Path
 from audit import inboxes, send_cap
 
 COLD_SEQUENCE_TOUCHES = 3
-CARRIERS = ("second-finding", "loom-offer", "disambiguating-question")
+
+# Canonical touch 2/3 carriers. `leak-fix-offer` replaced `loom-offer` on
+# 2026-07-24, when the turn-two artifact stopped being "want me to record a
+# walkthrough" and became the paid 48-Hour Leak Fix. The old label is still
+# accepted so in-flight rows, queued follow-ups and the journal's historical
+# `--carries loom-offer` invocations keep working.
+CARRIERS = ("second-finding", "leak-fix-offer", "disambiguating-question")
+
+# Deprecated carrier label → canonical. Normalised before validation, and the
+# caller is told to stop using it. Kept OUT of CARRIERS so `check_send` compares
+# against exactly one canonical value and failure messages advertise only the
+# current names.
+DEPRECATED_CARRIERS = {"loom-offer": "leak-fix-offer"}
+
+# Everything `--carries` accepts, canonical first. main.py mirrors this list.
+CARRIER_CHOICES = CARRIERS + tuple(DEPRECATED_CARRIERS)
+
+# Statuses that mean the lead has EARNED the right to be told a number.
+# Status is a single select and forward progress OVERWRITES, so a lead at `Won`
+# was necessarily at `Offer Sent` first — being AT one of these is the
+# has-been-there test.
+EARNED_STATUSES = (
+    "Call Booked",
+    "Leak Fix Sold",
+    "Leak Fix Delivered",
+    "Offer Sent",
+    "Won",
+)
 
 # Values that mean "no real verbatim answer was logged".
 _ANSWER_PLACEHOLDERS = {
@@ -100,6 +149,23 @@ def _is_checked(value) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in _CHECKED
     return value in _CHECKED
+
+
+def normalize_carrier(carries: str | None) -> tuple[str | None, str | None]:
+    """Map a `--carries` value to its canonical name.
+
+    Returns (canonical, deprecation_note). `loom-offer` is a DEPRECATED ALIAS
+    for `leak-fix-offer`: it still passes the gate, but the caller is told to
+    stop using it. An unknown value comes back unchanged so the caller can
+    report it verbatim in the failure message.
+    """
+    if carries in DEPRECATED_CARRIERS:
+        canonical = DEPRECATED_CARRIERS[carries]
+        return canonical, (
+            f'"{carries}" is a DEPRECATED carrier label — it still passes, but the '
+            f'turn-two artifact is now the paid Leak Fix; use "{canonical}"'
+        )
+    return carries, None
 
 
 def parse_findings_bank(value) -> list[dict]:
@@ -164,25 +230,70 @@ def opener_finding(row: dict) -> dict | None:
     return min(candidates, key=lambda e: e["rank"]) if candidates else None
 
 
-def check_offer(row: dict) -> tuple[bool, list[str]]:
-    """Gate for Reply/Discovery → Offer Sent (and for drafting any priced offer)."""
-    problems: list[str] = []
+def check_offer(row: dict) -> tuple[bool, list[str], list[str]]:
+    """Gate for Reply → Offer Sent (and for drafting any priced Sprint offer).
 
+    The question this answers is NOT "do we know their budget" — it is "have
+    they earned the right to be told a number". Two routes earn it: they got
+    far enough down the funnel that a price is the obvious next thing (an
+    EARNED_STATUSES status), or they literally asked what it costs
+    (`Asked For Price`). Either one, and the priced offer is a reply. Neither,
+    and it is a cold pitch dressed as an offer.
+
+    `Price Discovery Answer` / `Discovery Anchor` are ADVISORY here — they
+    sharpen the number, they no longer license it. They come back as notes.
+
+    Returns (ok, problems, notes) — same shape as check_send; notes are
+    PASS-line detail.
+    """
+    problems: list[str] = []
+    notes: list[str] = []
+
+    status = _norm(row.get("Status"))
+    by_status = status in EARNED_STATUSES
+    by_ask = _is_checked(row.get("Asked For Price"))
+
+    if by_status:
+        notes.append(f'earned by status "{status}"')
+    if by_ask:
+        notes.append("earned by ask (Asked For Price checked)")
+
+    if not (by_status or by_ask):
+        problems.append(
+            f'the lead has not earned a number yet: Status = "{status or "unset"}" is '
+            f'not one of {", ".join(EARNED_STATUSES)}, and `Asked For Price` is '
+            "unchecked. Two routes earn it — get them to an earned status (the paid "
+            "Leak Fix or a booked call), or check `Asked For Price` once they have "
+            "actually asked what it costs. Naming a price before either is a cold "
+            "pitch, not an offer"
+        )
+
+    # --- advisory from here down: reported, never blocking --------------------
     answer = _norm(row.get("Price Discovery Answer"))
     if answer.lower() in _ANSWER_PLACEHOLDERS:
-        problems.append(
-            "Price Discovery Answer is empty or a placeholder — their answer must be "
-            "logged VERBATIM before any priced offer"
+        notes.append(
+            "no verbatim Price Discovery Answer logged (advisory) — you are pricing "
+            "without their number; lead with the guarantees and expect the anchor "
+            "objection in the reply"
         )
+    else:
+        notes.append(f"discovery answer logged ({len(answer)} chars)")
 
     anchor = _norm(row.get("Discovery Anchor"))
-    if not anchor or anchor == "Not asked yet":
-        problems.append(
-            f'Discovery Anchor = "{anchor or "unset"}" — must be set from their answer '
-            "before any priced offer"
+    if anchor == "Refused to name":
+        notes.append(
+            'WARNING Discovery Anchor "Refused to name" — that is a TRUST signal, not '
+            "a price signal: they withheld a number because they do not yet believe "
+            "the outcome, not because of the number. Lead the offer email harder with "
+            "the Live-or-Free and First Booking guarantees; a discount answers a "
+            "question they never asked"
         )
+    elif anchor and anchor != "Not asked yet":
+        notes.append(f'anchor "{anchor}"')
+    else:
+        notes.append(f'no Discovery Anchor set ("{anchor or "unset"}", advisory)')
 
-    return (not problems), problems
+    return (not problems), problems, notes
 
 
 def check_send(
@@ -348,6 +459,7 @@ def check_send(
                     f"(opener headroom {cap - total})"
                 )
     else:
+        carries, carrier_deprecation = normalize_carrier(carries)
         if sends_today >= cap:
             problems.append(
                 f"sends today = {sends_today}, {cap_state.cap_phrase()} — deliverability "
@@ -363,8 +475,8 @@ def check_send(
             if entry is None:
                 problems.append(
                     "carries second-finding but the Findings Bank has no UNUSED entry past #1 — "
-                    "the bank is empty, missing, or spent; carry the loom-offer or the "
-                    "disambiguating-question instead (never invent a finding)"
+                    "the bank is empty, missing, or spent; carry the leak-fix-offer or "
+                    "the disambiguating-question instead (never invent a finding)"
                 )
             else:
                 notes.append(
@@ -377,6 +489,11 @@ def check_send(
                 f"touch {touch} carries {carries}, "
                 f"sends today {sends_today} < {cap_state.cap_phrase()}"
             )
+
+        # Appended LAST so the carrier note stays notes[0] for callers that
+        # read it positionally.
+        if carrier_deprecation and carries in CARRIERS:
+            notes.append(carrier_deprecation)
 
     # Bait-and-reserve visibility (not a hard gate). The bank should hold at
     # least one DEEP finding, and one deep finding marked RESERVED is the call
@@ -408,13 +525,10 @@ def check_send(
 
 def print_offer(row_json: str | Path) -> int:
     row = _load_row(row_json)
-    ok, problems = check_offer(row)
+    ok, problems, notes = check_offer(row)
     name = _norm(row.get("Contact Name")) or "unnamed lead"
     if ok:
-        answer = _norm(row.get("Price Discovery Answer"))
-        anchor = _norm(row.get("Discovery Anchor"))
-        print(f'CRM GATE (offer): PASS — {name}: answer logged ({len(answer)} chars), '
-              f'anchor "{anchor}"')
+        print(f"CRM GATE (offer): PASS — {name}: " + ", ".join(notes))
         return 0
     print(f"CRM GATE (offer): FAIL — {name}: " + "; ".join(problems))
     return 1

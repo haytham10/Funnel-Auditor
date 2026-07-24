@@ -39,10 +39,10 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 
 ## Cold follow-up specific (Touch 2 or 3 on a never-replied thread — there is no touch 4)
 
-- [ ] Does the draft carry exactly ONE new thing: the next UNUSED entry from the row's `Findings Bank`, the Loom offer, or the disambiguating question? A draft that only bumps (time passing, "still there?", a re-ask) fails — a bare bump is a wasted send and a spam signal.
-- [ ] Does what the draft carries MATCH what `crm-gate send --touch N --carries …` was told (and did it print PASS on a fresh row dump)? Declaring loom-offer and drafting a bare bump is lying to the gate.
-- [ ] If it carries a second finding: is it from the bank (never invented at draft time, never the RESERVED deep finding), named as a felt cost with its innocent explanation, fix left vague? Naming a second cost is fine; teaching a second fix is the Adrienne mistake (three complete free diagnoses, zero replies). If it's a deep finding, name that it exists and costs her, never the fix. Full fixes stay in the Loom or "The Next Three" after a price is on the table.
-- [ ] If it carries the Loom offer: one line, an offer not a link, no price.
+- [ ] Does the draft carry exactly ONE new thing: the next UNUSED entry from the row's `Findings Bank`, the leak-fix offer, or the disambiguating question? A draft that only bumps (time passing, "still there?", a re-ask) fails — a bare bump is a wasted send and a spam signal.
+- [ ] Does what the draft carries MATCH what `crm-gate send --touch N --carries …` was told (and did it print PASS on a fresh row dump)? Declaring leak-fix-offer and drafting a bare bump is lying to the gate.
+- [ ] If it carries a second finding: is it from the bank (never invented at draft time, never the RESERVED deep finding), named as a felt cost with its innocent explanation, fix left vague? Naming a second cost is fine; teaching a second fix is the Adrienne mistake (three complete free diagnoses, zero replies). If it's a deep finding, name that it exists and costs her, never the fix. Full fixes stay inside the paid Leak Fix or the Sprint bonus stack, after a price is on the table.
+- [ ] If it carries the leak-fix offer: one line, the 500 AED paid-after fix, an offer not a link on a cold thread. Never the retired free Loom.
 - [ ] If it carries the disambiguating question: direct binary, no soft exit ("Should I stop following up, or is this still on your radar?").
 - [ ] Same subject, same thread as touch 1.
 
@@ -52,24 +52,31 @@ If any of these fail, the draft is wrong even if the copy is clean. Fix the seei
 - [ ] If she objected to a term (price, deposit, timing), does the draft accept the term and adjust the structure around it, rather than arguing to keep the original term?
 - [ ] If she asked logistics or trust questions, does the draft answer all of them directly before anything else?
 
-## Price discovery email specific (UAE track only — see references/uae-track.md)
+## Turn-two specific (UAE track — the paid Leak Fix; see references/uae-track.md)
 
-- [ ] Is the thread actually warm (she replied), and is this going out BEFORE any price of ours is on the table? If a price already went out and she stalled, this is NOT a discovery email — it's silence handling. Stop.
-- [ ] Exactly one question, answerable in one line, producing a number or an obstacle?
-- [ ] Zero mention of our price, our tracks, or our packages anywhere in the email?
-- [ ] If it's the flip shape ("what were you expecting it to cost?"), does it carry the explicit promise that the exact number comes next message?
-- [ ] Does it read like a person deciding what to quote, not a survey or a negotiation trick?
-- [ ] Is this the FIRST discovery question in the thread? One thread gets one. A dodge is data (Refused to name), not an invitation to re-ask.
+- [ ] Does the draft end in a single-tap next step or a paid tiny yes? Those are the ONLY two legal endings for a turn-two. Never a discovery question, never a menu, never a soft exit.
+- [ ] If it offers the Leak Fix: 500 AED, access on their side, live in 48 hours, they pay only once it's working — stated in one breath, with the risk reversal attached?
+- [ ] Is there a calendar link as the alternative single tap, with an explicit `https://` scheme (never a bare domain)?
+- [ ] Is it NOT a free Loom offer? The Loom turn-two is retired (offered three times on this track, taken zero times).
+- [ ] Did you resist gating this behind `crm-gate offer`? The Leak Fix is exempt — it's the rung that earns the Sprint number, not a priced offer that needs one.
+
+## Price discovery email — RETIRED, do not draft one
+
+- [ ] Is this a price discovery email? If yes, **stop**. The question was falsified as an email step on 2026-07-24 (100 touched leads, asked 3 times, 3 × `Refused to name`, 0 numbers). It no longer goes out over email.
+- [ ] If they asked "how much?", does the draft answer with the number rather than flipping the question back at them? The flip is what produced two of the three refusals. Check `Asked For Price` on the row and quote the flat figure.
 
 ## Money email specific (any priced close, Track A or Track B)
 
-- [ ] UAE lead: did `python main.py crm-gate offer` print PASS on a fresh row dump? No PASS, no money email — the verbatim answer and anchor must be logged first. (Parenting live threads are exempt.)
+- [ ] UAE lead: did `python main.py crm-gate offer` print PASS on a fresh row dump? No PASS, no money email — the lead must have EARNED a number, via an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or the `Asked For Price` checkbox. (Parenting live threads are exempt. So is the 500 AED turn-two Leak Fix, which is not a money email for this purpose.)
 - [ ] Does the draft state a flat price in the first close attempt — not a vague ask for time, not "do you have a minute to chat"?
 - [ ] Is the price the correct track number ($200 / £150 for Track A, $700 for Track B; UAE leads get 735 AED / 2,575 AED, AED only, never both currencies) and not a number invented or negotiated down before she's even objected?
-- [ ] UAE lead with a Below anchor logged: does the draft lead even harder with the risk reversal (her anchor says risk is the objection), while the number stays exactly the track price?
-- [ ] Is the guarantee stated boldly and unprompted, before any objection, not held back for if she pushes?
+- [ ] UAE lead with a Below anchor OR a `Refused to name` anchor logged: does the draft lead even harder with the risk reversal (both say risk and trust are the objection, not the number), while the number stays exactly the track price?
+- [ ] Are **BOTH named guarantees** stated boldly and unprompted, stacked, before any objection, not held back for if she pushes? The **Live-or-Free Guarantee** (live, tested from a clean device, taking bookings within 5 working days, or she doesn't pay and keeps the work) AND the **First Booking Guarantee** (no booking within 30 days of launch and the work continues free until there is one). "A guarantee" is not enough — name both.
+- [ ] Does the First Booking Guarantee carry its condition ("you send traffic to it")? Dropping the condition to sound generous makes it unbounded and reads as desperate.
+- [ ] Is the Sprint presented as the named stack ("The Booked-Out Funnel — 5-Day Sprint for UAE Coaches", 10,000 AED of components for 2,575 AED) rather than as "I'll fix your funnel for 2,575 AED"? The bare version is price-comparable to a Fiverr gig.
+- [ ] Is the price 2,575 AED and not 3,600? The raise is gated on 2 closes and there are zero.
 - [ ] Is there exactly one CTA — the price plus one concrete next step (payment link, "want me to start today")? Not a price plus a scheduling ask, that's two CTAs.
-- [ ] Free-value cap (count): has this thread already had one finding plus at most one Loom? If more free diagnosis is about to be given before any price is on the table, stop — that is the gratitude-trap mistake, not a money email.
+- [ ] Free-value cap (count): has this thread already had one opener finding plus at most one banked second finding? If a third piece of free diagnosis is about to be given before any price is on the table, stop — that is the gratitude-trap mistake, not a money email.
 - [ ] Free-value cap (depth): does the draft hand over the fix or full diagnosis of a DEEP finding? It must not. Shallow findings may be named freely; a deep finding can only be NAMED as an existing cost, its fix kept offline. The `RESERVED` deep finding is never in an email at all. (See mechanics.md free-value cap.)
 - [ ] If this is a bonus-stall response (she hesitated after a price was already given), does the draft add a named bonus or restructure a term, and leave the number itself untouched?
 - [ ] Small-deal close (sub-$1k / Track A): if she asked "how much?", does the draft answer with the flat number directly rather than dodging to a call? (The one allowed detour is the single price-discovery question, which then names the number next message.)

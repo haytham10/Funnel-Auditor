@@ -2,14 +2,15 @@
 
 These are actually sent. They are what "passed the gate" looks like. When in doubt, pattern-match to these, not to a generic idea of a good cold email. Read them before drafting. Note what they do, not just what they say.
 
-**The UAE track is the active pipeline, so the UAE examples come first and there are more of them.** The parenting examples stay because that track is still live and they teach voice and mechanics the UAE set doesn't (a full priced close, a Lane 2 hold, an ambiguous-leak read, the documented mistakes). One gap to know going in: **no UAE lead has answered the price-discovery question yet**, so there is no real UAE money-email example — the parenting Helen arc is the shape anchor for a priced close, at correct current pricing.
+**The UAE track is the active pipeline, so the UAE examples come first and there are more of them.** The parenting examples stay because that track is still live and they teach voice and mechanics the UAE set doesn't (a full priced close, a Lane 2 hold, an ambiguous-leak read, the documented mistakes). One gap to know going in: **no UAE lead has ever closed**, so there is no real UAE money-email example — the parenting Helen arc is the shape anchor for a priced close, at correct current pricing. A second gap: the price-discovery email was retired on 2026-07-24 after producing 3 answers, all `Refused to name` and none a number (UAE 3 is the receipt), so the turn-two reference (UAE 4) is a composite draft rather than a sent one.
 
 **Contents** (jump to the pattern you need):
 
 UAE track (active):
 - UAE 1 — cold opener, WORK hook, single finding (Aliya Rajah)
 - UAE 2 — cold opener + cold Touch-2 that carries a *new* finding, not a bump (Carol Glynn)
-- UAE 3 — full warm arc: opener → turn-two → Loom → the price-discovery email (Donna Brown)
+- UAE 3 — RETIRED SHAPE: opener → turn-two → Loom → the price-discovery email (Donna Brown). Kept as the receipt that falsified it; the opener is still exemplary.
+- UAE 4 — the turn-two as it runs NOW: paid 48-Hour Leak Fix or the calendar. **Read this before drafting any turn-two.**
 - The throughline (what every real example has in common)
 
 Parenting track (live threads only):
@@ -23,7 +24,9 @@ Parenting track (live threads only):
 
 # UAE track — the active pipeline
 
-All AED-native, all pulled verbatim from the lead's own Email Thread Log in the UAE Lead CRM. Everything in `uae-track.md` (AED framing, the follow-up payload rule, the price-discovery email, the two-inbox ceiling) is the layer these run on.
+All AED-native, all pulled verbatim from the lead's own Email Thread Log in the UAE Lead CRM. Everything in `uae-track.md` (AED framing, the follow-up payload rule, the paid 48-Hour Leak Fix turn-two, the guarantees, the downsell ladder, the two-inbox ceiling) is the layer these run on.
+
+**Read UAE 4 before drafting any turn-two.** UAE 3 below is kept as the historical record of the retired shape (free Loom, then the price-discovery question) and is marked as such — it is what the current rules exist to prevent, not a pattern to match.
 
 ## UAE 1 — cold opener, WORK hook, single finding (Aliya Rajah, career/leadership, 8.7K, Inbox 1)
 
@@ -85,9 +88,11 @@ Why it works: this is the UAE follow-up payload rule made concrete. Touch 2 does
 
 ---
 
-## UAE 3 — full warm arc: opener → turn-two → Loom → the price-discovery email (Donna Brown, leadership/life, Inbox 2)
+## UAE 3 — RETIRED SHAPE, kept as the receipt: opener → turn-two → Loom → the price-discovery email (Donna Brown, leadership/life, Inbox 2)
 
-The freshest full UAE arc in the file, and the only place the **price-discovery email** appears in a real thread. She has no usable public hook (channels dormant since 2023), so the opener runs SMYKM opening B — straight onto the finding.
+⚠️ **Do not pattern-match the turn-two or touch 3 below.** This is the full warm arc that ran the retired shape end to end, and it is the only place the price-discovery email ever appeared in a real thread. It ended `Lost`: her answer to the discovery question was "Thank you Haythem. Im very happy with my team. Best of luck to you," logged as `Refused to name`. That outcome, repeated three times out of three, is what falsified the premise (docs/journal.md, 2026-07-24). **The opener (touch 1) is still exemplary and is why this stays in the file.**
+
+She has no usable public hook (channels dormant since 2023), so the opener runs SMYKM opening B — straight onto the finding.
 
 The finding (bank #1): her "Your Core Blueprint" Stripe checkout offers "The Complete Growth Bundle" (AED 1,997) as an order-bump add-on — but the bundle already contains Your Core Blueprint, so anyone who adds it pays for the foundation course twice, at the moment of highest intent.
 
@@ -107,7 +112,7 @@ The finding (bank #1): her "Your Core Blueprint" Stripe checkout offers "The Com
 
 **She replied** (~10:01 Dubai) — thanked him, clarified the bundle already includes the course, said she'd revisit the checkout to reduce the confusion. Sequence flips to Warm.
 
-**Touch 2 (turn-two, warm — second finding + the Loom offer) — Subject: "Re: your core blueprint bundle"**
+**Touch 2 (turn-two, warm — second finding + the Loom offer) ⚠️ RETIRED ENDING, see UAE 4 — Subject: "Re: your core blueprint bundle"**
 
 > Hey Donna
 >
@@ -137,8 +142,36 @@ The finding (bank #1): her "Your Core Blueprint" Stripe checkout offers "The Com
 
 Why it works, stage by stage:
 - **The opener runs on the finding alone (opening B).** No hook existed, so there's no forced hook — the admiration is real ("genuinely well built") and the finding is exact and dated to the moment of payment. A missing hook is a resolved state, not a reason to stall.
-- **The turn-two answers her honestly, then carries a second finding + the Loom offer.** It reveals what he does ("the small stuff on the back end … the pages and pricing details," never the word "funnel"), names a new finding as the reason, and offers the walkthrough as easier-to-show, not a pitch.
-- **Touch 3 is the price-discovery email in the wild.** It delivers the Loom, then asks the discovery question — "if someone took the whole site top to bottom … what would you expect that to run?" — with **no number of his own anywhere in the email**. That question is the entire point of the UAE track: get her anchor before any price is on the table, logged verbatim with a Discovery Anchor. Note the scope ("the whole site top to bottom") is wider than the Track A fixes, so her answer reads against that framing. The canonical phrasings for this email live in `uae-track.md`; this is one of them adapted to the thread, never pasted.
+- **The turn-two answers her honestly, then carries a second finding + the free Loom offer. RETIRED.** The honesty and the reveal of what he does ("the small stuff on the back end … the pages and pricing details," never the word "funnel") are still right. The ending is not: a free walkthrough is high effort for her and low dream outcome, and she never took it. Today this same reply ends in the paid Leak Fix or the calendar — see UAE 4.
+- **Touch 3 is the price-discovery email in the wild, and it is why the step is gone.** It delivers the Loom, then asks "if someone took the whole site top to bottom … what would you expect that to run?" with no number of his own anywhere. She answered by leaving. That reply, logged verbatim, is one of the 3 answers the whole study ever produced — all `Refused to name`, none a number. The refusal read as a price signal and was actually a trust signal. **Today: name the number, and check `Asked For Price` if she asks first.**
+
+---
+
+## UAE 4 — the turn-two as it runs NOW: paid 48-Hour Leak Fix or the calendar (composite, Inbox 2)
+
+The shape that replaced UAE 3's Loom ending. Composite rather than a sent receipt — the leak fix went live 2026-07-24 and no thread has run it yet, so this is the reference draft, not a proven one. Everything about it is checkable against `uae-track.md` and `gate.md`.
+
+Situation: cold Touch 1 carried bank #1 (her booking page's "Book a call" button posts to a form that never sends a confirmation email, so enquiries land nowhere she checks). She replied two days later: "oh no, really? thanks for flagging. how did you find that?"
+
+**Touch 2 (turn-two, warm — answer, then the paid tiny yes) — Subject: "Re: your booking page" (same thread)**
+
+> Hey Sarah
+>
+> I was going through coaches in Dubai and yours was one of the few with a real booking flow rather than a contact form, so I ran it properly and booked myself in to see what happened. Nothing came back, which is how I knew.
+>
+> Rather than talk about it, want me to just fix it? Access on your side, live in 48 hours, and you only pay if it's working. 500 AED.
+>
+> If it's easier, here's my calendar and I'll walk you through what I'd do first: https://cal.com/haytham/15min
+>
+> Haytham
+
+Why it works:
+- **It answers her actual question first, in one breath, with a real detail.** "I booked myself in to see what happened" is a fact she can verify, and it is the reason the finding is credible rather than a guess.
+- **It ends in a paid tiny yes, with a single-tap alternative.** Two doors, both concrete, both forward. No discovery question, no menu, no soft exit — the only two legal turn-two endings.
+- **The risk reversal rides with the number in the same breath.** "You only pay if it's working" is the whole objection answered before it arrives, which is what makes 500 AED an easy yes rather than a decision.
+- **The price is the offer, not a range and not a call-to-find-out.** 500 AED for the specific banked finding, fixed and live. She is buying her problem going away, not a video about her problem.
+- **The calendar link carries an explicit `https://`** (a bare domain gets auto-linked into a `google.com/url` redirect that reads as spam, and the draft lint blocks it).
+- **What it does NOT do:** re-explain the finding she already acknowledged, quote the Sprint, mention 2,575 AED, teach the fix, or offer a free walkthrough. If she buys, the row moves to `Leak Fix Sold` and she has earned the Sprint number without ever being asked what she'd pay.
 
 ---
 
@@ -357,7 +390,7 @@ The rule this produced: when a hook or opener involves contrasting two metrics t
 
 ## Cold follow-up shape — the parenting-era version, and why the UAE track supersedes it (Adrienne vs. Heba)
 
-Both parenting threads, included because the *shape* of the follow-up is the lesson. **Read this against the UAE rule, which now overrides it for the active track:** on the UAE track every cold follow-up must carry a NEW payload — the next unused banked finding, the Loom offer, or a disambiguating question (`uae-track.md`, and see Carol above). The Heba "bump the same finding via time passing" shape below no longer qualifies as a payload here; it is kept as parenting-era history and as the contrast that makes the UAE rule concrete.
+Both parenting threads, included because the *shape* of the follow-up is the lesson. **Read this against the UAE rule, which now overrides it for the active track:** on the UAE track every cold follow-up must carry a NEW payload — the next unused banked finding, the paid leak-fix offer, or a disambiguating question (`uae-track.md`, and see Carol above). The Heba "bump the same finding via time passing" shape below no longer qualifies as a payload here; it is kept as parenting-era history and as the contrast that makes the UAE rule concrete.
 
 **Adrienne Bishop (70K IG, Lane 1) — the mistake, three separate free findings across three touches:**
 
@@ -369,4 +402,4 @@ By touch 3, a reader in her position has received a full mini-audit for nothing 
 
 Touch 1 flagged one finding: placeholder testimonial cards on her live homepage before a webinar launch. Touch 2 bumped the same finding using time passing as the new angle ("the webinar's come and gone but the placeholder cards are probably still sitting there"). Touch 3 bumped it again, shorter, as a natural question. No new findings, still under the parenting free-value cap.
 
-**The rule this produced (parenting), and where it now stops:** a parenting cold follow-up's job was to stay present without spending anything new, so bumping the *same* finding through what's changed was the correct, disciplined move. **On the UAE track this is no longer enough** — a same-finding time-passing bump reads as a bare bump and a spam signal, and the send gate (`crm-gate send --carries`) enforces a real new payload on Touch 2/3 (checked against the row's Findings Bank). If touch 2 or 3 would only exist by restating touch 1, on the UAE track that is a sign to either spend the next banked finding (Carol UAE 2), offer the Loom, or ask the disambiguating question — never to bump.
+**The rule this produced (parenting), and where it now stops:** a parenting cold follow-up's job was to stay present without spending anything new, so bumping the *same* finding through what's changed was the correct, disciplined move. **On the UAE track this is no longer enough** — a same-finding time-passing bump reads as a bare bump and a spam signal, and the send gate (`crm-gate send --carries`) enforces a real new payload on Touch 2/3 (checked against the row's Findings Bank). If touch 2 or 3 would only exist by restating touch 1, on the UAE track that is a sign to either spend the next banked finding (Carol UAE 2), offer the paid Leak Fix (UAE 4), or ask the disambiguating question — never to bump.

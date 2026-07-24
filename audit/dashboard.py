@@ -66,7 +66,15 @@ from audit import inboxes, send_cap
 # render order is a presentation concern this module owns.
 STATUS_ORDER = [
     "Sourced", "Qualifying", "Audit Ready", "Draft Ready", "Scheduled",
-    "Outreach Sent", "Reply Received", "Price Discovery Sent", "Offer Sent",
+    "Outreach Sent", "Reply Received",
+    # The paid 48-Hour Leak Fix rungs (added 2026-07-24) sit between the reply
+    # and the priced Sprint offer — a lead who buys the fix has earned the
+    # Sprint number. `Price Discovery Sent` is legacy: no new lead enters it
+    # (the discovery question was falsified as an email step), but existing
+    # rows still sit there, so it stays in the order rather than vanishing
+    # into the unknown-status bucket below.
+    "Leak Fix Sold", "Leak Fix Delivered",
+    "Price Discovery Sent", "Offer Sent",
     "Call Booked", "Won",
 ]
 TERMINAL_STATUSES = ["Lost", "Dormant", "Disqualified"]

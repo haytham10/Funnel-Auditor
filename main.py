@@ -328,7 +328,7 @@ def cmd_crm_gate(args) -> None:
         sys.exit(2)
     if args.touch >= 2 and args.carries is None:
         print("CRM GATE (send): FAIL — --carries is required for touch 2/3 "
-              "(second-finding | loom-offer | disambiguating-question). A follow-up "
+              "(second-finding | leak-fix-offer | disambiguating-question). A follow-up "
               "that just bumps is a wasted send and a spam signal; declare what new "
               "thing this one carries.")
         sys.exit(2)
@@ -901,7 +901,8 @@ def main() -> None:
 
     p_crm = sub.add_parser(
         "crm-gate",
-        help="UAE CRM transition gates: offer (price discovery before any priced offer) "
+        help="UAE CRM transition gates: offer (the lead has EARNED a number — an earned "
+             "Status or `Asked For Price`; the discovery answer/anchor are advisory now) "
              "/ send (finding verified + follow-ups-first daily ceiling + touch 2/3 "
              "carrier check) — see audit/crm_gate.py",
     )
@@ -921,9 +922,15 @@ def main() -> None:
                             "inbox. Required past noon Dubai: a fresh opener queued after noon is "
                             "scheduled for tomorrow morning, so it is gated against TOMORROW's "
                             "ceiling using this count, not today's already-spent one")
-    p_crm.add_argument("--carries", choices=["second-finding", "loom-offer", "disambiguating-question"],
+    p_crm.add_argument("--carries",
+                       choices=["second-finding", "leak-fix-offer", "disambiguating-question",
+                                "loom-offer"],
                        help="(send gate, touch 2/3) the new thing this follow-up carries; "
-                            "second-finding is checked against the row's Findings Bank")
+                            "second-finding is checked against the row's Findings Bank. "
+                            "`loom-offer` is a DEPRECATED ALIAS for `leak-fix-offer` (the "
+                            "turn-two artifact is now the paid 48-Hour Leak Fix) — it still "
+                            "passes and emits a deprecation note. Mirrors "
+                            "audit/crm_gate.CARRIER_CHOICES")
     p_crm.add_argument("--opener-rank", type=int, default=None,
                        help="(send gate, touch 1) which Findings Bank rank the draft's email "
                             "content was actually built from — required whenever the bank is "
