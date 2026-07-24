@@ -16,11 +16,69 @@ The parenting pool was almost all link-in-bio → freebie → low-ticket course.
 - **Call-booking flows**: content → booking page (Calendly/GHL/etc.) → sales call. Characteristic leaks: calendars with zero available slots, intake forms demanding trust the page hasn't earned, booking confirmations that never arrive, a "book a call" button as the ONLY path with no lower-commitment step and no email capture around it.
 - **Cohort launches**: waitlist → open cart → cohort. Characteristic leaks: a passed cohort start date still showing, "enrollment closed" with no waitlist capture (the highest-intent visitors bounce with no way to reach them), early-bird pricing whose deadline already passed, cart pages left open with a dead payment link between rounds.
 
-## Tier system
+## Tier system (severity — how badly it leaks)
 
 - **Tier A** — Critical. Blocks conversion entirely. Provably broken. Opener-grade on its own.
 - **Tier B** — Strong. Real money leaking. Requires some framing but the cost is real and felt.
 - **Tier C** — Soft. Technically suboptimal, low felt cost. Rarely a Lane 1 opener. Needs the sting test to survive.
+
+---
+
+## Depth tiers (self-fixability — who can fix it)
+
+Tier A/B/C measures how badly a leak bleeds. **Depth is a second, independent
+axis: can the coach fix this herself in five minutes, or does it take
+expertise and judgment she'd pay for?** The two axes are orthogonal — a Tier A
+dead link is critical AND shallow; a Tier B pricing-architecture leak is
+less provable AND deep. Classify every flagged finding on BOTH.
+
+The reason this axis exists: the most falsifiable finding is almost always the
+most trivial one, and the coach reads the opener, fixes the small thing herself
+for free, and replies "thanks, fixed it" with no reason left to pay. Rita fixed
+her booking redirect, Avneet fixed her test-SKU checkout and logo, Lisa said "we
+are on fix this." Optimizing openers for the most provable finding optimized
+them against revenue. Depth is the correction.
+
+- **Shallow / self-fixable (janitorial).** She fixes it in minutes once it's
+  named. Worth ~$0 as a standalone sale — naming it earns the reply, not the
+  money. Examples: a dead or broken link, a logo/CTA pointing at the wrong
+  page, a test or placeholder SKU left live, a booking form that should be a
+  scheduler, a stale cohort/webinar date, a typo, a broken image, an empty
+  calendar. Most of Stop 1 (entry), Stop 2 delivery misses, and Stop 4
+  (checkout/booking breakage) skew shallow — they're breakage, not strategy.
+- **Deep / un-self-fixable.** Requires expertise, judgment, or a rebuild she
+  can't do from a one-line email. This is what a coach pays to solve. Examples,
+  drawn from the deep-audit diagnosis references
+  (`haytham-funnel-auditor/references/{copy,offer,structure}-diagnosis.md`):
+  - **Pricing/offer architecture** — pricing fragmented across 4 platforms so
+    buyers bounce at the seam (Rita); multi-session packages that cost more per
+    session than singles (Lucia); a disconnected value ladder or missing
+    order-bump economics (offer-diagnosis "Offer Diagnostic Matrix").
+  - **No owned audience** — 100% rented on one platform with zero owned capture
+    (Lee); the structural version of Stop 5, not the janitorial "add a signup
+    box" version.
+  - **Product-value leakage** — an entire paid program readable free, so
+    there's no reason to buy (William, an £8k course fully readable). See the
+    offer-diagnosis value-equation levers.
+  - **Awareness / message-market mismatch** — copy pitched at the wrong Schwartz
+    awareness stage, Orphan Lead / Excite Void / Dead-End Ascension structural
+    gaps (copy- and structure-diagnosis matrices).
+  Stop 3 (offer/pricing) and Stop 5 (audience ownership, structural) are where
+  deep findings usually live.
+
+**Depth is independent of provability.** A shallow finding can be Tier A
+(provably, visibly broken) and still worth ~$0 to sell. Do not let "most
+falsifiable" stand in for "best" — that's exactly the trap. A deep finding that
+takes a sentence of framing beats a shallow finding that's a screenshot-proof
+slam dunk, because only the deep one survives being handed over.
+
+**Every Lane 1 lead must carry at least one deep finding, held in reserve.** The
+opener can be shallow (it earns the reply — the Emily Ray move), but a deep
+finding is the reason to get on a call and is never given away in email. If the
+walk surfaces no deep finding at all, the lead is low-value: reply-likely,
+close-unlikely. Flag it as such (see `SKILL.md` Step 4) rather than pretending a
+shallow finding will close. Selection and the reserve mechanic live in
+`SKILL.md` Step 4; this file's job is the classification.
 
 ---
 

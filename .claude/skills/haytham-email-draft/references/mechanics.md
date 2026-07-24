@@ -14,7 +14,7 @@ The channel rules and sequencing. Read this for any follow-up, turn-two reply, o
 - **One CTA only.** One question or one offer per email. Not a menu.
 - **Exact numbers over ranges.** "$8,123 in one week" beats "multiple five figures."
 - **Your opening email IS the lead magnet.** The finding you surface is real value given upfront. Don't withhold it for a call.
-- **The reinforcement loop.** Each email rewards the last open. The finding in touch 1 is the reward that earns touch 2's open. Every follow-up must deliver something, even small. Dead-weight follow-ups ("just checking in") erode the loop. The value is the email; the ask rides on top.
+- **The reinforcement loop (COLD threads only).** On a thread that has never replied, each email rewards the last open. The finding in touch 1 is the reward that earns touch 2's open. Every COLD follow-up must deliver something new, even small. Dead-weight cold bumps ("just checking in") erode the loop. The value is the email; the ask rides on top. **This rule is scoped to cold.** Once a thread is warm (she replied), it flips: a warm reply answers what the person actually said and advances ONE step — it does NOT re-deliver the finding, the price, or the Loom. Re-stating what she already acknowledged reads as low-confidence and kills rapport (see the Warm replies section below). Do not let cold-follow-up logic bleed into warm threads.
 
 ## Subject line
 
@@ -64,19 +64,44 @@ For Lane 2 (no felt leak), pre-handle the one objection in their head before the
 Do not stop at touch 1 — but a follow-up has to earn its place. Each cold send eats the day's inbox budget; a bare bump is a wasted send and a spam signal.
 
 **What touches 2 and 3 must carry (enforced: `crm-gate send --touch N --carries …` blocks the queue slot without it).** Exactly one new thing per follow-up:
-- **The next banked finding.** The walk banks every finding that survived both filters, ranked, in the row's `Findings Bank`; the gate checks an UNUSED entry past #1 actually exists (never invent one at draft time). Name it as a felt cost with its innocent explanation and KEEP THE FIX VAGUE — same rule as touch 1. Naming a second cost is not the Adrienne mistake; teaching a second fix is (her thread died because touch 2 and 3 handed over three complete free diagnoses with nothing owed). The open loop is what pulls the reply.
+- **The next banked finding.** The walk banks every finding that survived both filters, ranked depth-first, in the row's `Findings Bank`; the gate checks an UNUSED entry past #1 actually exists (never invent one at draft time) and never draws the `RESERVED` deep finding — that one is held for the call, never a carrier. Name the second finding as a felt cost with its innocent explanation and KEEP THE FIX VAGUE — same rule as touch 1, and doubly so if it's a deep finding (name that it exists and costs her, never the mechanism or the fix). Naming a second cost is not the Adrienne mistake; teaching a second fix is (her thread died because touch 2 and 3 handed over three complete free diagnoses with nothing owed). The open loop is what pulls the reply.
 - **The Loom offer.** One line, no price, no link on a cold thread: offer the walkthrough, don't attach it.
 - **The disambiguating question.** Direct binary, no soft exit: "Should I stop following up, or is this still on your radar?"
 
 The old "bump the same finding from a new angle" shape (the Heba thread) is retired as a follow-up on this track — time-passing framing is still good seasoning on top of a carrier, but it no longer qualifies as the payload. Anything beyond the banked findings still belongs in "The Next Three" bonus after a price is on the table, or in the Loom — a cold thread never gets taught fixes for free.
 
-**Warm (replied once):** follow up every 2-3 days, up to 8-10 touches. Short one-liners, pattern interrupts, a relevant result. Never repeat the same message. 80% of warm meetings come between follow-up 5-9. Follow-ups: under 7 words when possible. You are bumping, not re-pitching.
+**Warm (replied once), when she goes quiet again:** follow up every 2-3 days, up to 8-10 touches. Short one-liners, pattern interrupts, a relevant result. Never repeat the same message. 80% of warm meetings come between follow-up 5-9. Follow-ups: under 7 words when possible. You are bumping, not re-pitching. This is the *quiet-again* cadence — for how to answer a reply the moment it lands, see the Warm replies section directly below.
 
-## Turn-two (they replied)
+## Warm replies (the turn-two craft)
 
-The next email contains ONE concrete offer or ONE single-tap next step. No menu, no pitch, no soft exit. Default move: offer the Loom. One line, no price, no options: "want me to record a quick 3-min walkthrough showing exactly what I'd fix? easier to show than explain." They say yes, you record same day.
+The opener craft in this file is thick and the warm-reply craft used to be one line, so the model reverts to opener/pitch machinery the moment a reply lands: it re-lists the finding she already acknowledged, re-states price and guarantee, re-offers the Loom, and turns a five-word reply into a four-paragraph sequence. That is the single biggest warm-thread failure. This section is the antidote.
 
-The soft-exit reflex is the biggest conversion killer. Send the offer.
+**The core rule: match the reply, answer it, advance one step, stop.**
+- **Match length and tone.** A five-word reply gets a one-line answer. A blunt reply gets a blunt answer. A warm chatty reply can breathe a little. Mismatch reads as not-listening. (Research backs this hard: Lavender data — 150+ word emails are 42% less likely to get a reply than sub-50-word ones; Gong's 304k-email analysis — pitching after a reply cuts reply rates up to 57%.)
+- **Once she's replied, the finding, the price, and the Loom have already done their job.** Re-stating them reads as low-confidence and kills rapport. Do not re-deliver what she already has. The reinforcement-loop rule (carry a new payload every touch) is COLD-only — it does not apply here.
+- **Answer her actual question in one or two sentences, then stop.** No menu, no soft exit, no re-pitch. One concrete next step or one real answer.
+- **The next step is ONE decision.** The default forward move is still the Loom offer, one line, no price, no options ("want me to record a quick 3-min walkthrough showing exactly what I'd fix? easier to show than explain") — but only when a next step is what the reply calls for. If she asked a question, the answer IS the move; don't bolt a Loom offer onto it.
+
+The soft-exit reflex (trailing off with "no pressure, whenever") is one killer; the over-sell reflex (answering a short reply with a full pitch) is the other. Both lose the thread. Warm arcs that worked: Emily Ray (P3 — a small fix named in one line, the bigger finding held for the call), Donna (UAE 3 — the price-discovery reply), Helen (P2 — the priced close and the deposit flip). Read those in examples.md; don't duplicate their copy, match their restraint.
+
+**Reply-type handling (good vs bad, all obeying every voice rule — no em-dashes, no kill-list phrases, proper capitalization):**
+
+- **Blunt / testing** ("What do you want mate?"). Match the bluntness, drop the pitch, say the plain thing.
+  - Good: "Fair. I spotted something on your booking page that's costing you sign-ups and I can show you the fix in a 3-min video. Worth a look?"
+  - Bad: a four-paragraph reply that re-explains the finding, quotes the price and guarantee, and offers the Loom and a call. (This is the real failure that drew silence.)
+- **Polite brush-off** ("thanks, we're all set" / "not right now"). Acknowledge, plant ONE doubt, leave the door open. Don't re-pitch.
+  - Good: "Understood. The one thing I'd still glance at is whether that checkout works on mobile, most don't. If it's clean, ignore me."
+  - Bad: "I understand, but let me explain everything my $200 package includes and why now is the right time..."
+- **Price question** ("how much?"). Answer directly, do not dodge to a call. On this track the one price-discovery question comes first if it hasn't been asked (the flip: promise the number next message, then give it). Once discovery is done or not owed, name the flat track number. The "range" is the two tracks, not a haggle: Track A (735 AED) is the floor and happy price, Track B (2,575 AED) the ceiling; each is flat.
+  - Good (discovery not yet asked): "I'll give you the exact number in my next message, promise. First, out of curiosity, what were you expecting it to cost?"
+  - Good (discovery done): "735 AED flat, and if anything I touch isn't working when you check it, you pay nothing. Want me to start?"
+  - Bad: "Depends on scope, let's hop on a call and I'll walk you through the packages." (Dodging a price question reads as hiding the price.)
+- **Logistics / procurement question** ("what does it cover, where are you based, can I see proof?"). This is a buying signal, not a stall. Answer every question asked, in order, in one reply. Don't pad. Offer one or two real proof links, then offer to move to a faster channel, WhatsApp especially for UAE leads.
+  - Good: "It covers the fixes plus a short recorded walkthrough. I'm based in Dubai. Proof: [one live client link with an explicit https://]. Easier on WhatsApp if you want, I'm on [number]."
+  - Bad: a soft "great questions! happy to cover all that on a call" that answers none of them.
+- **Five-scope-questions deflection** (a wall of questions used to stall). Don't answer all five in a wall of your own. Collapse to the one that actually decides it, answer that, and pull to a live channel.
+  - Good: "The one that matters is timing: I can have it live and tested within 48 hours. The rest is easier to run through on a quick WhatsApp voice note than in email, want me to send one?"
+  - Bad: a numbered list answering all five questions in six paragraphs (a wall answering a wall, nobody replies).
 
 ## Money emails (the priced close)
 
@@ -108,9 +133,27 @@ This replaces the old "ask for a call, then negotiate" pattern entirely. Louise 
 4. One CTA: the price and a single next step (a payment link, or "want me to start today"), not a menu.
 5. Numbers stay locked to their real source: $8,123 and 93% are Birds & Bees only. $522 and the 50% take rate are Screen Smart order bumps only. 6.6% is the Hijab Workbook only. Never blur these across case studies.
 
+## Small-deal closing (sub-$1k, Track A)
+
+Track A is a small one-off deal ($200 / 735 AED). Small deals close differently from big ones: the buyer wants a fast, direct answer and a single low-risk decision, not a consultative dance. On a warm thread at the money moment:
+
+- **Answer the price question directly.** For a sub-$1k deal, dodging "how much?" to a call reads as hiding the number and stalls the close. Give the flat figure. (The one exception is the price-discovery step, which asks what she'd pay BEFORE quoting — but that runs once, early, via the flip shape, and then you name the number in the very next message. Discovery is not a dodge; a call is.)
+- **The "range" is the two tracks, never a within-track haggle.** If a range is useful framing, it's Track A (735 AED) as the floor and happy price, Track B (2,575 AED) as the ceiling, each flat. The number inside a track never moves (hard rule). A low anchor from her is market data, not permission to discount; answer objections with bonuses or a term restructure (GSO v2), never a lower number.
+- **Attach the standing risk-reversal to every quote.** The guarantee rides with the price in the same breath, unprompted: "735 AED flat, and if anything I touch isn't working when you check it, you pay nothing." On a small deal the risk-reversal does more work than any feature list.
+- **Offer a channel switch on a buying signal, WhatsApp especially for UAE.** A logistics or procurement question is a buying signal; after answering it, offer to move to WhatsApp or a quick voice note. UAE buyers close over WhatsApp far more readily than over email (Natavia receipt, trust-verification section).
+- **After the ask, stop.** One decision on the table, then silence. Continuing to talk (adding a second reassurance, re-opening a doubt she didn't raise, stacking another bonus unprompted) reads as nerves and un-sells the close. Make the ask ONE decision and let it sit.
+
 ## The free-value cap (the gratitude trap)
 
 Pam, Louise, and Helen all fixed the flagged issue themselves the same day and closed the loop with a thank-you instead of payment. That happens when too much gets diagnosed for free before any price is on the table. Cap free value at exactly: one opener finding, plus at most one Loom. Do not send a second or third finding into a thread that hasn't been priced yet — that's the specific mistake that lost Pam. If there's more to say, that's what "The Next Three" bonus is for, and it only gets shown after a price is already on the table, not before.
+
+**The cap is on DEPTH too, not just count.** Findings come in two depths (see `haytham-opener-finder/references/walk.md`): shallow/self-fixable (a dead link, a test SKU, a form that should be a scheduler — she can fix it in minutes) and deep/un-self-fixable (pricing architecture, no owned audience, a whole program readable free — the reason to pay). The gratitude trap is worst when what's given free is *shallow*: she reads it, fixes it herself, thanks you, and is gone (Rita fixed her booking redirect, Avneet fixed her test-SKU checkout and logo). So:
+
+- **Shallow findings can be named freely.** They earn the reply and cost nothing to give — that's their whole job as bait.
+- **A deep finding's fix and full diagnosis are call-only.** In email you may NAME that a deeper issue exists and that it's costing her ("while I was in there I also found something bigger, on the pricing side"), but the how stays offline. Never hand over the mechanism or the fix of a deep finding in an email — that is the deep version of the gratitude trap, and it's worse, because a deep finding is the thing she'd actually pay to solve.
+- **The `RESERVED` deep finding is held entirely.** The walk marks one deep finding RESERVED in the Findings Bank as the call bait; it is never emailed at all — not as an opener, not as a second-finding, not as a teaser fix. Naming that "something bigger" exists is the teaser (Emily Ray, P3 in examples.md); the finding itself and its fix are the reason for the call.
+
+**Hard rule:** never hand over the fix or the full diagnosis of a deep finding in email. Name that it exists and that it's costing her, keep the how offline.
 
 ## Deposit / payment objections (warm, post-proposal)
 

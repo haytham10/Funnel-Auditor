@@ -26,7 +26,7 @@ The walk fills / updates:
 | Lane | select | "Lane 1: Felt leak" / "Lane 2: No leak" / "Lane 3: Skip" |
 | Finding Verified | checkbox | **The walker never checks this — it PROPOSES the finding and leaves this unchecked.** It is the hard send gate, checked only by the independent `finding-verifier` on a VERIFIED verdict. Lane 2/3 never carry it. |
 | Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Prefer "Dead/stale element" for time-bound breakage (stale cohort/webinar dates, empty calendars, dead links, expired events, placeholders) — most warm repliers in the old track lived there. Set from bank #1. |
-| Findings Bank | text | **Lane 1 only.** Every visually-confirmed finding that survived both filters, ranked strongest first, one compact line each, all UNUSED on a fresh walk: `1. UNUSED \| <finding, one felt-cost phrase>`. The send gate parses these lines (`crm-gate send --carries second-finding` needs an UNUSED entry past #1), so keep the exact `N. UNUSED \| text` shape. Never mark anything USED here — only confirmed-send logging flips statuses. Lane 2/3: leave empty. |
+| Findings Bank | text | **Lane 1 only.** Every visually-confirmed finding that survived both filters, ranked depth-first (deep over shallow, then tier, then sting), one compact line each: `N. STATUS \| DEPTH \| <finding, one felt-cost phrase>`. `STATUS` = `UNUSED` on a fresh walk (only confirmed-send logging flips to `USED-TN`) OR `RESERVED` for the one deep finding held as call bait. `DEPTH` = `SHALLOW` or `DEEP` (self-fixability — see `walk.md`). Example: `1. UNUSED \| SHALLOW \| booking button drops to a form` / `2. UNUSED \| DEEP \| pricing split across 4 platforms` / `3. RESERVED \| DEEP \| whole program readable free`. The send gate parses these lines: `crm-gate send --carries second-finding` needs an UNUSED entry past #1, never draws the RESERVED one, and warns when there's no DEEP entry. Keep the exact `N. STATUS \| DEPTH \| text` shape. If no deep finding exists, all lines are SHALLOW, no RESERVED line, and the low-value flag goes in `Notes`. Lane 2/3: leave empty. |
 | Status | select | A freshly walked Lane 1 lead stays "Qualifying" (finding proposed, not yet verified); it becomes "Audit Ready" only after the `finding-verifier` returns VERIFIED and `Email Verified` is set. "Lane 2" if Lane 2 — the dedicated no-leak status (added 2026-07-16; it was a Qualifying hold before that). "Disqualified" if Lane 3 or any gate fail. |
 | Est. Value | select | "Track A ($200)" default / "Track B ($700)" when real launch or sales volume is visible / "Unknown". |
 | Notes | text | One line. Strongest finding, warm-up angle, or one-line flag. Full detail goes in the body. Email-source problems go FIRST. |
@@ -71,13 +71,17 @@ Three lines max.
 ## Findings Bank
 (Lane 1 only — omit the section body for Lane 2/3, write "(empty — no verified
 findings banked)".)
-Every visually-confirmed finding that survived both filters, ranked strongest
-first. One numbered line each: the finding as a felt cost, then its innocent
-explanation after " — innocent: ". #1 restates the Lane + Finding opener; #2
-onward is Touch 2/3 material. Mirror the same ranking into the `Findings Bank`
-PROPERTY in compact form (`N. UNUSED | finding`) — the property is what the
-send gate parses, the body section is what a human (and the drafting skill)
-reads.
+Every visually-confirmed finding that survived both filters, ranked depth-first
+(deep over shallow, then tier, then sting). One numbered line each: the finding
+as a felt cost, its depth tag (shallow/deep), then its innocent explanation
+after " — innocent: ". #1 restates the Lane + Finding opener; #2 onward is
+Touch 2/3 material; the one deep finding held as call bait is marked RESERVED
+and its fix is call-only — name it as a cost, never write the fix. If no deep
+finding exists, note "low-value: no deep finding to reserve" here and in
+`Notes`. Mirror the same ranking into the `Findings Bank` PROPERTY in compact
+form (`N. STATUS | DEPTH | finding`, STATUS ∈ UNUSED/USED-Tn/RESERVED) — the
+property is what the send gate parses, the body section is what a human (and the
+drafting skill) reads.
 
 ## Loom Skeleton
 (Lane 1 only — omit for Lane 2/3.)

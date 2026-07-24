@@ -95,6 +95,32 @@ reader's head. Spelling out what "it" means again is padding — the burrito
 test should catch that on its own, but it's a specific enough mistake to
 name here.
 
+## Warm reply written as an opener/pitch (banned)
+
+Once someone replies, the thread is warm and the rules change. The finding,
+the price, and the Loom have already done their job. Re-delivering them reads
+as low-confidence and kills rapport. The failure: the model reverts to the
+richly-documented opener/cold-follow-up craft and answers a short human reply
+with a full sales sequence, mismatching the reply's length and tone.
+
+**Violations (illustrative):**
+- A lead replied "What do you want mate?" (five words) and the draft came back
+  four paragraphs: re-explaining the finding she'd get to, quoting the $200
+  price and the guarantee, re-offering the Loom, and asking for a call. Nobody
+  replies to that.
+- Answering "how much?" with a re-statement of the whole finding before the
+  number.
+- Applying the cold "carry a new payload every touch" rule to a warm reply, so
+  the reply re-serves a second finding she didn't ask about.
+
+**Fix:** match the reply's length and tone, answer the actual question in one
+or two sentences, make the next step ONE decision, then stop. A five-word reply
+gets a one-line answer. Do not re-list the finding, re-state the price, or
+re-offer the Loom unless she asked. The reinforcement-loop / new-payload rule
+is COLD-only (mechanics.md) — see the Warm replies section there for the
+reply-type patterns (blunt, brush-off, price question, logistics, five-question
+deflection).
+
 ## The close is an open door, not a bow
 
 No "let me know." No "looking forward." No "if you're open to it." A

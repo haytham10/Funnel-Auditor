@@ -70,9 +70,12 @@ its own ceiling):
 - **Touch 1:** the strongest verified finding — `Findings Bank` #1.
 - **Touch 2 (day 3) and Touch 3 (day 9):** exactly one of
   - `second-finding` — the next UNUSED `Findings Bank` entry (the gate
-    checks it exists; never invent one at draft time). Named as a felt
+    checks it exists and never draws the `RESERVED` deep finding, which is
+    held for the call; never invent one at draft time). Named as a felt
     cost with its innocent explanation, fix left vague — naming a second
-    cost is not the Adrienne mistake, teaching a second fix is.
+    cost is not the Adrienne mistake, teaching a second fix is. If the
+    second finding is deep, name that it exists and costs her, never the
+    fix (the deep-finding fix is call-only — see mechanics.md free-value cap).
   - `loom-offer` — one line, an offer not a link, no price.
   - `disambiguating-question` — direct binary, no soft exit ("Should I
     stop following up, or is this still on your radar?"). The natural

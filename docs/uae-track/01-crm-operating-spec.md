@@ -71,7 +71,7 @@ SQLite table name is the data source URL, quoted:
 | `Lane` | select | `Lane 1: Felt leak` `Lane 2: No leak` `Lane 3: Skip` |
 | `Finding Verified` | checkbox | **HARD GATE.** `__YES__` / `__NO__` in SQL. |
 | `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` |
-| `Findings Bank` | text | Every verified finding from the walk, ranked strongest first, one per line: `1. USED-T1 \| finding` / `2. UNUSED \| finding`. #1 is the opener; touches 2-3 draw the next UNUSED entry. Written by the walk; statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property. |
+| `Findings Bank` | text | Every verified finding from the walk, ranked depth-first (deep over shallow, then tier, then sting), one per line: `N. STATUS \| DEPTH \| finding`. `STATUS` ∈ `UNUSED` / `USED-Tn` / `RESERVED` (the one deep finding held as call bait, never emailed); `DEPTH` ∈ `SHALLOW` / `DEEP` (self-fixability). E.g. `1. USED-T1 \| SHALLOW \| booking button drops to a form` / `2. UNUSED \| DEEP \| pricing split across 4 platforms` / `3. RESERVED \| DEEP \| whole program readable free`. #1 is the opener; touches 2-3 draw the next UNUSED entry (never the RESERVED one). Statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property, skips RESERVED, and warns when no DEEP entry exists. Legacy lines without a DEPTH tag still parse. |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
 | `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14; `Lane 2`, added 2026-07-16) |
 | `Inbox` | select | `Inbox 1` `Inbox 2` (added 2026-07-16). Which sending inbox this lead's whole thread goes out of — a LOGICAL label, mapped to a real address + transport by the registry (`audit/inboxes.py`; Inbox 1 = auto-mate.one via Gmail MCP, Inbox 2 = gethaytham.com via `main.py gmail-gethaytham`). Assigned once, sticky for the life of the thread. Blank = unassigned; routing fills it when the lead first enters the send queue. Each inbox has its OWN send ceiling. |
@@ -306,9 +306,13 @@ Gate 1: pass/fail + why
 Lane assignment. The strongest verified finding (bank #1). The innocent explanation.
 
 ## Findings Bank
-Every verified finding that survived both filters, ranked strongest first,
-with each one's innocent explanation. Mirrored compactly into the
-`Findings Bank` property (`N. UNUSED | finding`) for the send gate to parse.
+Every verified finding that survived both filters, ranked depth-first (deep
+over shallow, then tier, then sting), with each one's depth tag and innocent
+explanation. The one deep finding held as call bait is marked RESERVED — its
+fix is call-only, never written into email. If no deep finding exists, note
+"low-value: no deep finding to reserve" here and in `Notes`. Mirrored compactly
+into the `Findings Bank` property (`N. STATUS | DEPTH | finding`, STATUS ∈
+UNUSED/USED-Tn/RESERVED) for the send gate to parse.
 
 ## SMYKM Hook
 One line, with the source it came from.

@@ -45,6 +45,12 @@ independently shows it:
 - **Lane sanity** → does the finding survive the sting test + the vitamin filter
   (`haytham-opener-finder/references/walk.md`), or is it a Lane 2 shrug dressed
   up as a felt leak?
+- **Reserve sanity (report only, never a REFUTE reason)** → glance at the
+  `Findings Bank`: is a deep finding held (`RESERVED | DEEP | …`), or is the
+  lead flagged `low-value` in Notes when the bank is all shallow? You verify
+  bank #1 (the opener), not the reserve — but if a bank of only shallow findings
+  carries no low-value flag, note it in your return so the orchestrator can fix
+  the flag. This never changes your VERIFIED/REFUTED verdict on the opener.
 
 Use `Bash` for `curl` and any `python main.py` check; use `firecrawl_scrape` to
 re-fetch a page independently. Do not spawn subagents; do not walk the whole

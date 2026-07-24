@@ -358,10 +358,14 @@ Follow that skill exactly: the 5-stop walk, sting test + vitamin filter,
 lane classification, opening angle + innocent explanation. (Gate 1 was
 already settled in Step 0.5 — do not redo it.) Only visually-confirmed
 findings enter the filters. Bank every finding that survives both filters,
-ranked strongest first — the body's Findings Bank section plus the
-`Findings Bank` property (`N. UNUSED | finding` lines the send gate
-parses); #1 is the opener, the rest is Touch 2/3 material that must not be
-discarded. Write the page body and properties to the UAE CRM in the exact
+ranked depth-first (deep over shallow, then tier, then sting) — the body's
+Findings Bank section plus the `Findings Bank` property
+(`N. STATUS | DEPTH | finding` lines the send gate parses); #1 is the
+opener (may be shallow — it earns the reply), the rest is Touch 2/3
+material that must not be discarded, and at least one deep finding is
+marked `RESERVED` as the reason for a call, never emailed. If no deep
+finding survives, flag the lead `low-value` (first line of `Notes`) rather
+than pretend a shallow finding will close. Write the page body and properties to the UAE CRM in the exact
 schema.md format, including the Evidence section with the literal
 vision-check line AND the exact evidence paths each finding rests on (the
 `screenshot_desktop`/`screenshot_mobile`/text file), so the verifier can
