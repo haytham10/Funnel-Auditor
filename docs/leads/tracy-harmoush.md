@@ -40,7 +40,7 @@ Tracy Harmoush (Tracy Harmoush Ariss) — Dubai-based fitness personality and ca
 **Rank 1 — newsletter's "terms and conditions" link 404s**
 Depth: SHALLOW · Type: broken legal-page link
 Innocent explanation: a renamed/removed legal page whose link was never updated.
-Why it matters: the newsletter opt-in's "terms and conditions" link (playbookapp.io/terms-conditions-newsletter) is a genuine 404, independently re-fetched and confirmed live — not just a screenshot artifact. Anyone who reads the fine print before signing up hits a dead page. This was the finding actually spent in cold outreach (touch 1); the deeper checkout defect below was held back rather than emailed.
+Why it matters: the newsletter opt-in's "terms and conditions" link (playbookapp.io/terms-conditions-newsletter) is a genuine 404, independently re-fetched and confirmed live — not just a screenshot artifact. Anyone who reads the fine print before signing up hits a dead page. Tagged UNUSED in the raw Findings Bank as of this archive.
 Evidence: none promoted yet
 
 **Rank 2 — site-wide "$1" trial promise never honored at checkout** *(RESERVED — call bait, never emailed)*

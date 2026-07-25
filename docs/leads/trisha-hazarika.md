@@ -43,7 +43,7 @@ Innocent explanation: Mentaa's "view only" widget defaults to today's (booked) v
 Why it matters: her Mentaa "Coach Availability" scheduler renders "All booked! Please try another day" with no selectable open slot on the default view — sitting directly beneath her own "BOOK FREE TRIAL / Free Discovery Call — Up to 30 Minutes" and "BOOK NOW" CTAs, so a visitor she just invited to book a free call sees zero availability at first glance. Show: mentaa.com/coaches/view/TrishaHazarika, scroll to the "Schedule / Coach Availability" widget reading "All booked! Please try another day," immediately below the "Book Free Trial — Free Discovery Call" button. Fix: publish/sync a handful of open discovery-call slots into the Mentaa availability calendar (as the coach whose widget already shows live times has done), so the preview shows bookable times instead of "All booked." Done state: a visitor clicking Book sees open slots and books the free call in one step, instead of hitting a dead "try another day."
 Evidence: none promoted yet
 
-**Rank 2 — published testimonial still contains pasted AI prompt text** *(spent on touch 2, alongside Rank 1)*
+**Rank 2 — published testimonial still contains pasted AI prompt text**
 Depth: SHALLOW · Type: unedited social proof / low-polish credibility signal
 Innocent explanation: it is a client-submitted review she likely has not seen render with the artifact.
 Why it matters: a testimonial in her review block opens "Here you go — 5 clean lines in English:" with raw formatting artifact left in — it reads as unedited, low-polish social proof sitting on her sales page, right where a prospect is vetting whether to trust her.

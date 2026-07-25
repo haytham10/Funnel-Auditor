@@ -43,7 +43,7 @@ Innocent explanation: she likely qualifies coaching leads by hand first (applica
 Why it matters: every "Book A Call" button (the site's primary CTA, ~7 places) lands on a plain "Have a question?" contact form with no scheduler — the exec ready to book a call can't book one, they fill a form and wait for a manual reply, and the highest-intent moment leaks. Show: /coaching-programs/ — click any "Book A Call" button; it opens /contact-me/, a "Have a question?" form, not a time-picker. Fix: point the "Book A Call" buttons at a real scheduler (embed a Calendly/GHL calendar on the contact page, or link the button straight to it) so a ready buyer picks a slot in the same click. Done state: click "Book A Call" → open time slots appear immediately, instead of a contact form and a wait.
 Evidence: none promoted yet
 
-**Rank 2 — no freebie or low-commitment step for the 7,967-follower LinkedIn audience** *(RESERVED — call bait, never emailed)*
+**Rank 2 — no freebie or low-commitment step for the 7,967-follower LinkedIn audience**
 Depth: SHALLOW · Type: missing top-of-funnel capture / vitamin gap
 Innocent explanation: a lead magnet may be delivered by hand via DM, or just not published on the site yet.
 Why it matters: 7,967 LinkedIn followers and an active feed, but the only doors on the site are "book a call" or buy the $42 book — the follower who's curious but not yet ready has no low-commitment place to land and stays only on rented LinkedIn reach.

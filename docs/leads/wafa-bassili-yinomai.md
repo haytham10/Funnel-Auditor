@@ -43,13 +43,13 @@ Innocent explanation: a copy pass after the last redesign never re-proofed the s
 Why it matters: the approach-section headline on the homepage reads "Systemas Sensitive, Insight Led" — a misspelling of "Systems" in a large section heading, quietly discounting the "grounded presence, strategic depth" polish for the exact C-suite buyer she's courting. Show: yinomai.com — the approach section heading "Systemas Sensitive, Insight Led, A Tailored For Middle East Markets" (and, scrolling down, the pre-form CTA "...GCC North African region.."). Fix: in Elementor, edit the heading widget text "Systemas" → "Systems" (and repair the CTA sentence + double period). Done state: the headline reads clean "Systems Sensitive, Insight Led" and the closing line before the form reads as one finished sentence — no misspelling greeting a C-suite visitor.
 Evidence: none promoted yet
 
-**Rank 2 — closing CTA above the booking form reads "...GCC North African region.."** *(spent alongside Rank 1 as the Loom's second visual beat)*
+**Rank 2 — closing CTA above the booking form reads "...GCC North African region.."** *(the Loom skeleton's second visual beat, shown together with Rank 1)*
 Depth: SHALLOW · Type: garbled CTA copy near the conversion point
 Innocent explanation: a last-minute CTA edit left the sentence half-rewritten.
 Why it matters: garbled phrasing (missing "and"/"&") plus a stray double period, sitting at the highest-intent moment right before the only booking form on the site.
 Evidence: none promoted yet
 
-**Rank 3 — About bio typo, "dynamis" for "dynamics"** *(RESERVED — call bait, never emailed)*
+**Rank 3 — About bio typo, "dynamis" for "dynamics"**
 Depth: SHALLOW · Type: typo in credential/bio copy
 Innocent explanation: a typo that slipped the proofread.
 Why it matters: the bio paragraph a C-suite buyer reads to vet her says "the unspoken dynamis that shape leadership and culture" — a small credibility ding in the exact copy meant to build trust.
