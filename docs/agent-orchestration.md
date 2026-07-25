@@ -116,6 +116,14 @@ demand-driven instead of dumping:
 - **Apify cap checked once, up front** (`python main.py apify limits`), not once
   per worker — if `near_cap`, tell every worker in its prompt to skip Apify and
   proceed on Firecrawl/search signal.
+- **Notion SQL quota (`notion-query-data-sources`) is hourly and free-plan
+  capped** — don't let every worker discover the same exhausted cap
+  independently. If a SQL query returns `entitlement_required`, don't retry
+  it: fall back to `notion-query-database-view` on an unfiltered view (e.g.
+  the Pipeline Board), paginate it, and filter in memory. Page-level
+  `notion-fetch`/`notion-update-page`/`notion-search` are a separate,
+  uncapped endpoint — the cap never blocks a verifier's re-check or a CRM
+  write. See CLAUDE.md Environment notes for the full workaround.
 - **Quality tripwire:** if the verifier **REFUTES ≥2 of the first wave**, pause
   the batch and surface to Haytham before spending the rest of the queue — a
   high refute rate is the machine noticing its own bad night.
