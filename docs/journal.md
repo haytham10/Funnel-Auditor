@@ -37,6 +37,68 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-25 — Repo half of the Airtable migration: evidence persistence + 122 lead docs (R1-R6)
+
+Worked the repo-side handover from the Airtable-migration session (docs/uae-track/ handover,
+not yet committed as its own file — see this branch's commits). Six pieces, R1-R6, all shipped
+to `claude/evidence-persistence-lead-docs-wrenyt`:
+
+- **R1** — `.gitignore`'s `evidence/` rule was unanchored, so it also matched the promoted
+  `docs/leads/<slug>/evidence/` folders (same name, different location) and silently ate the
+  `!docs/leads/**/*.png` negation — a directory Git excludes can never have children re-included.
+  Anchored to `/evidence/` (repo root only). Gotcha: `git check-ignore -v` reports exit 0 even for
+  a NOT-ignored path whenever a negation pattern matches and prints — the real signal is
+  `git check-ignore` (no `-v`) or `git status --ignored`, not the verbose exit code.
+- **R2** — new `python main.py promote-evidence <slug> --kind finding|hook [--rank N] --source
+  <path> [--force]` (`audit/evidence_promotion.py`): resizes to a 1600px longest edge, strips
+  metadata, refuses to overwrite without `--force`. Pillow wasn't even installed in this
+  container until this task — confirms why the lazy-import convention matters; `crm-gate`/
+  `send-cap` verified working with `PIL` import blocked.
+- **R3** — `docs/leads/_manifest.json`, the 122 non-Disqualified leads (`Status != Disqualified`
+  in the UAE CRM), slugged via `audit.urls.slugify`. One real collision: two "Dan Chadwick" CRM
+  rows, same name, same Site URL (beacons.ai/recruitmentguy) — looks like the same lead sourced
+  twice, not two coaches sharing a name. Disambiguated with a page-id suffix
+  (`dan-chadwick-c46c8a` / `dan-chadwick-643082`) since a domain fragment doesn't help when both
+  rows point at the identical domain. Flagged for the Airtable session's reconciliation pass.
+- **R4** — verbatim `docs/leads/<slug>.raw.md` archives of all 122 Notion page bodies, fanned out
+  over 8 parallel background agents. Spot-checked one (Rita Baki) byte-for-byte against a fresh
+  Notion fetch — exact match.
+- **R5** — `docs/leads/<slug>.md` structured walk docs from the raw archives, same 8-way fan-out.
+  Zero Email Thread Log / Price Discovery leakage across all 122 (grepped after every batch).
+  One near-miss: an agent initially summarized a live reply inside a Findings block, caught it in
+  self-review before finalizing — verified clean afterward. Several judgment calls on sparse Lane 2
+  archives, retired/killed findings, and one case (Murielle Larrière) where a genuine walk
+  correction was filed under the dropped `## Price Discovery` heading in Notion — kept the
+  correction, dropped nothing price-related.
+- **R6** — re-walked the 7 live/warm leads (Avneet Kohli, Rita Baki, Ben Pringle, William Brown,
+  Lisa Hugo, Lucia Csobonyei, Lee Harris) live via Firecrawl, one per parallel agent, applying the
+  honesty rule: promote evidence only for findings still visibly present today, mark the rest
+  explicitly dead rather than silently reusing stale copy. **3 of the ~13 re-checked findings are
+  now dead**, all fixed by the coach since the original walk — real, useful catches, not busywork:
+  - **Rita Baki, Rank 1** — the actual finding her sent copy was built on. Her CTA no longer leads
+    to a bare contact form; it's now a live Calendly scheduler. She fixed it. Do not reference
+    this finding again with her (Offer Sent status — active thread).
+  - **Rita Baki, Rank 2** — The Holistic Culture rebuilt her marketplace listing on a new platform;
+    the price-teaser contradiction is gone (likely incidental to the migration, not a fix aimed at
+    this).
+  - **Ben Pringle, Rank 1** — the vanished £40 "Dubai Football Guide" is back on his Stan store.
+  All other re-checked findings (Avneet Kohli #3/#4, William Brown #1, Lisa Hugo #1, Lucia
+  Csobonyei #1, Lee Harris #1) held up unchanged and now have promoted screenshot evidence at
+  `docs/leads/<slug>/evidence/`.
+
+Never touched Airtable, never wrote to the Notion CRM (read-only throughout, per the handover's
+hard boundary), never touched `crm_gate.py`/`dashboard.py`/`inboxes.py`/`send_cap.py` or any skill.
+
+### Open follow-ups
+- [ ] Airtable session: pick up `docs/leads/_manifest.json` (122 entries) to build Walk Doc /
+      Evidence Path URLs; resolve the Dan Chadwick duplicate during reconciliation.
+- [ ] Airtable session: set `Findings.Still Present = false` for Rita Baki Rank 1 + Rank 2 and Ben
+      Pringle Rank 1 once those Airtable Findings rows exist.
+- [ ] Haytham: Rita Baki's next touch (if any) should NOT reference the old booking-form finding —
+      it's fixed. Her Rank 3 (currency fragmentation) is the only finding on her still standing.
+- [ ] A later pass backfills the `<!-- airtable-record: TBD -->` placeholders in all 122 walk docs
+      once the Airtable session hands back a name → recordId manifest.
+
 ## 2026-07-25 — Ops: rebalanced Inbox 2's 07-28 send load (24 → 15)
 
 Haytham flagged 07-28 as packed for Inbox 2. Queried the Pipeline Board
