@@ -39,6 +39,7 @@ draft for a given lead branches on `resolve(label).send_via`.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 
@@ -77,9 +78,6 @@ _REGISTRY: tuple[Inbox, ...] = (
     ),
 )
 
-_BY_LABEL: dict[str, Inbox] = {ib.label: ib for ib in _REGISTRY}
-_BY_ADDRESS: dict[str, Inbox] = {ib.address.lower(): ib for ib in _REGISTRY}
-
 # Fail loudly at import if the registry is malformed — one and only one
 # primary, unique labels and addresses. These are invariants the rest of the
 # system relies on, not runtime conditions to handle gracefully. Explicit
@@ -88,25 +86,64 @@ _BY_ADDRESS: dict[str, Inbox] = {ib.address.lower(): ib for ib in _REGISTRY}
 _PRIMARIES = [ib for ib in _REGISTRY if ib.is_primary]
 if len(_PRIMARIES) != 1:
     raise RuntimeError(f"inbox registry must have exactly one primary inbox, found {len(_PRIMARIES)}")
-if len(_BY_LABEL) != len(_REGISTRY):
-    raise RuntimeError("inbox registry labels must be unique")
-if len(_BY_ADDRESS) != len(_REGISTRY):
-    raise RuntimeError("inbox registry addresses must be unique")
 
 PRIMARY_LABEL: str = _PRIMARIES[0].label
 
 
+def _has_direct_gmail_credentials() -> bool:
+    generic = (
+        os.environ.get("GMAIL_CLIENT_ID"),
+        os.environ.get("GMAIL_CLIENT_SECRET"),
+        os.environ.get("GMAIL_REFRESH_TOKEN"),
+    )
+    if all(generic):
+        return True
+    inbox1 = (
+        os.environ.get("INBOX1_GMAIL_CLIENT_ID"),
+        os.environ.get("INBOX1_GMAIL_CLIENT_SECRET"),
+        os.environ.get("INBOX1_GMAIL_REFRESH_TOKEN"),
+    )
+    return all(inbox1)
+
+
+def _runtime_registry() -> tuple[Inbox, ...]:
+    if not _has_direct_gmail_credentials():
+        return _REGISTRY
+    return tuple(
+        Inbox(
+            label=ib.label,
+            address=ib.address,
+            send_via="gmail-gethaytham" if ib.label == "Inbox 1" else ib.send_via,
+            is_primary=ib.is_primary,
+            note=(
+                "direct Gmail API fallback for Inbox 1; Gmail MCP unavailable"
+                if ib.label == "Inbox 1"
+                else ib.note
+            ),
+        )
+        for ib in _REGISTRY
+    )
+
+
+def _runtime_by_label() -> dict[str, Inbox]:
+    return {ib.label: ib for ib in _runtime_registry()}
+
+
+def _runtime_by_address() -> dict[str, Inbox]:
+    return {ib.address.lower(): ib for ib in _runtime_registry()}
+
+
 def labels() -> list[str]:
     """All registered inbox labels, in registry order."""
-    return [ib.label for ib in _REGISTRY]
+    return [ib.label for ib in _runtime_registry()]
 
 
 def all_inboxes() -> list[Inbox]:
-    return list(_REGISTRY)
+    return list(_runtime_registry())
 
 
 def is_registered(label: str | None) -> bool:
-    return label in _BY_LABEL
+    return label in _runtime_by_label()
 
 
 def resolve(label: str | None) -> Inbox:
@@ -115,9 +152,10 @@ def resolve(label: str | None) -> Inbox:
     Raises InboxError on an unknown non-empty label — callers that must fail
     closed instead (e.g. the cap loader) should check is_registered first.
     """
+    by_label = _runtime_by_label()
     if not label:
-        return _BY_LABEL[PRIMARY_LABEL]
-    ib = _BY_LABEL.get(label)
+        return by_label[PRIMARY_LABEL]
+    ib = by_label.get(label)
     if ib is None:
         raise InboxError(
             f"{label!r} is not a registered inbox. Known: {', '.join(labels())}. "
@@ -127,14 +165,14 @@ def resolve(label: str | None) -> Inbox:
 
 
 def primary() -> Inbox:
-    return _BY_LABEL[PRIMARY_LABEL]
+    return _runtime_by_label()[PRIMARY_LABEL]
 
 
 def label_for_address(address: str | None) -> str | None:
     """The logical label behind a raw address, or None if unregistered."""
     if not address:
         return None
-    ib = _BY_ADDRESS.get(address.lower())
+    ib = _runtime_by_address().get(address.lower())
     return ib.label if ib else None
 
 

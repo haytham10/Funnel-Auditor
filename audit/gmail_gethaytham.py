@@ -71,13 +71,13 @@ class GmailGethaythamError(RuntimeError):
 
 
 def _creds() -> tuple[str, str, str]:
-    client_id = os.environ.get("GETHAYTHAM_GMAIL_CLIENT_ID")
-    client_secret = os.environ.get("GETHAYTHAM_GMAIL_CLIENT_SECRET")
-    refresh_token = os.environ.get("GETHAYTHAM_GMAIL_REFRESH_TOKEN")
+    client_id = os.environ.get("GETHAYTHAM_GMAIL_CLIENT_ID") or os.environ.get("GMAIL_CLIENT_ID")
+    client_secret = os.environ.get("GETHAYTHAM_GMAIL_CLIENT_SECRET") or os.environ.get("GMAIL_CLIENT_SECRET")
+    refresh_token = os.environ.get("GETHAYTHAM_GMAIL_REFRESH_TOKEN") or os.environ.get("GMAIL_REFRESH_TOKEN")
     missing = [name for name, val in (
-        ("GETHAYTHAM_GMAIL_CLIENT_ID", client_id),
-        ("GETHAYTHAM_GMAIL_CLIENT_SECRET", client_secret),
-        ("GETHAYTHAM_GMAIL_REFRESH_TOKEN", refresh_token),
+        ("GETHAYTHAM_GMAIL_CLIENT_ID" if os.environ.get("GETHAYTHAM_GMAIL_CLIENT_ID") else "GMAIL_CLIENT_ID", client_id),
+        ("GETHAYTHAM_GMAIL_CLIENT_SECRET" if os.environ.get("GETHAYTHAM_GMAIL_CLIENT_SECRET") else "GMAIL_CLIENT_SECRET", client_secret),
+        ("GETHAYTHAM_GMAIL_REFRESH_TOKEN" if os.environ.get("GETHAYTHAM_GMAIL_REFRESH_TOKEN") else "GMAIL_REFRESH_TOKEN", refresh_token),
     ) if not val]
     if missing:
         raise GmailGethaythamError(

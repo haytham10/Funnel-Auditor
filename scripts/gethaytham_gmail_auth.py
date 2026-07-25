@@ -25,8 +25,10 @@ environment secrets on the runner, never commit them anywhere:
 
 from __future__ import annotations
 
+import argparse
 import getpass
 import http.server
+import os
 import urllib.parse
 import webbrowser
 
@@ -58,11 +60,32 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
         pass
 
 
+def _read_or_prompt(name: str, env_var: str | None, prompt: str) -> str:
+    if env_var and os.environ.get(env_var):
+        return os.environ[env_var]
+    value = input(prompt).strip()
+    return value
+
+
 def main() -> None:
-    print("Second OAuth client for haytham@gethaytham.com — Desktop app type,")
-    print("same Google Cloud project as the Gmail MCP connector (gethaytham-mcp).\n")
-    client_id = input("Client ID: ").strip()
-    client_secret = getpass.getpass("Client Secret (input hidden): ").strip()
+    parser = argparse.ArgumentParser(description="Mint a Gmail refresh token for a Google account")
+    parser.add_argument("--client-id", dest="client_id", default=None)
+    parser.add_argument("--client-secret", dest="client_secret", default=None)
+    parser.add_argument("--login-hint", dest="login_hint", default="haytham@gethaytham.com")
+    parser.add_argument("--env-prefix", dest="env_prefix", default="GETHAYTHAM_GMAIL")
+    args = parser.parse_args()
+
+    print(f"OAuth client for {args.login_hint} — Desktop app type, same Google Cloud project as the Gmail MCP connector.\n")
+    client_id = _read_or_prompt(
+        "Client ID",
+        f"{args.env_prefix}_CLIENT_ID",
+        "Client ID: ",
+    )
+    client_secret = _read_or_prompt(
+        "Client Secret",
+        f"{args.env_prefix}_CLIENT_SECRET",
+        "Client Secret (input hidden): ",
+    )
     if not client_id or not client_secret:
         print("Both fields are required.")
         raise SystemExit(1)
@@ -78,10 +101,10 @@ def main() -> None:
         "scope": SCOPE,
         "access_type": "offline",
         "prompt": "consent",
-        "login_hint": "haytham@gethaytham.com",
+        "login_hint": args.login_hint,
     }
     auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
-    print("\nOpening a browser tab — sign in and approve as haytham@gethaytham.com.")
+    print(f"\nOpening a browser tab — sign in and approve as {args.login_hint}.")
     print(f"If it doesn't open automatically, visit:\n{auth_url}\n")
     webbrowser.open(auth_url)
 
@@ -115,9 +138,9 @@ def main() -> None:
         raise SystemExit(1)
 
     print("\nSuccess. Set these as environment secrets on the runner (never in code):\n")
-    print(f"  GETHAYTHAM_GMAIL_CLIENT_ID={client_id}")
-    print(f"  GETHAYTHAM_GMAIL_CLIENT_SECRET={client_secret}")
-    print(f"  GETHAYTHAM_GMAIL_REFRESH_TOKEN={refresh_token}")
+    print(f"  {args.env_prefix}_CLIENT_ID={client_id}")
+    print(f"  {args.env_prefix}_CLIENT_SECRET={client_secret}")
+    print(f"  {args.env_prefix}_REFRESH_TOKEN={refresh_token}")
 
 
 if __name__ == "__main__":

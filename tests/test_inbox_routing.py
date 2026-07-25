@@ -48,6 +48,14 @@ def test_transport_per_inbox():
     assert inboxes.resolve("Inbox 2").send_via == "gmail-gethaytham"
 
 
+def test_inbox1_prefers_direct_gmail_fallback_when_generic_oauth_creds_exist(monkeypatch):
+    monkeypatch.setenv("GMAIL_CLIENT_ID", "client")
+    monkeypatch.setenv("GMAIL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("GMAIL_REFRESH_TOKEN", "token")
+    assert inboxes.resolve("Inbox 1").send_via == "gmail-gethaytham"
+    assert inboxes.resolve("Inbox 2").send_via == "gmail-gethaytham"
+
+
 # --- routing --------------------------------------------------------------
 
 def test_route_sticky_keeps_assignment():
