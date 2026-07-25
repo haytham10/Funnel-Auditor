@@ -37,6 +37,39 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-25 — Synced R6's 3 dead findings into the live Notion CRM (Rita Baki x2, Ben Pringle x1)
+
+R6 (previous entry below) caught 3 dead findings during the evidence-persistence re-walk, but that
+sprint was read-only against Notion by design (coordination boundary with the concurrent Airtable
+migration session). This left the actual live CRM — the thing `uae-tick`/drafting/replies read —
+still showing those findings as live, on two active warm threads. Notion is still the source of
+truth for pipeline state per CLAUDE.md, so fetched both pages fresh and wrote the correction
+directly (`update_properties` + `update_content`, matched old_str against the live fetch, not the
+repo doc, to survive Notion's markdown escaping):
+
+- **Rita Baki** — `Findings Bank` property: Rank 1 (booking-form CTA) and Rank 2 (price-teaser)
+  marked DEAD with the re-walk date; Rank 3 (currency fragmentation) is now the only standing
+  finding. `Notes` + page body flag a real follow-on problem for Haytham: the 3,200 AED custom offer
+  already pitched in Touch 4 was scoped around fixing the exact booking flow she's since fixed
+  herself — if she books the call or replies, the price needs re-confirming against remaining scope,
+  not re-quoted blind.
+- **Ben Pringle** — Rank 1 (vanished Dubai Football Guide) marked DEAD in `Notes` + page body — the
+  guide is back on the store. Flagged something sharper here: Touch #5, sent the same day the re-walk
+  ran and still awaiting reply, already told him the guide "dropped off the store" — a claim the
+  re-walk shows is no longer true. If he checks the store or disputes it on reply, the CRM now tells
+  whoever handles that reply to acknowledge honestly rather than re-assert a dead finding.
+
+Both leads' Notion pages now carry a `RE-WALK 2026-07-25` correction block and link back to the full
+evidence trail in `docs/leads/<slug>.md`. Nothing else touched — no sends, no draft changes, no
+status moves.
+
+### Open follow-ups
+- [ ] Haytham: if Rita Baki replies to book the call, re-scope the 3,200 AED quote — the deep leak
+      it was priced against (the booking-form CTA) is already fixed; only the shallow
+      currency-fragmentation finding is still live.
+- [ ] Whoever handles Ben Pringle's reply to Touch #5: if he pushes back on "the guide dropped off
+      the store," don't re-assert it — the guide is back, acknowledge it.
+
 ## 2026-07-25 — Repo half of the Airtable migration: evidence persistence + 122 lead docs (R1-R6)
 
 Worked the repo-side handover from the Airtable-migration session (docs/uae-track/ handover,
@@ -93,9 +126,8 @@ hard boundary), never touched `crm_gate.py`/`dashboard.py`/`inboxes.py`/`send_ca
 - [ ] Airtable session: pick up `docs/leads/_manifest.json` (122 entries) to build Walk Doc /
       Evidence Path URLs; resolve the Dan Chadwick duplicate during reconciliation.
 - [ ] Airtable session: set `Findings.Still Present = false` for Rita Baki Rank 1 + Rank 2 and Ben
-      Pringle Rank 1 once those Airtable Findings rows exist.
-- [ ] Haytham: Rita Baki's next touch (if any) should NOT reference the old booking-form finding —
-      it's fixed. Her Rank 3 (currency fragmentation) is the only finding on her still standing.
+      Pringle Rank 1 once those Airtable Findings rows exist. (Live Notion CRM already corrected —
+      see the entry above this one.)
 - [ ] A later pass backfills the `<!-- airtable-record: TBD -->` placeholders in all 122 walk docs
       once the Airtable session hands back a name → recordId manifest.
 
