@@ -10,6 +10,20 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-25 — uae-tick: Gmail-state reconciliation catches 7 drifted rows, reply sweep clean, send queue empty
+
+Ceilings: Inbox 1 25/day (ramp step 2, day 4), Inbox 2 25/day (ramp step 2, day 1) — no ramp reminder yet, both hold until 07-28/07-31. Sent so far today: Inbox 1 = 18/25 (headroom 7), Inbox 2 = 12/25 (headroom 13).
+
+**Step 0.5 reconciliation was the real work this run.** All 4 `Scheduled` rows (Sam Fouladgar, Rita Sanna, Timothy Fare-Matthews, Tracy Harmoush — Touch 1 openers) had already departed via Gmail's own scheduled-send; flipped each to `Outreach Sent` with the full checklist (Touch #1, Last Contacted, Next Action +3, Findings Bank #1 → USED-T1, Notes cleared, Email Thread Log appended). Separately caught 3 more rows whose CRM state had drifted behind Gmail reality even though they weren't `Scheduled`: **Avneet Kohli** (Touch # already showed 5 but her day-3 warm bump had also departed today — bumped to Touch 6), **Ben Pringle** (Notes still read "held as a draft, not yet sent" for his answer to "What do you want mate?" — it had already sent this morning, Touch 5), **Lisa Hugo** (same pattern, warm bump already sent, Touch 4). None of these would have surfaced without checking actual Gmail thread state against the CRM's claimed state — the CRM's own notes were stale in all three cases.
+
+**Gotcha:** the Gmail MCP's `search_threads` truncates the `messages` array within a thread (relevance-based, not chronological) — Ben Pringle's thread showed only 5 of 7 messages on the first pull, hiding both his 07-23 reply and today's departed answer. Had to re-pull all 18 Inbox 1 "sent today" threads via `get_thread` (full content) to get an accurate per-thread message count for the ceiling math. `gmail-gethaytham search` similarly caps at ~10 threads by default — trust `python main.py inbox counts` (paginated `/messages` list, not thread search) for the real count, not a manual search tally.
+
+**Rita Baki caught stale two ticks running.** `Asked For Price` + Last Contacted 07-21 (4 days) — flagged 07-24 too, and the "warm bump draft queued, held for review" note from that tick was false: no draft existed anywhere in the mailbox. Drafted the day-3+ nudge now (fresh slot this week, WhatsApp offered, no re-pitch of price/guarantee) since this is the second consecutive tick flagging the same gap.
+
+Reply sweep: clean, no new replies either inbox since 07-24. Conversion ladder: no fresh Reply-Received leads due a turn-two; Avneet Kohli and Rita Baki both `crm-gate offer` PASS (already Offer Sent, informational only). Send queue: **0 rows in Audit Ready or Draft Ready** — the walk queue (6 Qualifying) hasn't produced a fresh Audit Ready lead in a few days; bottleneck is findings, not sends. Scoreboard not due (last run 07-19, needs 7+ days, only 6 elapsed).
+
+Notion hit its free-plan hourly SQL query cap partway through (a few queries in) — fell back to view-mode queries (🔥 Today, 💸 Asked For Price) for the rest, which cost against a separate quota. A full-table hygiene sweep (Touch#=0 on Outreach Sent, cold rows at Touch≥4, un-flipped bank entries, 14-day ceiling history) wasn't completed this run because of the cap — worth a follow-up once the SQL quota resets.
+
 ## 2026-07-24 — Price discovery is falsified. The track re-gates on earned right.
 
 **The finding, plainly.** The UAE track was built on one hypothesis: that
