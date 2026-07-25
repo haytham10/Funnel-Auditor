@@ -22,7 +22,17 @@ Rita Baki is a Dubai-based Neuro Coach & Master Trainer (emotional intelligence,
 
 - **Site vision pass:** `VISION PASS: COMPLETE — 8 of 8 required images confirmed read`
 - **Pasted evidence:** none attached — page body was blank on fetch, crawl-only walk.
-- **Screenshots:** none promoted yet — see per-finding notes below. Two machine flags were rejected in the vision pass, both from the same root cause — "no-html-provided" (the ingest manifest omitted raw HTML for the ritabaki.com pages, so the machine text-checker mis-flagged Stop 1 as "blocked" and Stop 3 as "no price shown"; both screenshots directly confirm the pages load cleanly and show real USD prices).
+- **Screenshots:** none promoted at original walk time — see per-finding notes below. Two machine flags were rejected in the vision pass, both from the same root cause — "no-html-provided" (the ingest manifest omitted raw HTML for the ritabaki.com pages, so the machine text-checker mis-flagged Stop 1 as "blocked" and Stop 3 as "no price shown"; both screenshots directly confirm the pages load cleanly and show real USD prices).
+
+**Re-walked 2026-07-25** (evidence-persistence pass): re-fetched the homepage, the old
+`/purchase-form-1` path, the Calendly destination the primary CTA now points to, her own
+`/one-on-one-sessions` page, and The Holistic Culture marketplace listing live via Firecrawl.
+Rank 1 (the load-bearing, already-emailed finding) is **RESOLVED** — she has since wired a real
+Calendly scheduler behind the "Book your free discovery call now" CTA. Rank 2 is also
+**no longer present**, but as a side effect of a full platform migration on The Holistic Culture's
+side, not a targeted fix. Rank 3 is **still present**, unchanged. Fresh screenshots:
+[`./evidence/`](./evidence/) (promoted) and the full re-walk capture set at
+[`../../../evidence/rita-baki/screenshots/`](../../../evidence/rita-baki/screenshots/).
 
 ## Gates
 
@@ -41,19 +51,46 @@ Rita Baki is a Dubai-based Neuro Coach & Master Trainer (emotional intelligence,
 Depth: DEEP · Type: dead-end conversion path behind the primary CTA
 Innocent explanation: probably just the default Squarespace form block left in place before a real scheduler (Calendly/Acuity) got wired in — an easy swap, not a sign anything else is wrong.
 Why it matters: her own site's primary CTA, "Book your free discovery call now," leads only to a bare contact form with no scheduler — the highest-intent click on her own funnel doesn't actually book anything. A visitor who is ready to act fills in a form and waits, instead of confirming a time on the spot.
-Evidence: none promoted yet
+Re-walked 2026-07-25: **no longer present as of 2026-07-25** — original evidence lost
+(pre-persistence). The homepage's "Book your free discovery call now" CTA now links to
+`https://calendly.com/ritabaki/intro-call?month=2026-07`, a live Calendly scheduler showing a real
+July 2026 date grid ("Select a Date & Time"), not `/purchase-form-1`. The old bare Name/Email/Phone
+form still technically exists at `ritabaki.com/purchase-form-1` (confirmed still live, same content
+as originally flagged) but it is now orphaned — nothing on the site links to it anymore, so it is no
+longer in the CTA's path. This finding should not be referenced in further outreach to this lead.
+Evidence (not promoted — finding is resolved, per the honesty rule): raw re-walk captures at
+`evidence/rita-baki/screenshots/homepage_rewalk_20260725.png`,
+`calendly_scheduler_rewalk_20260725.png`, and `purchase_form_1_orphaned_rewalk_20260725.png`.
 
 **Rank 2 — marketplace listing's price teaser contradicts its own booking widget** *(RESERVED — call bait, never emailed)*
 Depth: SHALLOW · Type: self-contradicting price signal
 Innocent explanation: likely a platform template pulling the "from" price off the free consultation's blank price field instead of the true lowest paid tier.
 Why it matters: The Holistic Culture marketplace listing's header price teaser reads "Price on request / From" directly above the Book button, while the booking widget two sections below the SAME page publishes exact AED prices (750-7,000) — price-sensitive visitors who read "on request" as "expensive" may bounce before ever scrolling to the real, affordable AED 750 entry price.
-Evidence: none promoted yet
+Re-walked 2026-07-25: **no longer present as of 2026-07-25** — original evidence lost
+(pre-persistence). The Holistic Culture has rebuilt Rita's listing on an entirely different
+platform (a Shopify Hydrogen storefront at `theholisticculture.com/en-us/products/rita-baki`,
+replacing whatever booking-widget layout was there at original walk time). The page now shows a
+"Select Service" dropdown; the header price updates live to match whichever service is selected
+(confirmed AED 0.00 for "Free Consultation," AED 750.00 for "Therapy Session | 60mins" — matching
+the AED figures originally recorded). No "Price on request" text appears anywhere on the current
+page. This looks like a byproduct of a platform migration, not a targeted fix to the price-teaser
+bug specifically — flagging in case the same defect reappears if the listing changes again.
+Evidence (not promoted — finding is resolved, per the honesty rule): raw re-walk captures at
+`evidence/rita-baki/screenshots/holisticculture_default_load_rewalk_20260725.png` and
+`holisticculture_therapy_selected_rewalk_20260725.png`.
 
 **Rank 3 — session pricing is fragmented across platforms with no single source of truth** *(RESERVED — call bait, never emailed)*
 Depth: SHALLOW · Type: cross-platform price inconsistency
 Innocent explanation: natural byproduct of partnering with multiple wellness venues, not a deliberate inconsistency.
 Why it matters: pricing splits across platforms — USD on her own site ($190-$817), AED on The Holistic Culture (750-7,000), and unpriced listings on The Flow Space and Keyani Wellness — a prospect comparing her across channels sees different numbers in different currencies.
-Evidence: none promoted yet
+Re-walked 2026-07-25: **still present.** `ritabaki.com/one-on-one-sessions` still shows USD pricing
+(Hypnotherapy "From 328.00$", Sound Healing "190.00$", Coaching "From 817.00$" — prices moved
+slightly from the original $190-$817 range but the currency mismatch is unchanged), while The
+Holistic Culture's now-rebuilt listing shows AED (0-750+ per the Select Service dropdown, real
+figures confirmed for the free and 60-min tiers). The two platforms still speak different
+currencies for the same person's services.
+Evidence: [finding-3.png](./evidence/finding-3.png) (her own USD pricing page); AED-side
+comparison at `evidence/rita-baki/screenshots/holisticculture_therapy_selected_rewalk_20260725.png`.
 
 The Loom skeleton drafted for Rank 1 shows ritabaki.com's homepage hero, "Book your free discovery call now" button, click-through to ritabaki.com/purchase-form-1. Fix: replace the destination with an embedded live scheduler (Calendly/Acuity or Squarespace's own scheduling block) so the button's promise matches what happens when it's clicked. Done state: clicking "Book your free discovery call now" lands on a live calendar with open slots; a visitor picks a time and gets an instant confirmation instead of submitting a form and waiting. This finding was ultimately delivered as a Loom walkthrough (plus a second coach's site shown live with the same fix applied) rather than as plain email copy — see the note below.
 
