@@ -360,6 +360,22 @@ the vision gate).
   monthly cap is hit and a manual override
   (`EMAIL_VERIFY_PROVIDER=zerobounce`). Google-footprint sourcing stays on
   Firecrawl search feeding `classify-footprint` — never was about the cap.
+- **Notion free-plan SQL quota (`notion-query-data-sources`) is hourly and
+  gets exhausted mid-session** (`entitlement_required`) — hit repeatedly
+  across ticks, sourcing runs, and qualify runs (see `docs/journal.md`).
+  It's a narrow cap: page-level `notion-fetch` / `notion-update-page` /
+  `notion-search` are a **separate endpoint and keep working** through it, so
+  a capped SQL tool never blocks a gate, a send, or a CRM write — only ad-hoc
+  `SELECT`/`WHERE`/`GROUP BY` queries stall. **If `notion-query-data-sources`
+  returns `entitlement_required`, don't retry it** — fall back to
+  `notion-query-database-view` on an **unfiltered view** (e.g. the Pipeline
+  Board), which is a different endpoint and isn't capped; paginate it
+  (100 rows/page) and filter/dedupe in memory instead of server-side. Budget
+  SQL calls on any run that needs them: run the cheap, load-bearing
+  WHERE-filtered queries (send state, replies, gates) first, and push
+  nice-to-have aggregates (stage totals, GROUP BY splits) to the end so they
+  degrade last if the cap hits. Don't re-query for the same table shape twice
+  in one run — cache and reuse it.
 - Chromium/Playwright is only needed for the `main.py walk` fallback.
   Managed cloud sessions: Chromium lives at `/opt/pw-browsers/chromium` (the
   crawler auto-detects it; override with `FUNNEL_AUDITOR_CHROMIUM`), and the
