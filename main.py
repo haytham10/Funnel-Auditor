@@ -688,6 +688,18 @@ def cmd_cta_probe(args) -> None:
     print(json.dumps({"url": url, "link_type": args.type, "cta_clicks": clicks}, indent=2))
 
 
+def cmd_promote_evidence(args) -> None:
+    """Resize/strip/compress one working screenshot from `evidence/<slug>/`
+    and commit it to the permanent `docs/leads/<slug>/evidence/` folder —
+    see audit/evidence_promotion.py for why this exists (no screenshot has
+    ever survived a cloud container reclaim before this) and the append-only
+    contract (refuses to overwrite without --force)."""
+    from audit import evidence_promotion
+    sys.exit(evidence_promotion.print_promote(
+        args.slug, args.kind, args.source, rank=args.rank, force=args.force,
+    ))
+
+
 def cmd_gmail_gethaytham(args) -> None:
     """Direct Gmail API path for haytham@gethaytham.com — see
     audit/gmail_gethaytham.py's module docstring for why this exists
@@ -1087,6 +1099,23 @@ def main() -> None:
                          help="the page's link_type (click scope excludes checkout pages by design)")
     p_probe.set_defaults(func=cmd_cta_probe)
 
+    p_promote = sub.add_parser(
+        "promote-evidence",
+        help="resize/strip/compress one working evidence/<slug>/ screenshot and commit "
+             "it to docs/leads/<slug>/evidence/ — the only screenshots that survive a "
+             "container reclaim. Refuses to overwrite an existing promoted file unless "
+             "--force (evidence is append-only) — see audit/evidence_promotion.py",
+    )
+    p_promote.add_argument("slug", help="the lead's evidence-folder slug (matches `walk`/`slug`)")
+    p_promote.add_argument("--kind", required=True, choices=["finding", "hook"],
+                           help="finding-N.png (needs --rank) or hook.png")
+    p_promote.add_argument("--rank", type=int, help="finding rank (1, 2, ...) — required for --kind finding")
+    p_promote.add_argument("--source", required=True,
+                           help="path to the source screenshot, resolved relative to evidence/<slug>/")
+    p_promote.add_argument("--force", action="store_true",
+                           help="overwrite an existing promoted file (default: refuse)")
+    p_promote.set_defaults(func=cmd_promote_evidence)
+
     p_apify = sub.add_parser(
         "apify",
         help="no-login third-party fetch layer: LinkedIn/Instagram hook evidence "
@@ -1258,7 +1287,7 @@ def main() -> None:
         "walk", "crawl", "slug", "vision", "crm-gate", "send-cap", "inbox",
         "dashboard", "email-check", "email-verify", "email-enrich", "cta-probe", "apify",
         "classify-footprint", "gmail-gethaytham", "discover-links", "discover-checkout",
-        "screenshot-name", "ingest", "-h", "--help",
+        "screenshot-name", "ingest", "promote-evidence", "-h", "--help",
     ):
         argv = ["walk"] + argv
 

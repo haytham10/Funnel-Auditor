@@ -4,7 +4,7 @@ __pycache__/
 venv/
 screenshots/
 *.png
-evidence/
+/evidence/
 .env
 
 # transient walk scratch helpers (screenshot decoding, etc.)
