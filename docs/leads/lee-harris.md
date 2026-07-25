@@ -22,7 +22,7 @@ Lee Harris runs LK Running Performance (brand IG @lk_running_performance; coach 
 
 - **Site vision pass:** `VISION PASS: COMPLETE — 7 of 7 required images confirmed read`
 - **Pasted evidence:** none — crawl-only walk
-- **Screenshots:** none promoted yet — see per-finding notes below
+- **Screenshots:** Rank 1 re-walked 2026-07-25, finding still present — evidence promoted to [./evidence/](./evidence/) (`finding-1.png`)
 
 ## Gates
 
@@ -38,7 +38,8 @@ Type: pricing-display defect (platform-default variation ordering)
 Innocent explanation: Paymennt auto-displays the first-listed variation's price as the page headline, and the contact-first "Custom" option happens to be ordered first — a platform default, not a deliberate pricing choice.
 Why it matters: the top Linktree offer, the Running Development & Performance Program, opens on a headline "AED 95.00" — but that 95 tier is the "Contact Before Purchase" placeholder; the actual monthly programs (AED 695 / AED 875) sit below it, so the first and biggest number a prospect sees on the flagship offer is one they can't buy. Independently verified against the raw page: the RDP product page headlines "AED 95.00" while variations show "RDP - Custom Sessions - Contact Before Purchase" AED 95.00, "8 x midweek" AED 695.00, "Unlimited midweek" AED 875.00, and the top Linktree link is confirmed to be "Running Development And Performance Program."
 Loom skeleton (not sent, kept for a walkthrough offer): show the Running Development & Performance Program page headline reading "AED 95.00" beside the "Contact Before Purchase" variation, with the real AED 695/875 programs below; fix would be reordering the variations in Paymennt so a real buyable program (AED 695) is first, or hiding the "Custom - Contact Before Purchase" option, so the headline price matches what a runner can actually purchase; done state is a prospect tapping the flagship link landing on a page whose headline price is a program they can buy on the spot, not a contact-first placeholder.
-Evidence: none promoted yet.
+Re-walked 2026-07-25: **still present.** Top Linktree link is unchanged ("Running Development And Performance Program - Lifestyle Fitness Management FZ LLE") and still routes to the same RDP product page. The page headline still reads "AED 95.00," and the Package dropdown still lists "RDP - Custom Sessions - ‼️ Contact Before Purchase" as the first option, ahead of "RDP - Monthly - 8 x midweek Sessions" and "RDP - Monthly - Unlimited midweek Sessions." No reordering, no hiding of the placeholder — the defect is unchanged.
+Evidence: [finding-1.png](./lee-harris/evidence/finding-1.png)
 
 **Rank 2 — no email capture anywhere in the funnel** *(UNUSED — reserve finding)*
 Depth: not explicitly labeled — structural, not a single broken page.

@@ -51,6 +51,10 @@ Re-audit (2026-07-17, apex host, curl/grep-verified): the podcast mislabel below
 dead YouTube button (banked, unused); an unconfirmed dead footer `#` anchor (banked, unused,
 needs DOM-position verification before use); money path and LinkedIn both confirmed clean.
 
+Re-walk (2026-07-25, apex host `lisahugo.com`, Firecrawl scrape + screenshot of `/71`, `/70`, `/69`):
+Rank 1 finding re-confirmed still present — see per-finding note below. Rank 2/3 not re-checked this
+pass (reserved, spot-check skipped for time). Evidence: [./evidence/](./evidence/)
+
 ## Gates
 
 - **Gate 0:** Pass — UAE-based (Dubai; "Dubai's Leading Executive Communication Coach"); real
@@ -78,7 +82,10 @@ latest episode to decide whether to subscribe sees the freshest content on the a
 looking copy-pasted, right at the moment she's deciding whether Lisa is careful about her own work.
 This is the finding that replaced the retracted "404 at checkout" claim and was used as Touch 2
 (turn-two, warm).
-Evidence: none promoted yet — see raw archive (`docs/leads/lisa-hugo.raw.md`)
+Re-walked 2026-07-25: **still present.** Apex host `lisahugo.com/71`, `/70`, `/69` (confirmed via
+`/podcast` these are still the three most recent episodes — #71 published, no newer episode since)
+each render the header `## ShowNotes for Episode 68` verbatim, unchanged from the original finding.
+Evidence: [finding-1.png](./evidence/finding-1.png)
 
 **Rank 2 — IG bio-link YouTube button 404s** *(RESERVED — unused, banked for a future touch/Loom)*
 Depth: SHALLOW · Type: broken link

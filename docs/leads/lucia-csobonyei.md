@@ -50,6 +50,12 @@ session packages (AED 950 to AED 27,500). She also hosts the "Femisticated" podc
 - **Site vision pass:** `VISION PASS: COMPLETE — 13 of 13 required images confirmed read`
 - **Pasted evidence:** none — crawl-only walk, nothing attached to the Notion page body
 - **Screenshots:** none promoted yet — see per-finding notes below
+- **Re-walk 2026-07-25:** shiftwithinnow.com/programs re-scraped live (Firecrawl, full-page
+  screenshot). Rank 1 confirmed **still present** — full markdown re-read shows no price string
+  anywhere on the page for either "Rewire to Results" (1:1) or "Clear One Problem - 1 Shift Session";
+  both still route to "Book Discovery Call" / "Book a Call" with zero price disclosure. Evidence
+  captured and promoted: [./evidence/](./evidence/) (`finding-1.png`). Rank 2/3 (iheal.ae) not
+  re-checked this pass — out of scope for this re-walk.
 
 Machine flags rejected in the vision pass: 2 — (1) Calendly-embed "screenshot reliability" warning on
 shiftwithinnow.com/ and /programs: re-fetched with a longer render wait, the calendar renders fine
@@ -93,7 +99,12 @@ page. This is the promoted, strongest finding (bank #2) and the one used in the 
 reply volunteered her own selling prices (18,000 AED / 980 AED) and confirmed the no-price approach
 is intentional, fit-first positioning — but also read the opener as Haytham being a prospective
 client, which the turn-two had to reframe before making the point land.
-Evidence: none promoted yet — see raw archive (`docs/leads/lucia-csobonyei.raw.md`)
+Re-walked 2026-07-25: **still present.** Live re-scrape of shiftwithinnow.com/programs shows no
+price string anywhere on the page for either program; both still route straight to "Book Discovery
+Call" / "Book a Call" with zero price disclosure. Note: this finding is about the SITE not showing a
+price — distinct from Lucia's reply, which privately volunteered her actual prices to Haytham; that
+does not change what a visitor sees on the page.
+Evidence: [finding-1.png](./evidence/finding-1.png)
 
 **Rank 2 — iheal.ae bundle pricing is worse than paying per session** *(RESERVED — unused)*
 Depth: SHALLOW · Type: pricing-table inconsistency
