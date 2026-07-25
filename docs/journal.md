@@ -37,6 +37,106 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-25 — Disqualification reason extraction (Phase 3)
+
+Read-only-Notion / write-repo-only extraction job over the 246 Disqualified UAE
+rows (fresh count, not the assumed 246 — re-queried `Status = Disqualified`
+via `notion-query-data-sources`, paginated 100/100/46 with `LIMIT/OFFSET`).
+Output: `docs/leads/_dq-extraction.json`.
+
+1. **Headline — the single biggest Gate 0 floor kill is "no funnel / no paid
+   offer," 89 of 246 (36%), well ahead of #2 "not UAE-based" (34) and #3
+   "has team/gatekeeper" (30, a Gate 1 fail but the next-largest bucket by
+   volume). Audience-below-floor is 25, inactive-30d is 27.
+2. **Sourcing implication:** more than a third of everything sourced turns out
+   to have no purchasable product at all — corporate execs, B2B consultancies,
+   Noomii/directory-only listings, DM-only or "book a free call" brochure
+   sites with no visible pricing. The sourcing query is pulling "coach-shaped"
+   people (title says coach, LinkedIn says coach) without confirming a
+   checkout exists. Concrete fix: qualify-leads' Gate 0(b) check should run
+   BEFORE the UAE/activity checks whenever a lead is found via title-only
+   search (LinkedIn, Noomii, directories) — settle "is there a checkout"
+   first since it kills more leads than every other floor, so a Gate 0(b)-first
+   ordering saves the most wasted lookups per lead killed.
+3. **Pass/Pass pattern (15 leads read individually):** these passed every
+   gate and were killed anyway. The dominant pattern is NOT a funnel or fit
+   problem — it's **undeliverable email** (6 of 15: Sahar Huneidi Palmer,
+   Adil Hussain, Salma, Chiara Ghinolfi, Deema Ghata-Aura, Benjamin Owen —
+   hard bounces, no public address, or enrichment HOLD on a non-branded
+   domain). Second pattern is **duplicate/re-sourced-by-mistake** (4 of 15:
+   Tanner Shuck, Dan Chadwick, Blooming Key, Bilna Sandeep — same lead
+   already live elsewhere in the CRM, dedup missed it on a later sourcing
+   pass). The remainder are one-offs: Lane 3 skip (Fadi Zouein, pivoted to
+   music), 3 "Wrong fit" manual calls (Benish Mirza, Franda Graves, Joe
+   Cotton — all IG/link-in-bio-only, no owned site despite passing the
+   automated floors), and one hard evidence override (Faiz Alam — Trustpilot
+   fraud allegations voided an otherwise-verified finding). Sourcing takeaway:
+   Pass/Pass kills are an EMAIL problem and a DEDUP problem, not a targeting
+   problem — the qualify gates are working correctly on this cohort.
+4. **Out-of-order gate evaluation (Fail/Pass 21 + null/Fail 9 = 30 rows,
+   re-derived fresh, matches the ~30 estimate):** yes, this is wasted
+   qualification effort worth a process fix. These are rows where Gate 1 (or
+   the "other" gate) got resolved before Gate 0 killed the row, or where a
+   later re-check overturned an earlier verdict (e.g. Reim El Houni: Gate 0
+   4/4 passed, promoted to Qualifying, THEN a re-check flipped Gate 1 on the
+   same funnel). Every one of these represents a full second lookup that
+   Gate-0-first sequencing would have skipped. Recommend `qualifier-worker`
+   short-circuit on the first Gate 0 floor fail rather than resolving Gate 1
+   in parallel.
+5. **Taxonomy exposed a gap no CRM field currently holds:** "duplicate /
+   re-sourced by mistake" and "no deliverable email" are both real, recurring
+   kill reasons with zero representation in `Gate 0` / `Gate 1` (both are
+   pass/pass cases) and only partial representation in `Lost Reason`. Without
+   this extraction those 12 leads (6+6) look identical to a clean funnel/fit
+   kill in every existing field.
+
+Derived taxonomy (11 options, target 8-12; full definitions + per-lead
+mapping in `docs/leads/_dq-extraction.json`):
+
+| option | count |
+|---|---|
+| No funnel / no paid offer | 89 |
+| Not UAE-based | 34 |
+| Has team/gatekeeper | 30 |
+| Inactive 30+ days | 27 |
+| Audience below floor | 25 |
+| Wrong fit | 15 |
+| Lane 3 skip | 7 |
+| Duplicate/re-sourced by mistake | 6 |
+| No deliverable email | 6 |
+| Manual judgement call by Haytham | 4 |
+| Other | 1 |
+| *(unmapped — note didn't clearly support any bucket)* | 2 |
+
+Gate 0/Gate 1 matrix (fresh, 246 total): Fail/null=160, Pass/Fail=22,
+Fail/Pass=21, Pass/Pass=15, Fail/Fail=13, null/Fail=9, Not checked/null=3,
+null/null=2, Fail/Not checked=1 — matches the CLAUDE.md estimate closely.
+
+Method: regex/keyword extraction over `Notes` text (avg 263 chars),
+multi-select `gate_0_failed_floors` restricted to the 4 fixed floor strings,
+single-select `disqualification_reason` derived from the actual text
+(long-tail bucketed to "Other"), every mapping carries a verbatim
+`evidence_quote` and a `confidence` (high/low/unmapped) — nothing guessed to
+avoid an unmapped result. 244/246 = 99.2% mapped at high or low confidence;
+2 genuinely unmapped left null rather than forced.
+
+Acceptance checks: fresh count re-queried (246, not assumed) — done; ≥95%
+mapped — done (99.2%); taxonomy 8-12 options with definitions and real
+counts — done (11); Pass/Pass leads read individually — done (all 15);
+every mapping has an evidence_quote — done for all high/low rows; no Notes
+field modified anywhere — confirmed, Notion was read-only this session;
+journal leads with the sourcing implication — done (see point 2 above).
+
+### Open follow-ups
+- [ ] Taxonomy needs Haytham's approval before it becomes an Airtable field
+      (GATE 3) — this session has no Airtable access and did not create one.
+- [ ] Per-lead `disqualification_reason` / `gate_0_failed_floors` data isn't
+      applied anywhere yet — sits in `docs/leads/_dq-extraction.json` only,
+      gated on Wave 2 (Airtable Team plan upgrade).
+- [ ] Once Haytham approves the taxonomy, hand the option list + counts to
+      the Airtable-side session so it can create the field there — do not
+      create it from this session.
+
 ## 2026-07-25 — Synced R6's 3 dead findings into the live Notion CRM (Rita Baki x2, Ben Pringle x1)
 
 R6 (previous entry below) caught 3 dead findings during the evidence-persistence re-walk, but that
