@@ -22,7 +22,12 @@ Re-walked 2026-07-20 (prompted by her reply confirming she'd fixed most of what 
 
 - **Site vision pass:** `VISION PASS: COMPLETE — 3 of 3 required images confirmed read`
 - **Pasted evidence:** none — crawl-only re-walk (homepage, lifeplanner, contact, 2026-07-20).
-- **Screenshots:** none promoted yet — see per-finding notes below. No machine flags were rejected in this re-walk's vision pass.
+- **Screenshots:** [`./evidence/`](./evidence/) — see per-finding files below. No machine flags were rejected in this re-walk's vision pass.
+
+**Re-walked again 2026-07-25** (evidence-persistence pass, R6): re-fetched the homepage and
+`/contact` live via Firecrawl. Both open findings (Rank 3, Rank 4) are **still present** —
+promoted fresh screenshots below. Ranks 1–2 stay RESOLVED, unchanged since 2026-07-20 (not
+re-verified this pass, no reason to expect regression on an already-fixed checkout/header link).
 
 ## Gates
 
@@ -53,13 +58,19 @@ Evidence: none promoted yet
 Depth: SHALLOW · Type: contact-info mismatch
 Innocent explanation: an old alias that probably never got updated when she switched to replying from her personal inbound address.
 Why it matters: the contact page's displayed email address doesn't match its mailto target — a message sent to the address she shows visibly goes to a different inbox than the one she's actually replying from. This is currently the strongest open finding per the raw walk notes.
-Evidence: none promoted yet
+Re-walked 2026-07-25: **still present.** `/contact` still renders the link text `ak@avneetkohli.com`
+against `mailto:info@avneetkohli.com` (confirmed in the re-fetched page source; the mismatch itself
+isn't visible in a screenshot since a mailto href never renders, so the promoted image documents the
+page state the link sits on, not the href diff directly).
+Evidence: [`finding-3.png`](./evidence/finding-3.png)
 
 **Rank 4 — UNUSED, confirmed 2026-07-20 — footer logo still links to the orphaned duplicate site** *(RESERVED — call bait, never emailed)*
 Depth: SHALLOW · Type: broken secondary-navigation link
 Innocent explanation: likely the same leftover rebuild link, just missed on the second element when the header one got fixed.
 Why it matters: the site's footer logo (present on every homepage view and on /blank itself, distinct from the header logo already fixed) still links to https://www.avneetkohli.com/blank, the same orphaned old-design duplicate. The Loom skeleton drafted for the two open findings together: Show — the footer logo at the bottom of https://www.avneetkohli.com/ (still pointing to /blank) and the contact page's email link at https://www.avneetkohli.com/contact (still mismatched); Fix — point the footer logo home the same way the header logo already got fixed; make the visible contact email match its mailto target; Done state — every logo on the site, header and footer, goes home, and the contact email link goes where it visibly says it goes.
-Evidence: none promoted yet
+Re-walked 2026-07-25: **still present.** Fresh full-page homepage capture confirms the footer logo
+(bottom of every homepage view) still links to `/blank`.
+Evidence: [`finding-4.png`](./evidence/finding-4.png)
 
 ## SMYKM Hook
 
