@@ -22,7 +22,7 @@ Sara (Sarah) Haboubi — transformation / mindset & life coach and accredited NL
 
 ## Evidence
 
-- **Site vision pass:** `VISION PASS: COMPLETE — 15 of 15 required images confirmed read`
+- **Site vision pass:** `VISION PASS: COMPLETE — 15 of 15 required images confirmed read.`
 - **Pasted evidence:** none — crawl-only walk (no images attached to the Notion page).
 - **Screenshots:** none promoted yet — see per-finding notes below
 - **Machine flags rejected in the vision pass:** 3 — cart ("no payment form" = normal empty cart); master-prac stale date (live next tier); dead-links-on-About (not vision-confirmable, not led on).

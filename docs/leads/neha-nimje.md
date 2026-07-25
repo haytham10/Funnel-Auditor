@@ -20,7 +20,7 @@ Neha Nimje — ICF-PCC certified Career & Leadership coach, Abu Dhabi (KIZAD), U
 
 ## Evidence
 
-- **Site vision pass:** `VISION PASS: COMPLETE — 8/8 screenshots read.`
+- **Site vision pass:** `Vision pass: COMPLETE — 8/8 screenshots read.`
 - **Pasted evidence:** none — crawl-only walk.
 - **Screenshots:** none promoted yet — see per-finding notes below. Two machine flags were rejected in the vision pass — "you@company.com" (form input placeholder, not a real address) and "no email capture" (the blog carries a Subscribe box + Free Career Guide opt-in). The booking calendar is a JS step not rendered in the static crawl — worth a manual click-through to confirm live slots.
 
