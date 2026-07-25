@@ -10,6 +10,14 @@ isn't starting cold.
 injects the most recent entries here + the last few commits at the top of every
 session, so context loads automatically — no fetch, no prompting.
 
+## 2026-07-25 — uae-tick (afternoon re-run): 1 more Gmail-state drift caught, otherwise unchanged
+
+Second UAE tick of the day (13:30 Dubai), Notion SQL query quota already exhausted from the morning run so this pass leaned on view-mode reads (🔥 Today, 📤 Send Queue, 💸 Asked For Price) and Gmail-native counts. Nothing due today changed since the morning brief: 📤 Send Queue still 0 rows (bottleneck is findings, not sends), the 🔥 Today view's 31 rows are all `Next Action = 2026-07-26` (nothing due yet), reply sweep (`in:inbox after:2026/07/24` both inboxes) still clean.
+
+**Caught one more Gmail/CRM drift: Rita Baki's warm-bump reply departed between the two ticks.** The morning entry noted her Touch-5 nudge was drafted and "held for Haytham's review/send" — by this afternoon it had actually gone out (Inbox 2, thread `19f74c5bc42664c9`, departed 2026-07-25 09:14 UTC / 13:14 Dubai, ~15 minutes before this tick started) but the CRM still showed the stale "held" note and Touch #4/Last Contacted 07-21. Fixed: Touch # → 5, Last Contacted → 2026-07-25, Next Action → 2026-07-28, Notes rewritten to drop the "held" language, Email Thread Log appended with the sent copy verbatim. No bank flip needed (warm bump carried no new finding). Avneet Kohli's parallel warm bump (already logged in the morning entry) checked out fine against Gmail, no further drift there.
+
+Conversion ladder: both 💸 Asked For Price rows (Avneet, Rita) already had their warm bumps out — nothing new to draft. Ceilings unchanged from the morning read (Inbox 1 25/day step 2 day 4, Inbox 2 25/day step 2 day 1, no ramp reminder). Scoreboard not due (last run 07-19, needs 7+ days). Nothing else moved — pipeline is quiet for real until the walk queue produces a fresh Audit Ready lead.
+
 ## 2026-07-25 — uae-tick: Gmail-state reconciliation catches 7 drifted rows, reply sweep clean, send queue empty
 
 Ceilings: Inbox 1 25/day (ramp step 2, day 4), Inbox 2 25/day (ramp step 2, day 1) — no ramp reminder yet, both hold until 07-28/07-31. Sent so far today: Inbox 1 = 18/25 (headroom 7), Inbox 2 = 12/25 (headroom 13).
