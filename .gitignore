@@ -11,7 +11,16 @@ evidence/
 scratch_*.py
 scratch_save.py
 scratch_*.txt
+.tmp_oauth_exchange.py
+
+# stray git worktree checkouts (nested repo copies, never tracked content)
+.claude/worktrees/
 
 # dashboard: rendered page + the Artifact-URL pointer (per-session runtime state)
 dashboard.html
 dashboard_state.json
+
+# promoted, permanent lead evidence — the ONLY images that get committed
+!docs/leads/**/*.png
+!docs/leads/**/*.jpg
+!docs/leads/**/*.webp
