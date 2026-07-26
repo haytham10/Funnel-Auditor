@@ -37,6 +37,25 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-26 — uae-tick: 30-lead Gmail-state drift reconciled, pipeline top-of-funnel found completely dry
+
+**The whole "Scheduled" bucket (33 rows) was stale against Gmail reality when this tick started.** Haytham had apparently sent through a full day's queued cold Touch 2/3 batch before this tick ran (all departed 05:00-07:00 UTC / 09:00-11:00 Dubai, ~2 hours before the tick started at 11:10 Dubai). Fanned out 4 parallel reconciliation agents (mirroring the 07-25 precedent) rather than doing it inline, each required to pull the real Gmail thread body before writing anything to Notion:
+- **14 leads, cold Touch 2→3 (the final cold touch, cadence day 0/3/9):** Aina Raj, Navid Nazemian, Abdulla Mahmood, Gbemi Giwa, Doug Lambert, Nazia Khan, Andreea Zoia, Dr Joelle Samaha, Kim Araman, Sasha Quince, Ana Caragea, Maria Vitoratos, Siddharth Anantharam, Dr Katherine Iscoe — all flipped Scheduled → **Dormant**, Touch #3, Last Contacted 07-26, Next Action 08-09 (14-day revival bump). Notable: 5 of 14 (Joelle, Abdulla, Doug, Maria, Ana) carried a real third banked finding (bank #3 → USED-T3), not the generic disambiguating-question closer — only Aina (bank exhausted) and Andreea (bank never populated) got the generic "is this still on your radar?" line. The carry-something-new rule is being honored better than expected.
+- **16 leads, cold Touch 1→2 (8 Inbox 1 + 8 Inbox 2), all carrying the leak-fix-offer pitch (500 AED, re-citing the original Touch-1 finding, no second finding spent):** Dr. Sheen Gurrib, Nikoleta Perinova, Szilvia Vitos, Eric Fit, Nadine Faddul, Jonny Parr, Caleb Jones, Dan Chadwick (Inbox 1); Daria Ibrulj, Zeina Karrit, Joel Arcus, Fatima Williams, Wardah Harharah, Ayo Nova, Mawada Alwazir, Andrew Nicholson (Inbox 2) — all flipped Scheduled → **Outreach Sent**, Touch #2, Last Contacted 07-26, Next Action 07-30.
+- **3 leads genuinely still Scheduled** (Dr. Daphne Soares, Libby Salord McLean, Dina Taji, all Inbox 2) — real Gmail scheduled-sends queued by Haytham for Monday 2026-07-27 morning, left untouched.
+
+Post-reconciliation counts: Outreach Sent 56→72, Dormant 10→24, Scheduled 33→3. Reply sweep both inboxes clean (no new replies since 07-25). Today's real send counts: **Inbox 1 = 22/25 (headroom 3)**, Inbox 2 = 8/25 (headroom 17, the 3 Monday-scheduled sends don't count against today).
+
+**The bigger finding: the entire top-of-funnel is at zero.** `Sourced` = 0, `Qualifying` = 0, `Audit Ready` = 0, `Draft Ready` = 0 — every one of the 368 CRM rows is in Disqualified (246), a worked/terminal cold-sequence status, or a warm/priced stage. The Walk Queue and the Qualifying pile both went from "6 Qualifying" (per the 07-25 afternoon entry) to zero. Nothing is left to walk, qualify, or draft — once the current Outreach Sent/Dormant cohort finishes its cadence, sends stop entirely unless `source-leads` runs.
+
+Conversion ladder: still 0/9 replies converted to a Leak Fix sale or booked call (unchanged from 07-24). Both Offer Sent rows (Avneet Kohli, Rita Baki) PASS `crm-gate offer`, informational only (already offered). **Rita Baki flag carried forward:** her pending 3,200 AED offer was scoped around a booking-flow leak she has since fixed herself — only the shallow currency-fragmentation finding still stands; confirm scope before quoting if she replies. Hygiene: one pre-existing bug spotted (not from today) — Spyros Bolano is Dormant with Touch # null and Findings Bank #1 still UNUSED, meaning his cold sequence's confirmed-send logging never ran historically. Full hygiene sweep and Finding Type/Source Channel scoreboard splits not completed — Notion's free-plan SQL query quota capped mid-run (same recurring limitation as 07-25).
+
+### Open follow-ups
+- [ ] **Run `source-leads` / `qualify-leads` urgently** — top-of-funnel is completely dry, zero rows in Sourced/Qualifying/Audit Ready/Draft Ready.
+- [ ] Spyros Bolano (Dormant) — investigate why Touch # is null and Findings Bank #1 was never flipped; looks like a historical confirmed-send logging miss, not from this tick.
+- [ ] Full hygiene sweep (bank-flip audit across all Outreach Sent/Dormant rows, 14-day ceiling history) and the scoreboard's Finding Type/Source Channel/Lane attribution splits — blocked on the Notion SQL quota this run, worth a follow-up once it resets.
+- [ ] Watch William Brown and Lucia Csobonyei (Reply Received, Last Contacted 07-24 — hit the 2-day stale mark tomorrow if no further touch).
+
 ## 2026-07-25 — Disqualification reason extraction (Phase 3)
 
 Read-only-Notion / write-repo-only extraction job over the 246 Disqualified UAE
