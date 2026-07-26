@@ -309,6 +309,13 @@ def cmd_crm_gate(args) -> None:
     from audit import crm_gate
     if args.gate == "offer":
         sys.exit(crm_gate.print_offer(args.row_json))
+    if args.gate == "log":
+        if not args.page_body:
+            print("CRM GATE (log): FAIL — --page-body is required: path to the lead's "
+                  "page body, fetched FRESH and dumped verbatim, so the gate can re-derive "
+                  "the touch history itself rather than trust a caller's count.")
+            sys.exit(2)
+        sys.exit(crm_gate.print_log_integrity(args.row_json, args.page_body))
     if args.sends_today is None:
         print("CRM GATE (send): FAIL — --sends-today is required: TOTAL sends already "
               "out of the inbox today (all touch types, warm included, both tracks — "
@@ -916,10 +923,16 @@ def main() -> None:
         help="UAE CRM transition gates: offer (the lead has EARNED a number — an earned "
              "Status or `Asked For Price`; the discovery answer/anchor are advisory now) "
              "/ send (finding verified + follow-ups-first daily ceiling + touch 2/3 "
-             "carrier check) — see audit/crm_gate.py",
+             "carrier check) / log (Touch # actually matches the Email Thread Log — run "
+             "this right after every confirmed-send write, on the fresh re-fetch) — see "
+             "audit/crm_gate.py",
     )
-    p_crm.add_argument("gate", choices=["offer", "send"])
+    p_crm.add_argument("gate", choices=["offer", "send", "log"])
     p_crm.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
+    p_crm.add_argument("--page-body",
+                       help="(log gate) path to the lead's page body, fetched FRESH and dumped "
+                            "verbatim — the gate re-parses the Email Thread Log itself, it does "
+                            "not take a block count on trust")
     p_crm.add_argument("--sends-today", type=int,
                        help="(send gate) TOTAL sends already out of the inbox today — all touch "
                             "types, warm included, both tracks (Gmail sent count)")

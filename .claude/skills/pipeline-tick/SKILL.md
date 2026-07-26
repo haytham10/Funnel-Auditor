@@ -101,6 +101,15 @@ Flag any Audit Ready row with no Email as "needs address" with its Notes line.
   Tier 4, Status Outreach Sent with Touch # = 0.
 - Stale threads: Sequence = Warm, no touch in > 4 days.
 - Researching rows older than a week with no walk in the page body.
+- **Log-integrity backstop** (same gate as the UAE track — `audit/crm_gate.py`'s
+  `log` gate is CRM-agnostic, it only needs `Touch #` and the page body):
+  on any row whose `Notes` narrates a send you can't see a matching block
+  for, fetch the body and run `python main.py crm-gate log <row.json>
+  --page-body <body.md>`. FAIL means `Touch #` is claiming a send the
+  Email Thread Log can't back up — recover the missing block from Gmail
+  and append it (never fabricate one). This confirmed-send logging runs
+  through `haytham-email-draft` on both tracks, so the same gate that
+  closed a 24-lead UAE incident on 2026-07-26 applies here unchanged.
 
 ## The brief
 

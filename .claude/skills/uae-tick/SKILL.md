@@ -131,6 +131,19 @@ routing — treat as Inbox 1, the historical inbox, and set the label.)
 These reconciliation flips record reality (like reply detection) and are
 allowed without approval.
 
+**Hard gate on every reconciliation flip that logs a send, no exceptions:**
+after the content append + property update (the FULL checklist above), run
+`python main.py crm-gate log <row.json> --page-body <fresh-body.md>` on a
+RE-fetch of the same page, and quote the literal output line. FAIL means
+the log append didn't land — fix it now, before reconciling the next row,
+not later. This is the exact drift a batch tick is most likely to produce:
+under time pressure across a dozen rows in one pass, the property write
+(fast, one call) is easy to finish while the content append (a second,
+separate write) silently doesn't — see `audit/crm_gate.py`'s `log` gate
+docstring and `haytham-email-draft` SKILL.md for the incident this closed
+(24 leads, over a week of drift, caught only because Haytham asked by
+hand).
+
 ## 1 — Reply detection (Gmail → Notion)
 
 **One sweep PER inbox, not one search per lead** (per-lead searches grow
@@ -376,6 +389,22 @@ line.
 - Qualifying rows older than a week with no walk in the page body.
 - Any day in the last 14 over the send ceiling (Gmail count vs
   `send-cap status`).
+- **Log-integrity backstop.** Step 0.5's per-row `crm-gate log` check catches
+  drift at write time going forward; this catches anything that slipped
+  through before that gate existed, or through any write path that isn't
+  step 0.5 (a manual `haytham-email-draft` log, a past batch pass). Don't
+  re-fetch every Outreach-Sent+ row's body every tick — that's the whole
+  CRM's worth of full-page fetches for a check that only fails on write-path
+  bugs, not normal operation. Instead, scope it to the rows most likely to
+  be wrong: any row whose `Notes` narrates a send but shows no sign this
+  gate has ever run on it (look for `reconciled by uae-tick` or `confirmed
+  against Gmail` — the exact batch-reconciliation language the 2026-07-26
+  incident's 24 rows all carried). Fetch the body and run `crm-gate log` on
+  those; flag any FAIL the same way the recovery job fixed the original 24
+  (recover the missing block from Gmail, append it, never fabricate one). A
+  clean run needs this backstop less over time as more rows pick up a
+  verified gate pass at write time — this is temporary debt-paydown, not a
+  permanent daily full-CRM sweep.
 - **Any `Next Action` that falls on a Sunday** — a guaranteed one-day stall
   (`crm-gate send` hard-fails on it, so nothing queued that day moves).
   `SELECT "Contact Name", "date:Next Action:start" FROM <uae ds> WHERE
