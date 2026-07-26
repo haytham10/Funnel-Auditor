@@ -85,6 +85,36 @@ second-finding (see next_unused_finding):
 Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
 (depth = None), so existing rows gate exactly as before.
 
+  Both `offer` and `send` also gate on FRESHNESS, not just existence, of the
+  finding being drawn on. Added 2026-07-26 after the Rita Baki case: her
+  3,200 AED offer was scoped around a booking-flow leak she had already
+  fixed herself between the walk and the quote (docs/journal.md,
+  2026-07-21/25) — Ben Pringle's dead thread showed the same failure mode.
+  The walk is a snapshot; threads run 5-10 days; Gate 0 selects for coaches
+  who are active enough to notice and fix things. Nothing previously
+  re-checked a finding between the walk and the send/quote. `Findings Bank`
+  lines now carry an optional `verified:YYYY-MM-DD` tag, set at walk time
+  and bumped by `refresh-finding` on every re-check:
+
+      1. USED-T1 | SHALLOW | verified:2026-07-20 | checkout button 404s on mobile
+      2. UNUSED | DEEP | verified:2026-07-24 | pricing split across 4 platforms
+      3. RESERVED | DEEP | verified:2026-07-24 | entire program is readable free
+
+  `check_send` hard-fails when the drawn finding was last verified more than
+  `STALE_SEND_DAYS` (3) days ago; `check_offer` hard-fails past
+  `STALE_OFFER_DAYS` (1) day — a priced offer quotes work, the work must
+  still need doing. A missing `verified:` tag fails the same way a missing
+  date would (never verified = can't prove it isn't stale). Legacy rows with
+  no `Findings Bank` at all stay ungated, same precedent as `--opener-rank`.
+
+  refresh — `main.py refresh-finding <row.json> --rank N --page-file <file>`
+          is the cheap re-check: a single-URL re-fetch of just that finding's
+          page (never a full re-walk), diffed against the stored evidence
+          (`--baseline-file`). It reports whether the page changed; it does
+          NOT itself decide the finding still holds or write the new
+          `verified:` date — that call needs eyes on the diff (or the vision
+          pass), same trust model as `Finding Verified`.
+
   log   — the Email Thread Log is the source of truth for what actually
           went out; `Touch #` and `Notes` are a summary of it, not the
           other way around. Added 2026-07-26 after a 24-lead recovery job:
@@ -105,13 +135,30 @@ Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
 
 from __future__ import annotations
 
+import difflib
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 from audit import inboxes, send_cap
 
 COLD_SEQUENCE_TOUCHES = 3
+
+# Freshness ceilings for the finding a send/offer draws on (2026-07-26, the
+# Rita Baki case — see the module docstring). A send can trail the walk by
+# a few days (the cold sequence itself runs day 0/3/9); a priced offer is
+# quoting work RIGHT NOW, so its ceiling is tighter.
+STALE_SEND_DAYS = 3
+STALE_OFFER_DAYS = 1
+
+_STALE_FINDING_EXPLANATION = (
+    "this is the Rita Baki case (docs/journal.md, 2026-07-21/25): her 3,200 AED "
+    "offer was scoped around a booking-flow leak she had already fixed herself "
+    "between the walk and the quote. Gate 0 selects for coaches active enough to "
+    "notice and fix things, so a snapshot finding goes stale fast — re-run "
+    "`python main.py refresh-finding` before trusting it again"
+)
 
 # Canonical touch 2/3 carriers. `leak-fix-offer` replaced `loom-offer` on
 # 2026-07-24, when the turn-two artifact stopped being "want me to record a
@@ -148,11 +195,14 @@ _ANSWER_PLACEHOLDERS = {
 
 _CHECKED = {True, 1, "1", "true", "yes", "checked", "__yes__"}
 
-# `N. STATUS | DEPTH | finding`. STATUS ∈ UNUSED / USED-Tn / RESERVED; the
-# DEPTH group (SHALLOW/DEEP) is OPTIONAL so legacy `N. STATUS | finding` rows
-# still match (depth → None). Groups: 1=rank, 2=status, 3=depth|None, 4=finding.
+# `N. STATUS | DEPTH | verified:YYYY-MM-DD | finding`. STATUS ∈ UNUSED /
+# USED-Tn / RESERVED; the DEPTH group (SHALLOW/DEEP) and the `verified:` date
+# tag are both OPTIONAL, independently, so legacy `N. STATUS | finding` and
+# `N. STATUS | DEPTH | finding` rows still match (depth/verified → None).
+# Groups: 1=rank, 2=status, 3=depth|None, 4=verified date|None, 5=finding.
 _BANK_LINE = re.compile(
-    r"^\s*(\d+)\.\s*(UNUSED|USED-T\d|RESERVED)\s*\|\s*(?:(SHALLOW|DEEP)\s*\|\s*)?(\S.*?)\s*$",
+    r"^\s*(\d+)\.\s*(UNUSED|USED-T\d|RESERVED)\s*\|\s*(?:(SHALLOW|DEEP)\s*\|\s*)?"
+    r"(?:verified:(\d{4}-\d{2}-\d{2})\s*\|\s*)?(\S.*?)\s*$",
     re.IGNORECASE,
 )
 
@@ -202,10 +252,13 @@ def normalize_carrier(carries: str | None) -> tuple[str | None, str | None]:
 
 
 def parse_findings_bank(value) -> list[dict]:
-    """Parse the `Findings Bank` property into [{rank, status, depth, finding}, ...].
+    """Parse the `Findings Bank` property into
+    [{rank, status, depth, verified, finding}, ...].
 
     `depth` is "SHALLOW"/"DEEP" when the line carries a depth tag, else None
     (legacy `N. STATUS | finding` rows). `status` is UNUSED / USED-Tn / RESERVED.
+    `verified` is an ISO date string ("YYYY-MM-DD") when the line carries a
+    `verified:` tag, else None (never checked, or a pre-2026-07-26 row).
     """
     entries = []
     for line in _norm(value).splitlines():
@@ -216,7 +269,8 @@ def parse_findings_bank(value) -> list[dict]:
                 "rank": int(m.group(1)),
                 "status": m.group(2).upper(),
                 "depth": depth.upper() if depth else None,
-                "finding": m.group(4),
+                "verified": m.group(4),
+                "finding": m.group(5),
             })
     return entries
 
@@ -261,6 +315,135 @@ def opener_finding(row: dict) -> dict | None:
     candidates = [e for e in parse_findings_bank(row.get("Findings Bank"))
                   if e["status"] == "UNUSED"]
     return min(candidates, key=lambda e: e["rank"]) if candidates else None
+
+
+def current_finding(row: dict) -> dict | None:
+    """The finding the thread is currently standing on: the most-recently
+    spent entry (highest `USED-Tn`), or bank #1 if nothing has been sent yet.
+
+    This is what a priced offer, or a touch 2/3 that doesn't carry a fresh
+    second-finding (leak-fix-offer / disambiguating-question), is quoting —
+    it's the finding staleness has to be checked against even when no NEW
+    bank entry is being drawn this round.
+    """
+    bank = parse_findings_bank(row.get("Findings Bank"))
+    if not bank:
+        return None
+
+    def _touch_num(entry: dict) -> int:
+        try:
+            return int(entry["status"].split("-T", 1)[1])
+        except (IndexError, ValueError):
+            return 0
+
+    used = [e for e in bank if e["status"].startswith("USED-T")]
+    if used:
+        return max(used, key=_touch_num)
+    return next((e for e in bank if e["rank"] == 1), None)
+
+
+def check_finding_freshness(
+    entry: dict | None, max_days: int, today: date | None = None,
+) -> tuple[bool, list[str], list[str]]:
+    """Is the bank entry a send/offer is drawing on still fresh enough to
+    trust? PASS only when `verified:` is set AND is at most `max_days` old.
+
+    A missing `verified:` tag (never checked, or a pre-2026-07-26 row) fails
+    the same way an old date would — "never verified" can't prove the finding
+    isn't stale, and this gate exists precisely because nothing was re-checking
+    that. `entry=None` (nothing to check — an empty bank, or a `--carries
+    second-finding` draw with no UNUSED entry left) also fails: a send/offer
+    that draws on a finding must have SOME finding to draw on.
+    """
+    today = today or send_cap.today()
+    if entry is None:
+        return False, [
+            "no Findings Bank entry to check for freshness — " + _STALE_FINDING_EXPLANATION
+        ], []
+
+    raw = entry.get("verified")
+    if not raw:
+        return False, [
+            f'bank #{entry["rank"]} ("{entry["finding"]}") has no `verified:` date — it has '
+            f"never been re-checked since the walk. Run `python main.py refresh-finding "
+            f"--rank {entry['rank']}` and confirm it still holds before this goes out — "
+            + _STALE_FINDING_EXPLANATION
+        ], []
+
+    try:
+        verified_on = date.fromisoformat(raw)
+    except ValueError:
+        return False, [
+            f'bank #{entry["rank"]} ("{entry["finding"]}") has an unparseable `verified:{raw}` '
+            "date — fix the tag (YYYY-MM-DD) or re-run refresh-finding. "
+            + _STALE_FINDING_EXPLANATION
+        ], []
+
+    age = (today - verified_on).days
+    if age > max_days:
+        return False, [
+            f'bank #{entry["rank"]} ("{entry["finding"]}") was last verified {age} day(s) ago '
+            f"({verified_on.isoformat()}) — over the {max_days}-day ceiling. " +
+            _STALE_FINDING_EXPLANATION
+        ], []
+
+    return True, [], [
+        f'bank #{entry["rank"]} verified {age} day(s) ago ({verified_on.isoformat()}, '
+        f"<= {max_days}-day ceiling)"
+    ]
+
+
+def check_refresh_finding(
+    row: dict, rank: int, page_text: str, baseline_text: str | None,
+) -> tuple[bool, dict]:
+    """The cheap re-check behind `refresh-finding`: a single already-fetched
+    page, diffed against the stored evidence for one Findings Bank entry.
+
+    Not a full re-walk — the caller (a skill, via Firecrawl) re-fetches ONLY
+    the finding's page and hands both texts over; this just diffs them. It
+    reports whether the page changed; it does NOT decide the finding still
+    holds and does NOT write a new `verified:` date itself — a changed page
+    needs eyes on the diff (or the vision pass) before anyone bumps the date,
+    same trust model as `Finding Verified` never being self-certified.
+
+    Returns (ok, result). `ok=False` only when `rank` doesn't match any bank
+    entry — the caller passed a page to diff against nothing.
+    """
+    entry = next(
+        (e for e in parse_findings_bank(row.get("Findings Bank")) if e["rank"] == rank), None
+    )
+    if entry is None:
+        return False, {"error": f"--rank {rank} does not match any Findings Bank entry"}
+
+    result = {
+        "rank": rank,
+        "finding": entry["finding"],
+        "status": entry["status"],
+        "previous_verified": entry["verified"],
+    }
+    if baseline_text is None:
+        result["changed"] = None
+        result["diff"] = []
+        result["note"] = (
+            "no --baseline-file supplied — this fetch has nothing to diff against; "
+            "save it as the baseline for next time"
+        )
+    else:
+        diff = list(difflib.unified_diff(
+            baseline_text.splitlines(), page_text.splitlines(), lineterm="", n=0,
+        ))
+        result["changed"] = bool(diff)
+        result["diff"] = diff[:40]
+        result["diff_truncated"] = len(diff) > 40
+        result["note"] = (
+            "page changed since the stored evidence — read the diff and re-confirm the "
+            "finding still holds (a vision pass on a changed screenshot beats a text diff) "
+            "before bumping `verified:` to today"
+            if result["changed"] else
+            "page unchanged since the stored evidence — safe to bump this entry's "
+            "`verified:` date to today"
+        )
+    return True, result
 
 
 def touch_blocks(page_body: str) -> list[int]:
@@ -320,7 +503,7 @@ def check_log_integrity(row: dict, page_body: str) -> tuple[bool, list[str], lis
     return not problems, problems, notes
 
 
-def check_offer(row: dict) -> tuple[bool, list[str], list[str]]:
+def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
     """Gate for Reply → Offer Sent (and for drafting any priced Sprint offer).
 
     The question this answers is NOT "do we know their budget" — it is "have
@@ -333,11 +516,24 @@ def check_offer(row: dict) -> tuple[bool, list[str], list[str]]:
     `Price Discovery Answer` / `Discovery Anchor` are ADVISORY here — they
     sharpen the number, they no longer license it. They come back as notes.
 
+    Also hard-fails when the finding the offer is built on (`current_finding`
+    — the most-recently-sent bank entry, or bank #1) was last verified more
+    than `STALE_OFFER_DAYS` (1) day ago. A priced offer quotes work; the work
+    must still need doing (the Rita Baki case — see the module docstring).
+    Legacy rows with no `Findings Bank` at all stay ungated.
+
     Returns (ok, problems, notes) — same shape as check_send; notes are
     PASS-line detail.
     """
     problems: list[str] = []
     notes: list[str] = []
+
+    if parse_findings_bank(row.get("Findings Bank")):
+        fresh_ok, fresh_problems, fresh_notes = check_finding_freshness(
+            current_finding(row), STALE_OFFER_DAYS, today=send_cap.today(now)
+        )
+        problems.extend(fresh_problems)
+        notes.extend(fresh_notes)
 
     status = _norm(row.get("Status"))
     by_status = status in EARNED_STATUSES
@@ -483,6 +679,25 @@ def check_send(
             f"{pause_day} is a Sunday — sends are paused every Sunday, no exceptions "
             "(cold and warm, every inbox). Queue it for the next non-Sunday send-day instead."
         )
+
+    # Freshness of the finding this send draws on (2026-07-26, the Rita Baki
+    # case — see the module docstring). Touch 1 draws bank #1 (the opener);
+    # a touch 2/3 carrying second-finding draws the next UNUSED entry; every
+    # other touch (leak-fix-offer, disambiguating-question) still stands on
+    # whatever finding was most recently sent. Legacy rows with no bank at
+    # all stay ungated, same precedent as --opener-rank.
+    if parse_findings_bank(row.get("Findings Bank")):
+        if touch == 1:
+            drawn = opener_finding(row)
+        elif normalize_carrier(carries)[0] == "second-finding":
+            drawn = next_unused_finding(row)
+        else:
+            drawn = current_finding(row)
+        fresh_ok, fresh_problems, fresh_notes = check_finding_freshness(
+            drawn, STALE_SEND_DAYS, today=send_cap.today(now)
+        )
+        problems.extend(fresh_problems)
+        notes.extend(fresh_notes)
 
     if touch == 1:
         # A fresh opener queued after noon Dubai can't leave today — it is
@@ -635,6 +850,34 @@ def print_offer(row_json: str | Path) -> int:
         return 0
     print(f"CRM GATE (offer): FAIL — {name}: " + "; ".join(problems))
     return 1
+
+
+def print_refresh_finding(
+    row_json: str | Path,
+    rank: int,
+    page_file: str | Path,
+    baseline_file: str | Path | None = None,
+) -> int:
+    row = _load_row(row_json)
+    try:
+        page_text = Path(page_file).read_text()
+    except OSError as exc:
+        print(json.dumps({"error": f"cannot read --page-file {str(page_file)!r}: {exc}"}))
+        return 1
+    baseline_text = None
+    if baseline_file is not None:
+        try:
+            baseline_text = Path(baseline_file).read_text()
+        except OSError as exc:
+            print(json.dumps({"error": f"cannot read --baseline-file {str(baseline_file)!r}: {exc}"}))
+            return 1
+    ok, result = check_refresh_finding(row, rank, page_text, baseline_text)
+    if not ok:
+        print(json.dumps(result))
+        return 1
+    result["today"] = send_cap.today().isoformat()
+    print(json.dumps(result, indent=2))
+    return 0
 
 
 def print_log_integrity(row_json: str | Path, page_body_file: str | Path) -> int:

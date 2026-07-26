@@ -357,6 +357,13 @@ def cmd_crm_gate(args) -> None:
     ))
 
 
+def cmd_refresh_finding(args) -> None:
+    from audit import crm_gate
+    sys.exit(crm_gate.print_refresh_finding(
+        args.row_json, args.rank, args.page_file, baseline_file=args.baseline_file,
+    ))
+
+
 def cmd_send_cap(args) -> None:
     from audit import send_cap
     if args.cap_command == "status":
@@ -968,6 +975,23 @@ def main() -> None:
                             "independent (default: primary, haytham@auto-mate.one)")
     p_crm.set_defaults(func=cmd_crm_gate)
 
+    p_refresh = sub.add_parser(
+        "refresh-finding",
+        help="cheap re-check for one Findings Bank entry: diff a single freshly-fetched "
+             "page against the stored evidence (not a full re-walk) — run before every "
+             "send/offer so a finding the coach already fixed can't slip through stale "
+             "(see audit/crm_gate.py, the Rita Baki case)",
+    )
+    p_refresh.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
+    p_refresh.add_argument("--rank", type=int, required=True,
+                           help="which Findings Bank rank to refresh")
+    p_refresh.add_argument("--page-file", required=True,
+                           help="the finding's page, freshly re-fetched (e.g. via Firecrawl) and saved to a file")
+    p_refresh.add_argument("--baseline-file", default=None,
+                           help="the finding's page content as captured at walk time (or the last "
+                                "refresh); omit to just seed a first baseline, nothing to diff yet")
+    p_refresh.set_defaults(func=cmd_refresh_finding)
+
     p_cap = sub.add_parser(
         "send-cap",
         help="daily send ceiling, one independent ramp PER inbox (TOTAL sends leaving that "
@@ -1297,7 +1321,7 @@ def main() -> None:
         sys.exit(1)
     # Bare URL → walk
     if argv[0] not in (
-        "walk", "crawl", "slug", "vision", "crm-gate", "send-cap", "inbox",
+        "walk", "crawl", "slug", "vision", "crm-gate", "refresh-finding", "send-cap", "inbox",
         "dashboard", "email-check", "email-verify", "email-enrich", "cta-probe", "apify",
         "classify-footprint", "gmail-gethaytham", "discover-links", "discover-checkout",
         "screenshot-name", "ingest", "promote-evidence", "-h", "--help",
