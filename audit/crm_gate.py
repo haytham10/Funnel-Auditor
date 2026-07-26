@@ -107,13 +107,21 @@ Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
   date would (never verified = can't prove it isn't stale). Legacy rows with
   no `Findings Bank` at all stay ungated, same precedent as `--opener-rank`.
 
-  refresh — `main.py refresh-finding <row.json> --rank N --page-file <file>`
-          is the cheap re-check: a single-URL re-fetch of just that finding's
-          page (never a full re-walk), diffed against the stored evidence
-          (`--baseline-file`). It reports whether the page changed; it does
-          NOT itself decide the finding still holds or write the new
-          `verified:` date — that call needs eyes on the diff (or the vision
-          pass), same trust model as `Finding Verified`.
+  refresh — `main.py refresh-finding <row.json> --rank N --url <finding-url>
+          --baseline-file <file> [--save-baseline-to <file>]` is the cheap
+          re-check: a plain single-URL fetch of just that finding's page
+          (never a full Playwright/Firecrawl re-walk), diffed against the
+          stored evidence. UNCHANGED closes the loop end to end — it
+          auto-stamps `verified:` to today and hands back the full new
+          `Findings Bank` value (`new_findings_bank`), ready to write to
+          Notion verbatim, no hand-edit. CHANGED never auto-stamps — a text
+          diff can prove the page is different, it can't prove the specific
+          finding is gone (same trust model as `Finding Verified` never
+          being self-certified), so a changed page prints the diff and
+          waits on a human read (or a fresh vision pass) before anyone
+          bumps the date by hand. `--save-baseline-to` writes this run's
+          fetch so the NEXT run — due right as this stamp's ceiling
+          approaches — has something to diff against and can auto-stamp too.
 
   log   — the Email Thread Log is the source of truth for what actually
           went out; `Touch #` and `Notes` are a summary of it, not the
@@ -275,6 +283,43 @@ def parse_findings_bank(value) -> list[dict]:
     return entries
 
 
+def bump_verified_date(bank_text: str, rank: int, new_date: str) -> str:
+    """Return `bank_text` with rank N's `verified:` tag set to `new_date`.
+
+    Every other line is passed through byte-for-byte — this never touches
+    STATUS, DEPTH, or the finding text of any entry, including the one it's
+    bumping. Unparseable lines (junk, blank lines) are also passed through
+    unchanged. Raises ValueError if `rank` matches no line, so a caller can
+    never silently write back a bank that's missing the entry it meant to
+    stamp.
+
+    This is what closes the refresh-finding loop (H3c, 2026-07-26): instead
+    of a human reading a diff and hand-editing the property, `refresh-finding`
+    calls this to produce the exact new `Findings Bank` value — ready to
+    write to Notion verbatim — whenever the re-fetched page comes back
+    unchanged from the stored baseline.
+    """
+    lines = bank_text.splitlines()
+    out = []
+    found = False
+    for line in lines:
+        m = _BANK_LINE.match(line)
+        if m and int(m.group(1)) == rank:
+            found = True
+            status, depth, finding = m.group(2).upper(), m.group(3), m.group(5)
+            parts = [f"{rank}. {status}"]
+            if depth:
+                parts.append(depth.upper())
+            parts.append(f"verified:{new_date}")
+            parts.append(finding)
+            out.append(" | ".join(parts))
+        else:
+            out.append(line)
+    if not found:
+        raise ValueError(f"rank {rank} does not match any Findings Bank line")
+    return "\n".join(out)
+
+
 def next_unused_finding(row: dict) -> dict | None:
     """The highest-ranked UNUSED bank entry past #1 (#1 belongs to touch 1).
 
@@ -393,40 +438,83 @@ def check_finding_freshness(
     ]
 
 
-def check_refresh_finding(
-    row: dict, rank: int, page_text: str, baseline_text: str | None,
-) -> tuple[bool, dict]:
-    """The cheap re-check behind `refresh-finding`: a single already-fetched
-    page, diffed against the stored evidence for one Findings Bank entry.
+def _fetch_page_text(url: str, timeout: int = 20) -> str:
+    """Plain HTTP GET + visible-text extraction — the "single-URL, cheap"
+    fetch behind `refresh-finding` (H3c, 2026-07-26). Deliberately NOT the
+    Playwright/Firecrawl stack the real walk uses: this has to be cheap
+    enough to run before every send, and most funnel pages don't need JS
+    rendering to prove a specific element is still there or gone. A page
+    that genuinely needs JS (or sits behind a bot wall) will come back
+    looking emptier than it is — that's a false "changed", which just means
+    a human looks at the diff, never a false "unchanged" that would
+    silently auto-stamp a finding that's actually gone.
 
-    Not a full re-walk — the caller (a skill, via Firecrawl) re-fetches ONLY
-    the finding's page and hands both texts over; this just diffs them. It
-    reports whether the page changed; it does NOT decide the finding still
-    holds and does NOT write a new `verified:` date itself — a changed page
-    needs eyes on the diff (or the vision pass) before anyone bumps the date,
-    same trust model as `Finding Verified` never being self-certified.
+    Imported lazily (`requests`/`bs4`) so pure-gate commands (crm-gate,
+    send-cap, vision) keep working on machines without them installed —
+    same precedent as `audit.crawler` staying out of main.py's top-level
+    imports.
+    """
+    import requests
+    from bs4 import BeautifulSoup
+
+    resp = requests.get(
+        url, timeout=timeout,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; FunnelAuditorRefresh/1.0)"},
+    )
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+    lines = [ln.strip() for ln in soup.get_text("\n").splitlines()]
+    return "\n".join(ln for ln in lines if ln)
+
+
+def check_refresh_finding(
+    row: dict,
+    rank: int,
+    page_text: str,
+    baseline_text: str | None,
+    today: str | None = None,
+) -> tuple[bool, dict]:
+    """The cheap re-check behind `refresh-finding`: one already-fetched page
+    (live via `--url`, or a pre-fetched `--page-file`), diffed against the
+    stored evidence for one Findings Bank entry.
+
+    Not a full re-walk — just that one finding's page. Closes the loop
+    (H3c, 2026-07-26): when the page comes back UNCHANGED from the
+    baseline, this computes `new_findings_bank` — the full property value
+    with that entry's `verified:` tag bumped to `today`, via
+    `bump_verified_date` — ready to write to Notion verbatim, no hand-edit.
+    A CHANGED page never gets auto-stamped: this can prove a page is
+    byte-different, it cannot prove the specific finding still holds (the
+    change could be unrelated copy elsewhere on the page) — that call needs
+    eyes on the diff or a fresh vision pass, same trust model as `Finding
+    Verified` never being self-certified. No baseline at all (first run) is
+    the same as changed: nothing to compare against yet, so no stamp.
 
     Returns (ok, result). `ok=False` only when `rank` doesn't match any bank
     entry — the caller passed a page to diff against nothing.
     """
-    entry = next(
-        (e for e in parse_findings_bank(row.get("Findings Bank")) if e["rank"] == rank), None
-    )
+    bank_text = _norm(row.get("Findings Bank"))
+    entry = next((e for e in parse_findings_bank(bank_text) if e["rank"] == rank), None)
     if entry is None:
         return False, {"error": f"--rank {rank} does not match any Findings Bank entry"}
 
+    today = today or send_cap.today().isoformat()
     result = {
         "rank": rank,
         "finding": entry["finding"],
         "status": entry["status"],
         "previous_verified": entry["verified"],
+        "today": today,
+        "new_findings_bank": None,
     }
     if baseline_text is None:
         result["changed"] = None
         result["diff"] = []
         result["note"] = (
-            "no --baseline-file supplied — this fetch has nothing to diff against; "
-            "save it as the baseline for next time"
+            "no --baseline-file supplied — this fetch has nothing to diff against yet; "
+            "save it (--save-baseline-to) so the NEXT refresh-finding run can auto-stamp"
         )
     else:
         diff = list(difflib.unified_diff(
@@ -435,14 +523,19 @@ def check_refresh_finding(
         result["changed"] = bool(diff)
         result["diff"] = diff[:40]
         result["diff_truncated"] = len(diff) > 40
-        result["note"] = (
-            "page changed since the stored evidence — read the diff and re-confirm the "
-            "finding still holds (a vision pass on a changed screenshot beats a text diff) "
-            "before bumping `verified:` to today"
-            if result["changed"] else
-            "page unchanged since the stored evidence — safe to bump this entry's "
-            "`verified:` date to today"
-        )
+        if result["changed"]:
+            result["note"] = (
+                "page changed since the stored evidence — read the diff and re-confirm "
+                "the finding still holds (a vision pass on a changed screenshot beats a "
+                "text diff) before hand-bumping `verified:`; NOT auto-stamped"
+            )
+        else:
+            result["new_findings_bank"] = bump_verified_date(bank_text, rank, today)
+            result["note"] = (
+                f"page unchanged since the stored evidence — `verified:` auto-stamped to "
+                f"{today} in `new_findings_bank`; write that value verbatim to the Findings "
+                "Bank property"
+            )
     return True, result
 
 
@@ -598,10 +691,19 @@ def check_send(
 
     sends_today   — TOTAL sends already out of THIS inbox today (all touch
                     types, warm included, both tracks — Gmail sent count).
-    touch         — which cold touch this send is (1, 2, or 3).
+    touch         — which touch this send is: 1 is always the cold opener;
+                    2/3 are the rest of the cold sequence; 4+ is a WARM
+                    touch (a thread that got a reply and kept going — Rita
+                    Baki reached Touch 5, Avneet Kohli Touch 6). Every touch
+                    >= 2 runs the same follow-up gate (carrier + freshness),
+                    cold or warm alike — nothing here is special-cased to
+                    "2 or 3 only" (that used to be true only by accident,
+                    because an upper-bound check on `touch` rejected
+                    anything past 3 before it reached this logic).
     followups_due — touch 1 only: follow-ups still owed on the opener's
                     send-day; they eat the budget before any opener does.
-    carries       — touch 2/3 only: the new thing this follow-up carries.
+    carries       — touch >= 2: the new thing this follow-up carries,
+                    warm bumps included.
     inbox         — which sending inbox this send leaves from; its ceiling
                     is independent (default: the primary inbox). Ignored
                     when cap_state is passed in directly.
@@ -660,12 +762,18 @@ def check_send(
             "checked, or Haytham checks it by hand to accept a catch_all/unknown risk"
         )
 
-    if touch < 1 or touch > COLD_SEQUENCE_TOUCHES:
-        problems.append(
-            f"touch {touch} does not exist — the cold sequence is {COLD_SEQUENCE_TOUCHES} touches "
-            "(day 0, 3, 9); after touch 3 with no reply the lead goes Dormant, never a touch 4"
-        )
+    if touch < 1:
+        problems.append(f"touch {touch} is not a valid touch number (must be >= 1)")
         return False, problems, notes
+    # touch > COLD_SEQUENCE_TOUCHES (3) is a WARM touch — a thread that got a
+    # reply and kept going (Rita Baki reached Touch 5, Avneet Kohli Touch 6).
+    # Until 2026-07-26 this branch was unreachable: an upper bound here
+    # rejected any touch past 3 outright, so warm sends never reached the
+    # freshness check below (or the "must carry something new" check further
+    # down) — exactly the gap the Rita Baki incident fell through. Touch 1
+    # is still the only opener; every touch >= 2, cold or warm, now runs the
+    # same generic follow-up gate (the `else` branch below already treats
+    # them uniformly — it never actually special-cased touch 2/3).
 
     # Sends are paused every Sunday (Dubai calendar day) — every inbox, every
     # touch type, cold and warm alike. Not a lower ceiling: zero for the day,
@@ -682,10 +790,16 @@ def check_send(
 
     # Freshness of the finding this send draws on (2026-07-26, the Rita Baki
     # case — see the module docstring). Touch 1 draws bank #1 (the opener);
-    # a touch 2/3 carrying second-finding draws the next UNUSED entry; every
-    # other touch (leak-fix-offer, disambiguating-question) still stands on
+    # any touch >= 2 (cold 2/3 OR warm 4+) carrying second-finding draws the
+    # next UNUSED entry; every other touch (leak-fix-offer,
+    # disambiguating-question, or an undeclared warm bump) still stands on
     # whatever finding was most recently sent. Legacy rows with no bank at
-    # all stay ungated, same precedent as --opener-rank.
+    # all stay ungated, same precedent as --opener-rank. Checked as of
+    # `pause_day`, NOT `send_cap.today(now)` — a post-cutoff touch 1 opener
+    # is scheduled for TOMORROW, so its finding must still be fresh as of
+    # tomorrow, not merely as of right now (the same date `pause_day` above
+    # already computes; reusing it keeps the two checks from disagreeing on
+    # which day this send actually leaves).
     if parse_findings_bank(row.get("Findings Bank")):
         if touch == 1:
             drawn = opener_finding(row)
@@ -694,7 +808,7 @@ def check_send(
         else:
             drawn = current_finding(row)
         fresh_ok, fresh_problems, fresh_notes = check_finding_freshness(
-            drawn, STALE_SEND_DAYS, today=send_cap.today(now)
+            drawn, STALE_SEND_DAYS, today=pause_day
         )
         problems.extend(fresh_problems)
         notes.extend(fresh_notes)
@@ -855,15 +969,35 @@ def print_offer(row_json: str | Path) -> int:
 def print_refresh_finding(
     row_json: str | Path,
     rank: int,
-    page_file: str | Path,
+    url: str | None = None,
+    page_file: str | Path | None = None,
     baseline_file: str | Path | None = None,
+    save_baseline_to: str | Path | None = None,
 ) -> int:
+    """CLI entry for `refresh-finding`. Exactly one of `url` (live fetch,
+    the normal path) or `page_file` (a page fetched some other way — a
+    JS-heavy page pulled via Firecrawl instead, or a fixture in a test) is
+    required. `save_baseline_to`, if given, always writes the text actually
+    used for this run — so the very next refresh-finding run (in 3 days,
+    right when this one's `verified:` stamp is about to expire) has a
+    baseline to diff against and can auto-stamp instead of just reporting."""
     row = _load_row(row_json)
-    try:
-        page_text = Path(page_file).read_text()
-    except OSError as exc:
-        print(json.dumps({"error": f"cannot read --page-file {str(page_file)!r}: {exc}"}))
+    if url:
+        try:
+            page_text = _fetch_page_text(url)
+        except Exception as exc:  # noqa: BLE001 — report, never crash the caller
+            print(json.dumps({"error": f"could not fetch --url {url!r}: {exc}"}))
+            return 1
+    elif page_file:
+        try:
+            page_text = Path(page_file).read_text()
+        except OSError as exc:
+            print(json.dumps({"error": f"cannot read --page-file {str(page_file)!r}: {exc}"}))
+            return 1
+    else:
+        print(json.dumps({"error": "one of --url or --page-file is required"}))
         return 1
+
     baseline_text = None
     if baseline_file is not None:
         try:
@@ -871,11 +1005,14 @@ def print_refresh_finding(
         except OSError as exc:
             print(json.dumps({"error": f"cannot read --baseline-file {str(baseline_file)!r}: {exc}"}))
             return 1
+
     ok, result = check_refresh_finding(row, rank, page_text, baseline_text)
     if not ok:
         print(json.dumps(result))
         return 1
-    result["today"] = send_cap.today().isoformat()
+    if save_baseline_to is not None:
+        Path(save_baseline_to).write_text(page_text)
+        result["baseline_saved_to"] = str(save_baseline_to)
     print(json.dumps(result, indent=2))
     return 0
 

@@ -334,8 +334,8 @@ def cmd_crm_gate(args) -> None:
               "They eat the budget before any new open does.")
         sys.exit(2)
     if args.touch >= 2 and args.carries is None:
-        print("CRM GATE (send): FAIL — --carries is required for touch 2/3 "
-              "(second-finding | leak-fix-offer | disambiguating-question). A follow-up "
+        print("CRM GATE (send): FAIL — --carries is required for any touch >= 2, cold or "
+              "warm (second-finding | leak-fix-offer | disambiguating-question). A follow-up "
               "that just bumps is a wasted send and a spam signal; declare what new "
               "thing this one carries.")
         sys.exit(2)
@@ -360,7 +360,8 @@ def cmd_crm_gate(args) -> None:
 def cmd_refresh_finding(args) -> None:
     from audit import crm_gate
     sys.exit(crm_gate.print_refresh_finding(
-        args.row_json, args.rank, args.page_file, baseline_file=args.baseline_file,
+        args.row_json, args.rank, url=args.url, page_file=args.page_file,
+        baseline_file=args.baseline_file, save_baseline_to=args.save_baseline_to,
     ))
 
 
@@ -944,8 +945,10 @@ def main() -> None:
                        help="(send gate) TOTAL sends already out of the inbox today — all touch "
                             "types, warm included, both tracks (Gmail sent count)")
     p_crm.add_argument("--touch", type=int,
-                       help="(send gate) which cold touch this send is: 1, 2, or 3 (the sequence "
-                            "is three touches, day 0/3/9, then Dormant)")
+                       help="(send gate) which touch this send is: 1 is always the cold opener, "
+                            "2/3 are the rest of the cold sequence (day 0/3/9, then Dormant), "
+                            "4+ is a warm touch (a thread that got a reply and kept going) — "
+                            "every touch >= 2 runs the same follow-up gate (carrier + freshness)")
     p_crm.add_argument("--followups-due", type=int,
                        help="(send gate, touch 1) follow-ups still owed on the opener's send-day — "
                             "they eat the budget before any opener")
@@ -957,8 +960,8 @@ def main() -> None:
     p_crm.add_argument("--carries",
                        choices=["second-finding", "leak-fix-offer", "disambiguating-question",
                                 "loom-offer"],
-                       help="(send gate, touch 2/3) the new thing this follow-up carries; "
-                            "second-finding is checked against the row's Findings Bank. "
+                       help="(send gate, touch >= 2, cold or warm) the new thing this follow-up "
+                            "carries; second-finding is checked against the row's Findings Bank. "
                             "`loom-offer` is a DEPRECATED ALIAS for `leak-fix-offer` (the "
                             "turn-two artifact is now the paid 48-Hour Leak Fix) — it still "
                             "passes and emits a deprecation note. Mirrors "
@@ -977,19 +980,31 @@ def main() -> None:
 
     p_refresh = sub.add_parser(
         "refresh-finding",
-        help="cheap re-check for one Findings Bank entry: diff a single freshly-fetched "
-             "page against the stored evidence (not a full re-walk) — run before every "
-             "send/offer so a finding the coach already fixed can't slip through stale "
-             "(see audit/crm_gate.py, the Rita Baki case)",
+        help="cheap re-check for one Findings Bank entry: fetch the finding's page live "
+             "(--url) or from an already-fetched file (--page-file), diff it against the "
+             "stored evidence (--baseline-file), and — if unchanged — auto-stamp `verified:` "
+             "to today (not a full re-walk) — run before every send/offer so a finding the "
+             "coach already fixed can't slip through stale (see audit/crm_gate.py, the "
+             "Rita Baki case)",
     )
     p_refresh.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
     p_refresh.add_argument("--rank", type=int, required=True,
                            help="which Findings Bank rank to refresh")
-    p_refresh.add_argument("--page-file", required=True,
-                           help="the finding's page, freshly re-fetched (e.g. via Firecrawl) and saved to a file")
+    p_refresh.add_argument("--url", default=None,
+                           help="the finding's page — fetched live (plain HTTP GET, no JS "
+                                "rendering; cheap by design, not a full walk). Use this by "
+                                "default")
+    p_refresh.add_argument("--page-file", default=None,
+                           help="the finding's page content, already fetched some other way "
+                                "(e.g. via Firecrawl for a JS-heavy page) — alternative to --url")
     p_refresh.add_argument("--baseline-file", default=None,
                            help="the finding's page content as captured at walk time (or the last "
-                                "refresh); omit to just seed a first baseline, nothing to diff yet")
+                                "refresh); omit to just establish a first baseline, nothing to "
+                                "diff or auto-stamp yet")
+    p_refresh.add_argument("--save-baseline-to", default=None,
+                           help="write this run's fetched page here — becomes the "
+                                "--baseline-file for the NEXT refresh-finding run, so the "
+                                "loop keeps closing itself")
     p_refresh.set_defaults(func=cmd_refresh_finding)
 
     p_cap = sub.add_parser(

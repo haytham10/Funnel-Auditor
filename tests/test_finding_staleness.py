@@ -23,9 +23,13 @@ What is asserted here:
      ceiling) and passes at 1.
   5. Legacy rows with no `Findings Bank` at all stay ungated on freshness,
      same precedent as `--opener-rank`.
-  6. `refresh-finding` diffs a freshly-fetched page against stored evidence
-     and reports changed/unchanged without itself deciding the finding
-     still holds.
+  6. `refresh-finding` diffs a freshly-fetched page against stored evidence.
+     UNCHANGED auto-stamps `verified:` to today via `bump_verified_date`
+     (H3c) and hands back the ready-to-write `new_findings_bank`; CHANGED
+     never auto-stamps — a human (or the vision pass) has to look first.
+  7. Touch >= 2 runs the same freshness + carrier gate whether it's cold
+     (2/3) or warm (4+) — the upper bound that used to block warm touches
+     from ever reaching this logic is gone (H3b).
 
 Run: python tests/test_finding_staleness.py
      (or python -m pytest tests/test_finding_staleness.py -q)
@@ -191,6 +195,83 @@ def test_send_ungated_on_legacy_row_with_no_bank_at_all():
     assert ok, problems
 
 
+# --- H3b: warm touches (4+) reach the same gate, not just cold 1/2/3 -------
+# Regression for the exact shape of the Rita Baki incident: her real send was
+# a WARM bump (Touch 5), which the gate never saw because `touch >
+# COLD_SEQUENCE_TOUCHES` used to hard-reject before reaching the freshness
+# check at all.
+
+def test_send_touch_zero_is_invalid():
+    row = dict(_BASE, **{"Findings Bank": ""})
+    ok, problems, _ = crm_gate.check_send(row=row, sends_today=0, touch=0, cap_state=_CAP, now=_NOW)
+    assert not ok
+    assert any("not a valid touch number" in p for p in problems)
+
+
+def test_send_warm_touch_five_reaches_freshness_check():
+    bank = "1. USED-T1 | SHALLOW | verified:2026-07-18 | opener finding"  # 4 days old
+    row = dict(_BASE, **{"Findings Bank": bank})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=5, carries="disambiguating-question",
+        cap_state=_CAP, now=_NOW,
+    )
+    assert not ok
+    assert any("Rita Baki" in p for p in problems), problems
+
+
+def test_send_warm_touch_six_passes_on_a_fresh_finding():
+    bank = "1. USED-T1 | SHALLOW | verified:2026-07-21 | opener finding"  # 1 day old
+    row = dict(_BASE, **{"Findings Bank": bank})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=6, carries="leak-fix-offer", cap_state=_CAP, now=_NOW,
+    )
+    assert ok, problems
+
+
+def test_send_warm_touch_still_requires_a_carrier():
+    # Untouched by H3b, but worth locking down: warm touches run the SAME
+    # generic touch>=2 branch as cold 2/3, so a bare warm bump still fails —
+    # it was never special-cased to "2 or 3 only" in the first place.
+    bank = "1. USED-T1 | SHALLOW | verified:2026-07-21 | opener finding"
+    row = dict(_BASE, **{"Findings Bank": bank})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=5, cap_state=_CAP, now=_NOW,
+    )
+    assert not ok
+    assert any("must declare what new thing it carries" in p for p in problems)
+
+
+# --- day-boundary fix: a rolled touch-1 opener checks freshness as of the
+# day it actually LEAVES (tomorrow, post-cutoff), not the day it was queued
+# -----------------------------------------------------------------------
+
+def test_send_touch1_post_cutoff_checks_freshness_against_send_day_not_today():
+    # Post-noon Dubai: this opener is scheduled for TOMORROW (2026-07-23).
+    # The finding is 3 days old as of TODAY (2026-07-22) — inside the
+    # ceiling if freshness were (wrongly) checked against today — but 4
+    # days old as of tomorrow, when it actually leaves. Must FAIL.
+    after_noon = datetime(2026, 7, 22, 14, 0)
+    bank = "1. UNUSED | DEEP | verified:2026-07-19 | opener finding"
+    row = dict(_BASE, **{"Findings Bank": bank})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=1, followups_due=0, opener_rank=1,
+        sends_next_day=0, cap_state=_CAP, now=after_noon,
+    )
+    assert not ok
+    assert any("4 day(s) ago" in p and "Rita Baki" in p for p in problems), problems
+
+
+def test_send_touch1_post_cutoff_passes_when_fresh_as_of_send_day():
+    after_noon = datetime(2026, 7, 22, 14, 0)
+    bank = "1. UNUSED | DEEP | verified:2026-07-20 | opener finding"  # 3 days as of tomorrow
+    row = dict(_BASE, **{"Findings Bank": bank})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=1, followups_due=0, opener_rank=1,
+        sends_next_day=0, cap_state=_CAP, now=after_noon,
+    )
+    assert ok, problems
+
+
 # --- crm-gate offer --------------------------------------------------------
 
 def test_offer_fails_on_two_day_old_finding():
@@ -224,6 +305,37 @@ def test_offer_still_fails_closed_on_earned_right_independent_of_freshness():
     assert any("has not earned a number" in p for p in problems)
 
 
+# --- bump_verified_date ------------------------------------------------
+
+def test_bump_verified_date_updates_only_the_target_rank():
+    bank = (
+        "1. USED-T1 | SHALLOW | verified:2026-07-10 | opener finding\n"
+        "2. UNUSED | DEEP | verified:2026-07-10 | second finding"
+    )
+    new_bank = crm_gate.bump_verified_date(bank, 2, "2026-07-26")
+    entries = crm_gate.parse_findings_bank(new_bank)
+    assert entries[0]["verified"] == "2026-07-10"  # untouched
+    assert entries[1]["verified"] == "2026-07-26"
+    assert entries[1]["status"] == "UNUSED" and entries[1]["depth"] == "DEEP"
+    assert entries[1]["finding"] == "second finding"
+
+
+def test_bump_verified_date_inserts_tag_when_missing():
+    bank = "1. UNUSED | DEEP | pricing split"  # no verified: tag at all
+    new_bank = crm_gate.bump_verified_date(bank, 1, "2026-07-26")
+    entries = crm_gate.parse_findings_bank(new_bank)
+    assert entries[0]["verified"] == "2026-07-26"
+    assert entries[0]["finding"] == "pricing split"
+
+
+def test_bump_verified_date_unknown_rank_raises():
+    try:
+        crm_gate.bump_verified_date(_bank("2026-07-20", rank=1), 5, "2026-07-26")
+        assert False, "expected ValueError"
+    except ValueError as e:
+        assert "rank 5" in str(e)
+
+
 # --- refresh-finding --------------------------------------------------------
 
 def test_refresh_finding_unknown_rank_fails():
@@ -233,31 +345,50 @@ def test_refresh_finding_unknown_rank_fails():
     assert "does not match" in result["error"]
 
 
-def test_refresh_finding_no_baseline_reports_no_diff():
+def test_refresh_finding_no_baseline_reports_no_diff_and_no_stamp():
     row = {"Findings Bank": _bank("2026-07-20")}
     ok, result = crm_gate.check_refresh_finding(row, 1, "fresh page text", None)
     assert ok
     assert result["changed"] is None
     assert result["diff"] == []
+    assert result["new_findings_bank"] is None
 
 
-def test_refresh_finding_unchanged_page():
+def test_refresh_finding_unchanged_page_auto_stamps():
     row = {"Findings Bank": _bank("2026-07-20")}
-    ok, result = crm_gate.check_refresh_finding(row, 1, "same text\nline 2", "same text\nline 2")
+    ok, result = crm_gate.check_refresh_finding(
+        row, 1, "same text\nline 2", "same text\nline 2", today="2026-07-26",
+    )
     assert ok
     assert result["changed"] is False
     assert "unchanged" in result["note"]
+    assert result["new_findings_bank"] is not None
+    entries = crm_gate.parse_findings_bank(result["new_findings_bank"])
+    assert entries[0]["verified"] == "2026-07-26"
+    assert "verbatim" in result["note"]
 
 
-def test_refresh_finding_changed_page_reports_diff():
+def test_refresh_finding_changed_page_never_auto_stamps():
     row = {"Findings Bank": _bank("2026-07-20")}
     ok, result = crm_gate.check_refresh_finding(
-        row, 1, "the button now works fine", "the button is broken",
+        row, 1, "the button now works fine", "the button is broken", today="2026-07-26",
     )
     assert ok
     assert result["changed"] is True
     assert result["diff"]
-    assert "changed since" in result["note"]
+    assert result["new_findings_bank"] is None
+    assert "NOT auto-stamped" in result["note"]
+
+
+def test_print_refresh_finding_requires_url_or_page_file(tmp_path=None):
+    import json as _json
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        row_path = f"{tmp}/row.json"
+        with open(row_path, "w") as f:
+            _json.dump({"Findings Bank": _bank("2026-07-20")}, f)
+        rc = crm_gate.print_refresh_finding(row_path, 1)
+        assert rc == 1
 
 
 if __name__ == "__main__":
