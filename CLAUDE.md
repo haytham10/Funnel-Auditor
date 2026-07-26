@@ -144,6 +144,14 @@ scores to `docs/deliverability-log.md`.
   registry that maps a label to its address + transport is
   `audit/inboxes.py`. The bottleneck is findings, not sends — opener
   headroom means that many funnel walks/day.
+- **Sends are paused every Sunday (Dubai calendar day) — every inbox, cold
+  and warm alike.** (Added 2026-07-26.) Not a lower ceiling — zero for the
+  day. Enforced first, ahead of every other `crm-gate send` check
+  (`send_cap.is_pause_day`, `audit/crm_gate.py`): a touch 1 opener checks
+  the send-day it will actually leave on (post-noon-cutoff, that's the
+  next day); touch 2/3 and warm replies, which never roll, check today.
+  A Sunday send fails the gate no matter what else is true — queue it for
+  the next non-Sunday send-day instead.
 - **The cold sequence is three touches (day 0, 3, 9), then Dormant — and
   touches 2-3 must each carry something new:** the next unused banked
   finding, the paid leak-fix offer, or the disambiguating question. A bare bump is

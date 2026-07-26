@@ -52,6 +52,13 @@ Dubai; compute the Dubai date string once and use it in every Gmail search
 and SQL comparison below. Never mix server-local, UTC, and Gmail-account
 days.
 
+**Sends are paused every Sunday** — every inbox, cold and warm alike, not a
+lower ceiling but zero for the day (`send_cap.is_pause_day`,
+2026-07-26). `crm-gate send` hard-fails on it first, ahead of every other
+check, so this needs no special-casing here — but on a Sunday, expect step
+4's queue to gate FAIL on every candidate and say so plainly rather than
+running the rest of the queue math.
+
 **The count — TOTAL sends leaving EACH inbox today** (warm replies,
 parenting-track sends, and deliverability-test sends all count against
 whichever inbox they left from). Start with `python main.py inbox counts`:
@@ -401,6 +408,9 @@ coffee.
 
 ## Hard rules
 
+- **Never queue or confirm a send on a Sunday (Dubai calendar day)** —
+  every inbox, cold and warm alike. `crm-gate send` fails closed on it;
+  drafting is still fine, but nothing moves to sent.
 - Drafts only. Never send. Never advance Touch #, Last Contacted, Next
   Action, or set Status = Outreach Sent for an email that hasn't actually
   departed — creating a Gmail draft is not a send. (Setting `Draft Ready`

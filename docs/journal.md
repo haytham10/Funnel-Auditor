@@ -37,6 +37,28 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-26 — New hard rule: sends paused every Sunday (code-enforced)
+
+- Added a code-enforced weekly send pause: no send leaves any inbox on
+  Sunday (Dubai calendar day), cold or warm, on either track. Not a lower
+  ceiling — zero for the day.
+- Implementation: `audit/send_cap.py` gets `is_pause_day(day=None)`
+  (Sunday check on the Dubai date) and `today()` now takes an optional
+  `now` override so it composes with the existing cutoff/rolling logic
+  used for testing. `audit/crm_gate.check_send` checks it FIRST, ahead of
+  Finding Verified / Email Verified / ceiling / carrier checks, as a hard
+  fail — a touch 1 opener checks the send-day it will actually leave on
+  (post-noon-cutoff rolls to the next day), touch 2/3 and warm sends check
+  today since they never roll.
+- Documented in `CLAUDE.md` hard rules, and in `uae-tick` and
+  `pipeline-tick` SKILL.md (both tracks share Inbox 1, so both needed the
+  note — pipeline-tick doesn't call `crm-gate send` at all, so its copy is
+  the only enforcement there; Haytham must hold Sunday sends by hand on
+  that track).
+- No CRM/Notion changes, no CLI flag changes — the gate just fails closed
+  automatically on Sundays; skills already fetch-fresh and quote the
+  gate's literal output line, so the FAIL message surfaces on its own.
+
 ## 2026-07-26 — uae-tick: 30-lead Gmail-state drift reconciled, pipeline top-of-funnel found completely dry
 
 **The whole "Scheduled" bucket (33 rows) was stale against Gmail reality when this tick started.** Haytham had apparently sent through a full day's queued cold Touch 2/3 batch before this tick ran (all departed 05:00-07:00 UTC / 09:00-11:00 Dubai, ~2 hours before the tick started at 11:10 Dubai). Fanned out 4 parallel reconciliation agents (mirroring the 07-25 precedent) rather than doing it inline, each required to pull the real Gmail thread body before writing anything to Notion:
