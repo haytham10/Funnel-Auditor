@@ -112,6 +112,9 @@ this before coffee.
 
 ## Hard rules
 
+- **Sends are paused every Sunday (Dubai calendar day)** — same rule as the
+  UAE track, this track's leash on top of it. Do not confirm/log a send on
+  a Sunday, warm or cold; hold it for Monday.
 - Drafts only. Never send. Never auto-advance Touch #, Status, Last
   Contacted, or Next Action for an unsent email — creating a Gmail draft is
   not a send.

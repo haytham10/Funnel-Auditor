@@ -39,7 +39,10 @@ Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
   send  — no send without `Finding Verified` checked, a real `Email` that is
           also `Email Verified` (deliverability confirmed by `email-verify`,
           not just syntax+MX — a bounce burns the one shared domain), and
-          headroom under the daily deliverability ceiling. The ceiling is
+          headroom under the daily deliverability ceiling. Sends are also
+          PAUSED every Sunday (Dubai calendar day), every inbox, cold and
+          warm alike — checked first, a hard fail ahead of every other
+          reason (send_cap.is_pause_day). The ceiling is
           TOTAL sends leaving the inbox (openers + follow-ups + warm
           replies, both tracks), read from send_cap.json (audit/send_cap.py;
           ramps 20 → 25 → 30 by hand, fails closed to 20, hard max 30 for
@@ -380,6 +383,19 @@ def check_send(
             "(day 0, 3, 9); after touch 3 with no reply the lead goes Dormant, never a touch 4"
         )
         return False, problems, notes
+
+    # Sends are paused every Sunday (Dubai calendar day) — every inbox, every
+    # touch type, cold and warm alike. Not a lower ceiling: zero for the day,
+    # checked ahead of headroom/carrier/bank so a Sunday send fails on the
+    # pause, not on some other coincidental reason. A touch 1 opener checks
+    # the day it will actually leave on (post-cutoff, that's tomorrow); touch
+    # 2/3 and warm sends are never rolled, so they check today.
+    pause_day = send_cap.send_day(now) if touch == 1 else send_cap.today(now)
+    if send_cap.is_pause_day(pause_day):
+        problems.append(
+            f"{pause_day} is a Sunday — sends are paused every Sunday, no exceptions "
+            "(cold and warm, every inbox). Queue it for the next non-Sunday send-day instead."
+        )
 
     if touch == 1:
         # A fresh opener queued after noon Dubai can't leave today — it is

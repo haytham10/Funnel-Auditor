@@ -44,6 +44,10 @@ Rules, enforced here rather than documented somewhere (per inbox):
   - FAILS CLOSED, per inbox: a missing, unreadable, or invalid state file,
     OR an inbox that is not registered, means the cap is 20 for that
     inbox. Never fail open to "no cap".
+  - Sends are PAUSED on Sunday (Dubai calendar day), every inbox, every
+    touch type, cold and warm alike — not a lower ceiling, zero for the
+    day (`is_pause_day`). `crm_gate.check_send` enforces it as a hard fail
+    ahead of every other check.
 
 `crm_gate.check_send` reads the cap through load_cap(inbox); the skills
 read it through `python main.py send-cap status [--inbox ...]` and quote
@@ -67,9 +71,15 @@ from audit import inboxes
 DUBAI_TZ = timezone(timedelta(hours=4))
 
 
-def today() -> date:
-    """Today's date in Dubai — the canonical send-day for the whole system."""
-    return datetime.now(DUBAI_TZ).date()
+def today(now: datetime | None = None) -> date:
+    """Today's date in Dubai — the canonical send-day for the whole system.
+
+    `now` overrides the current moment (tests only); real callers never pass
+    it, so this is exactly `datetime.now(DUBAI_TZ).date()` in production.
+    """
+    if now is None:
+        return datetime.now(DUBAI_TZ).date()
+    return _dubai_now(now).date()
 
 
 # Cold openers are sent in the recipient's morning. A run started in the
@@ -104,6 +114,16 @@ def send_day(now: datetime | None = None) -> date:
     """
     d = _dubai_now(now)
     return d.date() + timedelta(days=1) if d.hour >= SEND_DAY_CUTOFF_HOUR else d.date()
+
+
+def is_pause_day(day: date | None = None) -> bool:
+    """True when `day` (default: today, Dubai) is Sunday — the weekly send
+    pause. No cold or warm send leaves ANY inbox on this day, no exceptions;
+    it is not a ceiling adjustment, it is a full stop for the day. Follow-ups
+    and warm replies check this against `today()`; a touch 1 opener checks it
+    against `send_day()`, since that is the day it will actually leave on."""
+    day = day or today()
+    return day.weekday() == 6  # Monday=0 .. Sunday=6
 
 
 def dubai_midnight_epoch(day: date | None = None) -> int:

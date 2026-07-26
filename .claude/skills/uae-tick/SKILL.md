@@ -52,6 +52,13 @@ Dubai; compute the Dubai date string once and use it in every Gmail search
 and SQL comparison below. Never mix server-local, UTC, and Gmail-account
 days.
 
+**Sends are paused every Sunday** — every inbox, cold and warm alike, not a
+lower ceiling but zero for the day (`send_cap.is_pause_day`,
+2026-07-26). `crm-gate send` hard-fails on it first, ahead of every other
+check, so this needs no special-casing here — but on a Sunday, expect step
+4's queue to gate FAIL on every candidate and say so plainly rather than
+running the rest of the queue math.
+
 **The count — TOTAL sends leaving EACH inbox today** (warm replies,
 parenting-track sends, and deliverability-test sends all count against
 whichever inbox they left from). Start with `python main.py inbox counts`:
@@ -369,6 +376,14 @@ line.
 - Qualifying rows older than a week with no walk in the page body.
 - Any day in the last 14 over the send ceiling (Gmail count vs
   `send-cap status`).
+- **Any `Next Action` that falls on a Sunday** — a guaranteed one-day stall
+  (`crm-gate send` hard-fails on it, so nothing queued that day moves).
+  `SELECT "Contact Name", "date:Next Action:start" FROM <uae ds> WHERE
+  "date:Next Action:start" IS NOT NULL AND
+  strftime('%w',"date:Next Action:start") = '0'` — bump each hit forward
+  to the following Monday. (Found and fixed a 14-lead cohort on
+  2026-07-26: a 2-3 week revival bump computed on a Sunday landed back on
+  a Sunday because the offset was a multiple of 7 — see journal.)
 
 ## 6 — The scoreboard (weekly, two minutes, by LEAD never by message)
 
@@ -401,6 +416,9 @@ coffee.
 
 ## Hard rules
 
+- **Never queue or confirm a send on a Sunday (Dubai calendar day)** —
+  every inbox, cold and warm alike. `crm-gate send` fails closed on it;
+  drafting is still fine, but nothing moves to sent.
 - Drafts only. Never send. Never advance Touch #, Last Contacted, Next
   Action, or set Status = Outreach Sent for an email that hasn't actually
   departed — creating a Gmail draft is not a send. (Setting `Draft Ready`
