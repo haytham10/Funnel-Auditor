@@ -16,6 +16,7 @@ Run: python tests/test_findings_bank_depth.py
 
 import os
 import sys
+from datetime import datetime as _datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -24,20 +25,36 @@ from audit import crm_gate, send_cap
 _CAP = send_cap.CapState(cap=20, set_on=None, valid=True, inbox="Inbox 1")
 _BASE = {"Finding Verified": True, "Email": "a@b.com", "Email Verified": True}
 
+# Fixed "now" for every test in this file, so the fixtures' `verified:` tags
+# (2 days earlier — inside the 3-day send ceiling) gate deterministically
+# regardless of when the suite actually runs. Also doubles as the touch-1
+# opener tests' pre-noon-Dubai instant (side-steps the send-day-rollover branch).
+_NOW = _datetime(2026, 7, 24, 9, 0)
+
 _TAGGED = (
-    "1. UNUSED | SHALLOW | checkout 404s on mobile\n"
-    "2. UNUSED | DEEP | pricing split across 4 platforms\n"
-    "3. RESERVED | DEEP | whole program readable free\n"
-    "4. USED-T1 | SHALLOW | stale cohort dates"
+    "1. UNUSED | SHALLOW | verified:2026-07-22 | checkout 404s on mobile\n"
+    "2. UNUSED | DEEP | verified:2026-07-22 | pricing split across 4 platforms\n"
+    "3. RESERVED | DEEP | verified:2026-07-22 | whole program readable free\n"
+    "4. USED-T1 | SHALLOW | verified:2026-07-22 | stale cohort dates"
 )
-_LEGACY = "1. UNUSED | dead link\n2. UNUSED | no pricing shown"
-_ONLY_SHALLOW = "1. UNUSED | SHALLOW | dead link\n2. UNUSED | SHALLOW | typo"
-_DEEP_UNRESERVED = "1. UNUSED | DEEP | pricing\n2. UNUSED | DEEP | no owned capture"
+_LEGACY = (
+    "1. UNUSED | verified:2026-07-22 | dead link\n"
+    "2. UNUSED | verified:2026-07-22 | no pricing shown"
+)
+_ONLY_SHALLOW = (
+    "1. UNUSED | SHALLOW | verified:2026-07-22 | dead link\n"
+    "2. UNUSED | SHALLOW | verified:2026-07-22 | typo"
+)
+_DEEP_UNRESERVED = (
+    "1. UNUSED | DEEP | verified:2026-07-22 | pricing\n"
+    "2. UNUSED | DEEP | verified:2026-07-22 | no owned capture"
+)
 
 
 def _send(bank, **kw):
     row = dict(_BASE, **{"Findings Bank": bank})
-    base = dict(row=row, sends_today=5, touch=2, carries="second-finding", cap_state=_CAP)
+    base = dict(row=row, sends_today=5, touch=2, carries="second-finding", cap_state=_CAP,
+                now=_NOW)
     base.update(kw)
     return crm_gate.check_send(**base)
 
@@ -104,8 +121,7 @@ def test_legacy_bank_stays_silent():
 # built from the page-body finding narrative instead of the bank order, and
 # emailed the exact finding the bank had reserved as call bait) --------------
 
-from datetime import datetime as _datetime
-_BEFORE_NOON_DUBAI = _datetime(2026, 7, 24, 9, 0)  # side-step the noon cutoff branch
+_BEFORE_NOON_DUBAI = _NOW  # side-step the noon cutoff branch (same fixed instant as _send's _NOW)
 
 
 def _opener(bank, opener_rank=None, **kw):

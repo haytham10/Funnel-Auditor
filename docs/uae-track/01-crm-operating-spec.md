@@ -88,7 +88,8 @@ SQLite table name is the data source URL, quoted:
 | `Lane` | select | `Lane 1: Felt leak` `Lane 2: No leak` `Lane 3: Skip` |
 | `Finding Verified` | checkbox | **HARD GATE.** `__YES__` / `__NO__` in SQL. |
 | `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` |
-| `Findings Bank` | text | Every verified finding from the walk, ranked depth-first (deep over shallow, then tier, then sting), one per line: `N. STATUS \| DEPTH \| finding`. `STATUS` ∈ `UNUSED` / `USED-Tn` / `RESERVED` (the one deep finding held as call bait, never emailed); `DEPTH` ∈ `SHALLOW` / `DEEP` (self-fixability). E.g. `1. USED-T1 \| SHALLOW \| booking button drops to a form` / `2. UNUSED \| DEEP \| pricing split across 4 platforms` / `3. RESERVED \| DEEP \| whole program readable free`. #1 is the opener; touches 2-3 draw the next UNUSED entry (never the RESERVED one). Statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property, skips RESERVED, and warns when no DEEP entry exists. Legacy lines without a DEPTH tag still parse. |
+| `Findings Bank` | text | Every verified finding from the walk, ranked depth-first (deep over shallow, then tier, then sting), one per line: `N. STATUS \| DEPTH \| verified:YYYY-MM-DD \| finding`. `STATUS` ∈ `UNUSED` / `USED-Tn` / `RESERVED` (the one deep finding held as call bait, never emailed); `DEPTH` ∈ `SHALLOW` / `DEEP` (self-fixability); `verified:` is the date this finding was last confirmed still true (set at walk time, bumped by `python main.py refresh-finding`). E.g. `1. USED-T1 \| SHALLOW \| verified:2026-07-20 \| booking button drops to a form` / `2. UNUSED \| DEEP \| verified:2026-07-24 \| pricing split across 4 platforms` / `3. RESERVED \| DEEP \| verified:2026-07-24 \| whole program readable free`. #1 is the opener; touches 2-3 draw the next UNUSED entry (never the RESERVED one). Statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property, skips RESERVED, and warns when no DEEP entry exists. Legacy lines without a DEPTH or `verified:` tag still parse — but a missing `verified:` tag now fails the freshness gate (below), so a pre-2026-07-26 lead needs a `refresh-finding` pass before its next send/offer. |
+| *(freshness)* | — | **HARD GATE (2026-07-26), the Rita Baki case.** `crm-gate send` fails if the drawn finding's `verified:` date is more than 3 days old; `crm-gate offer` fails past 1 day — a priced offer quotes work, the work must still need doing. `python main.py refresh-finding <row.json> --rank N --page-file <file>` is the cheap re-check (single-URL re-fetch + diff, not a full re-walk) run before every send/offer. See `audit/crm_gate.py`'s module docstring and `docs/journal.md` (2026-07-21/25). |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
 | `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14; `Lane 2`, added 2026-07-16; `Leak Fix Sold` and `Leak Fix Delivered`, added 2026-07-24). `Price Discovery Sent` is legacy — no new lead enters it. |
 | `Inbox` | select | `Inbox 1` `Inbox 2` (added 2026-07-16). Which sending inbox this lead's whole thread goes out of — a LOGICAL label, mapped to a real address + transport by the registry (`audit/inboxes.py`; Inbox 1 = auto-mate.one via Gmail MCP, Inbox 2 = gethaytham.com via `main.py gmail-gethaytham`). Assigned once, sticky for the life of the thread. Blank = unassigned; routing fills it when the lead first enters the send queue. Each inbox has its OWN send ceiling. |
@@ -205,6 +206,7 @@ a paid tiny yes (the Leak Fix), never a question and never a soft exit.
 5. **The price never moves.** Per Grand Slam Offer v2. A low anchor is market data, not an instruction to discount. Objections get bonuses, restructured terms, or a named rung of the downsell ladder. 3,600 AED is the documented next Sprint price and is gated on 2 closes; do not quote it.
 6. **Never write UAE leads into the parenting DB.**
 7. **The cold sequence is 3 touches (day 0, 3, 9), then Dormant — and touches 2-3 must carry something new:** the next UNUSED `Findings Bank` entry, the paid leak-fix offer, or the disambiguating question. A bare bump doesn't pass the gate (`--carries`, second-finding claims checked against the bank; `loom-offer` is still accepted as a deprecated alias for `leak-fix-offer`).
+8. **A finding older than 3 days can't be sent on, and older than 1 day can't be quoted.** (Added 2026-07-26, the Rita Baki case — her 3,200 AED offer was scoped around a leak she'd already fixed herself before it was quoted.) `Findings Bank` entries carry a `verified:YYYY-MM-DD` tag; `crm-gate send` fails on a finding verified >3 days ago, `crm-gate offer` fails past 1 day. `python main.py refresh-finding` is the cheap re-check — a single-URL re-fetch of just that finding's page, not a full re-walk.
 
 ---
 
@@ -333,6 +335,11 @@ python main.py crm-gate send /path/to/row.json --sends-today N --touch 1 --follo
 #   Touch 2/3 follow-up — must declare the new thing it carries
 #   (second-finding is verified against the row's Findings Bank):
 python main.py crm-gate send /path/to/row.json --sends-today N --touch 2 --carries second-finding
+
+# Before EITHER of the above, when the drawn finding's `verified:` date is
+# close to its ceiling (3 days for send, 1 day for offer): the cheap re-check.
+python main.py refresh-finding /path/to/row.json --rank 1 --page-file fetched.html \
+    --baseline-file docs/leads/<slug>/evidence/finding-1-baseline.html
 ```
 
 Exit 0 + a literal `CRM GATE (...): PASS` line, or exit 1 with the reasons.
@@ -374,8 +381,10 @@ over shallow, then tier, then sting), with each one's depth tag and innocent
 explanation. The one deep finding held as call bait is marked RESERVED — its
 fix is call-only, never written into email. If no deep finding exists, note
 "low-value: no deep finding to reserve" here and in `Notes`. Mirrored compactly
-into the `Findings Bank` property (`N. STATUS | DEPTH | finding`, STATUS ∈
-UNUSED/USED-Tn/RESERVED) for the send gate to parse.
+into the `Findings Bank` property (`N. STATUS | DEPTH | verified:YYYY-MM-DD |
+finding`, STATUS ∈ UNUSED/USED-Tn/RESERVED) for the send/offer gates to parse
+— `verified:` is set to the walk date here and bumped by `refresh-finding` on
+every later re-check.
 
 ## SMYKM Hook
 One line, with the source it came from.
