@@ -376,6 +376,14 @@ line.
 - Qualifying rows older than a week with no walk in the page body.
 - Any day in the last 14 over the send ceiling (Gmail count vs
   `send-cap status`).
+- **Any `Next Action` that falls on a Sunday** — a guaranteed one-day stall
+  (`crm-gate send` hard-fails on it, so nothing queued that day moves).
+  `SELECT "Contact Name", "date:Next Action:start" FROM <uae ds> WHERE
+  "date:Next Action:start" IS NOT NULL AND
+  strftime('%w',"date:Next Action:start") = '0'` — bump each hit forward
+  to the following Monday. (Found and fixed a 14-lead cohort on
+  2026-07-26: a 2-3 week revival bump computed on a Sunday landed back on
+  a Sunday because the offset was a multiple of 7 — see journal.)
 
 ## 6 — The scoreboard (weekly, two minutes, by LEAD never by message)
 

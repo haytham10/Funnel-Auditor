@@ -58,6 +58,27 @@ version below dated the same.
 - No CRM/Notion changes, no CLI flag changes — the gate just fails closed
   automatically on Sundays; skills already fetch-fresh and quote the
   gate's literal output line, so the FAIL message surfaces on its own.
+- **Follow-up sweep (cadence, not just the send gate):** the gate covers
+  sends, but nothing stopped a `Next Action`/revival-bump DATE from being
+  computed onto a Sunday in the first place — a guaranteed one-day stall
+  once it got there. Swept both live CRMs by SQL
+  (`strftime('%w', "date:Next Action:start") = '0'`): found 14 UAE
+  Dormant leads (Aina Raj, Navid Nazemian, Abdulla Mahmood, Gbemi Giwa,
+  Doug Lambert, Nazia Khan, Andreea Zoia, Dr Joelle Samaha, Kim Araman,
+  Sasha Quince, Ana Caragea, Maria Vitoratos, Siddharth Anantharam, Dr
+  Katherine Iscoe) all sharing `Next Action = 2026-08-09` — a Sunday,
+  because their 14-day revival bump was computed on 2026-07-26 (also a
+  Sunday) and 14 is a multiple of 7. Bumped all 14 to **2026-08-10**
+  (Monday). Parenting CRM: one hit (`April`, `Status = Lost`,
+  `2026-07-05`) — terminal status, no live follow-up, left alone. No
+  `Scheduled`-status row has a trackable date in Notion (that lives in
+  Gmail's own schedule, not a CRM property) — out of reach for this sweep;
+  worth a manual glance if a scheduled send is ever set for a Sunday.
+- Closed the gap so it can't quietly recur: `haytham-email-draft`'s Next
+  Action rule and the CRM operating spec's Dormant transition both now say
+  to bump a Sunday-landing computed date to Monday, and `uae-tick`'s
+  hygiene flags gained a standing Sunday-`Next Action` check with the
+  exact SQL to re-run it.
 
 ## 2026-07-26 — uae-tick: 30-lead Gmail-state drift reconciled, pipeline top-of-funnel found completely dry
 

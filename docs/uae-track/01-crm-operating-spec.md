@@ -191,7 +191,7 @@ a paid tiny yes (the Leak Fix), never a question and never a soft exit.
 | Any → (`Asked For Price` checked) | They explicitly asked what it costs, at any stage. Not a status change — a checkbox, and the highest-intent signal in the CRM. It is the second route through the offer gate on its own. |
 | [Leak Fix Delivered / Leak Fix Sold / Call Booked / `Asked For Price`] → Offer Sent | The lead has EARNED a number. **Gate: `crm-gate offer` must print PASS first** — an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or `Asked For Price` checked. `Price Discovery Answer` / `Discovery Anchor` are advisory and reported, never blocking. |
 | ~~Reply Received → Price Discovery Sent~~ | **RETIRED 2026-07-24.** Do not use. The discovery question no longer goes out over email. |
-| Any → Dormant | 3 cold touches (day 0, 3, 9), no reply. There is no touch 4. Set Next Action to a revival bump 2-3 weeks out. |
+| Any → Dormant | 3 cold touches (day 0, 3, 9), no reply. There is no touch 4. Set Next Action to a revival bump 2-3 weeks out — if that date lands on a Sunday, bump it to Monday (sends are paused every Sunday; a 2-3 week/multiple-of-7 offset from a Sunday lands back on a Sunday). |
 | Any → Lost | Explicit no, or ghost after reply. Always set `Lost Reason`. |
 
 ---
