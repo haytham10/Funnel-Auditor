@@ -37,6 +37,55 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — 20-lead follow-up batch drafted; wrong reference-doc calendar link + draft-update threading bug, both self-inflicted
+
+Ran uae-tick's due-follow-up step across all 20 due leads (13 cold Touch 3s, 7 warm/priced
+follow-ups), one drafting agent per lead in parallel. All 20 gated PASS and got a held Gmail draft.
+Also fixed the `Findings Bank` formatting on Rita Baki (`DEAD` status → `USED-T1`/`RETIRED`, parser
+now resolves `current_finding()` correctly) and Lisa Hugo (rank 2 was wrongly left `UNUSED` after
+being sent as Touch 2 — flipped to `USED-T2` to match the actual Email Thread Log).
+
+**Root cause, corrected after initially misdiagnosing it:** Haytham's real calendar link is
+`https://calendly.com/haythamm/discovery`. The 4 `leak-fix-offer` drafts (Ben Pringle, William
+Brown, Lucia Csobonyei, Lisa Hugo) all correctly used that link from the start. The actual bug was
+`.claude/skills/haytham-email-draft/references/examples.md` carrying a DIFFERENT, wrong placeholder
+link (`cal.com/haytham/15min`) as if it were a real sent example — when Ben Pringle's draft got
+manually "corrected" against that reference, it broke the real link. Compounding it: a second pass
+assumed the ORIGINAL `calendly.com/haythamm/discovery` link was the fabricated one and stripped it
+from all 4 drafts entirely, before Haytham clarified it was correct all along. `examples.md` is now
+fixed to the real link (2026-07-27) so this can't recur.
+
+By the time the link URL was confirmed, Haytham had already independently fixed all 20 drafts by
+hand in Gmail and scheduled them to send 2026-07-27 — so a second automated attempt to "restore"
+the link mostly hit already-scheduled messages (no longer plain drafts, `update_draft`/`PUT
+/drafts/{id}` correctly errored rather than corrupting them) and only left ONE unwanted side effect:
+a stray duplicate Ben Pringle draft, created before checking that Haytham had already handled it
+(and had deliberately chosen NOT to send that one — he moved the lead to `Dormant` instead). **Needs
+deleting**, same as the Lee Harris orphan below. Lesson: check current Gmail state before any
+corrective write, especially once a human has said "I already fixed it."
+
+**Two Gmail-tooling gotchas surfaced along the way (still true regardless of the link mixup):**
+- Using Gmail MCP's `update_draft` on an existing reply-draft (Ben Pringle, Lee Harris) silently
+  **detaches it into a new orphaned thread** — the tool has no threading params, so re-editing a
+  reply draft this way loses its attachment to the real conversation. Recover by recreating fresh via
+  `create_draft` + `replyToMessageId` instead. Inbox 2 has no such risk (`gmail_gethaytham.py`'s raw
+  `PUT /drafts/{id}` explicitly sets `threadId`/`In-Reply-To`).
+  **Lesson: never use `update_draft` on an existing Inbox 1 reply-draft — recreate it instead.**
+- Gmail MCP's `list_drafts` only returns `plaintextBody` for the single most-recently-touched draft
+  in the whole mailbox; `get_thread`/`search_threads` never surface DRAFT-labeled messages at all —
+  there is no safe way to bulk-read Inbox 1 draft bodies without touching (and risking) them.
+- **Also confirmed: never trust an agent's self-reported "final copy" as proof of what actually
+  landed in the Gmail draft/message object — read the object back directly.** This surfaced real
+  drift between reported and actual content in this run and should stay standard practice.
+
+### Open follow-ups
+- [ ] Delete the stray orphaned Lee Harris draft (`r-8321922502352988444`, detached thread).
+- [ ] Delete the stray duplicate Ben Pringle draft (`r-38787258041374869`) — he's going to `Dormant`,
+      not being sent.
+- [ ] Next uae-tick: reconcile these 19 scheduled sends against Gmail's `in:sent` once they actually
+      depart — do the full confirmed-send logging checklist (Touch #, Last Contacted, Next Action,
+      bank flip, Notes clear) only then, per the draft-is-not-a-send rule.
+
 ## 2026-07-26 — Pre-drafted Rita Baki's re-scoped quote (not sent, no reply yet)
 
 Checked on the open follow-up: her Notion row is still `Offer Sent`, Touch 5, no reply. Nothing was

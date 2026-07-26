@@ -161,7 +161,7 @@ Situation: cold Touch 1 carried bank #1 (her booking page's "Book a call" button
 >
 > Rather than talk about it, want me to just fix it? Access on your side, live in 48 hours, and you only pay if it's working. 500 AED.
 >
-> If it's easier, here's my calendar and I'll walk you through what I'd do first: https://cal.com/haytham/15min
+> If it's easier, here's my calendar and I'll walk you through what I'd do first: https://calendly.com/haythamm/discovery
 >
 > Haytham
 
