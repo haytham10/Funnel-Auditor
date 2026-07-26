@@ -149,6 +149,30 @@ At the same time, update ALL of these properties together in one call, not just 
 
 Before calling update_properties, state the full property diff (every field above — Touch #, Sequence, Status, Last Contacted, Next Action, and on the UAE track the `Findings Bank` entry spent and the `Notes` marker cleared — old value → new value) so a missed field, or a Status that didn't actually change when it should have, is visible before the call, not after. On a UAE send the bank flip and the Notes clear are part of this diff, not optional extras.
 
+**Hard gate, every confirmed-send log, no exceptions: re-fetch and run `crm-gate log` before moving on.**
+Added 2026-07-26 — a 24-lead recovery job found that this logging step is
+two separate Notion writes (the `update_content` append above, the
+`update_properties` call above) with nothing tying them together, and on
+every one of the 24 rows the property write had landed — `Touch #`
+incremented, `Notes` said "Sent Touch N ... reconciled" — while the log
+append silently hadn't. `Touch #` was claiming sends the page body couldn't
+back up, for over a week, until Haytham noticed by hand. That is exactly
+the corrupt-source failure this rule exists to make impossible. After
+BOTH writes above land (content append + property update), on the SAME
+lead, before touching the next one:
+1. Re-fetch the page (fresh, not the pre-write copy) and dump the body to a
+   file.
+2. Dump the row's current properties (including the new `Touch #`) to a
+   JSON file, same as any other gate call.
+3. Run `python main.py crm-gate log <row.json> --page-body <body.md>` and
+   quote the literal output line, same trust model as every other gate in
+   this system — never paraphrase a PASS.
+4. **FAIL means the send is not logged yet, full stop.** Do not report the
+   touch as sent, do not move to the next lead, do not explain it away in
+   Notes. Fix the append immediately and re-run the gate until it PASSes.
+   A FAIL naming a specific missing touch number is telling you exactly
+   which block didn't make it — append that one, not a summary.
+
 ## What this skill does NOT do
 
 It does not log to Notion before the user approves. Draft is not send. Do not make Notion tool calls during or after drafting unless the user explicitly says "log this" and pastes the final text. (One exception, UAE track: when a Gmail draft is actually created, setting Status = "Draft Ready" is allowed and expected — it mirrors Gmail state without claiming a send. Touch #, Last Contacted, Next Action, the Email Thread Log, and the Findings Bank still move only on a confirmed send.)

@@ -37,6 +37,47 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-26 — Root-caused and closed the Email Thread Log drift (new `crm-gate log` gate)
+
+- Root cause of the two prior recovery sessions (15 leads, then 24 leads,
+  missing/incomplete Email Thread Log entries): confirmed-send logging is
+  TWO separate Notion writes — an `update_content` append to the log, and a
+  separate `update_properties` call that bumps `Touch #` and rewrites
+  `Notes` — with nothing tying them together. On every one of the 24 rows
+  the property write had landed (`Touch #` incremented, `Notes` said "Sent
+  Touch N ... reconciled by uae-tick") while the log append silently
+  hadn't. `Touch #` was claiming sends the page body couldn't back up for
+  over a week before Haytham noticed by hand and asked for a Gmail
+  recovery. Two shapes of the bug showed up: a touch missing entirely, and
+  — worse — a LATER touch logged while an EARLIER one was missing (Touch #
+  matched a naive block *count*, just not the actual sequence).
+- **Fix: `audit/crm_gate.py` gets a third gate, `log`** (`check_log_integrity`
+  / `touch_blocks` / `print_log_integrity`, wired as `python main.py
+  crm-gate log <row.json> --page-body <body.md>`). It re-derives the touch
+  history from the fetched page body itself by regex — never from a
+  caller-supplied count, same trust model as every other gate here — and
+  PASSes only when the log's touch blocks are EXACTLY `{1, ..., Touch #}`.
+  A bounced attempt (`Touch #N attempt ... BOUNCED`) or a logged duplicate
+  send doesn't count as the touch; the real send does. 12 new tests in
+  `tests/test_log_integrity_gate.py`, including the exact "later touch
+  present, earlier one missing" shape that a count-only check would miss.
+- **Wired as a hard gate, not an optional check:** `haytham-email-draft`
+  SKILL.md now requires re-fetching and running `crm-gate log` immediately
+  after every confirmed-send write, on the SAME lead, before moving to the
+  next one — FAIL means the send isn't logged yet, full stop, fix it now.
+  `uae-tick` SKILL.md's step 0.5 (Gmail-state reconciliation, the exact
+  code path that produced all 24 drifted rows) gets the same hard gate,
+  plus a cheap backstop hygiene flag that targets rows whose `Notes` carry
+  the `reconciled by uae-tick` / `confirmed against Gmail` batch-narrative
+  language (the fingerprint of the original bug) instead of re-fetching
+  the whole CRM's page bodies every tick. `pipeline-tick` gets the same
+  backstop pointer — the gate is CRM-agnostic (only needs `Touch #` + page
+  body), and parenting-track sends log through the same `haytham-email-draft`
+  checklist.
+- Both prior recovery sessions' 15 + 24 leads stay fixed (verbatim Gmail
+  recoveries, not reconstructed); this closes the write path so the same
+  class of drift can't silently recur and go unnoticed for a week again.
+
 ## 2026-07-26 — New hard rule: sends paused every Sunday (code-enforced)
 
 - Added a code-enforced weekly send pause: no send leaves any inbox on

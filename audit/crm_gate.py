@@ -84,6 +84,23 @@ second-finding (see next_unused_finding):
 
 Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
 (depth = None), so existing rows gate exactly as before.
+
+  log   — the Email Thread Log is the source of truth for what actually
+          went out; `Touch #` and `Notes` are a summary of it, not the
+          other way around. Added 2026-07-26 after a 24-lead recovery job:
+          confirmed-send logging is two separate writes (an `update_content`
+          append + an `update_properties` call) that nothing ties together,
+          and on 24 rows the property write landed — `Touch #` incremented,
+          `Notes` gained a "Sent Touch N ... reconciled by uae-tick" line —
+          while the `update_content` append silently didn't, leaving `Touch
+          #` claiming sends the log couldn't back up. This gate re-derives
+          the touch history from the page body itself (never trusts a
+          caller's count) and fails closed on any gap: `Touch #` = N but the
+          log's touch blocks aren't exactly {1, ..., N}. A `Touch #N
+          attempt ... BOUNCED` line does not count as touch N — the retry
+          that actually sends does. Run this immediately after every
+          confirmed-send write, on the fresh re-fetch, before moving to the
+          next lead; a FAIL means finish the log append now, not next tick.
 """
 
 from __future__ import annotations
@@ -137,6 +154,19 @@ _CHECKED = {True, 1, "1", "true", "yes", "checked", "__yes__"}
 _BANK_LINE = re.compile(
     r"^\s*(\d+)\.\s*(UNUSED|USED-T\d|RESERVED)\s*\|\s*(?:(SHALLOW|DEEP)\s*\|\s*)?(\S.*?)\s*$",
     re.IGNORECASE,
+)
+
+# A real Email Thread Log touch block header, e.g.:
+#   [2026-07-20] — Touch #2 — Subject: "..." — Sent
+#   2026-07-25 — Touch #2 (turn-two, warm) — Subject: "..." — Sent
+# Deliberately does NOT match a bounced attempt ("Touch #1 attempt ...
+# BOUNCED") or a logged duplicate ("... DUPLICATE of Touch #1 ...") — neither
+# is a real send, so neither should count toward the touch history. The
+# negative lookahead only excludes "attempt" right after the number; a
+# retry that actually sent is logged as its own "Touch #N" block and counts.
+_TOUCH_BLOCK = re.compile(
+    r"^\s*\[?\d{4}-\d{2}-\d{2}\]?\s*[—-]\s*Touch\s*#(\d+)(?!\s*attempt)\b",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -231,6 +261,63 @@ def opener_finding(row: dict) -> dict | None:
     candidates = [e for e in parse_findings_bank(row.get("Findings Bank"))
                   if e["status"] == "UNUSED"]
     return min(candidates, key=lambda e: e["rank"]) if candidates else None
+
+
+def touch_blocks(page_body: str) -> list[int]:
+    """Every real touch number logged in the Email Thread Log, in document
+    order, duplicates included. A bounced attempt or a logged duplicate send
+    doesn't match `_TOUCH_BLOCK` and is correctly excluded — see its comment.
+    """
+    return [int(n) for n in _TOUCH_BLOCK.findall(page_body)]
+
+
+def check_log_integrity(row: dict, page_body: str) -> tuple[bool, list[str], list[str]]:
+    """Re-derive the touch history from the page body and compare it to
+    `Touch #`. The property is a claim; the log is the evidence. PASS only
+    when the log's touch blocks are EXACTLY {1, ..., Touch #} — no gaps, no
+    duplicates, nothing past the claimed count.
+
+    This never trusts a caller-supplied count (that was the bug: the skill
+    that wrote `Touch #` is exactly the actor that might have skipped the
+    log append, so asking it to also report the block count would just move
+    the same failure mode one level up). It re-parses `page_body` itself.
+    """
+    problems: list[str] = []
+    notes: list[str] = []
+    expected = row.get("Touch #")
+    expected = int(expected) if expected not in (None, "") else 0
+
+    found = touch_blocks(page_body)
+    found_set = set(found)
+    expected_set = set(range(1, expected + 1))
+
+    missing = sorted(expected_set - found_set)
+    if missing:
+        problems.append(
+            f"Touch # = {expected} but the Email Thread Log has no block for "
+            f"touch {', '.join(str(n) for n in missing)} — recover the sent "
+            "email from Gmail and append it before trusting this row's history"
+        )
+
+    extra = sorted(n for n in found_set if n > expected)
+    if extra:
+        problems.append(
+            f"the log has a Touch #{max(extra)} block but Touch # is only "
+            f"{expected} — the property update didn't keep up with the log, "
+            "or a block is mislabeled"
+        )
+
+    dupes = sorted({n for n in found if found.count(n) > 1} & expected_set)
+    if dupes:
+        problems.append(
+            f"touch {', '.join(str(n) for n in dupes)} has more than one "
+            "logged block within the expected range — check for a duplicate "
+            "append or a mislabeled touch number"
+        )
+
+    if not problems:
+        notes.append(f"log blocks match Touch # exactly: {sorted(found_set) or 'none'}")
+    return not problems, problems, notes
 
 
 def check_offer(row: dict) -> tuple[bool, list[str], list[str]]:
@@ -547,6 +634,18 @@ def print_offer(row_json: str | Path) -> int:
         print(f"CRM GATE (offer): PASS — {name}: " + ", ".join(notes))
         return 0
     print(f"CRM GATE (offer): FAIL — {name}: " + "; ".join(problems))
+    return 1
+
+
+def print_log_integrity(row_json: str | Path, page_body_file: str | Path) -> int:
+    row = _load_row(row_json)
+    page_body = Path(page_body_file).read_text()
+    ok, problems, notes = check_log_integrity(row, page_body)
+    name = _norm(row.get("Contact Name")) or "unnamed lead"
+    if ok:
+        print(f"CRM GATE (log): PASS — {name}: " + ", ".join(notes))
+        return 0
+    print(f"CRM GATE (log): FAIL — {name}: " + "; ".join(problems))
     return 1
 
 
