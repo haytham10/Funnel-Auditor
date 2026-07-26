@@ -88,6 +88,69 @@ now ready, not just the reminder to re-scope.
 - [ ] Haytham / whoever handles Rita Baki's next reply: use Variant A or B above as the starting
       point, adapted to her actual wording, not pasted as-is.
 
+## 2026-07-26 — Finding-staleness gate (H3): warm-touch fix, refresh-finding closes the loop, CRM backfilled
+
+- Shipped the H3 finding-staleness gate (PR #83, `audit/crm_gate.py`): the
+  Rita Baki case (her 3,200 AED offer was scoped around a booking-flow leak
+  she'd already fixed herself) and Ben Pringle's dead thread were the same
+  bug — a walk is a snapshot, threads run 5-10 days, and nothing re-checked
+  a finding between the walk and the send/quote. `Findings Bank` entries
+  now carry a `verified:YYYY-MM-DD` tag; `crm-gate send` hard-fails past 3
+  days, `crm-gate offer` past 1 day, both naming the Rita Baki case in the
+  failure message. A missing tag fails the same way an old date would.
+- **Review caught two real gaps, both fixed same PR:** (1) the freshness
+  check only reached touch 1/2/3 — `check_send`'s touch-range validation
+  rejected anything past 3 outright, so WARM touches (Rita was on Touch 5,
+  Avneet Kohli is on Touch 6) never reached it at all, which is the exact
+  shape of the real incident. Fixed: only `touch < 1` is invalid now; every
+  touch >= 2, cold or warm, runs the same follow-up gate. (2) a rolled
+  touch-1 opener (queued past noon Dubai, scheduled for tomorrow) was
+  checking freshness against TODAY instead of the day it actually leaves —
+  a 3-day-old finding could pass today and turn 4-days-stale by tomorrow
+  morning. Fixed: freshness now checks against the same `pause_day` the
+  Sunday-pause check already computes.
+- **`refresh-finding` now closes the loop instead of being a manual diff a
+  human has to hand-edit the result of.** New `--url` fetches the finding's
+  page live (plain HTTP GET + text extraction — cheap on purpose, not a
+  full walk); when the re-fetch comes back UNCHANGED from the stored
+  baseline it auto-stamps `verified:` to today and hands back the exact new
+  `Findings Bank` property value, ready to write verbatim. A CHANGED page
+  is never auto-stamped — a text diff can prove the page is different, it
+  can't prove the specific finding is gone, so that case still needs a
+  human read (or a fresh vision pass) before anyone bumps the date by hand.
+  `--save-baseline-to` persists each run's fetch as the next run's
+  baseline.
+- **Backfilled the live CRM.** `verified:` is a brand-new field — before
+  this, `grep -rn "verified:20"` matched exactly one place in the whole
+  repo (the spec doc's own example), meaning every live lead would have
+  hard-failed its very next send or offer gate check. Queried all 100 UAE
+  CRM rows with a non-empty `Findings Bank`; backfilled `verified:2026-07-26`
+  onto every entry on the 90 that aren't Disqualified/Lost (90/90 writes
+  succeeded, nothing else on those pages touched — Status, Touch #, Notes
+  all left alone). **This date is a migration stamp, not a real
+  re-verification** — if you see a wave of ~90 leads all reading
+  `verified:2026-07-26` in the CRM, that's why; it does not mean 90 findings
+  were actually re-walked on 07-26, only that the gate went live that day
+  and needed a non-blocking starting point. Real re-checks from here on
+  should come from `refresh-finding`, not another bulk stamp.
+  **Rita Baki's own row was a special case and is worth knowing about**: her
+  `Findings Bank` used a bespoke `N. DEAD (...) | finding` annotation format
+  (added during the 07-25 re-walk that first surfaced her fixed leak) that
+  doesn't match the machine-parseable grammar at all (`STATUS` must be
+  `UNUSED`/`USED-Tn`/`RESERVED`) — so her row was actually INVISIBLE to the
+  new gate, the one lead the gate exists because of. Reformatted her rank 3
+  (the one surviving finding) into canonical grammar with its real
+  `verified:2026-07-25` date (the actual R6 re-walk date, not a backfill
+  guess); ranks 1/2 (the two DEAD findings) are left as unparsed prose on
+  purpose — they should never be drawn again, and not matching the grammar
+  is exactly what keeps `next_unused_finding`/`current_finding` from ever
+  selecting them.
+### Open follow-ups
+- [ ] Every subsequent send/offer on the 90 backfilled rows will read
+      "verified N days ago" against the 07-26 migration stamp, not a real
+      check — the first real `refresh-finding` run on each is still owed
+      whenever its 3-day (send) or 1-day (offer) ceiling actually approaches.
+
 ## 2026-07-26 — Root-caused and closed the Email Thread Log drift (new `crm-gate log` gate)
 
 - Root cause of the two prior recovery sessions (15 leads, then 24 leads,
