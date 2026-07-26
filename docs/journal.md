@@ -37,6 +37,45 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — 20-lead follow-up batch drafted; fabricated calendar link + draft-update threading bug found and fixed
+
+Ran uae-tick's due-follow-up step across all 20 due leads (13 cold Touch 3s, 7 warm/priced
+follow-ups), one drafting agent per lead in parallel. All 20 gated PASS and got a held Gmail draft.
+Also fixed the `Findings Bank` formatting on Rita Baki (`DEAD` status → `USED-T1`/`RETIRED`, parser
+now resolves `current_finding()` correctly) and Lisa Hugo (rank 2 was wrongly left `UNUSED` after
+being sent as Touch 2 — flipped to `USED-T2` to match the actual Email Thread Log).
+
+**Two real bugs found only after Haytham caught wrong Calendly links by hand:**
+- All 4 `leak-fix-offer` drafts (Ben Pringle, William Brown, Lucia Csobonyei, Lisa Hugo) shipped with
+  a fabricated `calendly.com/haythamm/discovery` link — the drafting agents' own self-reported "final
+  copy" claimed a *different* URL (`cal.com/haytham/15min`, itself unverified, pulled from
+  `examples.md`) than what actually landed in the Gmail draft body. Agent self-reports are not a
+  reliable substitute for reading the actual API object back. Fixed by stripping the link line
+  entirely (the paid Leak Fix stands alone as a legal single-tap CTA) rather than guess a third URL.
+- Using Gmail MCP's `update_draft` on an existing reply-draft (Ben Pringle, Lee Harris) silently
+  **detaches it into a new orphaned thread** — the tool has no threading params, so re-editing a
+  reply draft this way loses its attachment to the real conversation. Recovered both by recreating
+  fresh via `create_draft` + `replyToMessageId`. Inbox 2 has no such risk (`gmail_gethaytham.py`'s
+  raw `PUT /drafts/{id}` explicitly sets `threadId`/`In-Reply-To`, verified intact after the fix).
+  **Lesson: never use `update_draft` on an existing Inbox 1 reply-draft — recreate it instead.**
+- Gmail MCP's `list_drafts` only returns `plaintextBody` for the single most-recently-touched draft
+  in the whole mailbox; `get_thread`/`search_threads` never surface DRAFT-labeled messages at all.
+  There is currently no safe way to bulk-read Inbox 1 draft bodies without risking the threading bug
+  above by touching them. The other 13 cold Touch-3 drafts (no calendar link, so structurally
+  shouldn't hit the same bug) were NOT re-verified for this reason — Haytham should eyeball them.
+
+Haytham confirmed: all fixed and scheduled to send 2026-07-27; manually moved Ben Pringle to
+`Dormant` himself (not logged by us — his direct Notion edit stands as-is).
+
+### Open follow-ups
+- [ ] Delete the stray orphaned Lee Harris draft (`r-8321922502352988444`, detached thread) — no
+      delete-draft tool available to do this from here.
+- [ ] Get Haytham's actual calendar link (still unknown here — `cal.com/haytham/15min` in
+      `examples.md` is unverified and should not be trusted as-is; update the reference once known).
+- [ ] Next uae-tick: reconcile these 19 scheduled sends against Gmail's `in:sent` once they actually
+      depart — do the full confirmed-send logging checklist (Touch #, Last Contacted, Next Action,
+      bank flip, Notes clear) only then, per the draft-is-not-a-send rule.
+
 ## 2026-07-26 — Pre-drafted Rita Baki's re-scoped quote (not sent, no reply yet)
 
 Checked on the open follow-up: her Notion row is still `Offer Sent`, Touch 5, no reply. Nothing was
