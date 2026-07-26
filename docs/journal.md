@@ -37,6 +37,57 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-26 — Pre-drafted Rita Baki's re-scoped quote (not sent, no reply yet)
+
+Checked on the open follow-up: her Notion row is still `Offer Sent`, Touch 5, no reply. Nothing was
+dropped — the TODO was conditional on her replying/booking, and that hasn't happened yet.
+`rita-baki.raw.md:67` still carrying the original 3,200 AED copy verbatim is correct by design (R4's
+never-edit archive rule), not a leftover bug.
+
+Pre-drafted two variants through the full `haytham-email-draft` loop (voice, gate, critical-failures,
+uae-track.md) so the re-scope is ready the moment she responds, since it shouldn't be worked out live
+in the thread:
+
+- **If she picks a call time** (likeliest, Touch 5 just asked): a short honesty note sent *before*
+  the call, not on it, so it doesn't open with a pitch for a fix she's already made.
+- **If she skips the call and asks for the number over email**: a real money email, 735 AED
+  (Track A territory — remaining scope is one narrow fix, not the full Sprint), guarantee-equivalent
+  stated in the same breath, single CTA. `crm-gate offer` wasn't run mechanically (`rich` isn't
+  installed in this container) but both PASS conditions are independently true on her row (`Status
+  = Offer Sent`, `Asked For Price = YES`).
+
+Full copy:
+
+> **Variant A (call-booked path):**
+> Wednesday works.
+>
+> One thing before we get on, better said now than mid-call. I went back through your site to prep. That booking form is gone. A real Calendly scheduler is live in its place, working end to end. Good call on that.
+>
+> So the piece I quoted you around is already handled. What's left is smaller. Your pricing looks different depending on where someone lands. Dollars on your own site. Dirhams on the marketplace. Nothing on your other two listings. Still worth talking through, just at a different number than what I said before.
+>
+> Haytham
+
+> **Variant B (email-ask path):**
+> Straight answer since you asked for one. The piece I quoted you on, 3,200 AED, was scoped around your booking button. That's fixed now. The Calendly you set up is live and working.
+>
+> What's actually still costing you is smaller. Three different price tags depending on where someone lands on you. Dollars on your own site. Dirhams on the marketplace. Nothing on your other two listings. Cleaning that up so it's one true number everywhere runs 735 AED.
+>
+> Live and matching everywhere within 5 working days, or you don't pay. If a mismatch shows up again inside 30 days, I fix it free.
+>
+> Want me to start on it?
+>
+> Haytham
+
+Neither was drafted into Gmail or logged to Notion — draft is not send, and there's no reply yet to
+draft into. Whoever handles her actual reply should adapt the closer-fitting variant to what she
+actually says rather than paste it verbatim (the bespoke check still applies). Supersedes the
+"Rita Baki flag carried forward" reminder in the entry below (07-26 uae-tick) — the actual copy is
+now ready, not just the reminder to re-scope.
+
+### Open follow-ups
+- [ ] Haytham / whoever handles Rita Baki's next reply: use Variant A or B above as the starting
+      point, adapted to her actual wording, not pasted as-is.
+
 ## 2026-07-26 — Root-caused and closed the Email Thread Log drift (new `crm-gate log` gate)
 
 - Root cause of the two prior recovery sessions (15 leads, then 24 leads,
@@ -267,9 +318,6 @@ evidence trail in `docs/leads/<slug>.md`. Nothing else touched — no sends, no 
 status moves.
 
 ### Open follow-ups
-- [ ] Haytham: if Rita Baki replies to book the call, re-scope the 3,200 AED quote — the deep leak
-      it was priced against (the booking-form CTA) is already fixed; only the shallow
-      currency-fragmentation finding is still live.
 - [ ] Whoever handles Ben Pringle's reply to Touch #5: if he pushes back on "the guide dropped off
       the store," don't re-assert it — the guide is back, acknowledge it.
 
