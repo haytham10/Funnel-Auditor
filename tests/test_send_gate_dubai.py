@@ -25,11 +25,25 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from audit import crm_gate, send_cap
 
 DUBAI = timezone(timedelta(hours=4))
-_MORNING = datetime(2026, 7, 18, 9, 0, tzinfo=DUBAI)
-_NOON = datetime(2026, 7, 18, 12, 0, tzinfo=DUBAI)
-_AFTERNOON = datetime(2026, 7, 18, 15, 0, tzinfo=DUBAI)
+# Anchored to a Monday (2026-07-20), not the Sat/Sun 07-18/07-19 pair the
+# fixture used before the Sunday send-pause (added 2026-07-26): _AFTERNOON
+# rolls to "tomorrow" for a touch-1 opener, and if "tomorrow" lands on a
+# Sunday that roll now hits the pause gate first, before any of the
+# cutoff/ceiling behavior these tests are actually about. Monday -> Tuesday
+# keeps the whole boundary clear of Sunday so these stay pause-agnostic;
+# the pause itself gets its own dedicated tests below, anchored on a real
+# Saturday -> Sunday roll.
+_MORNING = datetime(2026, 7, 20, 9, 0, tzinfo=DUBAI)
+_NOON = datetime(2026, 7, 20, 12, 0, tzinfo=DUBAI)
+_AFTERNOON = datetime(2026, 7, 20, 15, 0, tzinfo=DUBAI)
 _CAP = send_cap.CapState(cap=20, set_on=None, valid=True, inbox="Inbox 1")
 _ROW = {"Finding Verified": True, "Email": "a@b.com", "Email Verified": True}
+
+# For the dedicated Sunday-pause tests: a Saturday afternoon (rolls a touch-1
+# opener to Sunday) and a plain Sunday moment (for touch 2/3, which never roll
+# and so check "today" directly).
+_SATURDAY_AFTERNOON = datetime(2026, 7, 18, 15, 0, tzinfo=DUBAI)
+_SUNDAY_MORNING = datetime(2026, 7, 19, 9, 0, tzinfo=DUBAI)
 
 
 def _send(**kw):
@@ -60,6 +74,39 @@ def test_send_day_accepts_naive_and_utc():
     assert send_cap.send_day(utc_afternoon) == datetime(2026, 7, 19).date()
 
 
+# --- the Sunday send pause (added 2026-07-26) -------------------------------
+
+def test_touch1_opener_rolling_onto_sunday_is_paused():
+    # A Saturday-afternoon opener rolls to Sunday (the cutoff logic above) —
+    # the pause must fail it before --sends-next-day/ceiling checks even run.
+    ok, problems, _ = _send(
+        sends_today=0, followups_due=0, now=_SATURDAY_AFTERNOON, sends_next_day=0,
+    )
+    assert not ok
+    assert "Sunday" in problems[0] and "paused" in problems[0]
+
+
+def test_touch2_on_sunday_is_paused_regardless_of_headroom():
+    # Plenty of headroom, a valid carrier — the pause still fails it first.
+    ok, problems, _ = crm_gate.check_send(
+        _ROW, sends_today=0, touch=2, carries="leak-fix-offer", cap_state=_CAP,
+        now=_SUNDAY_MORNING,
+    )
+    assert not ok
+    assert "Sunday" in problems[0] and "paused" in problems[0]
+
+
+def test_touch1_opener_rolling_onto_monday_is_not_paused():
+    # Sanity check on the other side: Sunday afternoon rolls a fresh opener to
+    # Monday, which is not paused.
+    sunday_afternoon = _SUNDAY_MORNING.replace(hour=15)
+    ok, problems, notes = _send(
+        sends_today=18, followups_due=1, now=sunday_afternoon, sends_next_day=0,
+    )
+    assert ok, problems
+    assert "2026-07-20" in notes[0]
+
+
 # --- touch 1 opener, before noon (unchanged behavior) ----------------------
 
 def test_touch1_before_noon_uses_today_count():
@@ -88,13 +135,13 @@ def test_touch1_after_noon_ignores_full_today_uses_tomorrow():
     # is nearly empty — so it passes against tomorrow's ceiling.
     ok, problems, notes = _send(sends_today=20, followups_due=0, now=_AFTERNOON, sends_next_day=2)
     assert ok, problems
-    assert "2026-07-19" in notes[0] and "tomorrow" in notes[0]
+    assert "2026-07-21" in notes[0] and "tomorrow" in notes[0]
 
 
 def test_touch1_after_noon_rolls_when_tomorrow_full():
     ok, problems, _ = _send(sends_today=0, followups_due=1, now=_AFTERNOON, sends_next_day=19)
     assert not ok
-    assert "2026-07-19" in problems[0]
+    assert "2026-07-21" in problems[0]
     assert "rolls to the next send-day" in problems[0]
 
 

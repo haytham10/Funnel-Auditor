@@ -19,9 +19,13 @@ from audit import email_check
 from audit.crm_gate import check_send
 
 # These tests exercise the email-verified gate, not the noon-Dubai send-day
-# cutoff — pin a pre-noon Dubai moment so a touch-1 opener is attributed to
-# today (its usual path) regardless of the wall clock when the suite runs.
-_MORNING = datetime(2026, 7, 18, 9, 0, tzinfo=timezone(timedelta(hours=4)))
+# cutoff or the Sunday send-pause — pin a pre-noon Dubai moment on a Monday
+# so a touch-1 opener is attributed to today (its usual path), and that day
+# is never the paused one, regardless of the wall clock when the suite runs.
+# (2026-07-18 used to sit here — a Saturday, which happened not to break
+# anything since a before-noon touch 1 never rolls, but it was one calendar
+# shift away from landing on a Sunday and failing for the wrong reason.)
+_MORNING = datetime(2026, 7, 20, 9, 0, tzinfo=timezone(timedelta(hours=4)))
 
 
 # --- classify_verification -------------------------------------------------
