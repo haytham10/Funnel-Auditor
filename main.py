@@ -657,6 +657,186 @@ def cmd_email_enrich(args) -> None:
         sys.exit(0)
 
 
+def cmd_log_lint(args) -> None:
+    """`log-lint` — the log-grammar rule set (audit/touchlog.py), run against
+    a fresh row dump + page body. Three input shapes, same fetch-fresh/
+    pipe-verbatim trust model as every other gate here:
+
+      log-lint <row.json> [--page-body FILE]   one lead, from files. If
+                                                --page-body is omitted, the
+                                                body is read from row.json's
+                                                "__page_body__" key.
+      log-lint --slug <slug>                   one lead, from the repo
+                                                archive (docs/leads/<slug>/
+                                                raw.md) — no live row, so
+                                                Touch # reconciliation is
+                                                skipped (nothing to
+                                                reconcile against).
+      log-lint --all --manifest <file>         every lead in one pass. This
+                                                module never talks to Notion
+                                                (see audit/touchlog.py's
+                                                module docstring) — the
+                                                calling skill fetches fresh
+                                                for every non-Disqualified
+                                                lead and assembles the
+                                                manifest as a JSON array of
+                                                {"row": {...}, "page_body":
+                                                "..."} objects.
+    """
+    from audit import touchlog
+
+    if args.all:
+        if not args.manifest:
+            print("LOG LINT: FAIL — --all requires --manifest <file>: a JSON array of "
+                  '{"row": {...}, "page_body": "..."} objects, one per non-Disqualified lead, '
+                  "assembled by the calling skill from a fresh Notion fetch. This module never "
+                  "talks to Notion directly (same trust model as every other gate here).")
+            sys.exit(2)
+        manifest = json.loads(Path(args.manifest).read_text())
+        exit_code = 0
+        for entry in manifest:
+            row = entry.get("row") or {}
+            name = row.get("Contact Name") or "unnamed lead"
+            problems = touchlog.validate(row, entry.get("page_body", ""))
+            errors = [p for p in problems if p.level == "ERROR"]
+            warns = [p for p in problems if p.level == "WARN"]
+            if errors:
+                exit_code = 1
+                print(f"LOG LINT: FAIL — {name}: " + "; ".join(p.message for p in errors))
+            else:
+                note = f" ({len(warns)} warning(s))" if warns else ""
+                print(f"LOG LINT: PASS — {name}{note}")
+        sys.exit(exit_code)
+
+    row = None
+    page_body = None
+    name = "unnamed lead"
+
+    if args.slug:
+        archive = Path("docs/leads") / args.slug / "raw.md"
+        if not archive.exists():
+            print(f"LOG LINT: FAIL — no archive found at {archive}")
+            sys.exit(2)
+        page_body = archive.read_text()
+        name = args.slug
+    elif args.row_json:
+        row = json.loads(Path(args.row_json).read_text())
+        name = row.get("Contact Name") or "unnamed lead"
+        if args.page_body:
+            page_body = Path(args.page_body).read_text()
+        else:
+            page_body = row.pop("__page_body__", None)
+        if page_body is None:
+            print('LOG LINT: FAIL — no page body given: pass --page-body <file>, or embed '
+                  'it in row.json under "__page_body__"')
+            sys.exit(2)
+    else:
+        print("LOG LINT: FAIL — nothing to lint: pass <row.json> (optionally --page-body), "
+              "--slug <slug>, or --all --manifest <file>")
+        sys.exit(2)
+
+    problems = touchlog.validate(row, page_body)
+    errors = [p for p in problems if p.level == "ERROR"]
+    warns = [p for p in problems if p.level == "WARN"]
+    if errors:
+        print(f"LOG LINT: FAIL — {name}: " + "; ".join(p.message for p in errors))
+        if warns:
+            print("  warnings: " + "; ".join(p.message for p in warns))
+        sys.exit(1)
+    note = "; ".join(p.message for p in warns)
+    print(f"LOG LINT: PASS — {name}" + (f": {note}" if note else ": no problems"))
+    sys.exit(0)
+
+
+def _gmail_thread_plaintext(thread: dict) -> str | None:
+    """Best-effort plaintext body of the LAST message in a Gmail `format=full`
+    thread payload (as returned by gmail_gethaytham.get_thread) — walks
+    payload/parts for a text/plain part and base64url-decodes it. Returns
+    None if nothing decodable was found, so the caller can fall back to
+    --body-file rather than silently writing a mangled body."""
+    import base64
+
+    messages = thread.get("messages") or []
+    if not messages:
+        return None
+    payload = messages[-1].get("payload") or {}
+
+    def _walk(part) -> str | None:
+        mime = part.get("mimeType", "")
+        data = (part.get("body") or {}).get("data")
+        if mime == "text/plain" and data:
+            try:
+                return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", "replace")
+            except Exception:  # noqa: BLE001 — fall back to --body-file on any decode failure
+                return None
+        for sub in part.get("parts") or []:
+            found = _walk(sub)
+            if found:
+                return found
+        return None
+
+    return _walk(payload)
+
+
+def cmd_touch_log(args) -> None:
+    """`touch-log` — the only sanctioned way to write a `TOUCH:` / `OFFER:` /
+    `SOURCE:` sentinel line (audit/touchlog.py). Self-lints before printing:
+    an invalid block prints NOTHING and exits non-zero, because a half-valid
+    block is worse than none — it looks logged."""
+    from audit import touchlog
+
+    if args.touch_command == "render":
+        body = args.body
+        if args.body_file:
+            body = Path(args.body_file).read_text()
+        elif args.body_from_gmail:
+            from audit import gmail_gethaytham as gg
+            try:
+                thread = gg.get_thread(args.body_from_gmail)
+            except gg.GmailGethaythamError as exc:
+                print(f"TOUCH LOG: FAIL — could not fetch thread {args.body_from_gmail!r}: {exc}")
+                sys.exit(1)
+            body = _gmail_thread_plaintext(thread)
+            if body is None:
+                print(f"TOUCH LOG: FAIL — thread {args.body_from_gmail!r} fetched but no "
+                      "text/plain part could be decoded — pass --body-file instead")
+                sys.exit(1)
+        try:
+            block = touchlog.render_touch(
+                n=args.n, dir=args.dir, date=args.date, inbox=args.inbox, seq=args.seq,
+                carries=args.carries, finding=args.finding, subject=args.subject,
+                thread=args.thread, gate=args.gate, bounce="true" if args.bounce else None,
+                auto="true" if args.auto else None, type=args.type, reply_to=args.reply_to,
+                body=body,
+            )
+        except ValueError as exc:
+            print(f"TOUCH LOG: FAIL — {exc}")
+            sys.exit(1)
+        print(block)
+        sys.exit(0)
+
+    if args.touch_command == "offer":
+        try:
+            line = touchlog.render_offer(
+                type=args.type, amount=args.amount, currency=args.currency, date=args.date,
+                status=args.status, rung=args.rung, objection=args.objection, terms=args.terms,
+            )
+        except ValueError as exc:
+            print(f"TOUCH LOG: FAIL — {exc}")
+            sys.exit(1)
+        print(line)
+        sys.exit(0)
+
+    if args.touch_command == "source":
+        try:
+            line = touchlog.render_source(channel=args.channel, query=args.query, date=args.date)
+        except ValueError as exc:
+            print(f"TOUCH LOG: FAIL — {exc}")
+            sys.exit(1)
+        print(line)
+        sys.exit(0)
+
+
 def cmd_cta_probe(args) -> None:
     """Single-page Playwright pass: load ONE page and run the JS-button
     click-discovery on it. Exists for the Firecrawl fetch path, where
@@ -1007,6 +1187,99 @@ def main() -> None:
                                 "loop keeps closing itself")
     p_refresh.set_defaults(func=cmd_refresh_finding)
 
+    p_log_lint = sub.add_parser(
+        "log-lint",
+        help="the log-grammar rule set (audit/touchlog.py) run against a fresh row + page "
+             "body — Touch # reconciliation, contiguous n, required tokens per direction, "
+             "enum values, inbox/Findings-Bank cross-checks. Fails closed on any ERROR; "
+             "WARN never blocks. See docs/uae-track/log-grammar.md",
+    )
+    p_log_lint.add_argument("row_json", nargs="?", default=None,
+                            help="path to a JSON dump of the lead row's properties, fetched "
+                                 "FRESH from Notion; may embed the page body under "
+                                 '"__page_body__" if --page-body is not given')
+    p_log_lint.add_argument("--page-body", default=None,
+                            help="path to the lead's page body, fetched FRESH and dumped verbatim")
+    p_log_lint.add_argument("--slug", default=None,
+                            help="lint from the repo archive (docs/leads/<slug>/raw.md) instead "
+                                 "of a live row — Touch # reconciliation is skipped (no property "
+                                 "to reconcile against), everything else still runs")
+    p_log_lint.add_argument("--all", action="store_true",
+                            help="lint every lead in one pass — requires --manifest")
+    p_log_lint.add_argument("--manifest", default=None,
+                            help='(with --all) a JSON array of {"row": {...}, "page_body": '
+                                 '"..."} objects, one per non-Disqualified lead, assembled by '
+                                 "the calling skill from a fresh Notion fetch (this module never "
+                                 "talks to Notion directly)")
+    p_log_lint.set_defaults(func=cmd_log_lint)
+
+    p_touch_log = sub.add_parser(
+        "touch-log",
+        help="the ONLY sanctioned way to write a TOUCH:/OFFER:/SOURCE: sentinel line "
+             "(audit/touchlog.py) — self-lints before printing; an invalid block prints "
+             "nothing and exits non-zero rather than emit something half-valid",
+    )
+    touch_sub = p_touch_log.add_subparsers(dest="touch_command", required=True)
+
+    t_render = touch_sub.add_parser("render", help="build one TOUCH: block (Email Thread Log)")
+    t_render.add_argument("--n", type=int, required=True, help="touch number")
+    t_render.add_argument("--dir", required=True, choices=["out", "in"])
+    t_render.add_argument("--date", required=True, help="YYYY-MM-DD, Dubai calendar day")
+    t_render.add_argument("--inbox", default=None, help="required on --dir out (e.g. \"Inbox 1\")")
+    t_render.add_argument("--seq", default=None, choices=["cold", "warm"],
+                          help="required on --dir out")
+    t_render.add_argument("--carries", default=None,
+                          choices=["opener", "second-finding", "leak-fix-offer",
+                                   "disambiguating-question", "price-discovery", "money-email",
+                                   "objection-reply", "reactivation", "loom-offer"],
+                          help="required on --dir out when --n >= 2. Mirrors "
+                               "audit/touchlog.CARRIER_CHOICES (loom-offer is a deprecated "
+                               "alias for leak-fix-offer)")
+    t_render.add_argument("--finding", type=int, default=None,
+                          help="the Findings Bank rank this touch draws on — required when "
+                               "--carries second-finding")
+    t_render.add_argument("--subject", default=None, help="required on --dir out")
+    t_render.add_argument("--thread", required=True, help="Gmail thread ID")
+    t_render.add_argument("--gate", default=None,
+                          help="required on --dir out — the literal `crm-gate send` verdict "
+                               "line, quoted")
+    t_render.add_argument("--type", default=None,
+                          choices=["Interested", "Price question", "Brush-off", "Logistics",
+                                   "Blunt", "Decline"],
+                          help="reply type — required on --dir in unless --bounce/--auto")
+    t_render.add_argument("--reply-to", type=int, default=None, dest="reply_to",
+                          help="(--dir in) the touch n this reply answers")
+    t_render.add_argument("--bounce", action="store_true", help="this send bounced")
+    t_render.add_argument("--auto", action="store_true", help="this inbound is an autoresponder")
+    t_render.add_argument("--body", default=None, help="the verbatim body, given directly")
+    t_render.add_argument("--body-file", default=None, help="path to the verbatim body")
+    t_render.add_argument("--body-from-gmail", default=None, metavar="THREAD_ID",
+                          help="pull the body straight from the sent/received Gmail message "
+                               "(direct API path, audit/gmail_gethaytham) instead of a "
+                               "transcription step")
+    t_render.set_defaults(func=cmd_touch_log)
+
+    t_offer = touch_sub.add_parser("offer", help="build one OFFER: line (## Money) — never edits, only appends")
+    t_offer.add_argument("--type", required=True,
+                         choices=["Leak Fix", "Sprint", "The Minimum", "Payment Plan",
+                                  "Funnel Watch", "Custom"])
+    t_offer.add_argument("--amount", required=True, help="plain number, no currency symbol")
+    t_offer.add_argument("--currency", default="AED")
+    t_offer.add_argument("--date", required=True, help="YYYY-MM-DD")
+    t_offer.add_argument("--status", required=True,
+                         choices=["Proposed", "Accepted", "Declined", "Paid", "Refunded"])
+    t_offer.add_argument("--rung", default=None, choices=["0", "1", "2"])
+    t_offer.add_argument("--objection", default=None)
+    t_offer.add_argument("--terms", default=None,
+                         choices=["pay after", "50% deposit", "plan", "full up front"])
+    t_offer.set_defaults(func=cmd_touch_log)
+
+    t_source = touch_sub.add_parser("source", help="build one SOURCE: line (## Overview)")
+    t_source.add_argument("--channel", required=True)
+    t_source.add_argument("--query", required=True, help="the literal query string that produced this lead")
+    t_source.add_argument("--date", required=True, help="YYYY-MM-DD")
+    t_source.set_defaults(func=cmd_touch_log)
+
     p_cap = sub.add_parser(
         "send-cap",
         help="daily send ceiling, one independent ramp PER inbox (TOTAL sends leaving that "
@@ -1339,7 +1612,7 @@ def main() -> None:
         "walk", "crawl", "slug", "vision", "crm-gate", "refresh-finding", "send-cap", "inbox",
         "dashboard", "email-check", "email-verify", "email-enrich", "cta-probe", "apify",
         "classify-footprint", "gmail-gethaytham", "discover-links", "discover-checkout",
-        "screenshot-name", "ingest", "promote-evidence", "-h", "--help",
+        "screenshot-name", "ingest", "promote-evidence", "log-lint", "touch-log", "-h", "--help",
     ):
         argv = ["walk"] + argv
 
