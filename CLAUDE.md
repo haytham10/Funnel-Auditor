@@ -117,7 +117,7 @@ scores to `docs/deliverability-log.md`.
   `docs/uae-track/03-targeting-and-sourcing.md`.)
 - **Never send an email.** The system ends at Gmail drafts. Sending is
   human.
-- **Never invent findings.** No verified finding → no opener. Lane 2/3
+- **Never invent findings, and never email one.** Since 2026-07-27 the opener is a COLD READ from `references/cold-reads.md` — a measured observation about this market, never a claim about her. Findings are RESERVED call bait, spent on the call, never in an inbox. Lane 2/3
   exists. Machine check flags are candidates only — a flag that fails the
   vision pass is dead and stays dead. `Finding Verified` gets checked only
   on a visually-confirmed Lane 1 finding; it is the send gate, and
@@ -195,13 +195,18 @@ scores to `docs/deliverability-log.md`.
   fixed; the two times and the phrasing vary per lead, because a close
   reused verbatim is a tell the second time it ships.
 - **Every cold opener carries the identity beat** — one sentence on who is
-  writing and why he spotted it, placed after the finding and before the
+  writing and why he'd know, placed after the cold read and before the
   cost. Without it the email reads as someone wanting to buy from her:
   Lucia and Lee both replied with their own offer and pricing, two of nine
   failures caused by an absent sentence.
-- **The finding is evidence, not the product.** It proves a human actually
-  looked. It is not what is being sold and not a free deliverable — that
-  framing is what let 4 of 9 engaged leads fix it themselves and leave.
+- **The finding never appears in an email.** It is RESERVED call bait, the
+  reason to get on the call. Emailing it is what let 4 of 9 engaged leads fix
+  it themselves and leave, and a third of findings failed under scrutiny while
+  carrying `Finding Verified = YES`. A cold read cannot fail either way,
+  because it makes no claim about her specifically.
+- **No number ships that is not on the credibility list** in
+  `references/mechanics.md`. Seven verified lines, one rotated per prospect.
+  Never a volume promise — zero calls have ever been booked for anyone.
 - **Copy rules, every generated email:** no em-dashes, ever. No operator
   jargon ("funnel", "conversion", "audit", "sequence"). Proper
   capitalization. **Sign off "Haytham" at the end** (the Gmail

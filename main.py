@@ -305,6 +305,14 @@ def cmd_vision(args: argparse.Namespace) -> None:
         sys.exit(vision_gate.print_list(evidence_dir))
 
 
+def _cold_read_choices():
+    """The sanctioned cold-read pattern ids, read from the gate so the CLI
+    cannot drift from `audit.crm_gate.COLD_READS` the way the carrier lists
+    did before they were deduped."""
+    from audit.crm_gate import COLD_READS
+    return COLD_READS
+
+
 def cmd_crm_gate(args) -> None:
     from audit import crm_gate
     if args.gate == "offer":
@@ -335,25 +343,23 @@ def cmd_crm_gate(args) -> None:
         sys.exit(2)
     if args.touch >= 2 and args.carries is None:
         print("CRM GATE (send): FAIL — --carries is required for any touch >= 2, cold or "
-              "warm (second-finding | call-ask | disambiguating-question). A follow-up "
+              "warm (second-cold-read | call-ask | disambiguating-question). A follow-up "
               "that just bumps is a wasted send and a spam signal; declare what new "
               "thing this one carries.")
         sys.exit(2)
-    if args.touch == 1 and args.opener_rank is None:
-        from audit.crm_gate import parse_findings_bank
-        row = json.loads(Path(args.row_json).read_text())
-        if parse_findings_bank(row.get("Findings Bank")):
-            print("CRM GATE (send): FAIL — --opener-rank is required for a touch 1 "
-                  "opener when the Findings Bank is populated: which bank rank the "
-                  "draft's email content was actually built from. (Added 2026-07-24 — "
-                  "a draft was once built from the page-body finding narrative instead "
-                  "of the bank order, and emailed the exact finding the bank had "
-                  "reserved as deep call-bait. This is the check that would have "
-                  "caught it.)")
-            sys.exit(2)
+    if args.touch == 1 and args.cold_read is None:
+        from audit.crm_gate import COLD_READS
+        print("CRM GATE (send): FAIL — --cold-read is required for a touch 1 opener: "
+              "which cold-read pattern the draft was built from "
+              f"({' | '.join(COLD_READS)}). See "
+              ".claude/skills/haytham-email-draft/references/cold-reads.md. (Replaced "
+              "--opener-rank on 2026-07-27, when the opener stopped being a finding. "
+              "The discipline is the same one: declare what the draft was built from "
+              "so the gate can refuse anything off the sanctioned list.)")
+        sys.exit(2)
     sys.exit(crm_gate.print_send(
         args.row_json, args.sends_today, args.touch, args.followups_due, args.carries,
-        inbox=args.inbox, sends_next_day=args.sends_next_day, opener_rank=args.opener_rank,
+        inbox=args.inbox, sends_next_day=args.sends_next_day, cold_read=args.cold_read,
     ))
 
 
@@ -1165,22 +1171,25 @@ def main() -> None:
                             "scheduled for tomorrow morning, so it is gated against TOMORROW's "
                             "ceiling using this count, not today's already-spent one")
     p_crm.add_argument("--carries",
-                       choices=["second-finding", "call-ask", "disambiguating-question",
-                                "leak-fix-offer", "loom-offer"],
+                       choices=["second-cold-read", "call-ask", "disambiguating-question",
+                                "second-finding", "leak-fix-offer", "loom-offer"],
                        help="(send gate, touch >= 2, cold or warm) the new thing this follow-up "
                             "carries; second-finding is checked against the row's Findings Bank. "
-                            "`loom-offer` and `leak-fix-offer` are DEPRECATED ALIASES for `call-ask` "
+                            "`loom-offer`/`leak-fix-offer` are DEPRECATED ALIASES for `call-ask`, and "
+                            "`second-finding` for `second-cold-read` (findings stopped being "
+                            "emailed 2026-07-27) "
                             "(the offer is now The First Five and the turn-two is a call ask "
                             "with two specific times) — they still "
                             "pass and emit a deprecation note. Mirrors "
                             "audit/crm_gate.CARRIER_CHOICES")
-    p_crm.add_argument("--opener-rank", type=int, default=None,
-                       help="(send gate, touch 1) which Findings Bank rank the draft's email "
-                            "content was actually built from — required whenever the bank is "
-                            "populated. Checked against the lowest-ranked UNUSED entry; a "
-                            "RESERVED rank or a mismatch fails. Added 2026-07-24 to stop a "
-                            "draft from being built off the page-body finding narrative and "
-                            "emailing the exact finding the bank had reserved as deep call-bait")
+    p_crm.add_argument("--cold-read", default=None,
+                       choices=list(_cold_read_choices()),
+                       help="(send gate, touch 1, REQUIRED) which cold-read pattern the "
+                            "draft's opener was built from. Replaced --opener-rank on "
+                            "2026-07-27, when the opener stopped being a finding and became "
+                            "a cold read; findings are now RESERVED call-bait and are never "
+                            "emailed. Mirrors audit/crm_gate.COLD_READS and "
+                            ".claude/skills/haytham-email-draft/references/cold-reads.md")
     p_crm.add_argument("--inbox", default=None,
                        help="(send gate) which sending inbox this send leaves from — its ceiling is "
                             "independent (default: primary, haytham@auto-mate.one)")
@@ -1257,10 +1266,10 @@ def main() -> None:
     t_render.add_argument("--seq", default=None, choices=["cold", "warm"],
                           help="required on --dir out")
     t_render.add_argument("--carries", default=None,
-                          choices=["opener", "second-finding", "call-ask",
+                          choices=["opener", "second-cold-read", "call-ask",
                                    "disambiguating-question", "price-discovery", "money-email",
                                    "objection-reply", "reactivation",
-                                   "leak-fix-offer", "loom-offer"],
+                                   "second-finding", "leak-fix-offer", "loom-offer"],
                           help="required on --dir out when --n >= 2. Mirrors "
                                "audit/touchlog.CARRIER_CHOICES (loom-offer and leak-fix-offer are deprecated "
                                "aliases for call-ask)")

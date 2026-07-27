@@ -68,10 +68,13 @@ SEQUENCES = ("cold", "warm")
 # historical logs keep parsing. (`loom-offer` → `leak-fix-offer` 2026-07-24,
 # both → `call-ask` 2026-07-27 with The First Five.)
 CARRIERS = (
-    "opener", "second-finding", "call-ask", "disambiguating-question",
+    "opener", "second-cold-read", "call-ask", "disambiguating-question",
     "price-discovery", "money-email", "objection-reply", "reactivation",
 )
-DEPRECATED_CARRIERS = {"loom-offer": "call-ask", "leak-fix-offer": "call-ask"}
+DEPRECATED_CARRIERS = {
+    "loom-offer": "call-ask", "leak-fix-offer": "call-ask",
+    "second-finding": "second-cold-read",
+}
 CARRIER_CHOICES = CARRIERS + tuple(DEPRECATED_CARRIERS)
 
 REPLY_TYPES = ("Interested", "Price question", "Brush-off", "Logistics", "Blunt", "Decline")
@@ -255,8 +258,12 @@ def _touch_token_errors(tokens: dict) -> list[str]:
                     f'carries={carries_raw!r} is required on touch n>=2 and must be one '
                     f'of {CARRIER_CHOICES}'
                 )
-            elif canonical == "second-finding" and not tokens.get("finding"):
-                errors.append('finding=<rank> is required when carries=second-finding')
+            # `finding=<rank>` used to be REQUIRED on a `second-finding`
+             # carrier. Findings stopped being emailed on 2026-07-27, so the
+            # current carrier (`second-cold-read`) has no rank to declare and
+            # nothing is required. A `finding=` token is still ACCEPTED and
+            # still cross-checked against the bank in validate(), so the
+            # historical logs that carry one keep being verified.
 
     elif direction == "in":
         bounce = str(tokens.get("bounce", "")).strip().lower() == "true"
@@ -566,13 +573,17 @@ def validate(row: dict | None, page_body: str, *, today: date | None = None) -> 
                 f'(known: {", ".join(inboxes.labels())})',
             ))
 
-        if t.get("carries") == "second-finding" and row is not None:
+        # Cross-check any declared `finding=<rank>` against the bank, whatever
+        # the carrier. Scoped to the `second-finding` carrier until 2026-07-27;
+        # widened when that carrier was retired, so the historical logs that
+        # declare a rank stay verified instead of silently losing their check.
+        if t.get("finding") is not None and row is not None:
             bank = parse_findings_bank(row.get("Findings Bank"))
             ranks = {e["rank"] for e in bank}
             if t.get("finding") not in ranks:
                 problems.append(Problem(
                     "ERROR",
-                    f'touch n={t.get("n")}: carries=second-finding but finding={t.get("finding")!r} '
+                    f'touch n={t.get("n")}: finding={t.get("finding")!r} '
                     f"is not a real rank in this lead's Findings Bank (ranks present: "
                     f"{sorted(ranks) or 'none'})",
                 ))

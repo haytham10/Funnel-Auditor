@@ -53,7 +53,10 @@ def test_round_trip_touch_out_second_finding():
     assert t["date"] == "2026-07-28"
     assert t["inbox"] == "Inbox 1"
     assert t["seq"] == "cold"
-    assert t["carries"] == "second-finding"
+    # `second-finding` normalizes to the current carrier — findings stopped
+    # being emailed on 2026-07-27, so historical logs that declare the old
+    # label still parse and still get their finding= rank cross-checked.
+    assert t["carries"] == "second-cold-read"
     assert t["finding"] == 3
     assert t["subject"] == "Quick thing on your checkout page"
     assert t["thread"] == "18f2a9c4b7e1"

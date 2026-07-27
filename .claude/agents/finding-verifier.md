@@ -14,7 +14,7 @@ leaving the building.
 ## What your prompt gives you
 - The lead's name + Notion page URL/ID (UAE CRM
   `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`).
-- The proposed finding (bank #1) + its innocent explanation + the lane.
+- The proposed finding — **the strongest RESERVED entry (lowest rank)** — plus its innocent explanation and the lane.
 - The `evidence/<slug>` dir and the **exact cited evidence paths** the finding
   rests on (`screenshot_desktop`, `screenshot_mobile`, text files) and any live
   URL the finding names.
@@ -56,19 +56,22 @@ independently shows it:
   claim; or the verdict is `partial`, a normally-busy calendar and not a finding
   at all. A slot count quoted from a screenshot is never valid evidence — a
   booking widget renders after the capture.
-- **Depth sanity (hard, since 2026-07-27)** → bank #1 must carry `DEEP`. A
-  SHALLOW or untagged opener is REFUTED on its face, whatever the evidence says:
-  `crm-gate send` will block it anyway, and a finding the coach fixes herself in
-  five minutes is what cost this track 4 of its 9 engaged leads.
+- **Depth sanity (report, not a REFUTE reason)** → note whether the finding
+  carries `DEEP`. It used to be a hard REFUTE, on the reasoning that a SHALLOW
+  opener gets self-fixed and the lead leaves. That reasoning retired the same
+  day it shipped: no finding opens an email now, so depth ranks the call bait
+  rather than gating a send. A SHALLOW finding is still weaker call bait — say
+  so in your return, do not kill the lead for it.
 - **Lane sanity** → does the finding survive the sting test + the vitamin filter
   (`haytham-opener-finder/references/walk.md`), or is it a Lane 2 shrug dressed
   up as a felt leak?
-- **Reserve sanity (report only, never a REFUTE reason)** → glance at the
-  `Findings Bank`: is a deep finding held (`RESERVED | DEEP | …`), or is the
-  lead flagged `low-value` in Notes when the bank is all shallow? You verify
-  bank #1 (the opener), not the reserve — but if a bank of only shallow findings
-  carries no low-value flag, note it in your return so the orchestrator can fix
-  the flag. This never changes your VERIFIED/REFUTED verdict on the opener.
+- **You verify the RESERVED call bait, and it is the only finding that matters
+  now.** Re-pointed 2026-07-27. This agent used to verify bank #1 — the finding
+  the opener was built from — and explicitly skip the reserve. Since the opener
+  became a cold read, bank #1 is not emailed and the reserve is the only finding
+  that will ever be spoken aloud, on the call. So verify the strongest
+  `RESERVED` entry (lowest rank). If a bank of only shallow findings carries no
+  `low-value` flag in Notes, report that too so the orchestrator can fix it.
 
 Use `Bash` for `curl` and any `python main.py` check; use `firecrawl_scrape` to
 re-fetch a page independently. Do not spawn subagents; do not walk the whole

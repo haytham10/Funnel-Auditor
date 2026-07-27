@@ -37,6 +37,100 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — The opener is a cold read, not a finding (PR 4 of the First Five pivot)
+
+**Findings stopped opening emails.** Every coach already wants more booked
+calls, so a finding spends the whole email proving something she knows — and a
+finding that turns out wrong, or that she fixes herself, costs more than
+silence. Both already happened: 4 of 9 engaged leads consumed the finding and
+left; a third of findings failed under scrutiny while carrying `Finding
+Verified = YES`. Beat 2 is now a **cold read**: a measured observation true of
+most coaches in this market. It cannot fail either way, because it makes no
+claim about her specifically. Findings are RESERVED call bait and are never
+emailed at any touch, in any form.
+
+**The blocking discovery: the touch-1 path could not pass at all.** Once every
+finding is `RESERVED`, three independent vetoes fired — `--opener-rank` was
+required whenever a bank existed (enforced TWICE, at `main.py:342` and
+`crm_gate.py:962`), any rank supplied was rejected for being RESERVED, and
+touch-1 freshness drew `opener_finding()` which returns `None` on an
+all-RESERVED bank. Confirmed by executing the gate before touching it. A
+walked lead is all-RESERVED by definition now, so this would have blocked the
+entire cold pipeline silently.
+
+- **`--opener-rank` → `--cold-read <pattern>`**, at both layers. The old check
+  existed because of a real incident (a draft built from page-body narrative
+  instead of the bank, emailing the exact finding the bank was reserving). That
+  incident is impossible now, but the declare-what-you-drafted discipline is
+  kept and re-pointed at the sanctioned pattern list. Unlike `--opener-rank` it
+  does not depend on the bank, so a row with no bank still declares its pattern.
+- **H7 removed one day after it shipped.** It hard-failed a SHALLOW or untagged
+  touch-1 opener. Its premise died with the finding-opener.
+- **`second-finding` → `second-cold-read`.** A follow-up must carry a DIFFERENT
+  pattern from the opener's. `second-finding`, `leak-fix-offer` and
+  `loom-offer` all still pass as deprecated aliases.
+- **Freshness now follows what the send actually draws on.** Touch 1 and the
+  cold carriers cite no finding, so they get no ceiling. Warm touches still do
+  — and that is where the Rita Baki incident actually lived (a warm Touch 5
+  re-asserting a leak she had already fixed), so the protection that mattered
+  is intact. Pinned by `test_warm_touch_still_checks_the_finding_it_stands_on`.
+- **`reserved_deep_finding()` now returns the lowest-rank reserved entry**, not
+  the first line. Harmless while exactly one was reserved; wrong now that a
+  bank holds several.
+- **`finding-verifier` re-pointed at the RESERVED entry.** It used to verify
+  bank #1 and explicitly skip the reserve — i.e. certify the one finding that
+  will never be used and ignore the only one that will.
+
+**Two real bugs found and fixed in `uae-tick`,** both consequences of touch 1
+no longer spending a finding: the confirmed-send `1. UNUSED → USED-T1` flip
+would have recorded a spend that never happened, and the drift detector (an
+`UNUSED` rank 1 on a sent row = "missed flip") **inverts** — it would have
+false-alarmed on every sent lead in the CRM. Retired by name rather than
+deleted.
+
+**The numbers were audited before anything shipped, and four of seven had
+problems:**
+- **`46 of 122` is not shippable and is NOT in the pattern list.** It appears
+  only in the offer spec, unsourced; the market study it names as its evidence
+  base has no 46. The nearest real figure (32, free-call-only) is from the
+  *disqualified* population — a different denominator. The `call-centric`
+  pattern needs a fresh CRM count before it can exist.
+- "373 reviewed in two weeks" → **"373 found in 14 days"** (246 were killed at
+  triage without a walk; "reviewed" inflates sourcing into auditing).
+- "122 sites this year" → **"about a hundred and twenty"** (the sanctioned
+  wording in 8 places; and all repo activity is July 2026, so "this year"
+  implies a year behind about three weeks of work).
+- "four 5-star reviews over six months" → **"across the engagement"** (the
+  site's own wording; only two are actually published, one for a one-day job).
+- **`site/index.html:382` said "50% order bump take rate" while `:436` on the
+  same page said "1 in 4 buyers."** My PR 3 journal claimed the site was
+  reconciled — I had checked only one of the two lines. Fixed to 1 in 4.
+
+Five cold-read patterns ship, each with its stat and source line:
+`price-invisible` (48 of 122), `no-aed` (49 of 88), `price-band` (medians
+1,831 / 894), `audience-decoupled` (18,400 off 268 followers), and
+`rented-audience` (36 of 87) — the last written as a felt cost, never as a
+missing mechanism, because the vitamin filter is unchanged.
+
+**Also cleared, finally:** installed bs4, playwright, pytest and rich. The
+PR 2 `data-url` capture and host dedup are now **runtime-verified**, not just
+syntax-checked. And `test_calendar_state.py` used a `mp` fixture parameter
+where every other file uses `monkeypatch` — **it had never run under pytest at
+all.** Renamed; it now passes under both runners.
+
+Tests **317, zero failures** — the first fully green suite of the session,
+including the two files that had been unrunnable all day.
+
+### Open follow-ups
+- [ ] **Re-walk the rows queued to send before 07-30**, when the 219
+      migration-stamped `verified:` entries expire. Warm touches still enforce
+      the 3-day ceiling, so this bites live threads first.
+- [ ] The `call-centric` cold read needs a real CRM count ("how many walked
+      leads have a free discovery call as the only way in") before it ships.
+- [ ] Existing walked rows carry `UNUSED`/`USED-Tn` statuses from before the
+      change. They parse fine and nothing emails them, but a future walk should
+      write everything `RESERVED`.
+
 ## 2026-07-27 — The old offer is retired and the close is a call ask (PR 3 of the First Five pivot)
 
 The two jobs the pivot was actually about. **The funnel-fix offer is gone from

@@ -113,10 +113,12 @@ routing — treat as Inbox 1, the historical inbox, and set the label.)
 
 - **Scheduled rows:** if the message now appears in `in:sent`, flip the
   row to `Outreach Sent` with the REAL departure date as `Last Contacted`
-  (+ `Touch #`, `Next Action` +3 days, Email Thread Log entry, **the
-  Touch-1 `Findings Bank` flip `1. UNUSED` → `1. USED-T1` when the row has
-  a bank, and clearing the pre-send `Notes` markers — `run
-  haytham-hook-finder` / `then ask to draft` / `HELD ... log on send`** —
+  (+ `Touch #`, `Next Action` +3 days, Email Thread Log entry, and clearing
+  the pre-send `Notes` markers — `run haytham-hook-finder` / `then ask to
+  draft` / `HELD ... log on send`. **There is NO Findings Bank flip on a
+  touch-1 send any more** — the opener carries a cold read, not a finding, so
+  nothing is spent; flipping `1. UNUSED` → `1. USED-T1` would record a spend
+  that never happened) —
   i.e. the FULL confirmed-send checklist in `haytham-email-draft` SKILL.md,
   every field, not just the dates). If it's still in the scheduled queue,
   leave it. If it's in neither (he cancelled it), flip back to
@@ -282,7 +284,8 @@ uae-track.md, never a re-send of the offer and never a weak closer.
 
 **Cold Touch 2/3 must carry something new, and the gate checks it.**
 Before drafting, pick the carrier honestly: `second-finding` only if the
-row's `Findings Bank` has an UNUSED entry past #1 (the gate verifies);
+the follow-up carries a SECOND COLD READ (a different pattern from the
+opener's — the gate verifies the id, not the bank);
 otherwise `call-ask` (natural Touch 2) or `disambiguating-question`
 (natural Touch 3 closer). Dump the fresh row to JSON and run
 `python main.py crm-gate send <row.json> --sends-today <THAT INBOX's total
@@ -392,9 +395,12 @@ line.
 - Any Cold row with Touch # ≥ 4 — the cold sequence is three touches;
   a fourth means the cadence rules were bypassed.
 - An Outreach Sent (or later) row that carries a `Findings Bank` whose
-  spent entry still says `UNUSED` — Touch 1 spends #1, so ANY sent row with
-  a bank whose `1.` reads `UNUSED` is a missed flip; a follow-up that
-  carried a banked finding leaving its entry `UNUSED` is the same bug.
+  spent entry still says `UNUSED`. **RETIRED 2026-07-27 — do not run this
+  check.** It assumed touch 1 spends bank #1, which stopped being true when
+  the opener became a cold read: findings are RESERVED call bait and no send
+  spends one, so an `UNUSED` (or `RESERVED`) rank 1 on a sent row is now
+  CORRECT. Left here named rather than deleted because as a live rule it
+  would false-alarm on every sent lead in the CRM.
   (Confirmed-send logging missed the `USED-TN` flip — see
   `haytham-email-draft`. This is the highest-frequency drift; the bank flip
   on Touch 1 was historically skipped.)

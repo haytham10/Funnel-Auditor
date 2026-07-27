@@ -62,13 +62,13 @@ def _calendly_stub(range_payload):
 
 # --- platform routing -----------------------------------------------------
 
-def test_platform_for_recognises_known_schedulers(mp):
+def test_platform_for_recognises_known_schedulers(monkeypatch):
     assert cs.platform_for("https://calendly.com/therapybysadia/call") == "calendly.com"
     assert cs.platform_for("https://cal.com/peer") == "cal.com"
     assert cs.platform_for("https://example.com/book") == ""
 
 
-def test_unsupported_scheduler_raises_rather_than_guessing(mp):
+def test_unsupported_scheduler_raises_rather_than_guessing(monkeypatch):
     # TidyCal's real routes were never resolved. Returning "no availability"
     # for it would be a guess dressed as a finding.
     try:
@@ -79,7 +79,7 @@ def test_unsupported_scheduler_raises_rather_than_guessing(mp):
         raise AssertionError("expected CalendarStateError for tidycal")
 
 
-def test_non_booking_url_raises(mp):
+def test_non_booking_url_raises(monkeypatch):
     try:
         cs.check("https://somecoach.com/contact", today=_TODAY)
     except cs.CalendarStateError as e:
@@ -90,7 +90,7 @@ def test_non_booking_url_raises(mp):
 
 # --- THE trap -------------------------------------------------------------
 
-def test_external_calendar_error_raises_never_reports_empty(mp):
+def test_external_calendar_error_raises_never_reports_empty(monkeypatch):
     """A 400 + failure.external_calendar_error must RAISE.
 
     Reproduced live on 2026-07-27. If this ever returns a result with
@@ -101,7 +101,7 @@ def test_external_calendar_error_raises_never_reports_empty(mp):
                      "error": "this calendar is currently unavailable"}},
         ok=False, status_code=400,
     )
-    mp.setattr(cs.requests, "get", _calendly_stub(err))
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(err))
     try:
         result = cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=1)
     except cs.CalendarStateError as e:
@@ -113,10 +113,10 @@ def test_external_calendar_error_raises_never_reports_empty(mp):
         )
 
 
-def test_range_too_wide_is_refused_before_any_request(mp):
+def test_range_too_wide_is_refused_before_any_request(monkeypatch):
     def explode(*a, **k):
         raise AssertionError("should not have made a request")
-    mp.setattr(cs.requests, "get", explode)
+    monkeypatch.setattr(cs.requests, "get", explode)
     try:
         cs.check("https://calendly.com/x/y", window_days=65, today=_TODAY)
     except cs.CalendarStateError as e:
@@ -125,10 +125,10 @@ def test_range_too_wide_is_refused_before_any_request(mp):
         raise AssertionError("expected CalendarStateError")
 
 
-def test_missing_days_key_raises_rather_than_defaulting(mp):
+def test_missing_days_key_raises_rather_than_defaulting(monkeypatch):
     # No `failure`, 200, but no `days` either — an unexpected shape. Guessing
     # zero here is the same bug wearing different clothes.
-    mp.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"today": "2026-07-27"})))
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"today": "2026-07-27"})))
     try:
         cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=1)
     except cs.CalendarStateError as e:
@@ -137,9 +137,9 @@ def test_missing_days_key_raises_rather_than_defaulting(mp):
         raise AssertionError("expected CalendarStateError")
 
 
-def test_non_json_body_raises(mp):
+def test_non_json_body_raises(monkeypatch):
     bad = _FakeResponse(ValueError("no json"), ok=False, status_code=502, text="<html>502</html>")
-    mp.setattr(cs.requests, "get", _calendly_stub(bad))
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(bad))
     try:
         cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=1)
     except cs.CalendarStateError as e:
@@ -148,10 +148,10 @@ def test_non_json_body_raises(mp):
         raise AssertionError("expected CalendarStateError")
 
 
-def test_network_error_raises(mp):
+def test_network_error_raises(monkeypatch):
     def boom(*a, **k):
         raise cs.requests.RequestException("connection reset")
-    mp.setattr(cs.requests, "get", boom)
+    monkeypatch.setattr(cs.requests, "get", boom)
     try:
         cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=1)
     except cs.CalendarStateError as e:
@@ -162,11 +162,11 @@ def test_network_error_raises(mp):
 
 # --- the three verdicts ---------------------------------------------------
 
-def test_wide_open_is_deep_and_opener_legal(mp):
+def test_wide_open_is_deep_and_opener_legal(monkeypatch):
     # 20 of 22 weekdays bookable — the Sadia Khan shape (271 slots live).
     days = [_day(f"2026-07-{d:02d}", spots=10) for d in range(28, 32)]
     days += [_day(f"2026-08-{d:02d}", spots=10) for d in range(1, 21)]
-    mp.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": days})))
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": days})))
     r = cs.check("https://calendly.com/therapybysadia/discovery", today=_TODAY, reads=2)
     assert r["verdict"] == "wide_open", r
     assert r["depth"] == "DEEP"
@@ -175,14 +175,14 @@ def test_wide_open_is_deep_and_opener_legal(mp):
     assert r["reads"] == 2
 
 
-def test_none_published_is_shallow_not_an_opener(mp):
+def test_none_published_is_shallow_not_an_opener(monkeypatch):
     """Zero bookable time is a CONFIG BUG she fixes herself.
 
     This is the walk.md:44-46 split: an empty calendar widget is shallow, a
     working calendar nobody books is deep. Getting this backwards ships an
     opener the lead closes in five minutes and walks away from.
     """
-    mp.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": []})))
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": []})))
     r = cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=1)
     assert r["verdict"] == "none_published", r
     assert r["depth"] == "SHALLOW"
@@ -190,9 +190,9 @@ def test_none_published_is_shallow_not_an_opener(mp):
     assert "fix herself" in r["detail"]
 
 
-def test_partial_is_neither(mp):
+def test_partial_is_neither(monkeypatch):
     days = [_day("2026-07-29", spots=2), _day("2026-08-04", spots=2)]
-    mp.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": days})))
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": days})))
     r = cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=1)
     assert r["verdict"] == "partial", r
     assert r["opener_legal"] is False
@@ -202,11 +202,11 @@ def test_partial_is_neither(mp):
     assert r["bankable"] is False, r
 
 
-def test_days_omits_unavailable_so_length_is_not_window_width(mp):
+def test_days_omits_unavailable_so_length_is_not_window_width(monkeypatch):
     # Calendly drops unavailable days entirely; a non-available entry that
     # does slip through must still not be counted.
     days = [_day("2026-07-29", spots=2), _day("2026-07-30", spots=0, status="unavailable")]
-    mp.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": days})))
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": days})))
     r = cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=1)
     assert r["available_days"] == 1, r
     assert r["open_slots"] == 2, r
@@ -214,7 +214,7 @@ def test_days_omits_unavailable_so_length_is_not_window_width(mp):
 
 # --- consistency ----------------------------------------------------------
 
-def test_disagreeing_reads_refuse_to_bank_a_verdict(mp):
+def test_disagreeing_reads_refuse_to_bank_a_verdict(monkeypatch):
     """One read is not evidence — the live 400 cleared on 4 of 4 retries."""
     payloads = [
         _FakeResponse({"days": []}),
@@ -229,7 +229,7 @@ def test_disagreeing_reads_refuse_to_bank_a_verdict(mp):
             return p
         return _calendly_stub(None)(url, *a, **k)
 
-    mp.setattr(cs.requests, "get", fake_get)
+    monkeypatch.setattr(cs.requests, "get", fake_get)
     try:
         cs.check("https://calendly.com/x/discovery", today=_TODAY, reads=2)
     except cs.CalendarStateError as e:
@@ -238,8 +238,8 @@ def test_disagreeing_reads_refuse_to_bank_a_verdict(mp):
         raise AssertionError("expected CalendarStateError on disagreeing reads")
 
 
-def test_unknown_event_slug_lists_what_exists(mp):
-    mp.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": []})))
+def test_unknown_event_slug_lists_what_exists(monkeypatch):
+    monkeypatch.setattr(cs.requests, "get", _calendly_stub(_FakeResponse({"days": []})))
     try:
         cs.check("https://calendly.com/x/no-such-event", today=_TODAY, reads=1)
     except cs.CalendarStateError as e:
@@ -250,7 +250,7 @@ def test_unknown_event_slug_lists_what_exists(mp):
 
 # --- cal.com --------------------------------------------------------------
 
-def test_calcom_reads_slots_by_numeric_event_type_id(mp):
+def test_calcom_reads_slots_by_numeric_event_type_id(monkeypatch):
     def fake_get(url, *a, **k):
         if url.startswith("https://cal.com/"):
             return _FakeResponse({}, text='window.__DATA__={"eventTypeId":127};')
@@ -262,17 +262,17 @@ def test_calcom_reads_slots_by_numeric_event_type_id(mp):
             }})
         raise AssertionError(f"unexpected URL {url}")
 
-    mp.setattr(cs.requests, "get", fake_get)
+    monkeypatch.setattr(cs.requests, "get", fake_get)
     r = cs.check("https://cal.com/peer", today=_TODAY, reads=1)
     assert r["platform"] == "cal.com"
     assert r["available_days"] == 2, r
     assert r["open_slots"] == 3, r
 
 
-def test_calcom_without_event_type_id_raises(mp):
+def test_calcom_without_event_type_id_raises(monkeypatch):
     def fake_get(url, *a, **k):
         return _FakeResponse({}, text="<html>nothing useful</html>")
-    mp.setattr(cs.requests, "get", fake_get)
+    monkeypatch.setattr(cs.requests, "get", fake_get)
     try:
         cs.check("https://cal.com/peer", today=_TODAY, reads=1)
     except cs.CalendarStateError as e:

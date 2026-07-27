@@ -145,126 +145,105 @@ def _send_touch1(verified, **kw):
     bank = _bank(verified, rank=1)
     row = dict(_BASE, **{"Findings Bank": bank})
     base = dict(row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP,
-                now=_NOW, opener_rank=1)
+                now=_NOW, cold_read="price-invisible")
     base.update(kw)
     return crm_gate.check_send(**base)
 
 
-def test_send_touch1_fails_on_four_day_old_finding():
-    ok, problems, _ = _send_touch1("2026-07-18")  # 4 days old
-    assert not ok
-    assert any("Rita Baki" in p for p in problems), problems
+def test_touch1_does_not_freshness_check_anything():
+    """Touch 1 opens on a cold read, so it cites no finding.
 
-
-def test_send_touch1_passes_on_three_day_old_finding():
-    ok, problems, _ = _send_touch1("2026-07-19")  # exactly 3 days old
+    Changed 2026-07-27. Before that the opener carried bank #1 and a finding
+    older than STALE_SEND_DAYS blocked the send. Nothing in the opener can go
+    stale now — the cold read is a market statistic, not a claim about her —
+    so gating touch 1 on a finding's age would block a send for a reason the
+    email does not contain. Warm touches keep the ceiling (below), and that is
+    where the Rita Baki incident actually lived: she was at Touch 5.
+    """
+    ok, problems, _ = _send_touch1("2026-07-01")  # three weeks stale
     assert ok, problems
 
 
-def test_send_touch2_second_finding_checks_the_drawn_entry():
+def test_send_touch2_second_cold_read_checks_no_finding():
+    # A second cold read carries no finding either, so a stale bank is
+    # irrelevant to it — only the pattern id is validated.
     bank = (
-        "1. USED-T1 | SHALLOW | verified:2026-07-10 | opener finding\n"
-        "2. UNUSED | DEEP | verified:2026-07-18 | the second finding\n"
+        "1. RESERVED | DEEP | verified:2026-07-01 | opener finding\n"
+        "2. RESERVED | DEEP | verified:2026-07-01 | the second finding\n"
     )
     row = dict(_BASE, **{"Findings Bank": bank})
     ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=2, carries="second-finding", cap_state=_CAP, now=_NOW,
+        row=row, sends_today=1, touch=2, carries="second-cold-read",
+        cold_read="no-aed", cap_state=_CAP, now=_NOW,
     )
-    assert not ok
-    assert any('bank #2' in p and "Rita Baki" in p for p in problems), problems
+    assert ok, problems
 
 
-def test_send_touch2_leak_fix_offer_checks_current_finding():
-    # No new finding drawn (carries leak-fix-offer, not second-finding) — the
-    # thread still stands on the most-recently-sent entry, which must also be
-    # fresh. Rank 1 was sent 4 days before Touch 2 goes out.
+def test_warm_touch_still_checks_the_finding_it_stands_on():
+    # THE Rita Baki regression, and the reason the ceiling still exists. Her
+    # incident was a WARM Touch 5 re-asserting a booking-flow leak she had
+    # already fixed herself. A warm thread stands on what was actually sent,
+    # so that finding must still be true.
     bank = "1. USED-T1 | SHALLOW | verified:2026-07-18 | opener finding"
     row = dict(_BASE, **{"Findings Bank": bank})
     ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=2, carries="leak-fix-offer", cap_state=_CAP, now=_NOW,
+        row=row, sends_today=1, touch=5, carries="call-ask", cap_state=_CAP, now=_NOW,
     )
     assert not ok
     assert any("Rita Baki" in p for p in problems), problems
+
+
+def test_warm_touch_passes_on_a_fresh_finding():
+    bank = "1. USED-T1 | SHALLOW | verified:2026-07-21 | opener finding"
+    row = dict(_BASE, **{"Findings Bank": bank})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=5, carries="call-ask", cap_state=_CAP, now=_NOW,
+    )
+    assert ok, problems
 
 
 def test_send_ungated_on_legacy_row_with_no_bank_at_all():
     row = dict(_BASE, **{"Findings Bank": ""})
     ok, problems, _ = crm_gate.check_send(
         row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP, now=_NOW,
+        cold_read="price-invisible",
     )
     assert ok, problems
 
 
-# --- H7: the opener must be DEEP (2026-07-27) ------------------------------
-# Depth shipped 2026-07-26 as ranking guidance and died as an optional field:
-# on 2026-07-27 the live CRM had 203 of 225 entries untagged and 8 of 91 leads
-# with any DEEP finding. These pin the enforcement that replaced the guidance.
+# --- H7 is GONE (2026-07-27) -----------------------------------------------
+# H7 hard-failed a touch-1 opener drawn from a SHALLOW or untagged finding,
+# because a self-fixable finding gets fixed and the lead leaves. It lived for
+# one day. Its premise died with the cold-read change: no finding opens an
+# email, so there is no opener finding to classify. Depth still ranks the call
+# bait, it just no longer gates a send. These pin that the gate is genuinely
+# permissive here now, so nobody re-adds it by reflex.
 
-def _t1(bank, rank=1):
+def _t1(bank, cold_read="price-invisible"):
     row = dict(_BASE, **{"Findings Bank": bank})
     return crm_gate.check_send(
-        row=row, sends_today=0, touch=1, followups_due=0, opener_rank=rank,
+        row=row, sends_today=0, touch=1, followups_due=0, cold_read=cold_read,
         cap_state=_CAP, now=_NOW,
     )
 
 
-def test_touch1_opener_fails_on_untagged_depth():
+def test_touch1_passes_on_untagged_depth():
     ok, problems, _ = _t1("1. UNUSED | verified:2026-07-22 | some finding")
-    assert not ok
-    assert any("no DEPTH tag" in p for p in problems), problems
+    assert ok, problems
 
 
-def test_touch1_opener_fails_on_shallow_finding():
-    # The whole point: she fixes a shallow finding herself and leaves.
+def test_touch1_passes_on_a_shallow_bank():
+    # Would have hard-failed on 2026-07-26/27. The finding is not in the email,
+    # so its depth cannot make the email worse.
     ok, problems, _ = _t1("1. UNUSED | SHALLOW | verified:2026-07-22 | dead link on pricing page")
-    assert not ok
-    assert any("is SHALLOW, so it cannot be the opener" in p for p in problems), problems
-    assert any("Rita" in p and "Avneet" in p for p in problems), problems
-
-
-def test_touch1_opener_passes_on_deep_finding():
-    ok, problems, notes = _t1("1. UNUSED | DEEP | verified:2026-07-22 | calendar wide open")
-    assert ok, problems
-    assert any("is DEEP (not self-fixable)" in n for n in notes), notes
-
-
-def test_depth_gate_does_not_apply_to_warm_touches():
-    # Touch 2+ carriers are already constrained by --carries, and a warm
-    # thread stands on what was already sent. Scoping this to touch 1 is
-    # deliberate; widening it would block every live follow-up.
-    row = dict(_BASE, **{"Findings Bank": "1. USED-T1 | SHALLOW | verified:2026-07-22 | dead link"})
-    ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=0, touch=2, carries="disambiguating-question",
-        cap_state=_CAP, now=_NOW,
-    )
     assert ok, problems
 
 
-# --- refresh-finding routes calendar findings away from the text diff -------
-
-def test_calendar_finding_is_routed_to_calendar_state_not_a_text_diff():
-    # A Calendly page is a ~1KB JS shell, so _fetch_page_text pulls nothing
-    # and the diff is meaningless in BOTH directions — the dangerous one being
-    # "unchanged", which would auto-stamp a finding nobody re-checked.
-    bank = "1. UNUSED | DEEP | verified:2026-07-22 | her Calendly has 26 of 30 days wide open"
-    ok, result = crm_gate.check_refresh_finding(
-        row={"Findings Bank": bank}, rank=1, page_text="", baseline_text="",
+def test_touch1_passes_on_an_all_reserved_bank():
+    ok, problems, _ = _t1(
+        "1. RESERVED | DEEP | verified:2026-07-22 | pricing split across 4 platforms"
     )
-    assert ok
-    assert result["use_calendar_state"] is True
-    assert result["new_findings_bank"] is None, "must not auto-stamp"
-    assert "calendar-state" in result["note"]
-
-
-def test_ordinary_finding_still_takes_the_text_diff():
-    bank = "1. UNUSED | DEEP | verified:2026-07-22 | pricing split across 4 platforms"
-    ok, result = crm_gate.check_refresh_finding(
-        row={"Findings Bank": bank}, rank=1, page_text="same", baseline_text="same",
-    )
-    assert ok
-    assert not result.get("use_calendar_state")
-    assert result["changed"] is False
-    assert result["new_findings_bank"] is not None
+    assert ok, problems
 
 
 # --- the unparseable-bank hole (2026-07-27) --------------------------------
@@ -315,7 +294,7 @@ def test_send_on_mixed_bank_checks_the_line_that_parses():
     mixed = _RITA_BANK + "\n3. UNUSED | DEEP | verified:2026-07-22 | pricing split across platforms"
     row = dict(_BASE, **{"Findings Bank": mixed})
     ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=1, followups_due=0, opener_rank=3,
+        row=row, sends_today=1, touch=1, followups_due=0, cold_read="price-invisible",
         cap_state=_CAP, now=_NOW,
     )
     assert ok, problems
@@ -367,32 +346,20 @@ def test_send_warm_touch_still_requires_a_carrier():
     assert any("must declare what new thing it carries" in p for p in problems)
 
 
-# --- day-boundary fix: a rolled touch-1 opener checks freshness as of the
-# day it actually LEAVES (tomorrow, post-cutoff), not the day it was queued
-# -----------------------------------------------------------------------
+# --- day-boundary: the rolled-opener freshness check is GONE ---------------
+# A post-cutoff touch-1 opener rolls to tomorrow's send-day, and the freshness
+# check used to be evaluated as of THAT day, so a 3-day-old finding queued
+# after noon correctly failed as 4 days old on arrival. Touch 1 no longer
+# freshness-checks anything, so the distinction has nothing left to apply to.
+# The send-day rollover itself still governs the CEILING, and that is covered
+# in tests/test_send_gate_dubai.py.
 
-def test_send_touch1_post_cutoff_checks_freshness_against_send_day_not_today():
-    # Post-noon Dubai: this opener is scheduled for TOMORROW (2026-07-23).
-    # The finding is 3 days old as of TODAY (2026-07-22) — inside the
-    # ceiling if freshness were (wrongly) checked against today — but 4
-    # days old as of tomorrow, when it actually leaves. Must FAIL.
+def test_post_cutoff_opener_is_not_freshness_gated_at_all():
     after_noon = datetime(2026, 7, 22, 14, 0)
-    bank = "1. UNUSED | DEEP | verified:2026-07-19 | opener finding"
+    bank = "1. RESERVED | DEEP | verified:2026-07-01 | call bait, three weeks old"
     row = dict(_BASE, **{"Findings Bank": bank})
     ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=1, followups_due=0, opener_rank=1,
-        sends_next_day=0, cap_state=_CAP, now=after_noon,
-    )
-    assert not ok
-    assert any("4 day(s) ago" in p and "Rita Baki" in p for p in problems), problems
-
-
-def test_send_touch1_post_cutoff_passes_when_fresh_as_of_send_day():
-    after_noon = datetime(2026, 7, 22, 14, 0)
-    bank = "1. UNUSED | DEEP | verified:2026-07-20 | opener finding"  # 3 days as of tomorrow
-    row = dict(_BASE, **{"Findings Bank": bank})
-    ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=1, followups_due=0, opener_rank=1,
+        row=row, sends_today=1, touch=1, followups_due=0, cold_read="price-invisible",
         sends_next_day=0, cap_state=_CAP, now=after_noon,
     )
     assert ok, problems

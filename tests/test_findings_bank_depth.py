@@ -37,16 +37,9 @@ _TAGGED = (
     "3. RESERVED | DEEP | verified:2026-07-22 | whole program readable free\n"
     "4. USED-T1 | SHALLOW | verified:2026-07-22 | stale cohort dates"
 )
-# _TAGGED above deliberately models the PRE-H7 shape — a SHALLOW opener at
-# rank 1 — because the rank-mechanics tests around it are about rank, not
-# depth. Since 2026-07-27 that shape can no longer send (H7: a touch-1 opener
-# must draw a DEEP finding), so anything asserting a PASSING opener needs a
-# correctly-walked bank instead. This is it.
-_DEEP_FIRST = (
-    "1. UNUSED | DEEP | verified:2026-07-22 | pricing split across 4 platforms\n"
-    "2. UNUSED | SHALLOW | verified:2026-07-22 | checkout 404s on mobile\n"
-    "3. RESERVED | DEEP | verified:2026-07-22 | whole program readable free"
-)
+# _TAGGED models a PRE-2026-07-27 walked row, with UNUSED entries that were
+# once email material. Rows walked since then are all-RESERVED (see
+# _ALL_RESERVED below). Both shapes must keep parsing and gating.
 _LEGACY = (
     "1. UNUSED | verified:2026-07-22 | dead link\n"
     "2. UNUSED | verified:2026-07-22 | no pricing shown"
@@ -63,7 +56,7 @@ _DEEP_UNRESERVED = (
 
 def _send(bank, **kw):
     row = dict(_BASE, **{"Findings Bank": bank})
-    base = dict(row=row, sends_today=5, touch=2, carries="second-finding", cap_state=_CAP,
+    base = dict(row=row, sends_today=5, touch=2, carries="call-ask", cap_state=_CAP,
                 now=_NOW)
     base.update(kw)
     return crm_gate.check_send(**base)
@@ -126,73 +119,88 @@ def test_legacy_bank_stays_silent():
     assert not any("low-value" in n or "reserve" in n.lower() for n in notes)
 
 
-# --- opener-rank: touch 1 must be built from bank #1, never the reserved deep
-# finding (regression for the 2026-07-24 Tracy Harmoush incident: a draft was
-# built from the page-body finding narrative instead of the bank order, and
-# emailed the exact finding the bank had reserved as call bait) --------------
+# --- cold-read: touch 1 declares which sanctioned pattern it was built from.
+# Replaced the --opener-rank block on 2026-07-27, when the opener stopped being
+# a finding. That check was the regression for the 2026-07-24 Tracy Harmoush
+# incident (a draft built from the page-body narrative instead of the bank
+# order, emailing the exact finding the bank had reserved as call bait). The
+# incident is impossible now — nothing emails a finding — but the
+# declare-what-you-drafted discipline is kept and re-pointed. -----------------
 
 _BEFORE_NOON_DUBAI = _NOW  # side-step the noon cutoff branch (same fixed instant as _send's _NOW)
 
+# What a walked row looks like now: every finding is call bait.
+_ALL_RESERVED = (
+    "1. RESERVED | DEEP | verified:2026-07-22 | pricing split across 4 platforms\n"
+    "2. RESERVED | DEEP | verified:2026-07-22 | whole program readable free\n"
+    "3. RESERVED | SHALLOW | verified:2026-07-22 | checkout 404s on mobile"
+)
 
-def _opener(bank, opener_rank=None, **kw):
+
+def _opener(bank, cold_read=None, **kw):
     row = dict(_BASE, **{"Findings Bank": bank})
     base = dict(row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP,
-                now=_BEFORE_NOON_DUBAI, opener_rank=opener_rank)
+                now=_BEFORE_NOON_DUBAI, cold_read=cold_read)
     base.update(kw)
     return crm_gate.check_send(**base)
 
 
-def test_opener_rank_required_when_bank_populated():
-    ok, problems, notes = _opener(_TAGGED)
+def test_cold_read_required_on_touch_1():
+    ok, problems, notes = _opener(_ALL_RESERVED)
     assert not ok
-    assert any("--opener-rank is required" in p for p in problems)
+    assert any("--cold-read is required" in p for p in problems), problems
 
 
-def test_opener_rank_pointing_at_reserved_fails():
-    ok, problems, notes = _opener(_TAGGED, opener_rank=3)
+def test_unsanctioned_cold_read_fails():
+    # Same rule as "never invent findings": a pattern that is not on the list
+    # does not go in an email.
+    ok, problems, notes = _opener(_ALL_RESERVED, cold_read="coaches-are-busy")
     assert not ok
-    assert any("is RESERVED" in p and "whole program readable free" in p for p in problems)
+    assert any("is not a sanctioned pattern" in p for p in problems), problems
 
 
-def test_opener_rank_pointing_at_wrong_unused_rank_fails():
-    # rank 2 is a real UNUSED entry, but rank 1 is the actual opener (lowest rank)
-    ok, problems, notes = _opener(_TAGGED, opener_rank=2)
+def test_all_reserved_bank_passes_touch_1_with_a_cold_read():
+    # THE regression for this whole change. Before 2026-07-27 an all-RESERVED
+    # bank could not pass touch 1 at all — three independent vetoes fired
+    # (--opener-rank required, the rank is RESERVED, and opener_finding()
+    # returned None so freshness failed on "no entry to check"). A walked lead
+    # is now all-RESERVED by definition, so if this ever goes red again the
+    # entire cold pipeline is blocked.
+    ok, problems, notes = _opener(_ALL_RESERVED, cold_read="price-invisible")
+    assert ok, problems
+    assert any('cold read "price-invisible"' in n for n in notes), notes
+
+
+def test_touch_1_does_not_freshness_check_a_finding_it_never_sends():
+    # The findings here are 3 weeks stale and the opener still passes: touch 1
+    # cites no finding, so there is nothing for a stale one to misstate. Warm
+    # touches still get the ceiling (see test_finding_staleness.py).
+    stale = "1. RESERVED | DEEP | verified:2026-07-01 | pricing split across 4 platforms"
+    ok, problems, notes = _opener(stale, cold_read="no-aed")
+    assert ok, problems
+
+
+def test_cold_read_still_required_on_a_row_with_no_bank():
+    # Unlike --opener-rank, this does NOT depend on the bank: the pattern is a
+    # property of the draft, not of the row.
+    ok, problems, notes = _opener("", cold_read=None)
     assert not ok
-    assert any("is not the opener" in p and "bank #1" in p for p in problems)
+    assert any("--cold-read is required" in p for p in problems), problems
+
+    ok, problems, notes = _opener("", cold_read="rented-audience")
+    assert ok, problems
 
 
-def test_opener_rank_matching_bank_one_passes():
-    ok, problems, notes = _opener(_DEEP_FIRST, opener_rank=1)
-    assert ok and not problems
-    assert any("opener draws bank #1" in n for n in notes)
-
-
-def test_shallow_opener_no_longer_passes_even_at_the_right_rank(mp=None):
-    # The H7 change, stated as a regression: _TAGGED's rank 1 is SHALLOW and
-    # the declared rank is correct, so this passed before 2026-07-27 and must
-    # not again. A right-rank pointer at a self-fixable finding is still an
-    # email the coach answers with "thanks, fixed it."
-    ok, problems, notes = _opener(_TAGGED, opener_rank=1)
-    assert not ok
-    assert any("is SHALLOW, so it cannot be the opener" in p for p in problems), problems
-
-
-def test_opener_rank_unknown_rank_fails():
-    ok, problems, notes = _opener(_TAGGED, opener_rank=99)
-    assert not ok
-    assert any("does not match any Findings Bank entry" in p for p in problems)
-
-
-def test_opener_rank_ignored_on_legacy_empty_bank():
-    # a row with no Findings Bank at all (single-finding lead, or pre-migration
-    # row) must stay ungated — nothing to cross-check against.
-    row = dict(_BASE, **{"Findings Bank": ""})
-    ok, problems, notes = crm_gate.check_send(
-        row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP,
-        now=_BEFORE_NOON_DUBAI,
+def test_cold_reads_list_matches_the_reference_doc():
+    # The gate's list and the drafter's list must never disagree — the doc is
+    # what a human reads, the tuple is what the gate enforces.
+    from pathlib import Path
+    doc = Path(__file__).resolve().parents[1] / (
+        ".claude/skills/haytham-email-draft/references/cold-reads.md"
     )
-    assert ok
-    assert not any("opener-rank" in p for p in problems)
+    text = doc.read_text()
+    for pattern in crm_gate.COLD_READS:
+        assert f"## `{pattern}`" in text, f"{pattern} is gated but undocumented"
 
 
 def test_opener_finding_helper_returns_lowest_unused_rank():

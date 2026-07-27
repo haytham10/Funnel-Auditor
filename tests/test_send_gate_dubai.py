@@ -47,7 +47,13 @@ _SUNDAY_MORNING = datetime(2026, 7, 19, 9, 0, tzinfo=DUBAI)
 
 
 def _send(**kw):
-    base = dict(row=_ROW, sends_today=0, touch=1, followups_due=0, cap_state=_CAP)
+    # `cold_read` is required on every touch-1 send since 2026-07-27 (the
+    # opener is a cold read, not a finding). These tests are about the send-day
+    # boundary and the ceiling, so it is supplied here once rather than in
+    # every case; the cold-read validation itself lives in
+    # tests/test_findings_bank_depth.py.
+    base = dict(row=_ROW, sends_today=0, touch=1, followups_due=0, cap_state=_CAP,
+                cold_read="price-invisible")
     base.update(kw)
     return crm_gate.check_send(**base)
 
@@ -104,7 +110,7 @@ def test_touch1_opener_rolling_onto_monday_is_not_paused():
         sends_today=18, followups_due=1, now=sunday_afternoon, sends_next_day=0,
     )
     assert ok, problems
-    assert "2026-07-20" in notes[0]
+    assert any("2026-07-20" in n for n in notes), notes
 
 
 # --- touch 1 opener, before noon (unchanged behavior) ----------------------
@@ -112,8 +118,7 @@ def test_touch1_opener_rolling_onto_monday_is_not_paused():
 def test_touch1_before_noon_uses_today_count():
     ok, problems, notes = _send(sends_today=18, followups_due=1, now=_MORNING)
     assert ok, problems
-    assert "today" in notes[0]
-    assert "opener headroom 1" in notes[0]
+    assert any("today" in n and "opener headroom 1" in n for n in notes), notes
 
 
 def test_touch1_before_noon_rolls_when_today_full():
@@ -135,7 +140,7 @@ def test_touch1_after_noon_ignores_full_today_uses_tomorrow():
     # is nearly empty — so it passes against tomorrow's ceiling.
     ok, problems, notes = _send(sends_today=20, followups_due=0, now=_AFTERNOON, sends_next_day=2)
     assert ok, problems
-    assert "2026-07-21" in notes[0] and "tomorrow" in notes[0]
+    assert any("2026-07-21" in n and "tomorrow" in n for n in notes), notes
 
 
 def test_touch1_after_noon_rolls_when_tomorrow_full():
@@ -169,13 +174,18 @@ def test_touch2_after_noon_still_counts_today():
 # and now a call ask with two specific times. Old labels keep passing so
 # in-flight rows and historical logs don't break.
 
-def test_normalize_carrier_maps_both_deprecated_aliases():
-    for old in ("loom-offer", "leak-fix-offer"):
+def test_normalize_carrier_maps_all_deprecated_aliases():
+    # Three retirements now: the free Loom and the paid Leak Fix both became
+    # the call ask, and `second-finding` became `second-cold-read` when
+    # findings stopped being emailed at all (2026-07-27).
+    for old, want in (("loom-offer", "call-ask"),
+                      ("leak-fix-offer", "call-ask"),
+                      ("second-finding", "second-cold-read")):
         canonical, note = crm_gate.normalize_carrier(old)
-        assert canonical == "call-ask", old
+        assert canonical == want, old
         assert note is not None and "DEPRECATED" in note, old
 
-    assert crm_gate.normalize_carrier("second-finding") == ("second-finding", None)
+    assert crm_gate.normalize_carrier("call-ask") == ("call-ask", None)
     assert crm_gate.normalize_carrier("bogus")[0] == "bogus"
 
 
