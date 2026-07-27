@@ -195,6 +195,58 @@ def test_send_ungated_on_legacy_row_with_no_bank_at_all():
     assert ok, problems
 
 
+# --- the unparseable-bank hole (2026-07-27) --------------------------------
+# "No bank" and "a bank nothing can read" used to be the same thing to the
+# gate: both skipped the freshness check silently. Rita Baki's row was the
+# second kind while carrying a live 3,200 AED quote on a finding she had
+# already fixed. Her real grammar is the fixture.
+
+_RITA_BANK = (
+    "1. DEAD (refuted on the 07-25 re-walk) | booking flow leads to a bare form\n"
+    "2. DEAD (refuted on the 07-25 re-walk) | discovery call CTA has no scheduler"
+)
+
+
+def test_bank_is_unparseable_detects_ritas_real_grammar():
+    assert crm_gate.bank_is_unparseable(_RITA_BANK)
+
+
+def test_bank_is_unparseable_false_on_empty_and_whitespace():
+    # A genuinely empty bank stays ungated — that precedent predates this.
+    assert not crm_gate.bank_is_unparseable("")
+    assert not crm_gate.bank_is_unparseable("   \n  \n")
+    assert not crm_gate.bank_is_unparseable(None)
+
+
+def test_bank_is_unparseable_false_when_some_lines_parse():
+    # Leaving a killed finding in a non-matching grammar is the SANCTIONED way
+    # to hide it from the gate without deleting the evidence. One live line is
+    # enough; this must not regress into "every line must parse".
+    mixed = _RITA_BANK + "\n3. UNUSED | SHALLOW | verified:2026-07-22 | currency split across pages"
+    assert not crm_gate.bank_is_unparseable(mixed)
+
+
+def test_send_fails_closed_on_unparseable_bank():
+    row = dict(_BASE, **{"Findings Bank": _RITA_BANK})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP, now=_NOW,
+    )
+    assert not ok
+    assert any("not one line parses" in p for p in problems), problems
+
+
+def test_send_on_mixed_bank_checks_the_line_that_parses():
+    # The surviving live finding is fresh, so this passes — proving the mixed
+    # bank reached the freshness check instead of being rejected wholesale.
+    mixed = _RITA_BANK + "\n3. UNUSED | SHALLOW | verified:2026-07-22 | currency split across pages"
+    row = dict(_BASE, **{"Findings Bank": mixed})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=1, touch=1, followups_due=0, opener_rank=3,
+        cap_state=_CAP, now=_NOW,
+    )
+    assert ok, problems
+
+
 # --- H3b: warm touches (4+) reach the same gate, not just cold 1/2/3 -------
 # Regression for the exact shape of the Rita Baki incident: her real send was
 # a WARM bump (Touch 5), which the gate never saw because `touch >
@@ -274,17 +326,23 @@ def test_send_touch1_post_cutoff_passes_when_fresh_as_of_send_day():
 
 # --- crm-gate offer --------------------------------------------------------
 
-def test_offer_fails_on_two_day_old_finding():
-    bank = "1. USED-T1 | DEEP | verified:2026-07-20 | opener finding"  # 2 days old
+def test_offer_has_no_freshness_ceiling_at_all():
+    # STALE_OFFER_DAYS was removed 2026-07-27 with The First Five: the offer
+    # no longer quotes work scoped around the finding, so a stale finding has
+    # nothing to misprice. A finding old enough to fail the SEND gate twice
+    # over must still clear the offer gate.
+    bank = "1. USED-T1 | DEEP | verified:2026-07-01 | opener finding"  # 21 days old
     row = dict(Status="Call Booked", **{"Findings Bank": bank})
     ok, problems, _ = crm_gate.check_offer(row, now=_NOW)
-    assert not ok
-    assert any("Rita Baki" in p for p in problems), problems
+    assert ok, problems
+    assert not hasattr(crm_gate, "STALE_OFFER_DAYS")
 
 
-def test_offer_passes_on_one_day_old_finding():
-    bank = "1. USED-T1 | DEEP | verified:2026-07-21 | opener finding"  # 1 day old
-    row = dict(Status="Call Booked", **{"Findings Bank": bank})
+def test_offer_ungated_on_unparseable_bank_too():
+    # check_offer stopped reading the bank entirely, so the unparseable-bank
+    # hard fail is a SEND-gate rule only. Pinned so nobody "restores symmetry"
+    # by adding a check the offer gate has no use for.
+    row = dict(Status="Call Booked", **{"Findings Bank": "1. DEAD (refuted 07-25) | old finding"})
     ok, problems, _ = crm_gate.check_offer(row, now=_NOW)
     assert ok, problems
 

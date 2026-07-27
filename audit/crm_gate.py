@@ -101,11 +101,14 @@ Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
       3. RESERVED | DEEP | verified:2026-07-24 | entire program is readable free
 
   `check_send` hard-fails when the drawn finding was last verified more than
-  `STALE_SEND_DAYS` (3) days ago; `check_offer` hard-fails past
-  `STALE_OFFER_DAYS` (1) day — a priced offer quotes work, the work must
-  still need doing. A missing `verified:` tag fails the same way a missing
-  date would (never verified = can't prove it isn't stale). Legacy rows with
-  no `Findings Bank` at all stay ungated, same precedent as `--opener-rank`.
+  `STALE_SEND_DAYS` (3) days ago. A missing `verified:` tag fails the same way
+  a missing date would (never verified = can't prove it isn't stale), and a
+  `Findings Bank` that has content but yields no parseable line ALSO fails —
+  see `parse_findings_bank`. Only a genuinely empty bank stays ungated, same
+  precedent as `--opener-rank`.
+
+  `check_offer` no longer carries a freshness ceiling (2026-07-27, The First
+  Five) — see the note above `STALE_SEND_DAYS`.
 
   refresh — `main.py refresh-finding <row.json> --rank N --url <finding-url>
           --baseline-file <file> [--save-baseline-to <file>]` is the cheap
@@ -153,12 +156,25 @@ from audit import inboxes, send_cap
 
 COLD_SEQUENCE_TOUCHES = 3
 
-# Freshness ceilings for the finding a send/offer draws on (2026-07-26, the
-# Rita Baki case — see the module docstring). A send can trail the walk by
-# a few days (the cold sequence itself runs day 0/3/9); a priced offer is
-# quoting work RIGHT NOW, so its ceiling is tighter.
+# Freshness ceiling for the finding a SEND draws on (2026-07-26, the Rita Baki
+# case — see the module docstring). A send can trail the walk by a few days
+# (the cold sequence itself runs day 0/3/9).
+#
+# Do not loosen this: the finding is still cited in the opener as the evidence
+# the work was actually done, and citing a dead one is what Lisa Hugo and
+# William Brown both pushed back on. Under The First Five the openers draw on
+# calendar/acquisition state, which goes stale in DAYS, not weeks — this
+# ceiling is more load-bearing now, not less.
 STALE_SEND_DAYS = 3
-STALE_OFFER_DAYS = 1
+
+# `STALE_OFFER_DAYS` (was 1) was REMOVED 2026-07-27 with The First Five.
+# Its whole rationale was "a priced offer quotes work, so the work must still
+# need doing" — true when the offer was a 735/2,575 AED funnel fix scoped
+# around the finding. The First Five sells booked calls and quotes no work
+# against the finding at all, so the ceiling was blocking offers for a reason
+# that no longer exists. `check_send` keeps its 3-day ceiling; that is where
+# the Rita Baki protection actually lives now. Do not reinstate this without
+# an offer that once again prices the finding.
 
 _STALE_FINDING_EXPLANATION = (
     "this is the Rita Baki case (docs/journal.md, 2026-07-21/25): her 3,200 AED "
@@ -281,6 +297,29 @@ def parse_findings_bank(value) -> list[dict]:
                 "finding": m.group(5),
             })
     return entries
+
+
+def bank_is_unparseable(value) -> bool:
+    """True when `Findings Bank` has real content but NOT ONE line parses.
+
+    This is the hole the staleness gate itself fell through (2026-07-27). Both
+    `check_send`'s freshness block and the old offer one were guarded by a bare
+    `if parse_findings_bank(...)`, so a bank that parsed to nothing was read as
+    "legacy row, no bank, nothing to check" and skipped the gate ENTIRELY —
+    strictly worse than a missing `verified:` tag, which at least fails loudly.
+    Rita Baki's row was in exactly this state (its findings were written in a
+    bespoke `N. DEAD (...) | finding` grammar) while carrying a live 3,200 AED
+    quote scoped around a finding she had already fixed herself.
+
+    A bank where SOME lines parse and others do not is NOT unparseable, and
+    must not be: leaving a killed finding in a non-matching grammar is the
+    sanctioned way to hide it from the gate without deleting the evidence
+    (docs/journal.md, 2026-07-26). Only "content present, zero entries" is the
+    broken state.
+    """
+    if not _norm(value).strip():
+        return False
+    return not parse_findings_bank(value)
 
 
 def bump_verified_date(bank_text: str, rank: int, new_date: str) -> str:
@@ -609,24 +648,16 @@ def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
     `Price Discovery Answer` / `Discovery Anchor` are ADVISORY here — they
     sharpen the number, they no longer license it. They come back as notes.
 
-    Also hard-fails when the finding the offer is built on (`current_finding`
-    — the most-recently-sent bank entry, or bank #1) was last verified more
-    than `STALE_OFFER_DAYS` (1) day ago. A priced offer quotes work; the work
-    must still need doing (the Rita Baki case — see the module docstring).
-    Legacy rows with no `Findings Bank` at all stay ungated.
+    There is deliberately NO finding-freshness check here any more (removed
+    2026-07-27 — see the note where `STALE_OFFER_DAYS` used to live). The offer
+    no longer quotes work scoped around the finding, so there is nothing for a
+    stale finding to misprice. `check_send` still enforces `STALE_SEND_DAYS`.
 
     Returns (ok, problems, notes) — same shape as check_send; notes are
     PASS-line detail.
     """
     problems: list[str] = []
     notes: list[str] = []
-
-    if parse_findings_bank(row.get("Findings Bank")):
-        fresh_ok, fresh_problems, fresh_notes = check_finding_freshness(
-            current_finding(row), STALE_OFFER_DAYS, today=send_cap.today(now)
-        )
-        problems.extend(fresh_problems)
-        notes.extend(fresh_notes)
 
     status = _norm(row.get("Status"))
     by_status = status in EARNED_STATUSES
@@ -800,7 +831,21 @@ def check_send(
     # tomorrow, not merely as of right now (the same date `pause_day` above
     # already computes; reusing it keeps the two checks from disagreeing on
     # which day this send actually leaves).
-    if parse_findings_bank(row.get("Findings Bank")):
+    #
+    # "No bank at all" and "a bank nothing can read" are NOT the same thing:
+    # the second one used to fall through this `if` and skip the gate silently
+    # (2026-07-27 — see `bank_is_unparseable`). It now fails closed.
+    if bank_is_unparseable(row.get("Findings Bank")):
+        problems.append(
+            "`Findings Bank` has content but not one line parses, so there is no "
+            "finding to freshness-check and this send would otherwise skip the gate "
+            "entirely. Rewrite the bank to `N. UNUSED|USED-Tn|RESERVED | [DEPTH |] "
+            "[verified:YYYY-MM-DD |] finding` — one line per finding. (Killed findings "
+            "are deliberately left in a non-matching grammar so the gate ignores them; "
+            "that is fine, but at least one LIVE line has to parse.) "
+            + _STALE_FINDING_EXPLANATION
+        )
+    elif parse_findings_bank(row.get("Findings Bank")):
         if touch == 1:
             drawn = opener_finding(row)
         elif normalize_carrier(carries)[0] == "second-finding":
