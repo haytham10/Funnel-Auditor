@@ -78,8 +78,8 @@ matching snapshot key.
   2026-07-24; the JSON key is unchanged so the renderer keeps working). Two
   queues:
   - `due_question`: warm leads owed a turn-two — `Status = 'Reply Received'`
-    with no Leak Fix offered yet → `[{"name","status","next_action"}]`. The
-    turn-two carries the paid 48-Hour Leak Fix or the calendar, never the
+    with no call ask sent yet → `[{"name","status","next_action"}]`. The
+    turn-two carries a call ask with two specific times, never the
     retired price-discovery question.
   - `offer_unlocked`: leads who have EARNED a number —
     `"Status" IN ('Call Booked','Leak Fix Sold','Leak Fix Delivered','Offer Sent','Won')`

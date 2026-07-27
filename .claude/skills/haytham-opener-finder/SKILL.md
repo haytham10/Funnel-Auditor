@@ -173,13 +173,14 @@ Lane 1 only: state the chosen opener finding (bank #1) as the opening angle. One
 
 **The innocent explanation is a required second line.** Alongside the finding, always output the plausible non-blame explanation for it: the calendar might just need a reset, the cohort date might be stuck from last round, the replay link might still be mid-migration, the section might still be loading. The email skill turns this pair into the either/or closing question, and the pipeline evidence says that question is doing heavy lifting: all five cold openers that earned warm replies in the old track closed with an either/or handing her a face-saving explanation, and the one opener that closed with a challenge and no exit drew "Rude." This matches reactance research on feedback: delivery that questions competence triggers defensiveness, delivery that leaves the recipient autonomy keeps her receptive. If no innocent explanation exists for a finding, flag that to Haytham; it may mean the finding will read as an accusation no matter how it's phrased.
 
-**The Loom skeleton (Lane 1, required).** While the funnel is still fresh in
-context, write the three-line artifact outline into the page body's Loom
-Skeleton section (see schema.md): Show (the exact page/element + URL), Fix
-(the one change, in her platform's terms), Done state (what working looks
-like). It costs nothing now and turns a "yes, show me" reply into a
-30-minute delivery instead of a re-research session — slow artifact delivery
-was the old track's #1 controllable failure.
+**Call prep (Lane 1, required).** While the funnel is still fresh in
+context, write the three-line outline into the page body's Call Prep section
+(see schema.md): Show (the exact page/element + URL), Fix (the one change, in
+her platform's terms), Done state (what working looks like). *(Renamed from
+"Loom Skeleton" on 2026-07-27 — the Loom offer is retired, but the artifact
+is more useful than ever: under The First Five the call IS the product, and
+this is what stops a booked call becoming a re-research session. Slow
+artifact delivery was the old track's #1 controllable failure.)*
 
 **No SMYKM hook here.** This skill stops at the finding + innocent explanation. Write `SMYKM hook: not run yet — see haytham-hook-finder` as the placeholder line in Step 6 below. Finding the actual hook is `haytham-hook-finder`'s job — a separate skill Haytham triggers manually on an Audit Ready lead, working from real public evidence (LinkedIn posts, podcast appearances, YouTube, the About page). The email skill can draft perfectly well without one (SMYKM opening B, direct finding opener); the hook is an upgrade, not a blocker — but the hook line must be RESOLVED (real hook or confirmed "no hook found") before any draft goes out.
 
@@ -195,7 +196,7 @@ Fetch the lead's Notion page first to get the current state. Then write the walk
 
 - **Do NOT check `Finding Verified` yourself — you PROPOSE the finding.** That checkbox is the hard send gate (`python main.py crm-gate send` fails without it), and it is checked only by the independent `finding-verifier`, which re-derives the finding from the cited screenshots in a context that never saw your walk. Self-certifying it is the exact failure this track exists to avoid. Bank the finding, record the exact evidence paths it rests on in the body's Evidence section, and leave the box unchecked. See `docs/agent-orchestration.md`.
 - **Status:** a Lane 1 lead you just walked stays `Qualifying` (finding proposed, not yet verified) — it becomes `Audit Ready` only after the `finding-verifier` returns VERIFIED and `Email Verified` is set. Lane 2 → Status `Lane 2` (the dedicated no-leak status, added 2026-07-16; Notes carries the warm-up angle). Lane 3 or any gate fail → `Disqualified`.
-- **Est. Value:** `Track A ($200)` by default; `Track B ($700)` only when real launch or sales volume is visible; `Unknown` if you can't tell.
+- **Est. Value:** LEGACY select, still worded against the retired Track A / Track B prices. Set `Unknown` on new rows — The First Five is priced per booked call, so a per-lead deal value is not knowable at walk time.
 - **`Findings Bank` (property):** the ranked verified findings in compact machine-parseable lines, `N. STATUS | DEPTH | verified:YYYY-MM-DD | <finding>` — `STATUS` = `UNUSED` on a fresh walk (send-confirmation logging flips to `USED-TN` later) OR `RESERVED` for the one deep finding held as call bait; `DEPTH` = `SHALLOW` or `DEEP`; `verified:` = **today's date, stamped now, at walk time** (`refresh-finding` bumps it later). Example: `1. UNUSED | DEEP | verified:2026-07-27 | pricing split across 4 platforms` / `2. UNUSED | SHALLOW | verified:2026-07-27 | booking button drops to a form, not a scheduler` / `3. RESERVED | DEEP | verified:2026-07-27 | whole program readable free`. Ranked depth-first per Step 4. **Both tags are mandatory on every line, and rank 1 must be `DEEP`** — `crm-gate send` hard-fails a touch-1 opener drawing an untagged or `SHALLOW` entry, and hard-fails any line missing `verified:`. Omitting them does not degrade gracefully; it blocks the send. (Both were optional until 2026-07-27 and the result was 203 of 225 live entries with no depth tag and every freshly-walked row arriving already stale.) The send gate also skips `RESERVED` when drawing a second-finding. If no deep finding exists the lead has no legal opener: no `RESERVED` line, and the low-value flag goes in `Notes`. Lane 2/3: leave empty.
 
 If the write uses search-and-replace (`update_content`) rather than a full

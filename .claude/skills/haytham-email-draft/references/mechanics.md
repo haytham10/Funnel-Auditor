@@ -7,13 +7,13 @@ The channel rules and sequencing. Read this for any follow-up, turn-two reply, o
 - **Outcome only, never features.** They don't care that you build Kajabi funnels. They care what they get. Lead with the result, not the credential.
 - **Plain language, anyone should follow it.** No jargon, no insider terms, no industry shorthand. Write so a parent, a coach, or a stranger with zero context could read the email and immediately understand what's wrong and what they'd get. If a sentence needs specialized knowledge to land, simplify it. Result-driven over technical: say what it costs them or what they get, not how the mechanism works.
 - **Keep the fix vague, name the finding specific.** The open loop pulls the reply. State what they get, leave the how as the question.
-- **Short beats long** — as a default pressure. One finding, one cost, one question. (Voice overrides the cap when admiring properly needs the room.)
+- **Short beats long** — as a default pressure. One hook, one finding, one identity line, one cost, one call ask. 90 to 130 words. (Voice overrides the cap when admiring properly needs the room.)
 - **The finding is a trigger event.** A real leak is a reason to reach out now. You are not bothering people if you are relevant.
 - **Plain text only.** No images, no HTML. No Loom link in email 1. No Calendly link in email 1. Every link signals a sales asset. Earn the reply first.
 - **Never print a bare domain or email address in the body.** Gmail auto-links any bare `name.tld` or `a@b.com` into an ugly `https://www.google.com/url?q=...&source=gmail` tracking redirect, which reads as a spam signal in a personal email (it mangled a real Susan Koruthu draft, Jul 15 2026). Refer to a site by description instead ("your old site", "the FAQ page", "the new site") — the reader knows which of her pages you mean. Cold openers carry no links at all; if a link is genuinely intended (a money-email proof link), write it with an explicit `https://` scheme, never bare. This is code-enforced by a PreToolUse hook on `create_draft` (`.claude/hooks/gmail_draft_link_guard.py`) that blocks the draft if a bare domain/email is in the body — so a slip fails loudly instead of shipping.
-- **One CTA only.** One question or one offer per email. Not a menu.
+- **One CTA only.** On a cold Touch 1 that CTA is a call ask with two specific times. A question about her business is legal only riding on it, never alone. Not a menu.
 - **Exact numbers over ranges.** "$8,123 in one week" beats "multiple five figures."
-- **Your opening email IS the lead magnet.** The finding you surface is real value given upfront. Don't withhold it for a call.
+- **The finding is EVIDENCE, not the product.** It proves a human actually looked, which is what earns the read. It is not what you are selling and it is not a free deliverable. *(Changed 2026-07-27. This line used to read "your opening email IS the lead magnet — the finding is real value given upfront." That is precisely what produced 4 of 9 engaged leads reading the finding, fixing it themselves, thanking us and leaving. Give the finding, keep the fix vague, and spend the credibility on the call ask.)*
 - **The reinforcement loop (COLD threads only).** On a thread that has never replied, each email rewards the last open. The finding in touch 1 is the reward that earns touch 2's open. Every COLD follow-up must deliver something new, even small. Dead-weight cold bumps ("just checking in") erode the loop. The value is the email; the ask rides on top. **This rule is scoped to cold.** Once a thread is warm (she replied), it flips: a warm reply answers what the person actually said and advances ONE step — it does NOT re-deliver the finding, the price, or an offer she already declined. Re-stating what she already acknowledged reads as low-confidence and kills rapport (see the Warm replies section below). Do not let cold-follow-up logic bleed into warm threads.
 
 ## Subject line
@@ -39,9 +39,25 @@ Test: does it sound like a coach-adjacent human noticing something, or a consult
 
 ## Body structure (the guide, not a script)
 
-- Line 1: the finding or the SMYKM human hook, stated flat. No "I was browsing."
-- The cost: what the gap costs them right now, in something they can picture.
-- The close: one question or one concrete offer, never both.
+**Five beats, in this order. 90 to 130 words.** (Replaced the old four-line shape on 2026-07-27.)
+
+```
+BEAT 1  HOOK       elaborate the SMYKM hook. This is the admiration.
+                   Falls away to the finding alone on a "no hook found" row.
+BEAT 2  FINDING    stated flat, no discovery frame. No "I was browsing."
+BEAT 3  IDENTITY   NEW. one sentence: who I am and why I spotted it.
+BEAT 4  COST       what the gap costs her, in something she can picture.
+BEAT 5  CLOSE      a call ask with two specific times.
+Haytham
+```
+
+**The beat order is load-bearing, and it is the order her objections arrive in:** is this a spammer (hook) → is this real (finding) → who is this and why should I care (identity) → what does it cost me (cost) → what happens next (close). Identity before the finding turns the email into an introduction, which is what the hook exists to avoid. Cost before identity makes the cost read as a sales claim rather than an observation.
+
+- **Beat 3, the identity beat**, is the fix for two of nine failures. Lucia and Lee both replied with their own offer and pricing: a warm, specific, admiring email that asks a curious question about someone's business, with no statement of who is writing, has one obvious reading — *this person wants to buy from me*. Two shapes, both true today, test both:
+  - Volume: *"I go through coaching sites here for a living, about a hundred and twenty this year."*
+  - Outcome: *"the last order bump I put in did $522 on one launch, about one buyer in four took it."* (Number without the brand name — see the attribution rule below.)
+  Beat 3 costs ~20 words; take them out of the cost line, which is usually the flabbiest. It must clear the niche-lingo rule: no "funnel", "audit", "conversion".
+- **Beat 5, the close**, is a next step she can accept in one word, with two named times. Never a question about her business on its own. Vary the times and the phrasing per lead — the shape is fixed, the wording is not, and a verbatim-reused close is a tell the second time it ships.
 - Sign off: "Haytham" on its own line. Required (Jul 14, 2026: the Gmail auto-signature was removed, so the body must carry the name itself). Every worked example in examples.md ends this way.
 
 Two-line paragraphs. She is reading distracted on her phone. Build conflict in: what's there vs what's missing. The hidden "but" is the turn.
@@ -107,7 +123,7 @@ The soft-exit reflex (trailing off with "no pressure, whenever") is one killer; 
 
 **UAE-track leads only: no money email exists until the lead has EARNED a number.** `python main.py crm-gate offer` must print PASS before a priced Sprint / Track A / Track B offer is drafted. Two routes earn it, either one is enough: an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or the `Asked For Price` checkbox. The 500 AED 48-Hour Leak Fix offered at turn-two is NOT a money email for this purpose and is NOT gated — it is the rung that earns the right. Parenting-track warm threads are exempt entirely. (Changed 2026-07-24: the gate used to require a verbatim price-discovery answer and an anchor. That premise was falsified — see `references/uae-track.md`.)
 
-This replaces the old "ask for a call, then negotiate" pattern entirely. Louise and Helen both stalled on vague scheduling asks with no price attached before either lead had a number to react to — do not repeat that shape. (Both threads later recovered once a flat price finally landed; see the Louise and Helen receipts in examples.md.) When it's time to close (after a delivered Leak Fix, a booked call, or a direct price question — the three things that earn it), the next email states a flat price and a payment path in the same message. No "do you have time" asks. No Calendly link as the close move.
+This replaces the old "ask for a call, then negotiate" pattern entirely. Louise and Helen both stalled on **vague** scheduling asks — "do you have time this week", no times named, no price attached, nothing for the lead to react to. **That is the shape to avoid, and it is not the same thing as the cold Touch 1 close**, which names two specific times and asks for a one-word yes. A vague ask leaves her with work to do; a dated one leaves her with a decision. When it's time to CLOSE ON PRICE (after a booked call or a direct price question — the two things that earn it), the money email states a flat price and a payment path in the same message; a scheduling ask is not a substitute for a number, and a bare Calendly link is never the close move.
 
 **The offer (Grand Slam Offer v2, Jul 2 — read this before any money email):**
 
@@ -121,7 +137,7 @@ This replaces the old "ask for a call, then negotiate" pattern entirely. Louise 
 
 *Track B — Launch-Ready, upgraded* (roster operators who already sell, real launch/sales numbers):
 - Price: $700. Hold it.
-- Headline guarantee: the order bump installed pays for the whole project within 30 days of her next launch, or the difference gets refunded. Receipt behind it: one bump did $522 on a single launch, 1 in 2 buyers took it.
+- Headline guarantee: the order bump installed pays for the whole project within 30 days of her next launch, or the difference gets refunded. Receipt behind it: one bump did $522 on a single launch, about 1 in 4 buyers took it.
 - Delivery guarantee stacked under it: every fix live and tested before doors open, or she pays nothing and keeps the work.
 - Bonuses matched to specific objections, never a discount: Launch-Week Hotline ($300 value, kills "what if something breaks"), Next Launch Playbook ($150 value, kills "then I depend on you forever"), Checkout Second Look 30 days post-launch ($200 value, kills "what if it doesn't work the first time").
 - Closer of last resort (use only on a hard stall from a genuinely good fit, never lead with it): install the order bump for free, get paid only from what it makes.
@@ -134,7 +150,7 @@ This replaces the old "ask for a call, then negotiate" pattern entirely. Louise 
    Both, by name, in every money email. Full wording in `references/uae-track.md`. Real receipt for the shape, current Track A price, Lisa Smith's Touch 3: "$200 flat covers the fix plus a short recorded walkthrough of those two along with what I'd do about them. If anything I touch isn't working when you check it, you pay nothing and keep everything anyway."
 3. Proof rides with the offer: the PWH page links plus haytham-sys.netlify.app, so she can verify in 30 seconds this is real.
 4. One CTA: the price and a single next step (a payment link, or "want me to start today"), not a menu.
-5. Numbers stay locked to their real source: $8,123 and 93% are Birds & Bees only. $522 and the 50% take rate are Screen Smart order bumps only. 6.6% is the Hijab Workbook only. Never blur these across case studies.
+5. Numbers stay locked to their real source: $8,123 and 93% are Birds & Bees only. $522 and the 1-in-4 take rate are Screen Smart order bumps only. 6.6% is the Hijab Workbook only. Never blur these across case studies. **In a cold opener's identity beat the number ships WITHOUT the brand name** — "$522 from one order bump, about one buyer in four" is the claim; whose bump it was is not a cold reader's business and naming an unrelated client reads as name-dropping.
 
 ## Small-deal closing (sub-$1k, Track A)
 

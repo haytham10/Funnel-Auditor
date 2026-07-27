@@ -1,6 +1,6 @@
 ---
 name: haytham-email-draft
-description: Draft cold outreach emails, follow-ups, warm replies, turn-two replies offering the paid 48-Hour Leak Fix (UAE track), money emails (priced close offers), price/deposit-objection replies, trust-verification replies, and past-client reactivation emails in Haytham's voice and framework, for both tracks — UAE coach leads (the active pipeline) and parenting/faith-based coach leads (live threads only). Use this skill WHENEVER drafting any outreach email, follow-up touch, turn-two reply, warm-thread message, leak-fix offer, priced close, objection reply, or re-engagement email to a coach lead or past client, even if the user just pastes a funnel finding and says "write the email" or "draft this one" without naming the framework. Also use when the user asks to fix, tighten, or rewrite an existing draft of one of these emails. This skill carries the full framework (Voice, Email OS, SMYKM, Drafting Doc, Grand Slam Offer v2, the UAE offer register, guarantees and downsell ladder) and real sent examples, so there is no need to fetch them from Notion.
+description: Draft cold outreach emails, follow-ups, warm replies, turn-two replies asking for a call (UAE track), money emails (priced close offers), price/deposit-objection replies, trust-verification replies, and past-client reactivation emails in Haytham's voice and framework, for both tracks — UAE coach leads (the active pipeline) and parenting/faith-based coach leads (live threads only). Use this skill WHENEVER drafting any outreach email, follow-up touch, turn-two reply, warm-thread message, call ask, priced close, objection reply, or re-engagement email to a coach lead or past client, even if the user just pastes a funnel finding and says "write the email" or "draft this one" without naming the framework. Also use when the user asks to fix, tighten, or rewrite an existing draft of one of these emails. This skill carries the full framework (Voice, Email OS, SMYKM, Drafting Doc, The First Five offer register, guarantees and downsell ladder) and real sent examples, so there is no need to fetch them from Notion.
 ---
 
 # Haytham Email Draft
@@ -9,20 +9,20 @@ Draft outreach that reads like a real person who walked their funnel, admired th
 
 The whole problem this skill solves: the draft has to be right on the first try, without the user pushing. The way that happens is the draft passes a silent loop BEFORE the user ever sees it. The loop is: draft → burrito test → gate → identify specific failures → rewrite only the failing element → run gate again from the top → repeat until every check clears and the internal score is 10/10. Never show a draft that hasn't cleared the full loop. The user should never need to ask for a redo.
 
-**Two invocation modes.** As of 2026-07-19 the merged **hook+draft stage** (`haytham-hook-finder` batch, draft-first) runs this loop automatically per resolved Audit Ready lead — after the hook line is independently verified, it invokes this composer, clears the `crm-gate send` gate, and creates the held Gmail draft (`Status = Draft Ready`) so Haytham reviews finished drafts, not bare hooks. This skill also still runs **standalone** for every interactive draft — follow-ups, warm replies, turn-two leak-fix offers, money emails, objection replies, reactivation — the same loop either way. The mechanics below are the single source of truth for both.
+**Two invocation modes.** As of 2026-07-19 the merged **hook+draft stage** (`haytham-hook-finder` batch, draft-first) runs this loop automatically per resolved Audit Ready lead — after the hook line is independently verified, it invokes this composer, clears the `crm-gate send` gate, and creates the held Gmail draft (`Status = Draft Ready`) so Haytham reviews finished drafts, not bare hooks. This skill also still runs **standalone** for every interactive draft — follow-ups, warm replies, turn-two call asks, money emails, objection replies, reactivation — the same loop either way. The mechanics below are the single source of truth for both.
 
 ## The non-negotiable order of operations
 
 Do these in sequence. Do not skip ahead to writing.
 
 1. **Identify the track, then the email type.** Which CRM does this lead live in?
-   - **UAE Lead CRM** (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`) — the active pipeline. Read `references/uae-track.md` before drafting anything for these leads: prices are quoted in AED (Track A 735, Track B 2,575, never a discount), the lifecycle differs, and the turn-two, the guarantees, the Sprint stack and the downsell ladder all live there. The UAE worked examples at the top of `references/examples.md` are the anchor for these — pattern-match to them, not to the parenting examples below.
+   - **UAE Lead CRM** (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`) — the active pipeline. Read `references/uae-track.md` before drafting anything for these leads: the offer is The First Five (1,500 AED setup credited against the first three calls, then 600 AED per call that happens, never a discount), the lifecycle differs, and the turn-two call ask, the guarantees, the stack and the downsell ladder all live there. The UAE worked examples at the top of `references/examples.md` are the anchor for these — pattern-match to them, not to the parenting examples below.
    - **Parenting Lead Pipeline** (`c6209e29-55ef-4781-b735-73b2a254e34f`) — live threads only, no new cold leads. Existing rules apply unchanged.
    Never log a lead into the other track's DB.
 
-   Then name which of these the email is: (a) cold Touch 1 opener, (b) cold follow-up (Touch 2-3 on the UAE track, each carrying a declared payload — see references/uae-track.md; legacy parenting threads ran 2-4), (c) warm bump/follow-up, (d) **turn-two reply (they engaged — offering the paid 48-Hour Leak Fix, or a call; see references/uae-track.md)**, (e) ~~price discovery reply~~ **RETIRED 2026-07-24, do not draft one** (the question was falsified as an email step; if they ask "how much?", answer with the number and check `Asked For Price`), (f) money email (a priced close), (g) objection reply (price, deposit, or trust/logistics question), or (h) past-client reactivation. This determines which sections of mechanics.md, gate.md, and uae-track.md apply. A money email and a cold opener are different products; don't draft one using the other's rules.
+   Then name which of these the email is: (a) cold Touch 1 opener, (b) cold follow-up (Touch 2-3 on the UAE track, each carrying a declared payload — see references/uae-track.md; legacy parenting threads ran 2-4), (c) warm bump/follow-up, (d) **turn-two reply (they engaged — a call ask with two specific times; see references/uae-track.md)**, (e) ~~price discovery reply~~ **RETIRED 2026-07-24, do not draft one** (the question was falsified as an email step; if they ask "how much?", answer with the number and check `Asked For Price`), (f) money email (a priced close), (g) objection reply (price, deposit, or trust/logistics question), or (h) past-client reactivation. This determines which sections of mechanics.md, gate.md, and uae-track.md apply. A money email and a cold opener are different products; don't draft one using the other's rules.
 
-   **UAE money-email hard gate:** for a UAE lead, a priced Sprint / Track A / Track B money email may not even be drafted until `python main.py crm-gate offer <row.json>` (row fetched fresh from Notion) prints PASS — the lead has EARNED a number, via an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or the `Asked For Price` checkbox. FAIL → stop, tell Haytham which route is missing (usually: the turn-two Leak Fix hasn't landed and they haven't asked for a price). Quote the gate's literal output line either way. **The 500 AED Leak Fix offered at turn-two is NOT gated** — it is the rung that earns the right.
+   **UAE money-email hard gate:** for a UAE lead, the priced First Five money email may not even be drafted until `python main.py crm-gate offer <row.json>` (row fetched fresh from Notion) prints PASS — the lead has EARNED a number, via an earned `Status` (`Call Booked`, `Offer Sent`, `Won`, or the legacy `Leak Fix Sold` / `Leak Fix Delivered`) or the `Asked For Price` checkbox. FAIL → stop, tell Haytham which route is missing (usually: no call booked yet and they haven't asked for a price). Quote the gate's literal output line either way. **The turn-two call ask is NOT gated** — a booked call IS the rung that earns the right.
 
 2. **Confirm you have the input.** You need: the lead's name, the niche, the verified finding (the leak or observation), and enough of the funnel walk to write a concrete line. If the user gave you a Notion lead page or pasted the walk, you have it. If the finding is vague ("they have a funnel problem"), ask for the specific thing on the specific page before writing. A bespoke email is impossible without a bespoke finding.
 
@@ -67,9 +67,9 @@ Do these in sequence. Do not skip ahead to writing.
 
 3. **Read the reference files now, before drafting.** Read `references/voice.md`, `references/examples.md` (UAE examples first — that's the active track), and `references/critical-failures.md` every time — the critical-failures file is mandatory corrections learned from repeated user corrections, not situational reading. Read `references/mechanics.md` if this is a follow-up, a turn-two reply, or a warm thread (the sequencing rules live there). Read `references/drafting-craft.md` if the finding is abstract and you need to make it concrete and falsifiable. These are short and they are what stop the draft from coming out generic.
 
-4. **See in the right order (this is the voice, not a style note).** Admire first: before the leak, see what they got right and feel it. Find the gap reluctantly: name it only because it genuinely helps. Help before sell: the email earns belief that you can help, it does not push a call. An email that diagnoses before it admires, or sells before it earns belief, is wrong no matter how clean the copy.
+4. **See in the right order (this is the voice, not a style note).** Admire first: before the leak, see what they got right and feel it. Find the gap reluctantly: name it only because it genuinely helps. Help before sell: everything above the close earns belief that you can help, and only then does the last line ask for the call. An email that diagnoses before it admires, or asks before it earns belief, is wrong no matter how clean the copy. *(Reworded 2026-07-27 — this used to say "it does not push a call," which produced 9 replies and 0 calls. Asking is now correct; asking before earning is still wrong.)*
 
-5. **Draft it.** One finding, one cost, one question or one offer. Plain text. No Loom or Calendly link in email 1. Proper capitalization throughout, every sentence capitalized, "I" capitalized, normal grammar. Default toward short, but length is a default pressure, not a hard cap: if the voice needs another two lines to admire properly before it diagnoses, take them. The voice wins over the word count when they conflict.
+5. **Draft it.** The five beats from `references/mechanics.md`: hook, finding, identity, cost, call ask with two specific times. 90 to 130 words. Plain text. No Loom or Calendly link in email 1. Proper capitalization throughout, every sentence capitalized, "I" capitalized, normal grammar. Default toward short, but length is a default pressure, not a hard cap: if the voice needs another two lines to admire properly before it diagnoses, take them. The voice wins over the word count when they conflict.
 
    Label this internally as Draft 1. Do not deliver it yet.
 
@@ -82,7 +82,7 @@ Do these in sequence. Do not skip ahead to writing.
    - Kill list: zero violations, zero em-dashes, zero quoted-back words
    - Three drafting rules on every line: visualize, falsify, bespoke
    - Mechanics: subject SMYKM-grade, no operator vocab, one CTA, conflict present, sentence case
-   - Critical failures per `references/critical-failures.md`: zero three-beat parallel structures (any three parallel clauses/verbs/negatives in one sentence, not just "not just X, but Y, and Z"), zero formulaic transitions, no math-breakdown-as-audit, subject echoed in the first body sentence, motivation stated without over-explaining, close is an open door not a bow
+   - Critical failures per `references/critical-failures.md`: zero three-beat parallel structures (any three parallel clauses/verbs/negatives in one sentence, not just "not just X, but Y, and Z"), zero formulaic transitions, no math-breakdown-as-audit, subject echoed in the first body sentence, motivation stated without over-explaining, identity beat present, close is a call ask with two named times (an open door, not a bow, and not a question)
 
    If any check fails: identify the specific failure, rewrite only the failing element, run the full gate again from the top. Do not patch one line and assume the rest is fine. Keep iterating until every box clears.
 
@@ -98,8 +98,8 @@ Do these in sequence. Do not skip ahead to writing.
 
 **Log to the lead's own CRM, never the other one.** UAE leads follow the
 UAE lifecycle in `references/uae-track.md` (no "Loom Sent" status; the
-turn-two artifact is the paid Leak Fix and logs in the thread with an
-`Artifact:` line; `Leak Fix Sold`, `Leak Fix Delivered`, `Call Booked` and
+turn-two artifact is a call ask; `Call Booked`, the legacy `Leak Fix Sold` /
+`Leak Fix Delivered`, and
 `Offer Sent` are their own statuses, and Offer Sent additionally requires
 the `crm-gate offer` PASS). Parenting live threads follow the
 status rules below unchanged. Touch #, Sequence, Last Contacted, and
@@ -127,7 +127,7 @@ body to a scratch file, then:
 ```bash
 python main.py touch-log render --n <Touch #+1> --dir out --date <today, Dubai> \
     --inbox "<the lead's Inbox>" --seq <cold|warm> \
-    --carries <opener | second-finding | leak-fix-offer | disambiguating-question | ...> \
+    --carries <opener | second-finding | call-ask | disambiguating-question | ...> \
     [--finding <bank rank, if carries=second-finding>] \
     --subject "exact subject line" --thread <Gmail thread ID> \
     --gate "<literal crm-gate send verdict line, quoted>" --body-file <scratch file>
@@ -168,7 +168,7 @@ At the same time, update ALL of these properties together in one call, not just 
   - First send on a lead: "Audit Ready" / "Draft Ready" / "Scheduled" → "Outreach Sent". (UAE track: "Draft Ready" = draft created in Gmail, set at draft time — the one status a draft is allowed to set; "Scheduled" = Haytham scheduled the send in Gmail. Both are pre-send states; "Outreach Sent" means the message actually departed, and Last Contacted is the real departure date, not the draft date.)
   - Cold follow-up (Touch 2-3 on the UAE track — there is no UAE Touch 4 — or a legacy parenting Touch 2-4, still no reply): stays "Outreach Sent".
   - She replies for the first time: → "Reply Received" (this is also the Sequence flip point).
-  - **UAE track, turn-two:** they buy the 48-Hour Leak Fix → "Leak Fix Sold", then "Leak Fix Delivered" once it's live (set `Cash Collected`). There is NO "Loom Sent" status and no Loom offer on this track; a parenting live thread that still sends a Loom logs it as an `Artifact:` line, not a status change.
+  - **UAE track, turn-two:** they accept one of the two proposed times → "Call Booked". That is also the status that passes `crm-gate offer`. `Leak Fix Sold` / `Leak Fix Delivered` are LEGACY and nothing new reaches them. There is NO "Loom Sent" status on this track; a parenting live thread that still sends a Loom logs it as an `Artifact:` line, not a status change.
   - They ask what it costs, on any track: check `Asked For Price` (UAE only — it is the second route through `crm-gate offer`). Leave Status alone unless the reply itself moves it.
   - A call gets booked: → "Call Booked".
   - Cold sequence completes (Touch 3 on the UAE track; Touch 4 on legacy parenting threads) with no reply: → "Dormant" (not "Lost"). Set Next Action to a "back from the dead" bump 2-3 weeks out. This is a cooldown-and-reopen lead, not a dead one — do not close the file on a thread that never got a first reply. (Corrected Jul 6, 2026 — the old "Touch 4 no reply → Lost" rule was the exact bug that buried ~22 real leads early; see The Bible Rule 8 scoping note. "Dormant" is a new pipeline status added specifically for this.)
@@ -223,9 +223,11 @@ It does not draft while the hook line still says "not run yet." Run `haytham-hoo
 ## Quick reference: the shape
 
 - Subject: names the specific thing inside their world. Under 8 words, no end punctuation, sentence case (subject only, body uses proper capitalization). (Full subject rules in mechanics.md.)
-- Line 1: the finding or the human hook, stated flat. No warm-up, no "I was browsing."
+- Line 1: the human hook, or the finding stated flat when no hook was found. No warm-up, no "I was browsing."
+- The finding: evidence a human actually looked. Not the product, not a free deliverable.
 - The cost: what the gap is costing them, in something they can picture.
-- The close: one real question they can answer in one line. An open door, not a bow.
+- The close: **a call ask with two specific times**, answerable in one word. An open door, not a bow, and not a question about her business. *(Changed 2026-07-27 — all four UAE cold openers closed on a question and produced 0 calls between them.)*
+- The identity beat, between the finding and the cost: one sentence on who is writing and why he spotted it. Without it the email reads as someone wanting to buy from her (Lucia and Lee both replied that way).
 - Sign off: "Haytham" on its own line at the end. **Required** (changed Jul 14, 2026 — the Gmail auto-signature was taken down, so nothing supplies the name any more; an unsigned email now goes out genuinely unsigned). The rule was previously "no sign-off," which is why the worked examples in `references/examples.md` and this line disagreed for a while — the examples were right, the rule was stale.
 
 The references hold the detail. Read them. The single most common failure is drafting from memory of these rules instead of reading them fresh, which is exactly how the generic version slips back in.

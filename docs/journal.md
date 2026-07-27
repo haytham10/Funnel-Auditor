@@ -37,6 +37,92 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — The old offer is retired and the close is a call ask (PR 3 of the First Five pivot)
+
+The two jobs the pivot was actually about. **The funnel-fix offer is gone from
+the repo, and every close is now a call ask with two specific times.**
+
+**JOB 1 — retiring the offer.** The blocker was an authority claim:
+`02-the-offer-gso-v2.md:3-4` said *"Supersedes all earlier pricing. If a number
+anywhere else contradicts this, this wins."* A retired offer that still asserts
+authority keeps winning arguments after it is dead, so the file was renamed to
+`02-the-offer-first-five.md` and rewritten rather than deleted — the RETIRED
+preamble now names everything that went and why.
+
+- Retired everywhere: Track A (735), Track B / "The Booked-Out Funnel" (2,575),
+  the 500 AED 48-Hour Leak Fix, the free Loom, the 3,600 next step, and the
+  Live-or-Free / First Booking guarantees.
+- **New guarantees: No-Show No-Charge + Five or Free.** The old two both
+  promised funnel delivery ("live and taking bookings within 5 working days"),
+  which The First Five does not do. The *discipline* is unchanged — both named,
+  stacked, stated unprompted, condition intact.
+- **New downsell ladder**, because the old rungs priced a build: fewer calls at
+  the same rate → setup deferred at 750/call → the 1-10 check.
+- **Code: add and deprecate, never delete.** `call-ask` is the canonical
+  carrier; `leak-fix-offer` and `loom-offer` are both deprecated aliases that
+  still pass with a note (the same machinery that already handled
+  `loom-offer` → `leak-fix-offer`). `OFFER_TYPES` gains First Five / Fewer
+  Calls / Setup Deferred and keeps the retired ones so `parse_body` can still
+  read the 100+ OFFER: lines already in lead page bodies.
+- **`EARNED_STATUSES` needed no new member.** `Call Booked` was already in it,
+  and it is now *the* earned rung — the gate and the offer finally describe the
+  same event. The Leak Fix statuses stay accepted as legacy.
+
+**JOB 2 — the drafting overhaul.** The brief named two files. It was **ten**,
+and the two named ones were not the load-bearing ones:
+
+- The real blocker was `voice.md:19` — *"The email's job is to earn belief, not
+  book a call"* — under a file that declares itself to outrank everything.
+  Rewording only `gate.md:38` and `SKILL.md:228` would have left the doctrine
+  above them intact and the model would have reverted on the next draft. Scoped
+  it: belief still comes first and is what *earns* the ask; the ask is now a
+  call. Kill list, register, burrito test, 10/10 bar untouched.
+- **Five-beat body** replaces the four-line shape: hook → finding → **identity**
+  → cost → call ask. 90-130 words. The beat order is the order her objections
+  arrive in.
+- **The identity beat is net-new** — no rule, gate check or skeleton slot
+  existed. It had been firing *reactively at turn-two* to repair a misread that
+  already happened (Amanda: *"I wasn't actually trying to book a chat"*). Two
+  variants ship and both get tested: volume ("120 coaching sites this year") and
+  outcome ("$522 from one order bump, about one buyer in four").
+- **The finding demoted.** `mechanics.md:16` said *"Your opening email IS the
+  lead magnet."* That sentence is what let 4 of 9 engaged leads read the
+  finding, fix it, thank us and leave. It is evidence a human looked, not the
+  product.
+- **`mechanics.md:110` read as anti-evidence** ("Louise and Helen both stalled
+  on vague scheduling asks"). It is about *vague* asks with no times and no
+  price — reworded so it distinguishes itself from a dated ask instead of
+  contradicting the new rule.
+- **Take rate settled at 1 in 4** per Haytham. `mechanics.md:124`/`:137` and the
+  offer doc said 1 in 2 / 50%; the public site and the new spec said 1 in 4. All
+  now agree. The identity beat ships the number *without* the brand name.
+- **Calendar URL promoted to `config.HAYTHAM_CALENDAR_URL`.** It lived only as
+  literal text in a worked example, was wrong once, and shipped a fabricated
+  `cal.com/haytham/15min` into real drafts (commit a6bf3a9).
+- **"Loom Skeleton" → "Call Prep."** Nothing parses the heading, and the
+  artifact is more useful than ever now that the call is the product.
+
+**Gotcha:** the no-menu rule is written four times in this repo and the old
+canonical turn-two script violated all four ("want me to fix it? … or here's my
+calendar"). The new close can reintroduce exactly that if a calendar link gets
+put beside the two times, so `gate.md` now checks for its absence explicitly.
+
+Tests 333, unchanged count from PR 2 — six existing tests updated to the new
+vocabulary (carrier aliases, guarantee names, offer types), none dropped.
+
+### Open follow-ups
+- [ ] **The 07-30 send cliff is still open.** 219 entries on the
+      `verified:2026-07-26` migration stamp expire for sends on 2026-07-30. Per
+      Haytham's call, only rows actually queued to send get re-walked.
+- [ ] Add `Unbooked calendar` to the Notion `Finding Type` select by hand, and
+      note that `Est. Value` / `Discovery Anchor` options are now legacy buckets
+      worded against retired prices (set `Est. Value = Unknown` on new rows).
+- [ ] `examples.md` still carries the four question-closing UAE openers as the
+      pattern to match. They are now the retired shape — a worked rewrite in the
+      new five-beat form is the next thing that would help a drafter most.
+- [ ] The six live warm threads still need re-pitching on the new offer. That is
+      a human job, not a Claude Code one — a person is on the other end.
+
 ## 2026-07-27 — The finding taxonomy: calendar-state check, DEPTH enforced at the gate (PR 2 of the First Five pivot)
 
 The opener stops being a funnel-mechanics defect. Under The First Five we sell

@@ -32,9 +32,9 @@ What remains is the part that is actually **proven** and **transfers**.
 
 **The real constraint is reply → call, and it is 0 of 9.** Not price, not the opener, not the finding. Every reply that has ever landed on this track died between the reply and any next step. That is where the whole system's leverage now sits, and it gets its own Notion board (🎯 Constraint Board).
 
-**A free artifact at turn-two does not convert.** The Loom offer was made to Ben Pringle, Lisa Hugo and Lucia Csobonyei. Zero took it. On the Value Equation a Loom is high effort for the prospect (watch a video, then decide) and low dream outcome (someone describing a problem they now feel worse about). It has been replaced by the paid 48-Hour Leak Fix, which is the same finding but sells them their problem going away, at zero risk, for the price of a dinner.
+**A free artifact at turn-two does not convert.** The Loom offer was made to Ben Pringle, Lisa Hugo and Lucia Csobonyei. Zero took it. On the Value Equation a Loom is high effort for the prospect (watch a video, then decide) and low dream outcome (someone describing a problem they now feel worse about). It was replaced by the paid 48-Hour Leak Fix on 2026-07-24, and that was retired in turn on 2026-07-27: findings don't sell at all, because 4 of 9 engaged leads fixed them and left. The turn-two is now a call ask with two specific times.
 
-**Risk reversal was missing entirely from the flagship offer.** Track B carried no guarantee at all, in a market whose own brief says the blocker is trust. Two named guarantees now ride with every money email (Live-or-Free, First Booking). Untested as of this writing.
+**Risk reversal was missing entirely from the flagship offer.** The old Track B carried no guarantee at all, in a market whose own brief says the blocker is trust. Two named guarantees now ride with every money email (the No-Show No-Charge Guarantee, Five or Free). Untested as of this writing.
 
 ---
 
@@ -42,7 +42,7 @@ What remains is the part that is actually **proven** and **transfers**.
 
 **Whether any cold lead closes into money.** ZERO cold closes, ever. 11 replies, 0 closes. Everything above can be true and there is still no business if the close does not happen.
 
-**The price points.** $200 / $700. Reasonable, never validated cold.
+**The old price points.** $200 / $700 (735 / 2,575 AED). Reasonable, never validated cold, retired 2026-07-27 with the funnel-fix offer.
 
 **Why leads go quiet after a priced offer.** Only 2 of 11 replies ever surfaced a real priced objection. The rest ghosted, went "not interested," or were fit mismatches. **This is the entire reason the UAE track exists.**
 
@@ -54,8 +54,8 @@ What remains is the part that is actually **proven** and **transfers**.
 2. **Walk the funnel.** Verify a real finding from a clean state.
 3. **Open by email.** Subject + one line of warmth + the specific finding + one real question.
 4. **They reply.**
-5. **TURN TWO.** The paid **48-Hour Leak Fix** (500 AED, paid after) OR one single-tap next step (the calendar). Always ends in a paid tiny yes or a single tap. Never a soft exit, never a menu, never a re-pitch, never a question.
-6. **They become a customer, or they book.** `Leak Fix Sold` → `Leak Fix Delivered`, or `Call Booked`. Either one earns the right to name the big number. *(Price discovery, if it happens at all, happens on the call. It is no longer an email step — see WHAT IS NOW PROVEN.)*
+5. **TURN TWO.** A **call ask with two specific times** ("Tuesday around 4, or Wednesday morning"). Always ends in a one-word yes. Never a soft exit, never a menu, never a re-pitch, never a question about her business.
+6. **They book.** `Call Booked`. That earns the right to name the number, and it is the product itself. *(Price discovery, if it happens at all, happens on the call. It is no longer an email step — see WHAT IS NOW PROVEN.)*
 7. **The priced offer.** GSO v2, quoted as the named stack. The price never moves. Gated: `python main.py crm-gate offer` must PASS (earned status, or `Asked For Price`).
 8. **Close.**
 
@@ -169,11 +169,11 @@ Never:
 **This was the whole point of the track. It has been tested and it does not work.** Do not draft a price discovery email. See WHAT IS NOW PROVEN below for the numbers.
 
 What replaced it:
-- **At turn-two:** the paid 48-Hour Leak Fix or the calendar. A paid tiny yes or a single tap, never a question.
+- **At turn-two:** a call ask with two specific times. A one-word yes, never a question.
 - **If they ask "how much?":** answer with the number. Do not flip the question back at them — the flip is what produced two of the three refusals. Check `Asked For Price` on their row (the highest-intent signal in the CRM, and the second route through the offer gate on its own), then quote the flat figure with both guarantees.
 - **The budget conversation, if it is ever worth having:** on the call.
 
-The gate did not disappear, it changed shape. `python main.py crm-gate offer` still blocks the transition to `Offer Sent`, but now on EARNED RIGHT: an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or `Asked For Price` checked. The 500 AED Leak Fix is exempt — it is the rung that earns the right.
+The gate did not disappear, it changed shape. `python main.py crm-gate offer` still blocks the transition to `Offer Sent`, but now on EARNED RIGHT: an earned `Status` (`Call Booked`, `Offer Sent`, `Won`, or the legacy `Leak Fix Sold` / `Leak Fix Delivered`) or `Asked For Price` checked. The turn-two call ask is exempt — a booked call IS the rung that earns the right.
 
 `Price Discovery Answer` and `Discovery Anchor` stay in the CRM and stay populated whenever a lead volunteers anything. They are advisory: the gate reports them as notes. **A `Refused to name` anchor now reads as a TRUST signal, not a price signal** — the answer to it is more risk reversal, never a smaller number.
 
@@ -200,7 +200,7 @@ Day 0, day 3, day 9, then Dormant. Same subject, same thread. There is no touch 
 Touches 2 and 3 must each carry exactly one NEW thing (enforced at the gate, `crm-gate send --carries …`):
 
 - **The next banked finding** — the walk banks every finding that survives both filters, ranked depth-first (deep over shallow, then tier, then sting); touch 1 takes #1 (the opener, which may be shallow — it earns the reply), later touches draw the next UNUSED entry. The one deep finding held `RESERVED` as call bait is never drawn here — it stays out of email as the reason to get on a call. Named as a felt cost with its innocent explanation, fix left vague — and if it's a deep finding, name that it exists and costs her, never the fix. Naming a second cost is not the Adrienne mistake, teaching a second fix is.
-- **The leak-fix offer** — the paid 48-Hour Leak Fix (500 AED, fixed and live in 48 hours, paid only once it works), in one line. An offer, never a link, on a cold thread. (Replaced the free Loom offer 2026-07-24; `--carries loom-offer` still passes the gate as a deprecated alias.)
+- **The call ask** — two specific times, in one line. Never a link and never a calendar URL on a cold thread. (Replaced the free Loom 2026-07-24 and the paid Leak Fix 2026-07-27; `--carries loom-offer` and `--carries leak-fix-offer` both still pass the gate as deprecated aliases.)
 - **The disambiguating question** — the direct binary ("Should I stop following up, or is this still on your radar?"). The natural touch 3 closer.
 
 A follow-up that carries none of these is a wasted send eating the day's budget. It doesn't go out.
@@ -231,7 +231,7 @@ The artifact is logged in the lead's page body (Email Thread Log, `Artifact:` li
 
 **"Yeah, send it."** Deliver fast. See above.
 
-**The reply lands warm, they're engaged.** The hinge: free finding → paid customer. The soft-exit habit will betray you here ("glad it helped, no pressure, lmk!" = thread dies warm). The move is ONE concrete next step, and in this track that step is the paid 48-Hour Leak Fix (500 AED, paid after) or the calendar. Never a question, never a menu.
+**The reply lands warm, they're engaged.** The hinge: free finding → paid customer. The soft-exit habit will betray you here ("glad it helped, no pressure, lmk!" = thread dies warm). The move is ONE concrete next step, and in this track that step is a call at two named times. Never a question, never a menu.
 
 **They want to talk money.** Traps: under-charging from nerves, over-scoping to justify a price, freezing with no quote ready. Decide the offer and price BEFORE the conversation. It is already decided: GSO v2. The price never moves. If they jump straight to "how much," **answer with the number** — check `Asked For Price` on their row and quote the flat figure with both guarantees. Do not flip the question back at them; that is the retired move and it produced refusals, not answers.
 
@@ -243,4 +243,4 @@ The artifact is logged in the lead's page body (Email Thread Log, `Artifact:` li
 
 **Always compute rates by LEAD, never by message.** Counting message-rows instead of unique leads inflates the reply rate and produces a false picture. This happened once and it mattered.
 
-**Update the scoreboard weekly.** The old pipeline's numbers sat frozen for two weeks while real sends kept happening, which is a big part of why it felt broken when it was actually outperforming benchmark. Sends, replies, **reply → call/customer conversion (the constraint)**, Leak Fixes sold, cash collected, offers out, closes. Two minutes. (The `uae-tick` skill runs this automatically once a week.)
+**Update the scoreboard weekly.** The old pipeline's numbers sat frozen for two weeks while real sends kept happening, which is a big part of why it felt broken when it was actually outperforming benchmark. Sends, replies, **reply → call conversion (the constraint)**, calls booked, cash collected, offers out, closes. Two minutes. (The `uae-tick` skill runs this automatically once a week.)

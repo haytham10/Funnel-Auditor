@@ -28,7 +28,7 @@ The walk fills / updates:
 | Finding Type | select | "Unbooked calendar" / "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Set from bank #1. **"Unbooked calendar" is the acquisition-state type added 2026-07-27** — a working scheduler with most of the next month open, confirmed by `main.py calendar-state`; it is DEEP and the preferred opener. Every other option on this list describes a funnel-mechanics defect, which is usually SHALLOW and therefore usually cannot be the opener (see `walk.md`). "Dead/stale element" collected most of the old track's warm replies and none of its revenue — those leads fixed it themselves and left. |
 | Findings Bank | text | **Lane 1 only.** Every visually-confirmed finding that survived both filters, ranked depth-first (deep over shallow, then tier, then sting), one compact line each: `N. STATUS \| DEPTH \| verified:YYYY-MM-DD \| <finding, one felt-cost phrase>`. `STATUS` = `UNUSED` on a fresh walk (only confirmed-send logging flips to `USED-TN`) OR `RESERVED` for the one deep finding held as call bait. `DEPTH` = `SHALLOW` or `DEEP` (self-fixability — see `walk.md`). `verified:` = **today's date, stamped now at walk time**; `refresh-finding` bumps it later. Example: `1. UNUSED \| DEEP \| verified:2026-07-27 \| pricing split across 4 platforms` / `2. UNUSED \| SHALLOW \| verified:2026-07-27 \| booking button drops to a form` / `3. RESERVED \| DEEP \| verified:2026-07-27 \| whole program readable free`. **Both tags are mandatory and rank 1 must be DEEP** — `crm-gate send` hard-fails a touch-1 opener drawing an untagged or SHALLOW entry, and hard-fails any line with no `verified:` date. The gate also needs an UNUSED entry past #1 for `--carries second-finding` and never draws the RESERVED one. Keep the exact shape. If no deep finding exists the lead has no legal opener: no RESERVED line, low-value flag in `Notes`. Lane 2/3: leave empty. |
 | Status | select | A freshly walked Lane 1 lead stays "Qualifying" (finding proposed, not yet verified); it becomes "Audit Ready" only after the `finding-verifier` returns VERIFIED and `Email Verified` is set. "Lane 2" if Lane 2 — the dedicated no-leak status (added 2026-07-16; it was a Qualifying hold before that). "Disqualified" if Lane 3 or any gate fail. |
-| Est. Value | select | "Track A ($200)" default / "Track B ($700)" when real launch or sales volume is visible / "Unknown". |
+| Est. Value | select | LEGACY — the options are still worded against the retired Track A / Track B prices. Set `Unknown` on new rows: The First Five bills per booked call, so there is no per-lead deal value to estimate at walk time. |
 | Notes | text | One line. Strongest finding, warm-up angle, or one-line flag. Full detail goes in the body. Email-source problems go FIRST. |
 
 Sequence, Touch #, Last Contacted, Next Action, Price Discovery Answer, Discovery Anchor, Lost Reason — leave alone. Those belong to the email skill, uae-tick, and Haytham during outreach.
@@ -84,10 +84,11 @@ UNUSED/USED-Tn/RESERVED) — the property is what the send gate parses, the body
 section is what a human (and the drafting skill) reads. Stamp `verified:` with
 today's date as you write it; a line without it cannot send.
 
-## Loom Skeleton
-(Lane 1 only — omit for Lane 2/3.)
+## Call Prep
+(Lane 1 only — omit for Lane 2/3. Renamed from "Loom Skeleton" 2026-07-27
+with the Loom offer; the artifact stayed because the call is now the product.)
 Three lines, written at walk time while the funnel is fresh in context, so a
-"yes, show me" reply turns into a recorded walkthrough in 30 minutes instead
+booked call opens with specifics instead
 of a re-research session (slow artifact delivery was the old track's #1
 controllable failure):
 - Show: [the exact page/element to put on screen, with URL — where the finding lives]

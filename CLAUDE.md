@@ -6,9 +6,9 @@ Claude skills that orchestrate it. Two tracks run in parallel:
 - **UAE track (active — all new leads go here).** UAE-based solo coaches
   and course creators with real funnels. Sourced dynamically through
   no-login web tools, worked
-  through the UAE Lead CRM, priced in AED, with one deliberately new step:
-  **a paid tiny yes before any priced offer — the 500 AED 48-Hour Leak
-  Fix at turn-two.**
+  through the UAE Lead CRM, priced in AED. **The offer is The First Five:
+  we sell booked calls.** AED 1,500 setup credited against the first three
+  calls, then AED 600 per call that actually happens.
 - **Parenting track (live threads only).** The original
   parenting/faith-based pipeline: 125 cold-touched leads, ~9% reply rate
   by lead (above benchmark), zero closes. No new leads get sourced into
@@ -22,14 +22,17 @@ a real priced objection, and nobody was ever asked what they would pay. So
 this track held the mechanic constant, swapped the market, and made price
 discovery a load-bearing, code-enforced step.
 
-**That step is now falsified and gone (2026-07-24).** 100 touched leads,
-182 touches, 9 replies; the question was asked 3 times, produced 3 answers,
-all `Refused to name`, and 0 numbers, and two of the three refusers asked
-US for a price instead. The refusal is a trust signal, not a price signal.
-The real constraint was never price — it is **reply → call, which is 0/9**
-— so the load-bearing step is now the paid 48-Hour Leak Fix at turn-two,
-and the code-enforced gate is "have you earned the right to name a
-number." The method files live in
+**The funnel-fix offer is dead (2026-07-27).** 589 leads, 0 AED. Findings
+don't sell: 4 of 9 engaged leads consumed the finding, fixed it themselves
+and left, and a third of findings failed under scrutiny while carrying
+`Finding Verified = YES`. Nothing ever died on price. The real constraint
+was always **reply → call, which is 0/9**, and its mechanical cause is that
+a question-shaped CTA cannot produce a booking. So the offer became the
+call itself, **every close is a call ask with two specific times**, and the
+finding demoted from product to credibility line. Retired and not to be
+reinstated: Track A (735 AED), Track B (2,575 AED), the 500 AED 48-Hour
+Leak Fix, the Loom offer, price discovery as an email step. The method
+files live in
 `docs/uae-track/` (CRM spec, offer, targeting, outreach method) — the
 files are the method; **Notion is the source of truth for live state.**
 When you need to know what is actually happening, query the CRM, not the
@@ -68,7 +71,7 @@ inconclusive+weak holds at Qualifying) → machine walk on survivors only
 (Firecrawl-primary fetch, parallel scrapes, Playwright fallback; `cta-probe`
 for single-page JS-button resolution) → **mandatory vision pass** → Gate 0
 confirm (funnel floor) → opener-finder (lane + finding + innocent
-explanation + findings bank + 3-line Loom skeleton) — the walk **proposes** the
+explanation + findings bank) — the walk **proposes** the
 finding; an independent `finding-verifier` re-derives it from the screenshots and
 is the ONLY thing that checks `Finding Verified` (verified → Audit Ready) → CRM
 write → email
@@ -86,16 +89,16 @@ evidence: LinkedIn, podcasts, YouTube, About page) → the held Gmail
 DRAFTS are created in the same session (SMYKM opening A or B), Status =
 `Draft Ready` → Haytham reviews the finished drafts in Gmail and sends by hand
 (or schedules — Status `Scheduled`) → tick reconciles Gmail reality → `Outreach Sent` → reply →
-**turn-two = the paid 48-Hour Leak Fix (500 AED, paid after) or a call** →
-`Leak Fix Sold` / `Leak Fix Delivered` OR `Call Booked` → priced offer
-(735 AED Track A / 2,575 AED "Booked-Out Funnel" Sprint, gated by
-`crm-gate offer` on EARNED RIGHT — an earned status or `Asked For Price`) →
+**turn-two = a call ask with two specific times** → `Call Booked` →
+priced offer (The First Five: 1,500 AED setup credited against the first
+three calls, then 600 AED per call that happens; gated by `crm-gate offer`
+on EARNED RIGHT — an earned status or `Asked For Price`) →
 close. `uae-tick` runs the daily loop; the send-day is the Dubai calendar
 day everywhere.
 
 Haytham's manual jobs: firing sourcing/qualifying/hook+draft runs,
-reviewing and sending (or scheduling) the held drafts from Gmail, delivering
-sold Leak Fixes, confirming sends for logging, and appending test
+reviewing and sending (or scheduling) the held drafts from Gmail, taking
+the booked calls, confirming sends for logging, and appending test
 scores to `docs/deliverability-log.md`.
 
 ## Hard rules (non-negotiable)
@@ -154,17 +157,18 @@ scores to `docs/deliverability-log.md`.
   the next non-Sunday send-day instead.
 - **The cold sequence is three touches (day 0, 3, 9), then Dormant — and
   touches 2-3 must each carry something new:** the next unused banked
-  finding, the paid leak-fix offer, or the disambiguating question. A bare bump is
+  finding, the call ask, or the disambiguating question. A bare bump is
   a wasted send and a spam signal. Enforced by the same gate (`--carries`;
   a `second-finding` claim is checked against the row's `Findings Bank`).
   The walk banks every verified finding, ranked, instead of discarding the
   ones it doesn't use — touch 1 takes #1, later touches draw the next.
 - **They must have EARNED a number before any priced offer.** A lead
   cannot reach Offer Sent without either an earned `Status` (`Call
-  Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or
-  the `Asked For Price` checkbox. Enforced: `python main.py crm-gate offer
-  <row.json>`. No PASS, no money email. **The 500 AED turn-two Leak Fix is
-  exempt** — it is the rung that earns the right. *(Changed 2026-07-24.
+  Booked`, `Offer Sent`, `Won`, or the legacy `Leak Fix Sold` / `Leak Fix
+  Delivered`) or the `Asked For Price` checkbox. Enforced: `python main.py
+  crm-gate offer <row.json>`. No PASS, no money email. **The turn-two call
+  ask is exempt** — a booked call IS the rung that earns the right, which
+  is the whole point of the offer. *(Changed 2026-07-24.
   The old rule required a VERBATIM `Price Discovery Answer` and a
   `Discovery Anchor`; that was the track's founding premise and it was
   falsified — 100 touched leads, the question asked 3 times, 3 answers,
@@ -173,14 +177,31 @@ scores to `docs/deliverability-log.md`.
   stay in the CRM as advisory data and the gate reports them; a `Refused
   to name` anchor is now read as a TRUST signal, answered with more risk
   reversal, never a smaller number.)*
-- **The price never moves.** $200 = 735 AED (Track A), $700 = 2,575 AED
-  (Track B, quoted as the named "Booked-Out Funnel" stack, never as a flat
-  fee). The AED figures are the same price quoted natively, not a
-  discount. A low anchor from a lead is market data, not permission to
-  discount — objections get bonuses, restructured terms, or a named rung
-  of the downsell ladder (GSO v2), never a lower number for the same
-  scope. **3,600 AED is documented as the next step and gated on 2
-  closes; do not quote it.**
+- **The price never moves.** The First Five is **1,500 AED setup,
+  credited against the first three calls, then 600 AED per qualified call
+  that actually happens.** Quoted natively in AED, never as a conversion,
+  never two currencies in one breath. A low anchor from a lead is market
+  data, not permission to discount — objections get bonuses, restructured
+  terms, or a named rung of the downsell ladder, never a lower number for
+  the same scope. It holds until two clients are delivered. **Retired, do
+  not quote: 735 / 2,575 / 500 / 3,600 AED.**
+- **Every close is a call ask with two specific times.** "I can call
+  Tuesday around 4, or Wednesday morning, whichever is less annoying." A
+  question about her business is legal only riding on the call ask, never
+  as the whole close. *(Changed 2026-07-27. All four UAE cold openers
+  closed on a two-branch question and produced 0 calls between them: a
+  question CTA selects for replies that are ANSWERS, and an answer is a
+  dead end that looks like success and converts at zero.)* The shape is
+  fixed; the two times and the phrasing vary per lead, because a close
+  reused verbatim is a tell the second time it ships.
+- **Every cold opener carries the identity beat** — one sentence on who is
+  writing and why he spotted it, placed after the finding and before the
+  cost. Without it the email reads as someone wanting to buy from her:
+  Lucia and Lee both replied with their own offer and pricing, two of nine
+  failures caused by an absent sentence.
+- **The finding is evidence, not the product.** It proves a human actually
+  looked. It is not what is being sold and not a free deliverable — that
+  framing is what let 4 of 9 engaged leads fix it themselves and leave.
 - **Copy rules, every generated email:** no em-dashes, ever. No operator
   jargon ("funnel", "conversion", "audit", "sequence"). Proper
   capitalization. **Sign off "Haytham" at the end** (the Gmail
@@ -313,14 +334,14 @@ the vision gate).
   bare-hook table. The draft step re-reads the verifier's Notion line, so the
   anti-fabrication independence holds.
 - `haytham-email-draft` — voice, mechanics, gate, logging, both tracks (UAE
-  AED offer register, the paid Leak Fix turn-two, both named guarantees and
+  AED offer register, the call-ask turn-two, both named guarantees and
   the downsell ladder in `references/uae-track.md`).
 - `uae-tick` / `pipeline-tick` — the UAE / parenting daily loops.
 - `dashboard` + `main.py dashboard skeleton|render` (`audit/dashboard.py`) —
   read-only command center fusing Notion state + both inboxes + ceilings into
   a stable-URL Artifact (same Python/skill split as `crm-gate`); never sends,
   drafts, or writes the CRM.
-- `haytham-funnel-auditor` — deep audit (Loom/call prep). `firecrawl` —
+- `haytham-funnel-auditor` — deep audit (call prep). `firecrawl` —
   fetch-layer MCP tool reference.
 
 ## The CRMs

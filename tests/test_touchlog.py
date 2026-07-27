@@ -437,11 +437,14 @@ def test_render_source_raises_on_missing_query():
         assert "query" in str(exc)
 
 
-def test_render_touch_deprecated_carrier_still_renders():
-    line = tl.render_touch(n=2, dir="out", date="2026-07-20", inbox="Inbox 1", seq="cold",
-                           subject="x", thread="t1", gate="PASS", carries="loom-offer", body="hi")
-    parsed = tl.parse_body(line)
-    assert parsed["touches"][0]["carries"] == "leak-fix-offer"  # normalized to canonical
+def test_render_touch_deprecated_carriers_still_render():
+    # Both retired turn-two labels normalize to the current one, so historical
+    # logs and in-flight rows keep parsing after the offer changed twice.
+    for old in ("loom-offer", "leak-fix-offer"):
+        line = tl.render_touch(n=2, dir="out", date="2026-07-20", inbox="Inbox 1", seq="cold",
+                               subject="x", thread="t1", gate="PASS", carries=old, body="hi")
+        parsed = tl.parse_body(line)
+        assert parsed["touches"][0]["carries"] == "call-ask", old
 
 
 # --- no-pytest fallback ------------------------------------------------------

@@ -9,18 +9,18 @@ verbatim, quote the literal output line" — never paraphrase a PASS.
 
 Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
 
-  offer — a lead cannot reach `Offer Sent` (and no priced Sprint / Track A /
-          Track B offer may be drafted) until they have EARNED the right to be
+  offer — a lead cannot reach `Offer Sent` (and no priced First Five offer may
+          be drafted) until they have EARNED the right to be
           told a number. Two routes earn it, either one is enough: their
-          `Status` is one of the earned set (`Call Booked`, `Leak Fix Sold`,
-          `Leak Fix Delivered`, `Offer Sent`, `Won` — Status is a single select
+          `Status` is one of the earned set (`Call Booked`, `Offer Sent`, `Won`,
+          plus the legacy `Leak Fix Sold` / `Leak Fix Delivered` which are kept
+          accepted for historical rows — Status is a single select
           and forward progress overwrites, so a has-been-there status still
           counts), or `Asked For Price` is checked because they literally asked
           what it costs. Neither, and a priced email is a cold pitch wearing an
           offer's clothes.
 
-          SCOPE: this gate governs the priced Sprint / Track A / Track B money
-          email only. The 500 AED 48-Hour Leak Fix offered at turn-two is
+          SCOPE: this gate governs the priced First Five money email only. A booked call is what EARNS the number now, which is
           EXEMPT — it is the rung that earns the right, so gating it would
           deadlock the motion it exists to start.
 
@@ -61,9 +61,9 @@ Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
           The cold sequence is THREE touches (day 0, 3, 9), then Dormant.
           Touches 2 and 3 must each carry something new — `--carries`
           declares it: `second-finding` (checked against the row's
-          `Findings Bank` for an UNUSED entry past #1), `leak-fix-offer`, or
-          `disambiguating-question` (`loom-offer` is still accepted as a
-          deprecated alias for `leak-fix-offer`). A bare bump is a wasted
+          `Findings Bank` for an UNUSED entry past #1), `call-ask`, or
+          `disambiguating-question` (`loom-offer` and `leak-fix-offer` are still
+          accepted as deprecated aliases for `call-ask`). A bare bump is a wasted
           send and a spam signal; it doesn't pass this gate.
 
 Row JSON: a flat object of Notion property names → values, as fetched.
@@ -184,18 +184,23 @@ _STALE_FINDING_EXPLANATION = (
     "`python main.py refresh-finding` before trusting it again"
 )
 
-# Canonical touch 2/3 carriers. `leak-fix-offer` replaced `loom-offer` on
-# 2026-07-24, when the turn-two artifact stopped being "want me to record a
-# walkthrough" and became the paid 48-Hour Leak Fix. The old label is still
-# accepted so in-flight rows, queued follow-ups and the journal's historical
-# `--carries loom-offer` invocations keep working.
-CARRIERS = ("second-finding", "leak-fix-offer", "disambiguating-question")
+# Canonical touch 2/3 carriers. The turn-two artifact has now changed twice:
+# `loom-offer` → `leak-fix-offer` (2026-07-24, a free walkthrough became the
+# paid 48-Hour Leak Fix) → `call-ask` (2026-07-27, The First Five). Both old
+# labels are still accepted so in-flight rows, queued follow-ups and the
+# journal's historical invocations keep working.
+#
+# `call-ask` is the carrier now because the offer IS a booked call. A follow-up
+# that proposes two specific times carries something new; the same follow-up
+# ending in a question about her business does not, which is how this track got
+# 9% replies and 0 calls.
+CARRIERS = ("second-finding", "call-ask", "disambiguating-question")
 
 # Deprecated carrier label → canonical. Normalised before validation, and the
 # caller is told to stop using it. Kept OUT of CARRIERS so `check_send` compares
 # against exactly one canonical value and failure messages advertise only the
 # current names.
-DEPRECATED_CARRIERS = {"loom-offer": "leak-fix-offer"}
+DEPRECATED_CARRIERS = {"loom-offer": "call-ask", "leak-fix-offer": "call-ask"}
 
 # Everything `--carries` accepts, canonical first. main.py mirrors this list.
 CARRIER_CHOICES = CARRIERS + tuple(DEPRECATED_CARRIERS)
@@ -262,7 +267,7 @@ def normalize_carrier(carries: str | None) -> tuple[str | None, str | None]:
     """Map a `--carries` value to its canonical name.
 
     Returns (canonical, deprecation_note). `loom-offer` is a DEPRECATED ALIAS
-    for `leak-fix-offer`: it still passes the gate, but the caller is told to
+    for `call-ask`: they still pass the gate, but the caller is told to
     stop using it. An unknown value comes back unchanged so the caller can
     report it verbatim in the failure message.
     """
@@ -270,7 +275,8 @@ def normalize_carrier(carries: str | None) -> tuple[str | None, str | None]:
         canonical = DEPRECATED_CARRIERS[carries]
         return canonical, (
             f'"{carries}" is a DEPRECATED carrier label — it still passes, but the '
-            f'turn-two artifact is now the paid Leak Fix; use "{canonical}"'
+            f'offer is now The First Five and the turn-two is a call ask with two '
+            f'specific times; use "{canonical}"'
         )
     return carries, None
 
@@ -431,7 +437,7 @@ def current_finding(row: dict) -> dict | None:
     spent entry (highest `USED-Tn`), or bank #1 if nothing has been sent yet.
 
     This is what a priced offer, or a touch 2/3 that doesn't carry a fresh
-    second-finding (leak-fix-offer / disambiguating-question), is quoting —
+    second-finding (call-ask / disambiguating-question), is quoting —
     it's the finding staleness has to be checked against even when no NEW
     bank entry is being drawn this round.
     """
@@ -681,7 +687,7 @@ def check_log_integrity(row: dict, page_body: str) -> tuple[bool, list[str], lis
 
 
 def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
-    """Gate for Reply → Offer Sent (and for drafting any priced Sprint offer).
+    """Gate for Reply → Offer Sent (and for drafting the priced First Five offer).
 
     The question this answers is NOT "do we know their budget" — it is "have
     they earned the right to be told a number". Two routes earn it: they got
@@ -717,10 +723,9 @@ def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
         problems.append(
             f'the lead has not earned a number yet: Status = "{status or "unset"}" is '
             f'not one of {", ".join(EARNED_STATUSES)}, and `Asked For Price` is '
-            "unchecked. Two routes earn it — get them to an earned status (the paid "
-            "Leak Fix or a booked call), or check `Asked For Price` once they have "
-            "actually asked what it costs. Naming a price before either is a cold "
-            "pitch, not an offer"
+            "unchecked. Two routes earn it — get them to an earned status (a booked "
+            "call), or check `Asked For Price` once they have actually asked what it "
+            "costs. Naming a price before either is a cold pitch, not an offer"
         )
 
     # --- advisory from here down: reported, never blocking --------------------
@@ -740,8 +745,8 @@ def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
             'WARNING Discovery Anchor "Refused to name" — that is a TRUST signal, not '
             "a price signal: they withheld a number because they do not yet believe "
             "the outcome, not because of the number. Lead the offer email harder with "
-            "the Live-or-Free and First Booking guarantees; a discount answers a "
-            "question they never asked"
+            "the No-Show No-Charge Guarantee and Five or Free, both by name; a discount "
+            "answers a question they never asked"
         )
     elif anchor and anchor != "Not asked yet":
         notes.append(f'anchor "{anchor}"')
@@ -867,7 +872,7 @@ def check_send(
     # Freshness of the finding this send draws on (2026-07-26, the Rita Baki
     # case — see the module docstring). Touch 1 draws bank #1 (the opener);
     # any touch >= 2 (cold 2/3 OR warm 4+) carrying second-finding draws the
-    # next UNUSED entry; every other touch (leak-fix-offer,
+    # next UNUSED entry; every other touch (call-ask,
     # disambiguating-question, or an undeclared warm bump) still stands on
     # whatever finding was most recently sent. Legacy rows with no bank at
     # all stay ungated, same precedent as --opener-rank. Checked as of
@@ -1031,7 +1036,7 @@ def check_send(
             if entry is None:
                 problems.append(
                     "carries second-finding but the Findings Bank has no UNUSED entry past #1 — "
-                    "the bank is empty, missing, or spent; carry the leak-fix-offer or "
+                    "the bank is empty, missing, or spent; carry the call-ask or "
                     "the disambiguating-question instead (never invent a finding)"
                 )
             else:

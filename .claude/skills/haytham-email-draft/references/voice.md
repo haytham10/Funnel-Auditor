@@ -16,7 +16,11 @@ Most cold email finds a wound and twists. Haytham's cannot. The email reads like
 
 ## What is actually being sold
 
-Not a service. Proof that he can help. Every email is quietly auditioning for one thing: let me show you I can actually help you. The email's job is to earn belief, not book a call. The call is downstream. Belief is the product. This is why hard-selling feels like betrayal — it skips the only part that matters.
+Not a service. Proof that he can help. Every email is quietly auditioning for one thing: let me show you I can actually help you. Belief is the product, and belief comes first — every line before the last one exists to earn it. This is why hard-selling feels like betrayal: it skips the only part that matters.
+
+**What belief is FOR changed on 2026-07-27.** This section used to end "the email's job is to earn belief, not book a call. The call is downstream." That was read as "never ask for a call," and it held for 9 replies and 0 calls across the whole track — a question-shaped close is optimised for replies and structurally cannot produce a booking. The offer is now The First Five, which sells booked calls, so **the ask at the end of the email is a call with two specific times.**
+
+Nothing above the close changes. Belief still comes first, it is still earned before anything is requested, and an email that asks for a call without earning belief is exactly the betrayal this section warns about. What changed is only that the earned belief now gets spent, in the last line, instead of being left on the table.
 
 ## The trust rule
 
@@ -34,7 +38,7 @@ From one business owner to another. Same trenches. Never the expert who found yo
 - Rewrites toward simpler and more concrete on instinct. "I went through your system and something stood out," never "I noticed something worth mentioning."
 - Direct but warm. Cuts to it, but the care is under the words.
 - States the real motivation out loud when it fits. "I couldn't just sit around and watch your work go underappreciated." It lands because it is true.
-- Does not wrap up neat. The close is an open door, not a bow.
+- Does not wrap up neat. The close is an open door, not a bow — and since 2026-07-27 the door is a specific one: two named times for a call, which she can accept in one word. Open, not vague.
 
 ## Two hard rules
 

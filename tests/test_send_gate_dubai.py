@@ -163,35 +163,41 @@ def test_touch2_after_noon_still_counts_today():
     assert "ceiling reached" in problems[0]
 
 
-# --- carrier rename: leak-fix-offer canonical, loom-offer deprecated alias --
+# --- carrier renames: call-ask canonical; loom-offer and leak-fix-offer are
+# both deprecated aliases. The turn-two artifact has changed twice — a free
+# Loom (retired 07-24), the paid Leak Fix (retired 07-27 with The First Five),
+# and now a call ask with two specific times. Old labels keep passing so
+# in-flight rows and historical logs don't break.
 
-def test_normalize_carrier_maps_the_deprecated_alias():
-    canonical, note = crm_gate.normalize_carrier("loom-offer")
-    assert canonical == "leak-fix-offer"
-    assert note is not None and "DEPRECATED" in note
+def test_normalize_carrier_maps_both_deprecated_aliases():
+    for old in ("loom-offer", "leak-fix-offer"):
+        canonical, note = crm_gate.normalize_carrier(old)
+        assert canonical == "call-ask", old
+        assert note is not None and "DEPRECATED" in note, old
 
     assert crm_gate.normalize_carrier("second-finding") == ("second-finding", None)
     assert crm_gate.normalize_carrier("bogus")[0] == "bogus"
 
 
-def test_loom_offer_alias_still_passes_with_a_deprecation_note():
-    # Live rows and queued follow-ups still declare the old label; it must not
-    # start failing, but the caller gets told to move on.
-    ok, problems, notes = crm_gate.check_send(
-        _ROW, sends_today=5, touch=2, carries="loom-offer", cap_state=_CAP, now=_AFTERNOON,
-    )
-    assert ok, problems
-    assert "carries leak-fix-offer" in notes[0]
-    assert any("DEPRECATED carrier label" in n for n in notes), notes
+def test_retired_offer_aliases_still_pass_with_a_deprecation_note():
+    # Live rows and queued follow-ups still declare the old labels; they must
+    # not start failing, but the caller gets told to move on.
+    for old in ("loom-offer", "leak-fix-offer"):
+        ok, problems, notes = crm_gate.check_send(
+            _ROW, sends_today=5, touch=2, carries=old, cap_state=_CAP, now=_AFTERNOON,
+        )
+        assert ok, (old, problems)
+        assert "carries call-ask" in notes[0], (old, notes)
+        assert any("DEPRECATED carrier label" in n for n in notes), (old, notes)
 
 
-def test_leak_fix_offer_is_canonical_and_note_free():
+def test_call_ask_is_canonical_and_note_free():
     ok, problems, notes = crm_gate.check_send(
-        _ROW, sends_today=5, touch=2, carries="leak-fix-offer", cap_state=_CAP,
+        _ROW, sends_today=5, touch=2, carries="call-ask", cap_state=_CAP,
         now=_AFTERNOON,
     )
     assert ok, problems
-    assert "carries leak-fix-offer" in notes[0]
+    assert "carries call-ask" in notes[0]
     assert not any("DEPRECATED" in n for n in notes), notes
 
 
@@ -201,8 +207,9 @@ def test_unknown_carrier_fails_listing_canonical_names_only():
     )
     assert not ok
     joined = " ".join(problems)
-    assert "leak-fix-offer" in joined
+    assert "call-ask" in joined
     assert "loom-offer" not in joined
+    assert "leak-fix-offer" not in joined
 
 
 # --- no-pytest fallback ----------------------------------------------------

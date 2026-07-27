@@ -95,7 +95,7 @@ computed facts.
   "deep_reserved": "<the deep finding held RESERVED as call bait, or null if none>",
   "low_value": false,
   "innocent": "<the innocent explanation, or null>",
-  "loom_skeleton": "written | n/a",
+  "call_prep": "written | n/a",
   "finding_verified": "proposed",
   "smyk_hook": "not run yet — see haytham-hook-finder",
   "email": "<address + source (harvested | search | enriched(<pattern>)), or 'not found — <next manual step>'>",

@@ -158,7 +158,10 @@ def test_refused_to_name_emits_trust_warning():
     warning = [n for n in notes if "WARNING" in n]
     assert warning, notes
     assert "TRUST signal" in warning[0]
-    assert "guarantee" in warning[0]
+    # Both guarantees by name — the answer to a refusal is more risk reversal,
+    # never a smaller number. Names updated 2026-07-27 with The First Five.
+    assert "No-Show No-Charge" in warning[0], warning[0]
+    assert "Five or Free" in warning[0], warning[0]
 
 
 def test_normal_anchor_is_a_plain_note_not_a_warning():

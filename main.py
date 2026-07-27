@@ -335,7 +335,7 @@ def cmd_crm_gate(args) -> None:
         sys.exit(2)
     if args.touch >= 2 and args.carries is None:
         print("CRM GATE (send): FAIL — --carries is required for any touch >= 2, cold or "
-              "warm (second-finding | leak-fix-offer | disambiguating-question). A follow-up "
+              "warm (second-finding | call-ask | disambiguating-question). A follow-up "
               "that just bumps is a wasted send and a spam signal; declare what new "
               "thing this one carries.")
         sys.exit(2)
@@ -1165,13 +1165,14 @@ def main() -> None:
                             "scheduled for tomorrow morning, so it is gated against TOMORROW's "
                             "ceiling using this count, not today's already-spent one")
     p_crm.add_argument("--carries",
-                       choices=["second-finding", "leak-fix-offer", "disambiguating-question",
-                                "loom-offer"],
+                       choices=["second-finding", "call-ask", "disambiguating-question",
+                                "leak-fix-offer", "loom-offer"],
                        help="(send gate, touch >= 2, cold or warm) the new thing this follow-up "
                             "carries; second-finding is checked against the row's Findings Bank. "
-                            "`loom-offer` is a DEPRECATED ALIAS for `leak-fix-offer` (the "
-                            "turn-two artifact is now the paid 48-Hour Leak Fix) — it still "
-                            "passes and emits a deprecation note. Mirrors "
+                            "`loom-offer` and `leak-fix-offer` are DEPRECATED ALIASES for `call-ask` "
+                            "(the offer is now The First Five and the turn-two is a call ask "
+                            "with two specific times) — they still "
+                            "pass and emit a deprecation note. Mirrors "
                             "audit/crm_gate.CARRIER_CHOICES")
     p_crm.add_argument("--opener-rank", type=int, default=None,
                        help="(send gate, touch 1) which Findings Bank rank the draft's email "
@@ -1256,12 +1257,13 @@ def main() -> None:
     t_render.add_argument("--seq", default=None, choices=["cold", "warm"],
                           help="required on --dir out")
     t_render.add_argument("--carries", default=None,
-                          choices=["opener", "second-finding", "leak-fix-offer",
+                          choices=["opener", "second-finding", "call-ask",
                                    "disambiguating-question", "price-discovery", "money-email",
-                                   "objection-reply", "reactivation", "loom-offer"],
+                                   "objection-reply", "reactivation",
+                                   "leak-fix-offer", "loom-offer"],
                           help="required on --dir out when --n >= 2. Mirrors "
-                               "audit/touchlog.CARRIER_CHOICES (loom-offer is a deprecated "
-                               "alias for leak-fix-offer)")
+                               "audit/touchlog.CARRIER_CHOICES (loom-offer and leak-fix-offer are deprecated "
+                               "aliases for call-ask)")
     t_render.add_argument("--finding", type=int, default=None,
                           help="the Findings Bank rank this touch draws on — required when "
                                "--carries second-finding")
@@ -1288,8 +1290,10 @@ def main() -> None:
 
     t_offer = touch_sub.add_parser("offer", help="build one OFFER: line (## Money) — never edits, only appends")
     t_offer.add_argument("--type", required=True,
-                         choices=["Leak Fix", "Sprint", "The Minimum", "Payment Plan",
-                                  "Funnel Watch", "Custom"])
+                         choices=["First Five", "Fewer Calls", "Setup Deferred", "Custom",
+                                  "Leak Fix", "Sprint", "The Minimum", "Payment Plan",
+                                  "Funnel Watch"],
+                         help="First Five / Fewer Calls / Setup Deferred are live; the rest are RETIRED and accepted only so historical OFFER: lines still parse")
     t_offer.add_argument("--amount", required=True, help="plain number, no currency symbol")
     t_offer.add_argument("--currency", default="AED")
     t_offer.add_argument("--date", required=True, help="YYYY-MM-DD")
