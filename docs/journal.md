@@ -37,6 +37,37 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — uae-tick: 22-lead Gmail-state reconciliation (Haytham's whole 20-lead batch departed overnight), 2 real replies, top-of-funnel still bone dry
+
+Scheduled daily tick, fresh session. The entire 20-lead follow-up batch drafted the previous session (13 cold Touch 3s + 7 warm/priced touches) had been scheduled by Haytham for Monday 2026-07-27 morning and had already departed by tick time (Inbox 1: 14 sends 05:00-07:01 UTC; Inbox 2: 8 sends ~05:00-06:00 UTC), plus 3 separate pre-existing `Scheduled` Touch-1 openers (Daphne Soares, Libby Salord McLean, Dina Taji, all Inbox 2) that were also queued for this exact morning. Reconciled all 22 rows against Gmail reality — fanned out 4 parallel reconciliation agents (mirroring the 07-25/07-26 precedent) for the 19 mechanical ones (no reply), handled the 3 with real inbound replies personally since they needed judgment calls. Every row passed `crm-gate log` on the first or second try.
+
+**Mechanical (13 cold Touch 2→3, no reply → Dormant, 08-10 revival bump):** Shankar V Jayaraman, Susan Koruthu, Gayathri Murukan, Dr. Kim Dede, Lama Malaeb, Carol Glynn, Dr Larry Davies, Ghada B Khalifeh, Luca Allam, Saeed Alghafri, Bilna Sandeep, Noona Nafousi (+ Christina Steinhoff, see below). 5 of these carried a real cited third finding into the closer (bank flipped to USED-T3); the rest were the generic disambiguating-question line with nothing left UNUSED to spend.
+
+**Mechanical (3 Scheduled Touch-1 openers → Outreach Sent/Reply Received):** Dr. Daphne Soares and Libby Salord McLean departed clean, no reply yet, bank #1 flipped USED-T1. Dina Taji (see below) is the one with a real reply.
+
+**Mechanical (warm bumps, Touch #+1, Status unchanged):** Lee Harris (Price Discovery Sent, leak-fix-offer), William Brown and Lucia Csobonyei (Reply Received, both leak-fix-offers citing a fresh banked finding each — bank flipped to USED-T5), Avneet Kohli (Offer Sent, a non-pitch clarifying question about a Upwork brief she'd sent), Rita Baki (Offer Sent, the currency-fragmentation follow-up on her Notes-flagged re-scoped thread).
+
+**The 3 replies, handled directly (not delegated):**
+- **Christina Steinhoff** — the "reply" that landed 1 minute after Touch 3 is the SAME confirmed out-of-office autoresponder as Touch 1 and Touch 2 (identical wording, same `%...%` unfilled merge-tag subject, same ~1-min latency) — third confirmed instance. Reconciled as a normal cold-sequence-complete → Dormant, not a real reply. The account-safety WhatsApp-gate flag from 07-19 stands unchanged.
+- **Lisa Hugo** — genuinely declined the 500 AED Leak Fix (Touch 5): "we have an expert on the team." She also disputed the cited finding (IG YouTube button 404) as not reproducing — the SECOND disputed finding on this lead after a real retraction on Touch 1, so bank #3 is now flagged DISPUTED rather than trusted. Set Status = Lost, Lost Reason = Not interested (only enum option available; full detail is in Notes). Drafted and held (not sent) a short non-pitching closing reply that picks up her "you never asked what platform we use" aside — Haytham's call whether to send it.
+- **Dina Taji** — a real, warm, engaged reply on Touch 1 (same morning): she confirmed the pricing-mismatch finding is a known in-progress app relaunch, deactivating payments herself and expecting to launch in ~2 weeks. Not a decline, not a sale signal. Status → Reply Received, next check-in 2026-07-30.
+
+**Conversion ladder:** still 0 replies converted to a Leak Fix sale or booked call, now against 9 unique repliers (was distinct from the historical, now-closed 100-lead price-discovery study). 3 Leak Fix pitches went out today (Lee Harris, William Brown, Lucia Csobonyei) with 0 accepted yet; Lisa Hugo explicitly declined. `crm-gate offer`: Avneet Kohli PASS (Discovery Anchor "Refused to name" — gate correctly reads this as a trust signal, recommends leading with guarantees, not a discount). **Rita Baki FAILs `crm-gate offer`** — bank #1 has no `verified:` freshness tag (predates the H3 gate), so the staleness check can't clear it; needs a `refresh-finding --rank 1` pass before her scope-mismatch flag can be trusted again. Not blocking anything today (informational, she's already Offer Sent) but worth doing before quoting her again.
+
+**Attribution (9 unique repliers so far):** Lane is 100% Lane 1 (felt leak) — no Lane 2/3 repliers yet. Source Channel: Google Footprint 5, Coach Directory 2, LinkedIn 2. Finding Type: Other 2, Broken checkout 2, Weak sales page 2, Dead/stale element 1, Broken booking flow 1, No visible pricing 1 — too early to confirm or kill the old track's "Dead/stale element carries most replies" pattern; Google Footprint as a sourcing channel is the standout so far.
+
+**Top-of-funnel is STILL completely dry** — `Sourced`/`Qualifying`/`Audit Ready`/`Draft Ready` all confirmed at 0 again (same as 07-26). Send queue empty; nothing to draft or send beyond the reconciliation above. The bottleneck remains findings, not sends.
+
+**Hygiene:** clean sweep — no Sunday-landing Next Action dates, no cold Touch ≥ 4, no future-dated Last Contacted, no Outreach Sent with Touch # 0. Notion SQL quota (`notion-query-data-sources`) ran out mid-run (as usual) right after the attribution query, before I could re-check the carried-forward Spyros Bolano item (Dormant, Touch # null, bank #1 still UNUSED) or run the full log-integrity backstop sweep — both deferred again. One new gate-parsing gotcha found and fixed on William Brown's page: a historical "Touch #1 attempt #1 — Bounced" / "attempt #2 — Sent" pair doesn't match `crm-gate log`'s touch-block regex (it deliberately skips "attempt" blocks to ignore bounces) — reworded just that header line so the real send counts as Touch #1; no facts changed.
+
+### Open follow-ups
+- [ ] **Run `source-leads` / `qualify-leads` urgently** — top-of-funnel dry for a second tick running.
+- [ ] Rita Baki — run `python main.py refresh-finding --rank 1` before her existing 3,200 AED offer scope is trusted again; `crm-gate offer` FAILs on the missing freshness tag as of today.
+- [ ] Spyros Bolano — still unconfirmed (Dormant, Touch # null, bank #1 UNUSED) — Notion SQL quota ran out before this could be re-checked.
+- [ ] Delete the stray orphaned Lee Harris Gmail draft and the duplicate Ben Pringle draft (carried over from 2026-07-26 — no delete-draft tool available this session).
+- [ ] Lisa Hugo's held closing-reply draft (Inbox 2) — Haytham's call whether to send.
+- [ ] Full log-integrity backstop sweep and Finding Type/Source Channel/Lane scoreboard splits beyond today's partial numbers — blocked on the Notion SQL quota again.
+
 ## 2026-07-27 — 20-lead follow-up batch drafted; wrong reference-doc calendar link + draft-update threading bug, both self-inflicted
 
 Ran uae-tick's due-follow-up step across all 20 due leads (13 cold Touch 3s, 7 warm/priced
