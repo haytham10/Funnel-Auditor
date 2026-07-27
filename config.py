@@ -111,3 +111,19 @@ OFFER_PATH_HINTS = [
     "schedule", "consult", "coaching", "membership", "join", "enroll",
     "checkout", "cart", "buy", "class", "intensive", "package",
 ]
+
+# Haytham's own booking link — the ONE place this URL lives.
+#
+# It used to exist only as literal text inside a worked example in
+# `.claude/skills/haytham-email-draft/references/examples.md`. That copy was
+# wrong once (a fabricated `cal.com/haytham/15min` sat there and got pasted
+# into real drafts before anyone noticed — commit a6bf3a9, 2026-07-26), which
+# is the whole argument for a named constant: a link that only exists as prose
+# gets hallucinated, and nothing fails when it does.
+#
+# NOT for cold Touch 1 — no links at all in a cold opener, and the call ask
+# names two specific times instead of offering a URL. This is for warm threads
+# and money emails, and it is always written with an explicit https:// scheme
+# (a bare domain gets auto-linked by Gmail into a google.com/url redirect that
+# reads as spam and is blocked by audit/draft_lint.py).
+HAYTHAM_CALENDAR_URL = "https://calendly.com/haythamm/discovery"

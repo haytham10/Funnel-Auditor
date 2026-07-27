@@ -1,16 +1,33 @@
-# Real sent emails — the anchor
+# Worked emails — the anchor
 
-These are actually sent. They are what "passed the gate" looks like. When in doubt, pattern-match to these, not to a generic idea of a good cold email. Read them before drafting. Note what they do, not just what they say.
+Most of these were actually sent. They are what "passed the gate" looks like. When in doubt, pattern-match to these, not to a generic idea of a good cold email. Read them before drafting. Note what they do, not just what they say.
+
+> ## ⚠️ Read this before pattern-matching any UAE cold opener below
+>
+> **Every UAE cold opener in this file opens on a FINDING and closes on a
+> QUESTION. Both are retired.** Between them those four openers produced 9
+> replies and 0 booked calls.
+>
+> Since 2026-07-27 the opener is: hook → **cold read** → identity → cost →
+> **call ask with two specific times**. Findings are RESERVED call bait and are
+> never emailed at all.
+>
+> The old openers stay because their *hook craft*, register and restraint are
+> still the standard — but their beat 2 and beat 5 are examples of what not to
+> do. **The current shape is MODEL A and MODEL B at the top of the UAE
+> section.** Match those.
 
 **The UAE track is the active pipeline, so the UAE examples come first and there are more of them.** The parenting examples stay because that track is still live and they teach voice and mechanics the UAE set doesn't (a full priced close, a Lane 2 hold, an ambiguous-leak read, the documented mistakes). One gap to know going in: **no UAE lead has ever closed**, so there is no real UAE money-email example — the parenting Helen arc is the shape anchor for a priced close, at correct current pricing. A second gap: the price-discovery email was retired on 2026-07-24 after producing 3 answers, all `Refused to name` and none a number (UAE 3 is the receipt), so the turn-two reference (UAE 4) is a composite draft rather than a sent one.
 
 **Contents** (jump to the pattern you need):
 
 UAE track (active):
-- UAE 1 — cold opener, WORK hook, single finding (Aliya Rajah)
-- UAE 2 — cold opener + cold Touch-2 that carries a *new* finding, not a bump (Carol Glynn)
+- **MODEL A — the current cold opener shape (UNSENT).** Hook, cold read, identity, cost, dated call ask.
+- **MODEL B — the Christina rewrite (UNSENT).** Illustrates the identity beat and the CTA fix only; its beat 2 and beat 5 are both retired shapes.
+- UAE 1 — RETIRED SHAPE: cold opener, WORK hook, single finding (Aliya Rajah). Hook craft still exemplary.
+- UAE 2 — RETIRED SHAPE: cold opener + cold Touch-2 carrying a new finding (Carol Glynn). The touch-2 discipline is right; the payload is not.
 - UAE 3 — RETIRED SHAPE: opener → turn-two → Loom → the price-discovery email (Donna Brown). Kept as the receipt that falsified it; the opener is still exemplary.
-- UAE 4 — the turn-two as it runs NOW: paid 48-Hour Leak Fix or the calendar. **Read this before drafting any turn-two.**
+- UAE 4 — RETIRED SHAPE: the paid 48-Hour Leak Fix turn-two. The turn-two is now a call ask with two specific times.
 - The throughline (what every real example has in common)
 
 Parenting track (live threads only):
@@ -28,7 +45,104 @@ All AED-native, all pulled verbatim from the lead's own Email Thread Log in the 
 
 **Read UAE 4 before drafting any turn-two.** UAE 3 below is kept as the historical record of the retired shape (free Loom, then the price-discovery question) and is marked as such — it is what the current rules exist to prevent, not a pattern to match.
 
-## UAE 1 — cold opener, WORK hook, single finding (Aliya Rajah, career/leadership, 8.7K, Inbox 1)
+## MODEL A — the current cold opener shape
+
+> ### ⚠️ UNSENT. Never sent to a human. Not proof of anything.
+> This is a constructed illustration of the five-beat shape, written
+> 2026-07-27. It has no reply, no outcome, and no evidence behind it beyond
+> the fact that it obeys the rules. Do not cite it as a receipt, and do not
+> read its performance into anything — it has none.
+
+**Lead:** a Dubai business coach, 12K on LinkedIn, one program, prices visible
+nowhere. Hook resolved to a real LinkedIn post about turning down a corporate
+retainer.
+
+> Subject: the retainer you turned down
+>
+> Hey Nadia
+>
+> Turning down a corporate retainer because the work had drifted from what you
+> actually wanted to do is a harder call than most people admit out loud. That
+> post stayed with me for the wrong reason: I have read a lot of coaching sites
+> this year and almost none of them would survive being that honest.
+>
+> Something I keep running into here though. Most of the coaching sites I go
+> through never put a number on the page anywhere. The thinking is usually that
+> price is a conversation, not a billboard.
+>
+> I go through coaching sites here for a living, about a hundred and twenty this
+> year, so I see the same shape a lot.
+>
+> What it does in practice is make the first message you get be "how much," from
+> people who were never going to pay it, and you end up doing the qualifying by
+> hand in your inbox.
+>
+> I can call Tuesday around 4, or Wednesday morning, whichever is less annoying.
+>
+> Haytham
+
+**Why it is shaped this way:**
+
+| Beat | Line | Note |
+|---|---|---|
+| 1 HOOK | the retainer post | Real, cited, only she would recognise it. This is what stops beat 2 reading as a template. |
+| 2 COLD READ | "most of the coaching sites I go through never put a number" | `price-invisible`, 48 of 122. **A statement about the market, not about her** — she cannot refute it and cannot fix it. |
+| 3 IDENTITY | "about a hundred and twenty this year" | On the credibility list. Answers "who is this" — the sentence Lucia and Lee were missing. |
+| 4 COST | "you end up doing the qualifying by hand in your inbox" | What the pattern costs her, pictured. |
+| 5 CLOSE | two named times | One-word yes. Not a question about her business. |
+
+**What it deliberately does NOT do:** name a finding, claim anything specific
+about her site, offer a fix, include a link, or promise a volume. 128 words.
+
+---
+
+## MODEL B — the Christina rewrite
+
+> ### ⚠️ UNSENT. Never sent to a human. Not proof of anything.
+> Adapted from `docs/claude-docs/saraev-translation-a-to-z.md`. It was written
+> to demonstrate two fixes — the identity beat and the CTA — **before** the
+> cold-read change, so **two of its beats are now retired shapes**:
+> - **Beat 2 opens on a FINDING** (the Calendly duration mismatch). Findings are
+>   call bait now and are never emailed.
+> - **Beat 5 closes on an OFFER-TO-FIX** ("I can have the pages and the booking
+>   saying the same thing by tomorrow evening"), not a call ask.
+>
+> Read it for the identity sentence and for how much lighter a concrete close
+> is than a question. Do not copy its structure.
+
+> Subject: science and soul fusion
+>
+> Hey Christina
+>
+> Fusing the clinical side, NLP and hypnosis, with the softer inner work is a
+> real position. Most coaches pick one lane and stay in it. You built a method
+> that refuses to.
+>
+> Which is why this small thing stood out. Every page invites people to a
+> complimentary 30 minute discovery call, but the Calendly it opens is booked as
+> 15 minutes, titled that way too. So the first promise someone acts on is
+> already half of what they expected.
+>
+> I go through coaching sites here for a living, about a hundred and twenty this
+> year, and this one shows up more than you would think. It is almost always the
+> booking tool that got shortened while the pages stayed as they were.
+>
+> For a coach whose whole thing is precision and trust, it is the one detail
+> that quietly undercuts it before the call even starts.
+>
+> I can have the pages and the booking saying the same thing by tomorrow
+> evening. Want me to?
+>
+> Haytham
+
+**The one line to take from it** is beat 3, which is unchanged and still
+correct: *"I go through coaching sites here for a living, about a hundred and
+twenty this year"* — volume proof, no case study needed, and it carries the
+innocent explanation in the same breath.
+
+---
+
+## UAE 1 — RETIRED SHAPE (finding opener, question close): WORK hook (Aliya Rajah, career/leadership, 8.7K, Inbox 1)
 
 The finding: her homepage "Work with Me" section shows three boxes — 1:1 Coaching, Live Workshops, Corporate Training — but the "Live Workshops" box links to a page that returns a hard 404. A real, currently-advertised offer on her own entry page dead-ends.
 SMYKM hook (WORK): her LinkedIn post from a week earlier on confidence being built through reflection, not just action — "allow time for nothingness and for your mind to be bored."
@@ -51,7 +165,7 @@ Why it works: same opener shape as the parenting track — elaborate the WORK ho
 
 ---
 
-## UAE 2 — cold opener + cold Touch-2 that carries a *new* finding (Carol Glynn, business/finance, national-media coach, Inbox 1)
+## UAE 2 — RETIRED SHAPE (finding opener, question close): the touch-2 discipline (Carol Glynn, business/finance, national-media coach, Inbox 1)
 
 The finding (bank #1): the same "Financial Empowerment" course is sold at two live prices at once — the Kajabi storefront homepage her own logo links to lists the tiers in dirhams (1,135 / 2,535 / 3,995 AED) while the /WeareLIVE sales page lists them in dollars ($358 / $998 / $1,850), the AED running up to ~40% under the USD at the fixed peg. A buyer who clicks her logo pays noticeably less than one who came through the sales page.
 SMYKM hook (WORK): her stance that women who understand money change everything, and that after 25+ years auditing the world's largest investment institutions what people lack isn't knowledge, it's clarity.
@@ -147,7 +261,7 @@ Why it works, stage by stage:
 
 ---
 
-## UAE 4 — the turn-two as it runs NOW: paid 48-Hour Leak Fix or the calendar (composite, Inbox 2)
+## UAE 4 — RETIRED SHAPE: the paid 48-Hour Leak Fix turn-two (composite, Inbox 2)
 
 The shape that replaced UAE 3's Loom ending. Composite rather than a sent receipt — the leak fix went live 2026-07-24 and no thread has run it yet, so this is the reference draft, not a proven one. Everything about it is checkable against `uae-track.md` and `gate.md`.
 

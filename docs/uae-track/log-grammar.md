@@ -95,7 +95,7 @@ TOUCH: n=2 dir=in date=2026-07-30 reply_to=2 type="price question" thread=18f2a9
 | `date` | yes | `YYYY-MM-DD`, the real departure/receipt date, Dubai calendar | Touches · `Date Sent` |
 | `inbox` | yes on `dir=out` | `"Inbox 1"` / `"Inbox 2"` — logical label, quoted | Touches · `Inbox` |
 | `seq` | yes on `dir=out` | `cold` / `warm` | Touches · `Sequence` |
-| `carries` | yes on `dir=out` where `n>=2` | `opener`, `second-finding`, `leak-fix-offer`, `disambiguating-question`, `price-discovery`, `money-email`, `objection-reply`, `reactivation` (`loom-offer` deprecated alias for `leak-fix-offer`, still accepted) | Touches · `Carries` |
+| `carries` | yes on `dir=out` where `n>=2` | `opener`, `second-finding`, `call-ask`, `disambiguating-question`, `price-discovery`, `money-email`, `objection-reply`, `reactivation` (`loom-offer` and `leak-fix-offer` are deprecated aliases for `call-ask`, both still accepted so historical logs parse) | Touches · `Carries` |
 | `finding` | when `carries=second-finding`, or the touch quotes a finding | the rank number from `Findings Bank` | Touches · `Finding Used` |
 | `subject` | yes on `dir=out` | quoted | Touches · `Subject` |
 | `thread` | yes | Gmail thread ID | Touches · `Gmail Thread ID` |
@@ -112,13 +112,13 @@ TOUCH: n=2 dir=in date=2026-07-30 reply_to=2 type="price question" thread=18f2a9
 ## OFFER: (## Money — one line per offer made, never overwritten, only appended)
 
 ```
-OFFER: type="Leak Fix" amount=500 currency=AED date=2026-07-28 status=Proposed rung=0
-OFFER: type="Sprint" amount=2575 currency=AED date=2026-08-02 status=Declined rung=0 objection=price terms="pay after"
+OFFER: type="First Five" amount=1500 currency=AED date=2026-07-28 status=Proposed rung=0
+OFFER: type="Fewer Calls" amount=1500 currency=AED date=2026-08-02 status=Declined rung=1 objection=price terms="pay after"
 ```
 
 | Token | Values | Airtable field |
 |---|---|---|
-| `type` | `Leak Fix`, `Sprint`, `The Minimum`, `Payment Plan`, `Funnel Watch`, `Custom` | Offers · `Type` |
+| `type` | `First Five`, `Fewer Calls`, `Setup Deferred`, `Custom` — plus the RETIRED `Leak Fix`, `Sprint`, `The Minimum`, `Payment Plan`, `Funnel Watch`, kept in the enum only so historical OFFER: lines still parse | Offers · `Type` |
 | `amount` | number, no currency symbol | Offers · `Amount AED` |
 | `currency` | `AED` (recorded even though it's always AED — makes the parse total) | — |
 | `date` | `YYYY-MM-DD` — the date of THIS status, not necessarily the original proposal date | Offers · `Date Proposed` |
@@ -163,7 +163,7 @@ python main.py touch-log render --n 2 --dir out --date 2026-07-28 --inbox "Inbox
     --seq cold --carries second-finding --finding 3 --subject "Quick thing on your checkout page" \
     --thread 18f2a9c4b7e1 --gate "<literal crm-gate send verdict line>" --body-file /tmp/sent.txt
 
-python main.py touch-log offer --type "Leak Fix" --amount 500 --currency AED \
+python main.py touch-log offer --type "First Five" --amount 1500 --currency AED \
     --date 2026-07-28 --status Proposed --rung 0
 
 python main.py touch-log source --channel "Google Footprint" \

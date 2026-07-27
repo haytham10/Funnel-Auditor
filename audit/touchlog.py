@@ -61,20 +61,30 @@ from audit.crm_gate import parse_findings_bank
 DIRECTIONS = ("out", "in")
 SEQUENCES = ("cold", "warm")
 
-# Canonical touch 2/3+ carriers. `loom-offer` is the deprecated alias for
-# `leak-fix-offer`, same precedent as audit/crm_gate.py's CARRIERS/
-# DEPRECATED_CARRIERS split (2026-07-24) — kept OUT of CARRIERS so validation
-# messages only ever advertise the current name, but still accepted as input.
+# Canonical touch 2/3+ carriers. `loom-offer` and `leak-fix-offer` are the
+# deprecated aliases for `call-ask`, same precedent as audit/crm_gate.py's
+# CARRIERS/DEPRECATED_CARRIERS split — kept OUT of CARRIERS so validation
+# messages only ever advertise the current name, but still accepted as input so
+# historical logs keep parsing. (`loom-offer` → `leak-fix-offer` 2026-07-24,
+# both → `call-ask` 2026-07-27 with The First Five.)
 CARRIERS = (
-    "opener", "second-finding", "leak-fix-offer", "disambiguating-question",
+    "opener", "second-cold-read", "call-ask", "disambiguating-question",
     "price-discovery", "money-email", "objection-reply", "reactivation",
 )
-DEPRECATED_CARRIERS = {"loom-offer": "leak-fix-offer"}
+DEPRECATED_CARRIERS = {
+    "loom-offer": "call-ask", "leak-fix-offer": "call-ask",
+    "second-finding": "second-cold-read",
+}
 CARRIER_CHOICES = CARRIERS + tuple(DEPRECATED_CARRIERS)
 
 REPLY_TYPES = ("Interested", "Price question", "Brush-off", "Logistics", "Blunt", "Decline")
 
-OFFER_TYPES = ("Leak Fix", "Sprint", "The Minimum", "Payment Plan", "Funnel Watch", "Custom")
+# "First Five" is the live offer. "Leak Fix" and "Sprint" are RETIRED but stay
+# in the enum: `parse_body` has to keep reading the OFFER: lines already written
+# into 100+ lead page bodies, and a migration that can't parse its own history
+# is the failure this grammar exists to prevent.
+OFFER_TYPES = ("First Five", "Fewer Calls", "Setup Deferred", "Custom",
+               "Leak Fix", "Sprint", "The Minimum", "Payment Plan", "Funnel Watch")
 OFFER_STATUSES = ("Proposed", "Accepted", "Declined", "Paid", "Refunded")
 DOWNSELL_RUNGS = ("0", "1", "2")
 PAYMENT_TERMS = ("pay after", "50% deposit", "plan", "full up front")
@@ -248,8 +258,12 @@ def _touch_token_errors(tokens: dict) -> list[str]:
                     f'carries={carries_raw!r} is required on touch n>=2 and must be one '
                     f'of {CARRIER_CHOICES}'
                 )
-            elif canonical == "second-finding" and not tokens.get("finding"):
-                errors.append('finding=<rank> is required when carries=second-finding')
+            # `finding=<rank>` used to be REQUIRED on a `second-finding`
+             # carrier. Findings stopped being emailed on 2026-07-27, so the
+            # current carrier (`second-cold-read`) has no rank to declare and
+            # nothing is required. A `finding=` token is still ACCEPTED and
+            # still cross-checked against the bank in validate(), so the
+            # historical logs that carry one keep being verified.
 
     elif direction == "in":
         bounce = str(tokens.get("bounce", "")).strip().lower() == "true"
@@ -559,13 +573,17 @@ def validate(row: dict | None, page_body: str, *, today: date | None = None) -> 
                 f'(known: {", ".join(inboxes.labels())})',
             ))
 
-        if t.get("carries") == "second-finding" and row is not None:
+        # Cross-check any declared `finding=<rank>` against the bank, whatever
+        # the carrier. Scoped to the `second-finding` carrier until 2026-07-27;
+        # widened when that carrier was retired, so the historical logs that
+        # declare a rank stay verified instead of silently losing their check.
+        if t.get("finding") is not None and row is not None:
             bank = parse_findings_bank(row.get("Findings Bank"))
             ranks = {e["rank"] for e in bank}
             if t.get("finding") not in ranks:
                 problems.append(Problem(
                     "ERROR",
-                    f'touch n={t.get("n")}: carries=second-finding but finding={t.get("finding")!r} '
+                    f'touch n={t.get("n")}: finding={t.get("finding")!r} '
                     f"is not a real rank in this lead's Findings Bank (ranks present: "
                     f"{sorted(ranks) or 'none'})",
                 ))

@@ -1,6 +1,6 @@
 ---
 name: uae-tick
-description: The daily outreach ops loop over the UAE Lead CRM and Gmail. Use WHENEVER Haytham says "uae tick," "tick," "morning brief," "what's due," "check the pipeline," "any replies," or when a scheduled Routine fires this skill — for the UAE track (the parenting track's live threads have their own loop, pipeline-tick). It detects replies in Gmail and syncs CRM state (flagging the moment a lead asks what it costs, and logging any volunteered price answer verbatim), surfaces warm leads due the turn-two paid Leak Fix offer, runs the crm-gate checks on everything about to move, drafts the follow-up touches that are due, hands over today's send queue capped at the deliverability ceiling, and keeps the weekly scoreboard honest. It creates Gmail DRAFTS only — it never sends, and it never advances Touch #/Status for an email that hasn't actually been sent.
+description: The daily outreach ops loop over the UAE Lead CRM and Gmail. Use WHENEVER Haytham says "uae tick," "tick," "morning brief," "what's due," "check the pipeline," "any replies," or when a scheduled Routine fires this skill — for the UAE track (the parenting track's live threads have their own loop, pipeline-tick). It detects replies in Gmail and syncs CRM state (flagging the moment a lead asks what it costs, and logging any volunteered price answer verbatim), surfaces warm leads due the turn-two call ask, runs the crm-gate checks on everything about to move, drafts the follow-up touches that are due, hands over today's send queue capped at the deliverability ceiling, and keeps the weekly scoreboard honest. It creates Gmail DRAFTS only — it never sends, and it never advances Touch #/Status for an email that hasn't actually been sent.
 ---
 
 # UAE Tick — replies, discovery, due touches, send queue
@@ -113,10 +113,12 @@ routing — treat as Inbox 1, the historical inbox, and set the label.)
 
 - **Scheduled rows:** if the message now appears in `in:sent`, flip the
   row to `Outreach Sent` with the REAL departure date as `Last Contacted`
-  (+ `Touch #`, `Next Action` +3 days, Email Thread Log entry, **the
-  Touch-1 `Findings Bank` flip `1. UNUSED` → `1. USED-T1` when the row has
-  a bank, and clearing the pre-send `Notes` markers — `run
-  haytham-hook-finder` / `then ask to draft` / `HELD ... log on send`** —
+  (+ `Touch #`, `Next Action` +3 days, Email Thread Log entry, and clearing
+  the pre-send `Notes` markers — `run haytham-hook-finder` / `then ask to
+  draft` / `HELD ... log on send`. **There is NO Findings Bank flip on a
+  touch-1 send any more** — the opener carries a cold read, not a finding, so
+  nothing is spent; flipping `1. UNUSED` → `1. USED-T1` would record a spend
+  that never happened) —
   i.e. the FULL confirmed-send checklist in `haytham-email-draft` SKILL.md,
   every field, not just the dates). If it's still in the scheduled queue,
   leave it. If it's in neither (he cancelled it), flip back to
@@ -196,8 +198,9 @@ the stall check. For any matched row, fetch the Gmail thread and sync.
   `crm-gate offer` on its own. It must never wait: an unanswered price
   question going cold is the failure the 💸 Asked For Price view exists to
   make impossible.
-- **A reply that accepts the turn-two Leak Fix → Status = `Leak Fix Sold`,**
-  `Est. Value` = `Leak Fix (500 AED)`. Once it is live and paid: `Leak Fix
+- **A reply that accepts one of the two proposed times → Status = `Call
+  Booked`.** That is the rung that earns the number and the status that
+  passes `crm-gate offer`. (LEGACY, nothing new reaches these: `Leak Fix
   Delivered` + `Cash Collected`. These are the two rungs the pipeline was
   missing; a paying customer had nowhere to sit before 2026-07-24.
 - **If a lead volunteers a number or an obstacle unprompted:** log it
@@ -225,7 +228,7 @@ question. That question was falsified as an email step — 100 touched leads,
 asked 3 times, 3 answers, all `Refused to name`, 0 numbers. Do not draft
 one.)
 
-**a) Due the turn-two** — Status = Reply Received, thread warm, no Leak Fix
+**a) Due the turn-two** — Status = Reply Received, thread warm, no call ask
 offered yet. For each: draft the turn-two reply (email type (d) in
 `haytham-email-draft`; the script and rules in `references/uae-track.md`).
 It answers what she actually said, then ends in **the paid 48-Hour Leak
@@ -236,7 +239,7 @@ existing thread, subject unchanged, **in the lead's assigned inbox**
 (Inbox 1 → Gmail MCP `create_draft` with `replyToMessageId`; Inbox 2 →
 `python main.py gmail-gethaytham draft <to> <subject> <body> --thread-id
 <t> --in-reply-to <msgid>`). A turn-two is a send and counts against that
-inbox's budget. **The Leak Fix is NOT gated by `crm-gate offer`** — it is
+inbox's budget. **The call ask is NOT gated by `crm-gate offer`** — it is
 the rung that earns the Sprint number.
 
 **b) Earned a number, money email unlocked** — Status in `Call Booked` /
@@ -281,8 +284,9 @@ uae-track.md, never a re-send of the offer and never a weak closer.
 
 **Cold Touch 2/3 must carry something new, and the gate checks it.**
 Before drafting, pick the carrier honestly: `second-finding` only if the
-row's `Findings Bank` has an UNUSED entry past #1 (the gate verifies);
-otherwise `leak-fix-offer` (natural Touch 2) or `disambiguating-question`
+the follow-up carries a SECOND COLD READ (a different pattern from the
+opener's — the gate verifies the id, not the bank);
+otherwise `call-ask` (natural Touch 2) or `disambiguating-question`
 (natural Touch 3 closer). Dump the fresh row to JSON and run
 `python main.py crm-gate send <row.json> --sends-today <THAT INBOX's total
 incl. already-queued drafts> --touch 2|3 --carries <carrier> --inbox
@@ -391,9 +395,12 @@ line.
 - Any Cold row with Touch # ≥ 4 — the cold sequence is three touches;
   a fourth means the cadence rules were bypassed.
 - An Outreach Sent (or later) row that carries a `Findings Bank` whose
-  spent entry still says `UNUSED` — Touch 1 spends #1, so ANY sent row with
-  a bank whose `1.` reads `UNUSED` is a missed flip; a follow-up that
-  carried a banked finding leaving its entry `UNUSED` is the same bug.
+  spent entry still says `UNUSED`. **RETIRED 2026-07-27 — do not run this
+  check.** It assumed touch 1 spends bank #1, which stopped being true when
+  the opener became a cold read: findings are RESERVED call bait and no send
+  spends one, so an `UNUSED` (or `RESERVED`) rank 1 on a sent row is now
+  CORRECT. Left here named rather than deleted because as a live rule it
+  would false-alarm on every sent lead in the CRM.
   (Confirmed-send logging missed the `USED-TN` flip — see
   `haytham-email-draft`. This is the highest-frequency drift; the bank flip
   on Touch 1 was historically skipped.)
@@ -447,7 +454,7 @@ If 7+ days since the last scoreboard (check the HQ hub page or the last
 brief): compute and append to the brief — unique leads cold-touched,
 unique leads replied (reply rate by lead), **replies converted to a Leak
 Fix sale or a booked call (THE constraint metric — it has been 0 of 9)**,
-leads who asked for a price, Leak Fixes sold, `Cash Collected` all-time,
+leads who asked for a price, calls booked, `Cash Collected` all-time,
 offers out, closes. Rates by lead, never by message-row — counting rows once inflated the old
 pipeline's numbers and it mattered.
 

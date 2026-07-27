@@ -84,6 +84,25 @@ def _interactive_blind_spots(html: str) -> dict:
             continue
         iframes.append({"src": src, "known_booking_platform": bool(_BOOKING_EMBED_RE.search(src))})
 
+    # An inline booking widget carries its real booking URL in `data-url` on
+    # the container div, and that attribute IS present in the served HTML —
+    # unlike the iframe, which only exists after the widget script runs. It
+    # used to be discarded, which meant the one page element that names where
+    # a coach takes bookings was read purely as a screenshot hazard.
+    #
+    # It is now the input to `main.py calendar-state` (2026-07-27): the same
+    # blind spot, turned into the acquisition-state finding that replaced
+    # self-fixable funnel defects as the cold opener. Collected from both
+    # fetch paths because this parses raw HTML, not a live browser.
+    booking_urls = []
+    for tag in soup.select("[data-url]"):
+        durl = (tag.get("data-url") or "").strip()
+        if durl and _BOOKING_EMBED_RE.search(durl) and durl not in booking_urls:
+            booking_urls.append(durl)
+    for f in iframes:
+        if f["known_booking_platform"] and f["src"] not in booking_urls:
+            booking_urls.append(f["src"])
+
     js_only_buttons = []
     for tag in soup.select("button"):
         if tag.find_parent("a[href]"):
@@ -98,7 +117,8 @@ def _interactive_blind_spots(html: str) -> dict:
             continue
         js_only_buttons.append(text[:60])
 
-    return {"iframes": iframes, "js_only_buttons": js_only_buttons[:20]}
+    return {"iframes": iframes, "js_only_buttons": js_only_buttons[:20],
+            "booking_urls": booking_urls[:5]}
 
 # How much page text goes inline in packet.md. 700 chars was cutting every
 # offer/course/checkout page off after its hero section — exactly the part

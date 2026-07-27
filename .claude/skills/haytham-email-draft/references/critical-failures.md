@@ -121,16 +121,23 @@ is COLD-only (mechanics.md) — see the Warm replies section there for the
 reply-type patterns (blunt, brush-off, price question, logistics, five-question
 deflection).
 
-## The close is an open door, not a bow
+## The close is an open door, not a bow — and the door has two times on it
 
-No "let me know." No "looking forward." No "if you're open to it." A
-conditional offer with a concrete, visualizable picture ends the email
-instead:
+No "let me know." No "looking forward." No "if you're open to it." **And, since
+2026-07-27, no question about her business as the only close.** The cold Touch 1
+close is a call ask naming two specific times, answerable in one word:
 
-- Good: "If you want, I can show you what I'd put between the feed and a list."
+- Good: "I can call Tuesday around 4, or Wednesday morning, whichever is less annoying."
+- Good: "Easier to show you than write it out. Thursday afternoon, or Friday early?"
+- Bad: "Is that deliberate, or did it just never get built?" *(a question CTA
+  selects for replies that are ANSWERS — a conversational dead end that looks
+  like success and converts at zero. 4 of 4 UAE openers closed this way; 0 calls.)*
 - Bad: "Let me know if you'd like to chat about this."
 - Bad: "If you're open to it, I'd love to show you some ideas."
+- Bad: "Do you have time this week?" *(no times named — that is the vague
+  scheduling ask that stalled Louise and Helen, not the dated one.)*
 
-The concrete picture (a specific thing she can see herself looking at) does
-the work. The question mark at the end does not have to carry the weight
-alone — a vague close with a question mark is still a bow, not a door.
+The two named times do the work: they turn a request into a decision. **Vary
+them and vary the phrasing per lead** — the shape is fixed, the wording is not,
+and a close reused verbatim is a tell the second time it ships (same rule as the
+templated pivot question above).

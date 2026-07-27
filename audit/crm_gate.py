@@ -9,18 +9,18 @@ verbatim, quote the literal output line" — never paraphrase a PASS.
 
 Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
 
-  offer — a lead cannot reach `Offer Sent` (and no priced Sprint / Track A /
-          Track B offer may be drafted) until they have EARNED the right to be
+  offer — a lead cannot reach `Offer Sent` (and no priced First Five offer may
+          be drafted) until they have EARNED the right to be
           told a number. Two routes earn it, either one is enough: their
-          `Status` is one of the earned set (`Call Booked`, `Leak Fix Sold`,
-          `Leak Fix Delivered`, `Offer Sent`, `Won` — Status is a single select
+          `Status` is one of the earned set (`Call Booked`, `Offer Sent`, `Won`,
+          plus the legacy `Leak Fix Sold` / `Leak Fix Delivered` which are kept
+          accepted for historical rows — Status is a single select
           and forward progress overwrites, so a has-been-there status still
           counts), or `Asked For Price` is checked because they literally asked
           what it costs. Neither, and a priced email is a cold pitch wearing an
           offer's clothes.
 
-          SCOPE: this gate governs the priced Sprint / Track A / Track B money
-          email only. The 500 AED 48-Hour Leak Fix offered at turn-two is
+          SCOPE: this gate governs the priced First Five money email only. A booked call is what EARNS the number now, which is
           EXEMPT — it is the rung that earns the right, so gating it would
           deadlock the motion it exists to start.
 
@@ -58,29 +58,32 @@ Two gates (docs/uae-track/01-crm-operating-spec.md, hard rules 1-3):
           today's already-spent one. Follow-ups and warm replies still go out
           today and are never rolled.
 
-          The cold sequence is THREE touches (day 0, 3, 9), then Dormant.
-          Touches 2 and 3 must each carry something new — `--carries`
-          declares it: `second-finding` (checked against the row's
-          `Findings Bank` for an UNUSED entry past #1), `leak-fix-offer`, or
-          `disambiguating-question` (`loom-offer` is still accepted as a
-          deprecated alias for `leak-fix-offer`). A bare bump is a wasted
-          send and a spam signal; it doesn't pass this gate.
+          A touch 1 opener must declare `--cold-read <pattern>` (validated
+          against COLD_READS). The cold sequence is THREE touches (day 0, 3, 9),
+          then Dormant. Touches 2 and 3 must each carry something new —
+          `--carries` declares it: `second-cold-read` (a DIFFERENT pattern from
+          the opener's), `call-ask`, or `disambiguating-question`. Deprecated
+          aliases still accepted: `loom-offer`/`leak-fix-offer` → `call-ask`,
+          `second-finding` → `second-cold-read`. A bare bump is a wasted send
+          and a spam signal; it doesn't pass this gate.
 
 Row JSON: a flat object of Notion property names → values, as fetched.
 Checkbox values may arrive as true/false, "__YES__"/"__NO__" (SQL shape),
 or "Yes"/"No" — all accepted.
 
 `Findings Bank` property format, one finding per line, ranked strongest
-first (written by the walk, statuses flipped only at confirmed-send
-logging). The optional DEPTH tag (SHALLOW/DEEP) drives bait-and-reserve:
-a shallow finding is self-fixable (worth ~$0 as a sale), a deep finding
-needs expertise (worth paying for), and a RESERVED deep finding is the
-call bait, held out of email entirely — it is never drawn as a
-second-finding (see next_unused_finding):
+first (written by the walk). **Since 2026-07-27 NO finding is emailed at
+all** — the opener is a cold read, and every finding is RESERVED call
+bait, the reason to get on the call. The DEPTH tag (SHALLOW/DEEP) still
+ranks them: a shallow finding is self-fixable (worth ~$0 as a sale), a
+deep one needs expertise (worth paying for), so deep sorts first.
 
-    1. USED-T1 | SHALLOW | checkout button 404s on mobile
-    2. UNUSED | DEEP | pricing split across 4 platforms, buyers bounce at the seam
-    3. RESERVED | DEEP | entire program is readable free on the blog
+    1. RESERVED | DEEP | pricing split across 4 platforms, buyers bounce at the seam
+    2. RESERVED | DEEP | entire program is readable free on the blog
+    3. RESERVED | SHALLOW | checkout button 404s on mobile
+
+`UNUSED` / `USED-Tn` statuses still parse and still appear on rows walked
+before the change; nothing emails them any more.
 
 Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
 (depth = None), so existing rows gate exactly as before.
@@ -101,11 +104,12 @@ Legacy lines without a DEPTH tag (`N. STATUS | finding`) still parse
       3. RESERVED | DEEP | verified:2026-07-24 | entire program is readable free
 
   `check_send` hard-fails when the drawn finding was last verified more than
-  `STALE_SEND_DAYS` (3) days ago. A missing `verified:` tag fails the same way
+  `STALE_SEND_DAYS` (3) days ago — but only a WARM touch draws a finding now,
+  because touch 1 and the cold carriers put no finding in the email. That is
+  the coverage that mattered: the Rita incident was a warm Touch 5. A missing `verified:` tag fails the same way
   a missing date would (never verified = can't prove it isn't stale), and a
   `Findings Bank` that has content but yields no parseable line ALSO fails —
-  see `parse_findings_bank`. Only a genuinely empty bank stays ungated, same
-  precedent as `--opener-rank`.
+  see `parse_findings_bank`. Only a genuinely empty bank stays ungated.
 
   `check_offer` no longer carries a freshness ceiling (2026-07-27, The First
   Five) — see the note above `STALE_SEND_DAYS`.
@@ -184,18 +188,42 @@ _STALE_FINDING_EXPLANATION = (
     "`python main.py refresh-finding` before trusting it again"
 )
 
-# Canonical touch 2/3 carriers. `leak-fix-offer` replaced `loom-offer` on
-# 2026-07-24, when the turn-two artifact stopped being "want me to record a
-# walkthrough" and became the paid 48-Hour Leak Fix. The old label is still
-# accepted so in-flight rows, queued follow-ups and the journal's historical
-# `--carries loom-offer` invocations keep working.
-CARRIERS = ("second-finding", "leak-fix-offer", "disambiguating-question")
+# Canonical touch 2/3 carriers. The turn-two artifact has now changed twice:
+# `loom-offer` → `leak-fix-offer` (2026-07-24, a free walkthrough became the
+# paid 48-Hour Leak Fix) → `call-ask` (2026-07-27, The First Five). Both old
+# labels are still accepted so in-flight rows, queued follow-ups and the
+# journal's historical invocations keep working.
+#
+# `call-ask` is the carrier now because the offer IS a booked call. A follow-up
+# that proposes two specific times carries something new; the same follow-up
+# ending in a question about her business does not, which is how this track got
+# 9% replies and 0 calls.
+CARRIERS = ("second-cold-read", "call-ask", "disambiguating-question")
+
+# The cold-read pattern ids a touch-1 opener may declare with `--cold-read`.
+# Mirrors `.claude/skills/haytham-email-draft/references/cold-reads.md`; a
+# pattern that is not on this list does not go in an email, same discipline as
+# "never invent findings". `call-centric` is deliberately absent — its 46-of-122
+# figure could not be sourced (see the doc's closing section).
+COLD_READS = (
+    "price-invisible", "no-aed", "price-band", "audience-decoupled",
+    "rented-audience",
+)
+
+# Carriers that put NO finding in the email, so nothing needs freshness-checking.
+_COLD_READ_CARRIERS = ("second-cold-read", "call-ask", "disambiguating-question")
 
 # Deprecated carrier label → canonical. Normalised before validation, and the
 # caller is told to stop using it. Kept OUT of CARRIERS so `check_send` compares
 # against exactly one canonical value and failure messages advertise only the
 # current names.
-DEPRECATED_CARRIERS = {"loom-offer": "leak-fix-offer"}
+DEPRECATED_CARRIERS = {
+    "loom-offer": "call-ask",
+    "leak-fix-offer": "call-ask",
+    # 2026-07-27: findings stopped being emailed at all, so a follow-up can no
+    # longer carry "the next banked finding". Queued rows still declare it.
+    "second-finding": "second-cold-read",
+}
 
 # Everything `--carries` accepts, canonical first. main.py mirrors this list.
 CARRIER_CHOICES = CARRIERS + tuple(DEPRECATED_CARRIERS)
@@ -262,7 +290,7 @@ def normalize_carrier(carries: str | None) -> tuple[str | None, str | None]:
     """Map a `--carries` value to its canonical name.
 
     Returns (canonical, deprecation_note). `loom-offer` is a DEPRECATED ALIAS
-    for `leak-fix-offer`: it still passes the gate, but the caller is told to
+    for `call-ask`: they still pass the gate, but the caller is told to
     stop using it. An unknown value comes back unchanged so the caller can
     report it verbatim in the failure message.
     """
@@ -270,7 +298,8 @@ def normalize_carrier(carries: str | None) -> tuple[str | None, str | None]:
         canonical = DEPRECATED_CARRIERS[carries]
         return canonical, (
             f'"{carries}" is a DEPRECATED carrier label — it still passes, but the '
-            f'turn-two artifact is now the paid Leak Fix; use "{canonical}"'
+            f'offer is now The First Five and the turn-two is a call ask with two '
+            f'specific times; use "{canonical}"'
         )
     return carries, None
 
@@ -297,6 +326,31 @@ def parse_findings_bank(value) -> list[dict]:
                 "finding": m.group(5),
             })
     return entries
+
+
+_CALENDAR_FINDING_RE = re.compile(
+    r"\b(calendar|calendly|cal\.com|tidycal|acuity|savvycal|youcanbook|"
+    r"booking (?:slots?|availability)|open slots?|unbooked)\b",
+    re.I,
+)
+
+
+def _looks_like_calendar_finding(entry: dict | None) -> bool:
+    """Is this bank entry an unbooked-calendar finding?
+
+    Text-matched rather than typed, because the bank line is prose and the
+    `Finding Type` property lives on the row, not the entry. Only used to
+    ROUTE a re-check to the right instrument — never to assert a finding — so
+    a false positive costs a redirected note, not a wrong claim.
+    """
+    if not entry:
+        return False
+    return bool(_CALENDAR_FINDING_RE.search(entry.get("finding") or ""))
+
+
+def calendar_state_platform(row: dict) -> str:
+    """The row's booking platform, if its Finding Type names a calendar."""
+    return "calendly" if _norm(row.get("Finding Type")) == "Unbooked calendar" else ""
 
 
 def bank_is_unparseable(value) -> bool:
@@ -372,13 +426,18 @@ def next_unused_finding(row: dict) -> dict | None:
 
 
 def reserved_deep_finding(row: dict) -> dict | None:
-    """The deep finding held in reserve as the call bait (RESERVED status), or
-    None if the bank holds none. This finding is never emailed — it is the
-    reason to get on a call, so the send gate reports it but never spends it."""
-    for e in parse_findings_bank(row.get("Findings Bank")):
-        if e["status"] == "RESERVED":
-            return e
-    return None
+    """The strongest finding held in reserve as call bait, or None.
+
+    Returns the LOWEST-RANK `RESERVED` entry. It used to return the first one
+    in document order, which was harmless while exactly one finding was ever
+    reserved — but since 2026-07-27 every finding is call bait (no finding is
+    emailed at all), so a bank routinely holds several and "first line wins"
+    would surface whichever happened to be typed first rather than the strongest.
+    Rank is the walk's own depth-first ordering, so lowest rank is strongest.
+    """
+    reserved = [e for e in parse_findings_bank(row.get("Findings Bank"))
+                if e["status"] == "RESERVED"]
+    return min(reserved, key=lambda e: e["rank"]) if reserved else None
 
 
 def opener_finding(row: dict) -> dict | None:
@@ -406,7 +465,7 @@ def current_finding(row: dict) -> dict | None:
     spent entry (highest `USED-Tn`), or bank #1 if nothing has been sent yet.
 
     This is what a priced offer, or a touch 2/3 that doesn't carry a fresh
-    second-finding (leak-fix-offer / disambiguating-question), is quoting —
+    second-finding (call-ask / disambiguating-question), is quoting —
     it's the finding staleness has to be checked against even when no NEW
     bank entry is being drawn this round.
     """
@@ -548,6 +607,26 @@ def check_refresh_finding(
         "today": today,
         "new_findings_bank": None,
     }
+
+    # A booking page is a JavaScript shell — Calendly's is ~1KB with an empty
+    # root div — so `_fetch_page_text` extracts nothing from it and the diff
+    # is meaningless in both directions. An unbooked-calendar finding is also
+    # the fastest-decaying kind in the bank: availability changes daily, where
+    # a broken link stays broken for weeks. Text-diffing it is the wrong
+    # instrument entirely; `main.py calendar-state` re-reads the live public
+    # availability and is what re-verifies this finding (2026-07-27).
+    if calendar_state_platform(row) or _looks_like_calendar_finding(entry):
+        result["note"] = (
+            "this reads as an unbooked-calendar finding, and a booking page is a JS "
+            "shell with no text to diff — re-verify it with `python main.py "
+            "calendar-state <booking-url>` instead, then bump `verified:` only if it "
+            "still returns verdict=wide_open; NOT auto-stamped"
+        )
+        result["changed"] = None
+        result["diff"] = []
+        result["use_calendar_state"] = True
+        return True, result
+
     if baseline_text is None:
         result["changed"] = None
         result["diff"] = []
@@ -636,7 +715,7 @@ def check_log_integrity(row: dict, page_body: str) -> tuple[bool, list[str], lis
 
 
 def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
-    """Gate for Reply → Offer Sent (and for drafting any priced Sprint offer).
+    """Gate for Reply → Offer Sent (and for drafting the priced First Five offer).
 
     The question this answers is NOT "do we know their budget" — it is "have
     they earned the right to be told a number". Two routes earn it: they got
@@ -672,10 +751,9 @@ def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
         problems.append(
             f'the lead has not earned a number yet: Status = "{status or "unset"}" is '
             f'not one of {", ".join(EARNED_STATUSES)}, and `Asked For Price` is '
-            "unchecked. Two routes earn it — get them to an earned status (the paid "
-            "Leak Fix or a booked call), or check `Asked For Price` once they have "
-            "actually asked what it costs. Naming a price before either is a cold "
-            "pitch, not an offer"
+            "unchecked. Two routes earn it — get them to an earned status (a booked "
+            "call), or check `Asked For Price` once they have actually asked what it "
+            "costs. Naming a price before either is a cold pitch, not an offer"
         )
 
     # --- advisory from here down: reported, never blocking --------------------
@@ -695,8 +773,8 @@ def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
             'WARNING Discovery Anchor "Refused to name" — that is a TRUST signal, not '
             "a price signal: they withheld a number because they do not yet believe "
             "the outcome, not because of the number. Lead the offer email harder with "
-            "the Live-or-Free and First Booking guarantees; a discount answers a "
-            "question they never asked"
+            "the No-Show No-Charge Guarantee and Five or Free, both by name; a discount "
+            "answers a question they never asked"
         )
     elif anchor and anchor != "Not asked yet":
         notes.append(f'anchor "{anchor}"')
@@ -716,7 +794,7 @@ def check_send(
     inbox: str | None = None,
     now=None,
     sends_next_day: int | None = None,
-    opener_rank: int | None = None,
+    cold_read: str | None = None,
 ) -> tuple[bool, list[str], list[str]]:
     """Gate for queueing/logging any cold send on this lead.
 
@@ -748,19 +826,19 @@ def check_send(
                     gated against tomorrow's ceiling using this count, not
                     today's already-spent one. Follow-ups/warm replies are
                     never rolled: they still go out today.
-    opener_rank   — touch 1 only, required whenever the Findings Bank is
-                    populated: which bank rank the draft's email content was
-                    actually built from. Checked against opener_finding()
-                    (the lowest-ranked UNUSED entry) — a mismatch, or a rank
-                    that turns out to be RESERVED, is a hard fail. Added
-                    2026-07-24 after a real incident: a walk's page-body
-                    narrative described the same finding the Findings Bank
-                    correctly reserved as deep call-bait, and the draft was
-                    built from that narrative instead of the bank order,
-                    emailing the exact finding the bank was holding back.
-                    Nothing previously cross-checked drafted content against
-                    the bank, so it passed clean. Legacy rows with no bank
-                    at all stay ungated (opener_rank is simply ignored).
+    cold_read     — touch 1 only, ALWAYS required: which cold-read pattern
+                    the draft's opener was built from, validated against
+                    COLD_READS. Replaced `--opener-rank` on 2026-07-27, when
+                    the opener stopped being a finding and became a cold read.
+                    The old check was added 2026-07-24 after a real incident
+                    (a draft built from a walk's page-body narrative instead
+                    of the bank order emailed the exact finding the bank was
+                    reserving as call bait, because nothing cross-checked
+                    drafted content against what the gate was told). That
+                    incident cannot recur now, but the declare-what-you-drafted
+                    discipline is kept and re-pointed. Unlike opener_rank this
+                    does NOT depend on the bank, so a row with no bank still
+                    has to declare its pattern.
 
     Returns (ok, problems, notes) — notes are PASS-line detail.
     """
@@ -822,7 +900,7 @@ def check_send(
     # Freshness of the finding this send draws on (2026-07-26, the Rita Baki
     # case — see the module docstring). Touch 1 draws bank #1 (the opener);
     # any touch >= 2 (cold 2/3 OR warm 4+) carrying second-finding draws the
-    # next UNUSED entry; every other touch (leak-fix-offer,
+    # next UNUSED entry; every other touch (call-ask,
     # disambiguating-question, or an undeclared warm bump) still stands on
     # whatever finding was most recently sent. Legacy rows with no bank at
     # all stay ungated, same precedent as --opener-rank. Checked as of
@@ -846,17 +924,35 @@ def check_send(
             + _STALE_FINDING_EXPLANATION
         )
     elif parse_findings_bank(row.get("Findings Bank")):
-        if touch == 1:
-            drawn = opener_finding(row)
-        elif normalize_carrier(carries)[0] == "second-finding":
-            drawn = next_unused_finding(row)
-        else:
+        # Freshness follows WHAT THE SEND ACTUALLY DRAWS ON (2026-07-27, the
+        # cold-read change). Touch 1 opens on a cold read and touch 2/3 carry a
+        # second cold read or the call ask — none of those cite a finding, so
+        # there is nothing for a stale finding to misstate and `drawn` is None.
+        # A warm touch still stands on whatever finding was last sent, and that
+        # is exactly the Rita Baki case the ceiling exists for: her incident was
+        # a WARM Touch 5 re-asserting a booking-flow leak she had already fixed.
+        # So the protection that mattered is the one that is kept.
+        #
+        # Do not extend this back to touch 1 without a reason: it would gate the
+        # send on a finding the email does not contain.
+        drawn = None
+        if touch > COLD_SEQUENCE_TOUCHES or (
+            touch >= 2 and normalize_carrier(carries)[0] not in _COLD_READ_CARRIERS
+        ):
             drawn = current_finding(row)
-        fresh_ok, fresh_problems, fresh_notes = check_finding_freshness(
-            drawn, STALE_SEND_DAYS, today=pause_day
-        )
-        problems.extend(fresh_problems)
-        notes.extend(fresh_notes)
+        if drawn is not None:
+            fresh_ok, fresh_problems, fresh_notes = check_finding_freshness(
+                drawn, STALE_SEND_DAYS, today=pause_day
+            )
+            problems.extend(fresh_problems)
+            notes.extend(fresh_notes)
+
+        # The touch-1 DEPTH hard-fail (H7) lived here from 2026-07-26 to
+        # 2026-07-27. It rejected an opener drawn from a SHALLOW or untagged
+        # finding, because a self-fixable finding gets fixed and the lead
+        # leaves. It is gone because its premise is gone: no finding opens an
+        # email now, so there is no opener finding to classify. Depth still
+        # matters — it ranks the call-bait — it just no longer gates a send.
 
     if touch == 1:
         # A fresh opener queued after noon Dubai can't leave today — it is
@@ -875,39 +971,33 @@ def check_send(
             base_count = sends_today
             day_phrase = f"send-day {sday} (today)"
 
-        bank_entries = parse_findings_bank(row.get("Findings Bank"))
-        if bank_entries:
-            correct = opener_finding(row)
-            if opener_rank is None:
-                problems.append(
-                    "--opener-rank is required for a touch 1 opener when the Findings Bank "
-                    "is populated — declare which bank rank the draft's email content was "
-                    "built from, so the gate can confirm it isn't the RESERVED deep "
-                    "call-bait finding"
-                )
-            else:
-                entry = next((e for e in bank_entries if e["rank"] == opener_rank), None)
-                if entry is None:
-                    problems.append(
-                        f"--opener-rank {opener_rank} does not match any Findings Bank entry"
-                    )
-                elif entry["status"] == "RESERVED":
-                    where = f'bank #{correct["rank"]} instead' if correct else "an UNUSED entry instead"
-                    problems.append(
-                        f'--opener-rank {opener_rank} is RESERVED ("{entry["finding"]}") — the '
-                        f"deep call-bait finding must never be emailed; the opener must draw {where}"
-                    )
-                elif correct is not None and entry["rank"] != correct["rank"]:
-                    problems.append(
-                        f'--opener-rank {opener_rank} ("{entry["finding"]}") is not the opener — '
-                        f'bank #{correct["rank"]} ("{correct["finding"]}") is the lowest-ranked '
-                        "UNUSED entry and is what the draft must be built from"
-                    )
-                else:
-                    notes.append(
-                        f'opener draws bank #{entry["rank"]} ({entry["status"]}): '
-                        f'"{entry["finding"]}"'
-                    )
+        # Declare which COLD READ the opener was built from (2026-07-27).
+        #
+        # This replaced `--opener-rank`, which declared which Findings Bank rank
+        # the draft was built from. That check existed because of a real
+        # incident: a draft was built from a walk's page-body narrative instead
+        # of the bank order and emailed the exact finding the bank was reserving
+        # as call bait. Nothing cross-checked drafted content against what the
+        # gate was told, so it passed clean.
+        #
+        # The incident is impossible now — no finding is emailed at all — but
+        # the discipline it bought is worth keeping, so it is re-pointed rather
+        # than deleted: the opener still has to declare what it was built from,
+        # and the gate still refuses anything not on the sanctioned list.
+        if cold_read is None:
+            problems.append(
+                "--cold-read is required for a touch 1 opener — declare which cold-read "
+                f"pattern the draft was built from ({', '.join(COLD_READS)}). See "
+                ".claude/skills/haytham-email-draft/references/cold-reads.md"
+            )
+        elif cold_read not in COLD_READS:
+            problems.append(
+                f'--cold-read "{cold_read}" is not a sanctioned pattern — a cold read that '
+                "is not on the list does not go in an email, same rule as never inventing "
+                f"a finding. Valid: {', '.join(COLD_READS)}"
+            )
+        else:
+            notes.append(f'opener carries cold read "{cold_read}"')
 
         if followups_due is None:
             problems.append(
@@ -947,18 +1037,28 @@ def check_send(
                 f"touch {touch} must declare what new thing it carries "
                 f"(--carries {'|'.join(CARRIERS)}) — a bare bump is a wasted send and a spam signal"
             )
-        elif carries == "second-finding":
-            entry = next_unused_finding(row)
-            if entry is None:
+        elif carries == "second-cold-read":
+            # A second cold read carries no finding, so there is no bank entry
+            # to check for existence or freshness — it is validated the same way
+            # the touch-1 opener is, against the sanctioned pattern list.
+            # (Before 2026-07-27 this branch was `second-finding` and checked
+            # the bank for an UNUSED entry past #1. Findings are not emailed any
+            # more, so that check had nothing left to check.)
+            if cold_read is None:
                 problems.append(
-                    "carries second-finding but the Findings Bank has no UNUSED entry past #1 — "
-                    "the bank is empty, missing, or spent; carry the leak-fix-offer or "
-                    "the disambiguating-question instead (never invent a finding)"
+                    "carries second-cold-read but --cold-read was not given — declare "
+                    f"which pattern this follow-up uses ({', '.join(COLD_READS)}), and "
+                    "make it a DIFFERENT one from the opener's; a follow-up that repeats "
+                    "touch 1's read carries nothing new"
+                )
+            elif cold_read not in COLD_READS:
+                problems.append(
+                    f'--cold-read "{cold_read}" is not a sanctioned pattern. '
+                    f"Valid: {', '.join(COLD_READS)}"
                 )
             else:
                 notes.append(
-                    f'touch {touch} carries second-finding '
-                    f'(bank #{entry["rank"]} UNUSED: "{entry["finding"]}"), '
+                    f'touch {touch} carries second-cold-read ("{cold_read}"), '
                     f"sends today {sends_today} < {cap_state.cap_phrase()}"
                 )
         else:
@@ -1082,7 +1182,7 @@ def print_send(
     carries: str | None = None,
     inbox: str | None = None,
     sends_next_day: int | None = None,
-    opener_rank: int | None = None,
+    cold_read: str | None = None,
 ) -> int:
     if inbox is not None and not inboxes.is_registered(inbox):
         print(
@@ -1095,7 +1195,7 @@ def print_send(
     cap_state = send_cap.load_cap(inbox)
     ok, problems, notes = check_send(
         row, sends_today, touch, followups_due, carries, cap_state=cap_state,
-        sends_next_day=sends_next_day, opener_rank=opener_rank,
+        sends_next_day=sends_next_day, cold_read=cold_read,
     )
     name = _norm(row.get("Contact Name")) or "unnamed lead"
     tag = f" [{cap_state.inbox}]"

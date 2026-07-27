@@ -14,10 +14,14 @@ leaving the building.
 ## What your prompt gives you
 - The lead's name + Notion page URL/ID (UAE CRM
   `collection://5efbdd9b-1e19-468c-96db-f94a525846e0`).
-- The proposed finding (bank #1) + its innocent explanation + the lane.
+- The proposed finding — **the strongest RESERVED entry (lowest rank)** — plus its innocent explanation and the lane.
 - The `evidence/<slug>` dir and the **exact cited evidence paths** the finding
   rests on (`screenshot_desktop`, `screenshot_mobile`, text files) and any live
   URL the finding names.
+- For an **acquisition-state** finding (an unbooked calendar), the citation is a
+  booking URL plus the `main.py calendar-state` output, not a screenshot. That
+  counts as a cited artifact — re-derive it by re-running the command, not by
+  looking for a file (added 2026-07-27).
 
 You are NOT given the walker's transcript or reasoning. Work only from the
 finding claim + the raw evidence. If a cited path or URL is missing from your
@@ -42,15 +46,32 @@ independently shows it:
   footer copyright year or a testimonial's "sold out".
 - **Price / trust / pricing-mismatch claim** → the two numbers must both appear
   in the cited evidence; re-read both.
+- **Unbooked-calendar claim** → re-run `python main.py calendar-state <booking-url>`
+  yourself and compare its `verdict`, `open_slots` and `available_days` to what
+  the finding asserts. REFUTE unless it independently returns `wide_open`. Three
+  specific ways this claim goes wrong: the command **errored** (an unreadable
+  calendar is not an empty one — the command raises rather than reporting zero,
+  and a walker who wrote the finding anyway invented it); the verdict is
+  `none_published`, which is a self-fixable config problem and SHALLOW, not this
+  claim; or the verdict is `partial`, a normally-busy calendar and not a finding
+  at all. A slot count quoted from a screenshot is never valid evidence — a
+  booking widget renders after the capture.
+- **Depth sanity (report, not a REFUTE reason)** → note whether the finding
+  carries `DEEP`. It used to be a hard REFUTE, on the reasoning that a SHALLOW
+  opener gets self-fixed and the lead leaves. That reasoning retired the same
+  day it shipped: no finding opens an email now, so depth ranks the call bait
+  rather than gating a send. A SHALLOW finding is still weaker call bait — say
+  so in your return, do not kill the lead for it.
 - **Lane sanity** → does the finding survive the sting test + the vitamin filter
   (`haytham-opener-finder/references/walk.md`), or is it a Lane 2 shrug dressed
   up as a felt leak?
-- **Reserve sanity (report only, never a REFUTE reason)** → glance at the
-  `Findings Bank`: is a deep finding held (`RESERVED | DEEP | …`), or is the
-  lead flagged `low-value` in Notes when the bank is all shallow? You verify
-  bank #1 (the opener), not the reserve — but if a bank of only shallow findings
-  carries no low-value flag, note it in your return so the orchestrator can fix
-  the flag. This never changes your VERIFIED/REFUTED verdict on the opener.
+- **You verify the RESERVED call bait, and it is the only finding that matters
+  now.** Re-pointed 2026-07-27. This agent used to verify bank #1 — the finding
+  the opener was built from — and explicitly skip the reserve. Since the opener
+  became a cold read, bank #1 is not emailed and the reserve is the only finding
+  that will ever be spoken aloud, on the call. So verify the strongest
+  `RESERVED` entry (lowest rank). If a bank of only shallow findings carries no
+  `low-value` flag in Notes, report that too so the orchestrator can fix it.
 
 Use `Bash` for `curl` and any `python main.py` check; use `firecrawl_scrape` to
 re-fetch a page independently. Do not spawn subagents; do not walk the whole

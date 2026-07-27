@@ -25,10 +25,10 @@ The walk fills / updates:
 | Gate 1 | select | Pass / Fail. The solo-operator test. |
 | Lane | select | "Lane 1: Felt leak" / "Lane 2: No leak" / "Lane 3: Skip" |
 | Finding Verified | checkbox | **The walker never checks this — it PROPOSES the finding and leaves this unchecked.** It is the hard send gate, checked only by the independent `finding-verifier` on a VERIFIED verdict. Lane 2/3 never carry it. |
-| Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Prefer "Dead/stale element" for time-bound breakage (stale cohort/webinar dates, empty calendars, dead links, expired events, placeholders) — most warm repliers in the old track lived there. Set from bank #1. |
-| Findings Bank | text | **Lane 1 only.** Every visually-confirmed finding that survived both filters, ranked depth-first (deep over shallow, then tier, then sting), one compact line each: `N. STATUS \| DEPTH \| <finding, one felt-cost phrase>`. `STATUS` = `UNUSED` on a fresh walk (only confirmed-send logging flips to `USED-TN`) OR `RESERVED` for the one deep finding held as call bait. `DEPTH` = `SHALLOW` or `DEEP` (self-fixability — see `walk.md`). Example: `1. UNUSED \| SHALLOW \| booking button drops to a form` / `2. UNUSED \| DEEP \| pricing split across 4 platforms` / `3. RESERVED \| DEEP \| whole program readable free`. The send gate parses these lines: `crm-gate send --carries second-finding` needs an UNUSED entry past #1, never draws the RESERVED one, and warns when there's no DEEP entry. Keep the exact `N. STATUS \| DEPTH \| text` shape. If no deep finding exists, all lines are SHALLOW, no RESERVED line, and the low-value flag goes in `Notes`. Lane 2/3: leave empty. |
+| Finding Type | select | "No opt-in capture" / "Weak/no nurture sequence" / "Broken checkout" / "No order bump/upsell" / "Weak sales page" / "No launch system" / "Dead/stale element" / "Broken booking flow" / "No visible pricing" / "Other". Set from bank #1. Descriptive only — it classifies the CALL BAIT, not the opener (the opener is a cold read and carries no finding). No new option was added for the calendar check; "Broken booking flow" covers it. |
+| Findings Bank | text | **Lane 1 only.** Every visually-confirmed finding that survived both filters, ranked depth-first, one compact line each: `N. RESERVED \| DEPTH \| verified:YYYY-MM-DD \| <finding, one felt-cost phrase>`. **Every finding is `RESERVED` since 2026-07-27** — no finding is emailed, so there is no opener entry and nothing is spent by a send. They are call bait. `DEPTH` = `SHALLOW` or `DEEP` (self-fixability — see `walk.md`); `verified:` = **today's date, stamped at walk time**. Rank 1 is the strongest and is what the `finding-verifier` certifies. Example: `1. RESERVED \| DEEP \| verified:2026-07-27 \| pricing split across 4 platforms` / `2. RESERVED \| SHALLOW \| verified:2026-07-27 \| booking button drops to a form`. Both tags mandatory. If no deep finding exists, all lines are SHALLOW and the low-value flag goes in `Notes` — still sendable, just weak call bait. Lane 2/3: leave empty. |
 | Status | select | A freshly walked Lane 1 lead stays "Qualifying" (finding proposed, not yet verified); it becomes "Audit Ready" only after the `finding-verifier` returns VERIFIED and `Email Verified` is set. "Lane 2" if Lane 2 — the dedicated no-leak status (added 2026-07-16; it was a Qualifying hold before that). "Disqualified" if Lane 3 or any gate fail. |
-| Est. Value | select | "Track A ($200)" default / "Track B ($700)" when real launch or sales volume is visible / "Unknown". |
+| Est. Value | select | LEGACY — the options are still worded against the retired Track A / Track B prices. Set `Unknown` on new rows: The First Five bills per booked call, so there is no per-lead deal value to estimate at walk time. |
 | Notes | text | One line. Strongest finding, warm-up angle, or one-line flag. Full detail goes in the body. Email-source problems go FIRST. |
 
 Sequence, Touch #, Last Contacted, Next Action, Price Discovery Answer, Discovery Anchor, Lost Reason — leave alone. Those belong to the email skill, uae-tick, and Haytham during outreach.
@@ -74,19 +74,20 @@ findings banked)".)
 Every visually-confirmed finding that survived both filters, ranked depth-first
 (deep over shallow, then tier, then sting). One numbered line each: the finding
 as a felt cost, its depth tag (shallow/deep), then its innocent explanation
-after " — innocent: ". #1 restates the Lane + Finding opener; #2 onward is
-Touch 2/3 material; the one deep finding held as call bait is marked RESERVED
-and its fix is call-only — name it as a cost, never write the fix. If no deep
+after " — innocent: ". #1 is the strongest call bait and the one the
+finding-verifier certifies. ALL of them are call-only — name each as a cost,
+never write the fix, and never put any of them in an email. If no deep
 finding exists, note "low-value: no deep finding to reserve" here and in
 `Notes`. Mirror the same ranking into the `Findings Bank` PROPERTY in compact
-form (`N. STATUS | DEPTH | finding`, STATUS ∈ UNUSED/USED-Tn/RESERVED) — the
-property is what the send gate parses, the body section is what a human (and the
-drafting skill) reads.
+form (`N. RESERVED | DEPTH | verified:YYYY-MM-DD | finding`) — the property is
+what the send gate parses, the body section is what a human reads. Stamp
+`verified:` with today's date as you write it.
 
-## Loom Skeleton
-(Lane 1 only — omit for Lane 2/3.)
+## Call Prep
+(Lane 1 only — omit for Lane 2/3. Renamed from "Loom Skeleton" 2026-07-27
+with the Loom offer; the artifact stayed because the call is now the product.)
 Three lines, written at walk time while the funnel is fresh in context, so a
-"yes, show me" reply turns into a recorded walkthrough in 30 minutes instead
+booked call opens with specifics instead
 of a re-research session (slow artifact delivery was the old track's #1
 controllable failure):
 - Show: [the exact page/element to put on screen, with URL — where the finding lives]

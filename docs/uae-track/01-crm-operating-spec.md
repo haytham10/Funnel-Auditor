@@ -4,11 +4,13 @@ Machine-readable reference for operating the UAE Coach Pipeline CRM via the Noti
 Written for Claude Code. Last updated 2026-07-14.
 
 > Adopted into the repo 2026-07-13 with corrections confirmed by Haytham:
-> - **The AED price is 735, not 550.** $200 is canonical; 550 AED (~$150) was a
->   conversion error. Track A = 735 AED, Track B = 2,575 AED (both round the
->   pegged conversion up to the nearest 5 so the AED figure is never below the
->   dollar price). Discovery Anchor options updated to match, and Track B
->   anchor options added.
+> - ~~**The AED price is 735, not 550.**~~ **SUPERSEDED 2026-07-27.** Track A
+>   (735 AED) and Track B (2,575 AED) are retired along with the whole
+>   funnel-fix offer. The live offer is The First Five: 1,500 AED setup
+>   credited against the first three calls, then 600 AED per call that
+>   actually happens. See `docs/uae-track/02-the-offer-first-five.md`. The
+>   `Discovery Anchor` options still carry the old wording and are legacy
+>   buckets, not live pricing.
 > - The turn-two artifact (recorded walkthrough) is tracked in the lead's
 >   page body, not as a Status — see the lifecycle note below.
 > - Both hard gates are enforced in code, not convention: `python main.py
@@ -49,7 +51,7 @@ Baki, both 3-4 days cold after explicitly asking what it costs. That failure
 is what the view exists to make impossible.
 
 **🎯 Constraint Board** — grouped by `Status`, filtered to `Reply Received` /
-`Leak Fix Sold` / `Offer Sent` / `Call Booked`. **reply → call is the
+`Offer Sent` / `Call Booked` (plus the legacy `Leak Fix Sold`). **reply → call is the
 constraint** (0 of 9 replies have ever converted), so it gets its own board
 rather than being a slice of the full pipeline.
 
@@ -87,11 +89,11 @@ SQLite table name is the data source URL, quoted:
 | `Gate 1` | select | `Pass` `Fail` `Not checked` |
 | `Lane` | select | `Lane 1: Felt leak` `Lane 2: No leak` `Lane 3: Skip` |
 | `Finding Verified` | checkbox | **HARD GATE.** `__YES__` / `__NO__` in SQL. |
-| `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` |
-| `Findings Bank` | text | Every verified finding from the walk, ranked depth-first (deep over shallow, then tier, then sting), one per line: `N. STATUS \| DEPTH \| verified:YYYY-MM-DD \| finding`. `STATUS` ∈ `UNUSED` / `USED-Tn` / `RESERVED` (the one deep finding held as call bait, never emailed); `DEPTH` ∈ `SHALLOW` / `DEEP` (self-fixability); `verified:` is the date this finding was last confirmed still true (set at walk time, bumped by `python main.py refresh-finding`). E.g. `1. USED-T1 \| SHALLOW \| verified:2026-07-20 \| booking button drops to a form` / `2. UNUSED \| DEEP \| verified:2026-07-24 \| pricing split across 4 platforms` / `3. RESERVED \| DEEP \| verified:2026-07-24 \| whole program readable free`. #1 is the opener; touches 2-3 draw the next UNUSED entry (never the RESERVED one). Statuses flip to `USED-TN` only at confirmed-send logging. `crm-gate send --carries second-finding` parses this property, skips RESERVED, and warns when no DEEP entry exists. Legacy lines without a DEPTH or `verified:` tag still parse — but a missing `verified:` tag now fails the freshness gate (below), so a pre-2026-07-26 lead needs a `refresh-finding` pass before its next send/offer. |
-| *(freshness)* | — | **HARD GATE (2026-07-26), the Rita Baki case.** `crm-gate send` fails if the drawn finding's `verified:` date is more than 3 days old; `crm-gate offer` fails past 1 day — a priced offer quotes work, the work must still need doing. Applies to EVERY touch, cold or warm (touch 1 opener, touch 2/3, and touch 4+ warm bumps alike — fixed 2026-07-26, an upper bound used to let warm touches past 3 skip this check entirely, which is the exact shape of the real incident: Rita was at Touch 5). `python main.py refresh-finding <row.json> --rank N --url <finding-url> --baseline-file <file> [--save-baseline-to <file>]` is the cheap re-check (single-URL fetch + diff, not a full re-walk) run before every send/offer — an UNCHANGED page auto-stamps `verified:` and hands back the ready-to-write `new_findings_bank`, no hand-edit; a CHANGED page never auto-stamps and needs a human read (or a fresh vision pass) first. See `audit/crm_gate.py`'s module docstring and `docs/journal.md` (2026-07-21/25). |
+| `Finding Type` | select | `No opt-in capture` `Weak/no nurture sequence` `Broken checkout` `No order bump/upsell` `Weak sales page` `No launch system` `Dead/stale element` `Broken booking flow` `No visible pricing` `Other` — descriptive only. It classifies the CALL BAIT; since 2026-07-27 the opener is a cold read and carries no finding. No new option needed. |
+| `Findings Bank` | text | Every verified finding from the walk, ranked depth-first, one per line: `N. RESERVED \| DEPTH \| verified:YYYY-MM-DD \| finding`. **Since 2026-07-27 every finding is `RESERVED`** — the opener is a cold read, no email carries a finding, and nothing is spent by a send. They are call bait. `DEPTH` ∈ `SHALLOW` / `DEEP`; `verified:` is the date the finding was last confirmed true (set at walk time, bumped by `refresh-finding`). Rank 1 is the strongest and is what the `finding-verifier` certifies. Legacy rows still carry `UNUSED` / `USED-Tn` statuses and still parse — leave them. |
+| *(freshness)* | — | **HARD GATE (2026-07-26), the Rita Baki case.** `crm-gate send` fails if the drawn finding's `verified:` date is more than 3 days old. **`crm-gate offer` no longer has a freshness ceiling** (removed 2026-07-27): its rationale was "a priced offer quotes work, so the work must still need doing", which was true of the retired funnel-fix offer and is not true of The First Five, which quotes no work against the finding. Applies to EVERY touch, cold or warm (touch 1 opener, touch 2/3, and touch 4+ warm bumps alike — fixed 2026-07-26, an upper bound used to let warm touches past 3 skip this check entirely, which is the exact shape of the real incident: Rita was at Touch 5). `python main.py refresh-finding <row.json> --rank N --url <finding-url> --baseline-file <file> [--save-baseline-to <file>]` is the cheap re-check (single-URL fetch + diff, not a full re-walk) run before every send/offer — an UNCHANGED page auto-stamps `verified:` and hands back the ready-to-write `new_findings_bank`, no hand-edit; a CHANGED page never auto-stamps and needs a human read (or a fresh vision pass) first. See `audit/crm_gate.py`'s module docstring and `docs/journal.md` (2026-07-21/25). |
 | `SMYKM Hook` | text | One line, real public evidence only. Never fabricated. |
-| `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14; `Lane 2`, added 2026-07-16; `Leak Fix Sold` and `Leak Fix Delivered`, added 2026-07-24). `Price Discovery Sent` is legacy — no new lead enters it. |
+| `Status` | select | see lifecycle below (incl. `Draft Ready` and `Scheduled`, added 2026-07-14; `Lane 2`, added 2026-07-16). `Price Discovery Sent`, `Leak Fix Sold` and `Leak Fix Delivered` are all legacy — no new lead enters them. |
 | `Inbox` | select | `Inbox 1` `Inbox 2` (added 2026-07-16). Which sending inbox this lead's whole thread goes out of — a LOGICAL label, mapped to a real address + transport by the registry (`audit/inboxes.py`; Inbox 1 = auto-mate.one via Gmail MCP, Inbox 2 = gethaytham.com via `main.py gmail-gethaytham`). Assigned once, sticky for the life of the thread. Blank = unassigned; routing fills it when the lead first enters the send queue. Each inbox has its OWN send ceiling. |
 | `Sequence` | select | `Cold` `Warm` |
 | `Touch #` | number | Increment on every send incl. follow-ups. |
@@ -100,8 +102,8 @@ SQLite table name is the data source URL, quoted:
 | `Asked For Price` | checkbox | Added 2026-07-24. Set when a lead explicitly asks what it costs. **The highest-intent signal in the CRM**, and the second route through `crm-gate offer` on its own. Filterable via the "Asked For Price" view. |
 | `Cash Collected` | number (AED) | Added 2026-07-24. Real money actually received from this lead. All-time total was 0 AED and there was nowhere to record it when that changed. |
 | `Price Discovery Answer` | text | **VERBATIM.** Never paraphrase. **Advisory since 2026-07-24**, not blocking — `crm-gate offer` reports it as a note. Keep collecting it. |
-| `Discovery Anchor` | select | Track A: `Above 735 AED` `At 735 AED` `Below 735 AED` · Track B: `Above 2575 AED` `At 2575 AED` `Below 2575 AED` · plus `Refused to name` `Not asked yet`. **Advisory since 2026-07-24.** `Refused to name` reads as a TRUST signal, not a price signal, and the gate emits a WARNING note saying so. |
-| `Est. Value` | select | `Track A ($200)` `Track B ($700)` `Retainer` `Custom` `Unknown`, plus (added 2026-07-24) `Leak Fix (500 AED)` `Sprint (2575 AED)` `Funnel Watch (600/mo)`. Note: no comma in `Sprint (2575 AED)` — Notion rejects commas in select option names. |
+| `Discovery Anchor` | select | **LEGACY buckets**, worded against the retired Track A / Track B prices: `Above/At/Below 735 AED`, `Above/At/Below 2575 AED`, plus `Refused to name` `Not asked yet`. **Advisory since 2026-07-24.** Do not add options and do not read the labels as live pricing — for a fresh answer only `Refused to name` carries meaning; everything else belongs in the verbatim `Price Discovery Answer`. `Refused to name` reads as a TRUST signal, not a price signal, and the gate emits a WARNING note saying so. |
+| `Est. Value` | select | **LEGACY as of 2026-07-27** — every option is worded against a retired price (`Track A ($200)` `Track B ($700)` `Leak Fix (500 AED)` `Sprint (2575 AED)` `Funnel Watch (600/mo)` `Retainer` `Custom` `Unknown`). The First Five bills per booked call, so there is no per-lead deal value at walk time: set `Unknown` on new rows. Note: no comma in `Sprint (2575 AED)` — Notion rejects commas in select option names. |
 | `Lost Reason` | select | `No reply` `Price` `Not interested` `Bad timing` `Went elsewhere` `Ghosted after reply` `Wrong fit` `Other` `No measurable audience`. **Scope changed 2026-07-27**: stops being used for disqualifications the moment `Disqualification Reason` exists — reverts to meaning "lost after engagement" (a reply came in, then the thread died). Existing pre-2026-07-27 rows are NOT backfilled; Wave 2 sources those from `docs/leads/_dq-extraction.json` instead. |
 | `Gate 0 Failed Floors` | multi_select | Added 2026-07-27. `Not UAE-based` `No funnel or paid offer` `Inactive 30d` `Audience below floor` — which of Gate 0's four floors actually fired (a lead can fail more than one). Set alongside `Gate 0 = Fail`, before moving to `Disqualified`. See `docs/uae-track/schema-delta.md` for the Airtable mapping and the spelling hazard vs. `Disqualification Reason` (different property, deliberately different wording — do not conflate). |
 | `Gate 1 Failed Reason` | select | Added 2026-07-27. `Team gatekeeper` `Agency-run` `Assistant-managed` `Other`. Set alongside `Gate 1 = Fail`. |
@@ -129,14 +131,20 @@ Same pattern for `Last Contacted`.
 ```
 Sourced → Qualifying → Audit Ready → Draft Ready → (Scheduled) → Outreach Sent
   → Reply Received
-  → [Leak Fix Sold → Leak Fix Delivered]  OR  [Call Booked]
+  → Call Booked          (legacy: Leak Fix Sold → Leak Fix Delivered)
   → Offer Sent → Won
 ```
 
 Terminal / off-ramps: `Lost`, `Dormant`, `Disqualified`, `Lane 2`
 
-**`Leak Fix Sold` and `Leak Fix Delivered` (added 2026-07-24) are the paid
-turn-two rungs.** The turn-two offer is the 48-Hour Leak Fix (500 AED, paid
+**`Leak Fix Sold` and `Leak Fix Delivered` are LEGACY as of 2026-07-27** —
+kept so historical rows keep gating, but nothing new reaches them. The
+turn-two is now a **call ask with two specific times**, and a lead who accepts
+goes straight to `Call Booked`, which is both the product and the status that
+passes `crm-gate offer`.
+
+*(Historical: added 2026-07-24 as the paid turn-two rungs. The offer was the
+48-Hour Leak Fix (500 AED, paid
 after; 365 AED up front as the alternative), and before these statuses
 existed a paying customer had nowhere to sit. `Leak Fix Sold` = they said
 yes and access is being arranged; `Leak Fix Delivered` = the fix is live and
@@ -172,13 +180,19 @@ matching message in Gmail's sent mail, and uae-tick reconciles this every
 morning (Scheduled rows whose message has departed get flipped to
 Outreach Sent with the real departure date).
 
-**The turn-two artifact is the paid 48-Hour Leak Fix.** The offer is made
-inside `Reply Received` and logged in the page body's Email Thread Log with
-an `Artifact:` line; if they buy, the row moves to `Leak Fix Sold` and then
-`Leak Fix Delivered`. The retired shape (a free Loom offer, then the price
-discovery question) produced 3 offers and 0 takers, then 3 refusals and 0
-numbers. Every turn-two now ends in a single-tap next step (the calendar) or
-a paid tiny yes (the Leak Fix), never a question and never a soft exit.
+**The turn-two artifact is a call ask with two specific times.** The ask is
+made inside `Reply Received` and logged in the page body's Email Thread Log;
+if they accept a time, the row moves to `Call Booked`.
+
+**Every turn-two ends in a call ask she can accept in one word.** Never a
+question about her business, never a menu, never a soft exit, and never a
+calendar link sitting beside the times (that pair is a menu by this track's
+own definition).
+
+Three retired shapes, none to be reinstated: the free Loom (3 offers, 0
+takers), the price discovery question (3 asks, 3 refusals, 0 numbers), and
+the paid 48-Hour Leak Fix (retired 2026-07-27 with the funnel-fix offer —
+findings don't sell, because the lead fixes them and leaves).
 
 ### Transition rules
 
@@ -192,11 +206,11 @@ a paid tiny yes (the Leak Fix), never a question and never a soft exit.
 | Draft Ready → Scheduled | Haytham scheduled the send in Gmail (tick detects it in the scheduled queue, or he says so). |
 | Audit Ready / Draft Ready / Scheduled → Outreach Sent | Touch #1 ACTUALLY departed (matching message in Gmail sent mail). Set `Last Contacted` (real departure date), `Next Action` (+3 days), `Touch #` = 1, `Sequence` = Cold. **Gate: `crm-gate send … --touch 1 --followups-due M` must have printed PASS at queue time.** |
 | Outreach Sent → Reply Received | They replied. Set `Sequence` = Warm |
-| Reply Received → Leak Fix Sold | They accepted the turn-two 48-Hour Leak Fix (500 AED paid after, or 365 AED up front). Set `Est. Value` = `Leak Fix (500 AED)`. NOT gated — the Leak Fix is the rung that earns the priced offer, so gating it would deadlock the motion. |
-| Leak Fix Sold → Leak Fix Delivered | The fix is live and working and they have paid. Set `Cash Collected`. |
+| Reply Received → Call Booked | They accepted one of the two times proposed in the turn-two call ask. NOT gated — a booked call IS the rung that earns the priced offer, so gating it would deadlock the motion. *(Replaced `Reply Received → Leak Fix Sold` on 2026-07-27.)* |
+| Leak Fix Sold → Leak Fix Delivered | LEGACY (retired 2026-07-27). Historical rows only. |
 | Reply Received → Call Booked | They took the calendar link instead. |
 | Any → (`Asked For Price` checked) | They explicitly asked what it costs, at any stage. Not a status change — a checkbox, and the highest-intent signal in the CRM. It is the second route through the offer gate on its own. |
-| [Leak Fix Delivered / Leak Fix Sold / Call Booked / `Asked For Price`] → Offer Sent | The lead has EARNED a number. **Gate: `crm-gate offer` must print PASS first** — an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or `Asked For Price` checked. `Price Discovery Answer` / `Discovery Anchor` are advisory and reported, never blocking. |
+| [Leak Fix Delivered / Leak Fix Sold / Call Booked / `Asked For Price`] → Offer Sent | The lead has EARNED a number. **Gate: `crm-gate offer` must print PASS first** — an earned `Status` (`Call Booked`, `Offer Sent`, `Won`, or the legacy `Leak Fix Sold` / `Leak Fix Delivered`) or `Asked For Price` checked. `Price Discovery Answer` / `Discovery Anchor` are advisory and reported, never blocking. |
 | ~~Reply Received → Price Discovery Sent~~ | **RETIRED 2026-07-24.** Do not use. The discovery question no longer goes out over email. |
 | Any → Dormant | 3 cold touches (day 0, 3, 9), no reply. There is no touch 4. Set Next Action to a revival bump 2-3 weeks out — if that date lands on a Sunday, bump it to Monday (sends are paused every Sunday; a 2-3 week/multiple-of-7 offset from a Sunday lands back on a Sunday). |
 | Any → Lost | Explicit no, or ghost after reply. Always set `Lost Reason`. |
@@ -207,7 +221,7 @@ a paid tiny yes (the Leak Fix), never a question and never a soft exit.
 
 1. **No send without `Finding Verified` = checked AND `Email Verified` = checked.** The finding produces the reply rate; a thin finding burns the lead and the domain. The verified address protects deliverability; a bounce burns that inbox's sending domain the whole ramp is built to protect (`email-check` is syntax+MX only and PASSED for two addresses that then hard-bounced — `email-verify` is the deliverability confirm). Both enforced by `python main.py crm-gate send`, which fails closed on either flag.
 2. **Never past a sending inbox's daily ceiling — PER INBOX, never pooled.** The ceiling is TOTAL sends leaving THAT inbox (openers + follow-ups + warm replies, both tracks). Each inbox is a separate domain with its own reputation, so each has its own independent ramp in `send_cap.json` (keyed by logical label, fails closed to 20 per inbox), moved 20 → 25 → 30 only by Haytham's explicit `python main.py send-cap set --inbox "<label>"` after 7+ days of that inbox's deliverability holding; **30 is the hard cap for ONE inbox — more volume means more inboxes, never a bigger number.** A lead's sends count against its assigned `Inbox`. Follow-ups due on an inbox eat that inbox's budget first; its openers get what's left. Enforced by `crm-gate send --sends-today N --touch T [--followups-due M] --inbox "<label>"` (`--sends-today` = that inbox's own count). Which inbox a new lead lands on: `python main.py inbox route`.
-3. **The lead must have EARNED a number before any priced offer.** Either an earned `Status` (`Call Booked`, `Leak Fix Sold`, `Leak Fix Delivered`, `Offer Sent`, `Won`) or `Asked For Price` checked. Enforced by `python main.py crm-gate offer`. The 500 AED turn-two Leak Fix is exempt — it is the rung that earns the right. *(Changed 2026-07-24. The old rule was "price discovery happens BEFORE the priced offer, this is the entire point of the track". It was tested: across 100 touched leads, 182 touches and 9 replies, the question was asked 3 times, produced 3 answers, all `Refused to name`, and 0 numbers; two of the three refusers asked US for a price instead. Nobody names a budget to a stranger over email. The refusal is a trust signal, not a price signal — the answer to it is more risk reversal, never a smaller number. The question moved to the call.)*
+3. **The lead must have EARNED a number before any priced offer.** Either an earned `Status` (`Call Booked`, `Offer Sent`, `Won`, or the legacy `Leak Fix Sold` / `Leak Fix Delivered`) or `Asked For Price` checked. Enforced by `python main.py crm-gate offer`. The turn-two call ask is exempt — a booked call IS the rung that earns the right. *(Changed 2026-07-24. The old rule was "price discovery happens BEFORE the priced offer, this is the entire point of the track". It was tested: across 100 touched leads, 182 touches and 9 replies, the question was asked 3 times, produced 3 answers, all `Refused to name`, and 0 numbers; two of the three refusers asked US for a price instead. Nobody names a budget to a stranger over email. The refusal is a trust signal, not a price signal — the answer to it is more risk reversal, never a smaller number. The question moved to the call.)*
 4. **`Price Discovery Answer` is logged verbatim** whenever a lead volunteers anything. Not summarized. Advisory now, not blocking — still the best qualitative data in the system.
 5. **The price never moves.** Per Grand Slam Offer v2. A low anchor is market data, not an instruction to discount. Objections get bonuses, restructured terms, or a named rung of the downsell ladder. 3,600 AED is the documented next Sprint price and is gated on 2 closes; do not quote it.
 6. **Never write UAE leads into the parenting DB.**
@@ -266,7 +280,7 @@ WHERE "Asked For Price" = '__YES__'
 ORDER BY date("date:Last Contacted:start") DESC
 ```
 
-### The constraint: reply → call (or → paid Leak Fix)
+### The constraint: reply → call
 ```sql
 SELECT "Status", COUNT(*) AS cnt
 FROM "collection://5efbdd9b-1e19-468c-96db-f94a525846e0"
@@ -432,14 +446,15 @@ token contract, enums, and the legacy-format fallback:
 `docs/uae-track/log-grammar.md`.
 
 ## Money
-OFFER: type="Leak Fix" amount=500 currency=AED date=YYYY-MM-DD status=Proposed rung=0
+OFFER: type="First Five" amount=1500 currency=AED date=YYYY-MM-DD status=Proposed rung=0
 
 One `OFFER:` line per offer made or per status change — append only, never
 edit or overwrite a prior line (`python main.py touch-log offer`).
 
 ## Price Discovery (advisory, legacy — only if they volunteered something)
 Their answer (VERBATIM): "..."
-Anchor: above / at / below 735 AED (Track A) or 2575 AED (Track B), or
+Anchor: a legacy bucket (the options are worded against the retired Track A /
+Track B prices), or
 `Refused to name` — which reads as a TRUST signal, not a price signal
 ```
 

@@ -39,13 +39,22 @@ her booking redirect, Avneet fixed her test-SKU checkout and logo, Lisa said "we
 are on fix this." Optimizing openers for the most provable finding optimized
 them against revenue. Depth is the correction.
 
+**This is now enforced, not advised (2026-07-27).** `crm-gate send` hard-fails a
+touch-1 opener that draws an untagged or SHALLOW bank entry. Depth shipped as
+ranking guidance on 2026-07-26 and by the next day the live CRM read 203 of 225
+entries with no depth tag at all, 8 of 91 leads with any DEEP finding, and about
+a third of openers still self-fixable. Guidance was tried. **Every bank line
+needs a DEPTH tag, and the opener has to be DEEP.**
+
 - **Shallow / self-fixable (janitorial).** She fixes it in minutes once it's
   named. Worth ~$0 as a standalone sale — naming it earns the reply, not the
   money. Examples: a dead or broken link, a logo/CTA pointing at the wrong
   page, a test or placeholder SKU left live, a booking form that should be a
-  scheduler, a stale cohort/webinar date, a typo, a broken image, an empty
-  calendar. Most of Stop 1 (entry), Stop 2 delivery misses, and Stop 4
-  (checkout/booking breakage) skew shallow — they're breakage, not strategy.
+  scheduler, a stale cohort/webinar date, a typo, a broken image, **a booking
+  widget that publishes no bookable time at all** (a configuration problem —
+  see the calendar split below). Most of Stop 1 (entry), Stop 2 delivery misses,
+  and Stop 4 (checkout/booking breakage) skew shallow — they're breakage, not
+  strategy.
 - **Deep / un-self-fixable.** Requires expertise, judgment, or a rebuild she
   can't do from a one-line email. This is what a coach pays to solve. Examples,
   drawn from the deep-audit diagnosis references
@@ -63,8 +72,34 @@ them against revenue. Depth is the correction.
   - **Awareness / message-market mismatch** — copy pitched at the wrong Schwartz
     awareness stage, Orphan Lead / Excite Void / Dead-End Ascension structural
     gaps (copy- and structure-diagnosis matrices).
+  - **An unbooked calendar** — a working scheduler with most of the next month
+    still open. She cannot fix this by editing anything; the gap is demand, not
+    configuration. See the split below.
   Stop 3 (offer/pricing) and Stop 5 (audience ownership, structural) are where
   deep findings usually live.
+
+### The calendar split (2026-07-27)
+
+"An empty calendar" used to sit in the shallow list. It was two different facts
+wearing one label, and only one of them is an opener:
+
+| What you see | What it means | Depth |
+|---|---|---|
+| Scheduler resolves, publishes **zero** bookable time | a configuration problem she fixes in five minutes | **SHALLOW** — never the opener |
+| Scheduler works, **most of the next month is open** | nobody is booking her | **DEEP** — opener-legal |
+| Normally busy | not a finding at all | neither — do not bank it |
+
+Settle it with `python main.py calendar-state <booking-url>`, which reads the
+same public no-login endpoint her own booking widget calls and returns
+`verdict`, `depth`, `open_slots` and `opener_legal`. Quote its literal numbers;
+they are the finding. It covers Calendly and Cal.com and returns an explicit
+error for anything else — **never infer availability from a screenshot**, since
+a booking widget renders after the capture and a working calendar routinely
+photographs as blank space (that is exactly what `BOOKING_EMBED_HOSTS` exists to
+warn about).
+
+The command raises rather than reporting zero when the API errors. If it errors,
+you have no calendar finding — you do not have an empty calendar.
 
 **Depth is independent of provability.** A shallow finding can be Tier A
 (provably, visibly broken) and still worth ~$0 to sell. Do not let "most

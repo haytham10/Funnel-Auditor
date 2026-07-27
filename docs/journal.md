@@ -37,6 +37,270 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — The opener is a cold read, not a finding (PR 4 of the First Five pivot)
+
+**Findings stopped opening emails.** Every coach already wants more booked
+calls, so a finding spends the whole email proving something she knows — and a
+finding that turns out wrong, or that she fixes herself, costs more than
+silence. Both already happened: 4 of 9 engaged leads consumed the finding and
+left; a third of findings failed under scrutiny while carrying `Finding
+Verified = YES`. Beat 2 is now a **cold read**: a measured observation true of
+most coaches in this market. It cannot fail either way, because it makes no
+claim about her specifically. Findings are RESERVED call bait and are never
+emailed at any touch, in any form.
+
+**The blocking discovery: the touch-1 path could not pass at all.** Once every
+finding is `RESERVED`, three independent vetoes fired — `--opener-rank` was
+required whenever a bank existed (enforced TWICE, at `main.py:342` and
+`crm_gate.py:962`), any rank supplied was rejected for being RESERVED, and
+touch-1 freshness drew `opener_finding()` which returns `None` on an
+all-RESERVED bank. Confirmed by executing the gate before touching it. A
+walked lead is all-RESERVED by definition now, so this would have blocked the
+entire cold pipeline silently.
+
+- **`--opener-rank` → `--cold-read <pattern>`**, at both layers. The old check
+  existed because of a real incident (a draft built from page-body narrative
+  instead of the bank, emailing the exact finding the bank was reserving). That
+  incident is impossible now, but the declare-what-you-drafted discipline is
+  kept and re-pointed at the sanctioned pattern list. Unlike `--opener-rank` it
+  does not depend on the bank, so a row with no bank still declares its pattern.
+- **H7 removed one day after it shipped.** It hard-failed a SHALLOW or untagged
+  touch-1 opener. Its premise died with the finding-opener.
+- **`second-finding` → `second-cold-read`.** A follow-up must carry a DIFFERENT
+  pattern from the opener's. `second-finding`, `leak-fix-offer` and
+  `loom-offer` all still pass as deprecated aliases.
+- **Freshness now follows what the send actually draws on.** Touch 1 and the
+  cold carriers cite no finding, so they get no ceiling. Warm touches still do
+  — and that is where the Rita Baki incident actually lived (a warm Touch 5
+  re-asserting a leak she had already fixed), so the protection that mattered
+  is intact. Pinned by `test_warm_touch_still_checks_the_finding_it_stands_on`.
+- **`reserved_deep_finding()` now returns the lowest-rank reserved entry**, not
+  the first line. Harmless while exactly one was reserved; wrong now that a
+  bank holds several.
+- **`finding-verifier` re-pointed at the RESERVED entry.** It used to verify
+  bank #1 and explicitly skip the reserve — i.e. certify the one finding that
+  will never be used and ignore the only one that will.
+
+**Two real bugs found and fixed in `uae-tick`,** both consequences of touch 1
+no longer spending a finding: the confirmed-send `1. UNUSED → USED-T1` flip
+would have recorded a spend that never happened, and the drift detector (an
+`UNUSED` rank 1 on a sent row = "missed flip") **inverts** — it would have
+false-alarmed on every sent lead in the CRM. Retired by name rather than
+deleted.
+
+**The numbers were audited before anything shipped, and four of seven had
+problems:**
+- **`46 of 122` is not shippable and is NOT in the pattern list.** It appears
+  only in the offer spec, unsourced; the market study it names as its evidence
+  base has no 46. The nearest real figure (32, free-call-only) is from the
+  *disqualified* population — a different denominator. The `call-centric`
+  pattern needs a fresh CRM count before it can exist.
+- "373 reviewed in two weeks" → **"373 found in 14 days"** (246 were killed at
+  triage without a walk; "reviewed" inflates sourcing into auditing).
+- "122 sites this year" → **"about a hundred and twenty"** (the sanctioned
+  wording in 8 places; and all repo activity is July 2026, so "this year"
+  implies a year behind about three weeks of work).
+- "four 5-star reviews over six months" → **"across the engagement"** (the
+  site's own wording; only two are actually published, one for a one-day job).
+- **`site/index.html:382` said "50% order bump take rate" while `:436` on the
+  same page said "1 in 4 buyers."** My PR 3 journal claimed the site was
+  reconciled — I had checked only one of the two lines. Fixed to 1 in 4.
+
+Five cold-read patterns ship, each with its stat and source line:
+`price-invisible` (48 of 122), `no-aed` (49 of 88), `price-band` (medians
+1,831 / 894), `audience-decoupled` (18,400 off 268 followers), and
+`rented-audience` (36 of 87) — the last written as a felt cost, never as a
+missing mechanism, because the vitamin filter is unchanged.
+
+**Also cleared, finally:** installed bs4, playwright, pytest and rich. The
+PR 2 `data-url` capture and host dedup are now **runtime-verified**, not just
+syntax-checked. And `test_calendar_state.py` used a `mp` fixture parameter
+where every other file uses `monkeypatch` — **it had never run under pytest at
+all.** Renamed; it now passes under both runners.
+
+Tests **317, zero failures** — the first fully green suite of the session,
+including the two files that had been unrunnable all day.
+
+### Open follow-ups
+- [ ] **Re-walk the rows queued to send before 07-30**, when the 219
+      migration-stamped `verified:` entries expire. Warm touches still enforce
+      the 3-day ceiling, so this bites live threads first.
+- [ ] The `call-centric` cold read needs a real CRM count ("how many walked
+      leads have a free discovery call as the only way in") before it ships.
+- [ ] Existing walked rows carry `UNUSED`/`USED-Tn` statuses from before the
+      change. They parse fine and nothing emails them, but a future walk should
+      write everything `RESERVED`.
+
+## 2026-07-27 — The old offer is retired and the close is a call ask (PR 3 of the First Five pivot)
+
+The two jobs the pivot was actually about. **The funnel-fix offer is gone from
+the repo, and every close is now a call ask with two specific times.**
+
+**JOB 1 — retiring the offer.** The blocker was an authority claim:
+`02-the-offer-gso-v2.md:3-4` said *"Supersedes all earlier pricing. If a number
+anywhere else contradicts this, this wins."* A retired offer that still asserts
+authority keeps winning arguments after it is dead, so the file was renamed to
+`02-the-offer-first-five.md` and rewritten rather than deleted — the RETIRED
+preamble now names everything that went and why.
+
+- Retired everywhere: Track A (735), Track B / "The Booked-Out Funnel" (2,575),
+  the 500 AED 48-Hour Leak Fix, the free Loom, the 3,600 next step, and the
+  Live-or-Free / First Booking guarantees.
+- **New guarantees: No-Show No-Charge + Five or Free.** The old two both
+  promised funnel delivery ("live and taking bookings within 5 working days"),
+  which The First Five does not do. The *discipline* is unchanged — both named,
+  stacked, stated unprompted, condition intact.
+- **New downsell ladder**, because the old rungs priced a build: fewer calls at
+  the same rate → setup deferred at 750/call → the 1-10 check.
+- **Code: add and deprecate, never delete.** `call-ask` is the canonical
+  carrier; `leak-fix-offer` and `loom-offer` are both deprecated aliases that
+  still pass with a note (the same machinery that already handled
+  `loom-offer` → `leak-fix-offer`). `OFFER_TYPES` gains First Five / Fewer
+  Calls / Setup Deferred and keeps the retired ones so `parse_body` can still
+  read the 100+ OFFER: lines already in lead page bodies.
+- **`EARNED_STATUSES` needed no new member.** `Call Booked` was already in it,
+  and it is now *the* earned rung — the gate and the offer finally describe the
+  same event. The Leak Fix statuses stay accepted as legacy.
+
+**JOB 2 — the drafting overhaul.** The brief named two files. It was **ten**,
+and the two named ones were not the load-bearing ones:
+
+- The real blocker was `voice.md:19` — *"The email's job is to earn belief, not
+  book a call"* — under a file that declares itself to outrank everything.
+  Rewording only `gate.md:38` and `SKILL.md:228` would have left the doctrine
+  above them intact and the model would have reverted on the next draft. Scoped
+  it: belief still comes first and is what *earns* the ask; the ask is now a
+  call. Kill list, register, burrito test, 10/10 bar untouched.
+- **Five-beat body** replaces the four-line shape: hook → finding → **identity**
+  → cost → call ask. 90-130 words. The beat order is the order her objections
+  arrive in.
+- **The identity beat is net-new** — no rule, gate check or skeleton slot
+  existed. It had been firing *reactively at turn-two* to repair a misread that
+  already happened (Amanda: *"I wasn't actually trying to book a chat"*). Two
+  variants ship and both get tested: volume ("120 coaching sites this year") and
+  outcome ("$522 from one order bump, about one buyer in four").
+- **The finding demoted.** `mechanics.md:16` said *"Your opening email IS the
+  lead magnet."* That sentence is what let 4 of 9 engaged leads read the
+  finding, fix it, thank us and leave. It is evidence a human looked, not the
+  product.
+- **`mechanics.md:110` read as anti-evidence** ("Louise and Helen both stalled
+  on vague scheduling asks"). It is about *vague* asks with no times and no
+  price — reworded so it distinguishes itself from a dated ask instead of
+  contradicting the new rule.
+- **Take rate settled at 1 in 4** per Haytham. `mechanics.md:124`/`:137` and the
+  offer doc said 1 in 2 / 50%; the public site and the new spec said 1 in 4. All
+  now agree. The identity beat ships the number *without* the brand name.
+- **Calendar URL promoted to `config.HAYTHAM_CALENDAR_URL`.** It lived only as
+  literal text in a worked example, was wrong once, and shipped a fabricated
+  `cal.com/haytham/15min` into real drafts (commit a6bf3a9).
+- **"Loom Skeleton" → "Call Prep."** Nothing parses the heading, and the
+  artifact is more useful than ever now that the call is the product.
+
+**Gotcha:** the no-menu rule is written four times in this repo and the old
+canonical turn-two script violated all four ("want me to fix it? … or here's my
+calendar"). The new close can reintroduce exactly that if a calendar link gets
+put beside the two times, so `gate.md` now checks for its absence explicitly.
+
+Tests 313, unchanged count from PR 2 — six existing tests updated to the new
+vocabulary (carrier aliases, guarantee names, offer types), none dropped.
+
+Suite arithmetic for the whole pivot: 285 at session start → 290 (PR 1) → 313
+(PR 2) → 313 (PR 3). The two non-passing files are pre-existing harness
+artifacts, not logic: `test_evidence_promotion.py` imports pytest outright, and
+one `test_inbox_routing.py` test needs a pytest fixture its bare runner can't
+supply.
+
+### Open follow-ups
+- [ ] **The 07-30 send cliff is still open.** 219 entries on the
+      `verified:2026-07-26` migration stamp expire for sends on 2026-07-30. Per
+      Haytham's call, only rows actually queued to send get re-walked.
+- [ ] Add `Unbooked calendar` to the Notion `Finding Type` select by hand, and
+      note that `Est. Value` / `Discovery Anchor` options are now legacy buckets
+      worded against retired prices (set `Est. Value = Unknown` on new rows).
+- [ ] `examples.md` still carries the four question-closing UAE openers as the
+      pattern to match. They are now the retired shape — a worked rewrite in the
+      new five-beat form is the next thing that would help a drafter most.
+- [ ] The six live warm threads still need re-pitching on the new offer. That is
+      a human job, not a Claude Code one — a person is on the other end.
+
+## 2026-07-27 — The finding taxonomy: calendar-state check, DEPTH enforced at the gate (PR 2 of the First Five pivot)
+
+The opener stops being a funnel-mechanics defect. Under The First Five we sell
+booked calls, so a finding the coach fixes in five minutes and walks away from
+is worse than no finding — that is 4 of 9 engaged leads.
+
+**The rule already existed and had quietly died.** `walk.md` added the depth
+axis (SHALLOW/DEEP = self-fixability) on 07-26 and `SKILL.md:152` already ranked
+depth-first. One day later the live CRM read: **203 of 225 bank entries with no
+DEPTH tag, 8 of 91 leads with any DEEP finding, 8 with a RESERVED entry**, and
+roughly a third of rank-1 openers still self-fixable. Exactly the "optional
+fields die" failure the fix list predicts in §5. So this PR is enforcement, not
+new doctrine.
+
+- **`crm-gate send` hard-fails a touch-1 opener** drawing an untagged or SHALLOW
+  bank entry (fix-list H7). Scoped to touch 1 — touch 2/3 are already bounded by
+  `--carries`, and widening it would block every live follow-up.
+- **`audit/calendar_state.py` + `main.py calendar-state`** — new. Reads the
+  lead's PUBLIC booking availability with three unauthenticated `requests.get`
+  calls. Verified live: Sadia Khan **271 open slots / 26 days** → `wide_open`,
+  DEEP, opener-legal; Aleli Carissa 58 / 12 → `partial`, not a finding.
+- **The calendar split.** `walk.md:44-46` listed "an empty calendar" as SHALLOW.
+  That was two facts under one label. A scheduler publishing *zero* bookable
+  time is a config bug she fixes herself → SHALLOW. A scheduler *working* with
+  most of the month open is nobody booking her → DEEP, opener-legal. Only the
+  second is an opener; a normally-busy calendar is not a finding at all and
+  carries no depth tag, so it can't be banked as touch-2 material.
+- **`verified:` is now stamped at walk time.** Both the CRM spec and
+  `crm_gate.py` claimed it already was; the opener-finder never wrote it, so
+  every freshly-walked row arrived already failing the freshness gate. Silvia
+  Vladimirova did exactly that this morning. Three markdown edits, no code.
+- **`Finding Type` gains `Unbooked calendar`** (needs adding by hand in the
+  Notion UI — select options can't be created via API).
+- **`refresh-finding` routes calendar findings to `calendar-state`** instead of
+  the text diff. A Calendly page is a ~1KB JS shell, so the diff would read
+  "unchanged" and auto-stamp a finding nobody re-checked.
+- **The free win:** `_interactive_blind_spots` now captures `data-url` off
+  inline booking widgets. That attribute is the lead's booking URL and was
+  being discarded — the repo's documented screenshot blind spot is now this
+  check's input. Also collapsed the 4th hand-maintained copy of the six
+  scheduler hosts (`crawler._funnel_category`) onto `config.BOOKING_EMBED_HOSTS`.
+
+**Gotcha that shaped the whole module.** A live Calendly call returned HTTP 400
+with `failure.external_calendar_error` and no `days` key. A parser doing
+`.get("days", [])` reads that as "this coach has no availability" — a fabricated
+finding, which is the one thing this repo forbids outright. So status and
+`failure` are checked before anything is counted, errors raise instead of
+returning empty, and a verdict needs **2 consistent reads** (that same 400
+cleared on 4 of 4 retries). `test_external_calendar_error_raises_never_reports_empty`
+is the regression; if it ever passes by returning zero, the check is broken.
+
+**The vitamin filter stays as written.** It bans a missing MECHANISM as an
+opener ("you have no email capture"), which means the market study's 41%
+no-email-capture figure is *not* promotable to an opener. An unbooked calendar
+passes it because it is a felt cost, not a missing mechanism.
+
+Tests: 290 → 313 (16 new for calendar-state, 6 for the depth gate and the
+refresh-finding routing, 1 for the shallow-opener regression).
+Two fixtures updated: `_TAGGED` in `test_findings_bank_depth.py` models the
+pre-H7 shape (shallow opener) and now has a `_DEEP_FIRST` sibling for the
+passing case, plus a regression pinning that a shallow opener no longer passes.
+
+### Open follow-ups
+- [ ] **`evidence.py` and `crawler.py` changes are NOT runtime-verified** — bs4
+      is not installed in this container (same reason `test_evidence_promotion.py`
+      fails). Syntax-checked and the regex logic tested standalone; the
+      `data-url` capture needs a real walk to confirm.
+- [ ] Add `Unbooked calendar` to the Notion `Finding Type` select by hand.
+- [ ] TidyCal / Acuity / SavvyCal / YouCanBook.me return `unsupported`. TidyCal's
+      routes need a network-capture pass; the other three are uninvestigated.
+- [ ] ~55 of 91 live rows have no opener-legal finding banked. Per Haytham's
+      call, only rows actually queued to send get re-walked. This also absorbs
+      the 219 entries still on the `verified:2026-07-26` migration stamp, which
+      expire for sends on **07-30**.
+- [ ] PR 3 (retire the old offer + the drafting overhaul) still to come. Order
+      bump take rate settled at **1 in 4**; `mechanics.md:124`, `:137` and
+      `02-the-offer-gso-v2.md:187` still say 1 in 2 and get corrected there.
+
 ## 2026-07-27 — H3a: offer freshness ceiling dropped, unparseable-bank hole closed, 2 rows repaired (PR 1 of the First Five pivot)
 
 First of three PRs for the UAE pivot to **The First Five** (AED 1,500 setup

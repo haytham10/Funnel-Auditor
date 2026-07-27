@@ -159,10 +159,11 @@ def _funnel_category(url: str, label: str) -> str:
     text = f"{path} {label}".strip()
 
     if _is_external_platform(url):
-        if _BOOKING_KW.search(text) or _host_matches(
-            url, ["calendly.com", "acuityscheduling.com", "youcanbook.me",
-                  "tidycal.com", "savvycal.com", "cal.com"]
-        ):
+        # Was a fourth hand-maintained copy of the same six scheduler hosts.
+        # config.BOOKING_EMBED_HOSTS is the one home for that vocabulary, and
+        # `main.py calendar-state` reads the same list — a host that drifts out
+        # of sync here silently stops producing calendar findings.
+        if _BOOKING_KW.search(text) or _host_matches(url, list(BOOKING_EMBED_HOSTS)):
             return "booking"
         if _FREEBIE_KW.search(text):
             return "freebie"
