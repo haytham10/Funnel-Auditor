@@ -172,8 +172,25 @@ the stall check. For any matched row, fetch the Gmail thread and sync.
 
 - New reply found and Notion doesn't reflect it → update: Status = Reply
   Received (or the later stage that actually applies), Sequence = Warm,
-  and quote the reply verbatim in the brief. Append the reply verbatim to
-  the lead page's Email Thread Log entry it answers (`Reply:` line).
+  and quote the reply verbatim in the brief. **Log it as its own `TOUCH:`
+  block, not a `Reply:` line** (changed 2026-07-27,
+  `docs/uae-track/log-grammar.md`): classify the reply into exactly one of
+  `Interested` / `Price question` / `Brush-off` / `Logistics` / `Blunt` /
+  `Decline` (an autoresponder is `auto=true` with no `type` — never a
+  reply; a bounce is `bounce=true`), then
+
+  ```bash
+  python main.py touch-log render --n <the touch it answers> --dir in \
+      --date <the Dubai date it landed> --reply-to <that touch's n> \
+      --type "<classified type>" --thread <same Gmail thread ID> \
+      --body-file <scratch file with her exact reply>
+  ```
+
+  Append its stdout to the Email Thread Log (never hand-type it), and set
+  `Last Reply Type` to the same classification in the SAME property update
+  as the Status/Sequence flip above. This is the one number the whole
+  migration exists to produce — an inbound touch logged without a `type`
+  is a defect, not a nicety.
 - **A reply that asks what it costs → check `Asked For Price` immediately.**
   This is the highest-intent signal in the CRM and the second route through
   `crm-gate offer` on its own. It must never wait: an unanswered price
@@ -405,6 +422,16 @@ line.
   clean run needs this backstop less over time as more rows pick up a
   verified gate pass at write time — this is temporary debt-paydown, not a
   permanent daily full-CRM sweep.
+- **`log-lint` sweep (added 2026-07-27, `docs/uae-track/log-grammar.md`).**
+  Run `python main.py log-lint --all --manifest <file>` where `<file>` is a
+  JSON array of `{"row": {...}, "page_body": "..."}` you assemble for every
+  non-Disqualified row this tick already touched or reconciled (Step 0.5's
+  reconciliations, Step 1's replies, Step 4's queued sends) — this never
+  requires a full-CRM fetch, only the rows already in hand this tick. **A
+  departed send with no `TOUCH:` block is a tick blocker, reported to
+  Haytham, not silently carried** — surface every ERROR line verbatim in
+  the brief. WARN lines (empty body, unknown token, Last Reply Type
+  mismatch) are informational, not blockers.
 - **Any `Next Action` that falls on a Sunday** — a guaranteed one-day stall
   (`crm-gate send` hard-fails on it, so nothing queued that day moves).
   `SELECT "Contact Name", "date:Next Action:start" FROM <uae ds> WHERE

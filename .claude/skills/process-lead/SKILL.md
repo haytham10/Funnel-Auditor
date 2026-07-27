@@ -366,7 +366,13 @@ material that must not be discarded, and at least one deep finding is
 marked `RESERVED` as the reason for a call, never emailed. If no deep
 finding survives, flag the lead `low-value` (first line of `Notes`) rather
 than pretend a shallow finding will close. Write the page body and properties to the UAE CRM in the exact
-schema.md format, including the Evidence section with the literal
+`01-crm-operating-spec.md` §7 format — the Email Thread Log and Money
+sections use the machine-readable `TOUCH:`/`OFFER:` grammar
+(`docs/uae-track/log-grammar.md`) when this lead eventually sends; nothing
+about this walk step writes those sections (no send has happened yet), but
+whatever section you DO write (Overview's `SOURCE:` line, if sourcing
+supplied a query) follows that same grammar, never hand-typed prose. Also
+include the Evidence section with the literal
 vision-check line AND the exact evidence paths each finding rests on (the
 `screenshot_desktop`/`screenshot_mobile`/text file), so the verifier can
 find them. **You PROPOSE the strongest finding — you do NOT check `Finding

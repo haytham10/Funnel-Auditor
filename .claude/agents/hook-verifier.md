@@ -51,19 +51,26 @@ line). Then replace the `SMYKM hook: not run yet …` placeholder with exactly o
 
 - **VERIFIED** →
   `SMYKM hook: <hook> — <WORK|LIFE|METRIC> — source: <citation_url or hook/<n>.png>`
-  and set the `SMYKM Hook` property to the same hook text.
+  and set the `SMYKM Hook` property to the same hook text. **Also set `Hook
+  Type` to the same WORK/LIFE/METRIC label and `Hook Source URL` to the
+  citation URL, in the same property update** (added 2026-07-27,
+  `docs/uae-track/log-grammar.md`) — you already have both in hand from the
+  citation you just reproduced, this is one extra write, not new work.
 - **REFUTED / INCONCLUSIVE** →
   `SMYKM hook: no hook found in public evidence — draft opens on the finding alone`
-  and leave the `SMYKM Hook` property empty. This is a valid resolution (SMYKM
-  opening B), not a failure — the lead can still be drafted, on the finding.
+  and leave the `SMYKM Hook` property empty. Set `Hook Type` to `No hook
+  found` (leave `Hook Source URL` empty — there is no citation to record).
+  This is a valid resolution (SMYKM opening B), not a failure — the lead can
+  still be drafted, on the finding.
 
 When genuinely uncertain, choose REFUTED/INCONCLUSIVE, never VERIFIED — a hook
 dropped to "no hook found" costs a slightly weaker opener; a fabricated hook
 approved for a draft is the exact failure this agent exists to stop.
 
-**Blast radius is exactly the `SMYKM hook:` line + that one property.** Never
-touch Overview, Funnel Walk, Evidence, Gates, the Lane verdict, the finding, the
-innocent explanation, or the Email Thread Log.
+**Blast radius is exactly the `SMYKM hook:` line + the `SMYKM Hook` / `Hook
+Type` / `Hook Source URL` properties.** Never touch Overview, Funnel Walk,
+Evidence, Gates, the Lane verdict, the finding, the innocent explanation, or
+the Email Thread Log.
 
 ## Hard rules
 - Never write a hook line you could not independently reproduce from the cited

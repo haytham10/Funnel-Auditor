@@ -102,7 +102,13 @@ SQLite table name is the data source URL, quoted:
 | `Price Discovery Answer` | text | **VERBATIM.** Never paraphrase. **Advisory since 2026-07-24**, not blocking — `crm-gate offer` reports it as a note. Keep collecting it. |
 | `Discovery Anchor` | select | Track A: `Above 735 AED` `At 735 AED` `Below 735 AED` · Track B: `Above 2575 AED` `At 2575 AED` `Below 2575 AED` · plus `Refused to name` `Not asked yet`. **Advisory since 2026-07-24.** `Refused to name` reads as a TRUST signal, not a price signal, and the gate emits a WARNING note saying so. |
 | `Est. Value` | select | `Track A ($200)` `Track B ($700)` `Retainer` `Custom` `Unknown`, plus (added 2026-07-24) `Leak Fix (500 AED)` `Sprint (2575 AED)` `Funnel Watch (600/mo)`. Note: no comma in `Sprint (2575 AED)` — Notion rejects commas in select option names. |
-| `Lost Reason` | select | `No reply` `Price` `Not interested` `Bad timing` `Went elsewhere` `Ghosted after reply` `Wrong fit` `Other` |
+| `Lost Reason` | select | `No reply` `Price` `Not interested` `Bad timing` `Went elsewhere` `Ghosted after reply` `Wrong fit` `Other` `No measurable audience`. **Scope changed 2026-07-27**: stops being used for disqualifications the moment `Disqualification Reason` exists — reverts to meaning "lost after engagement" (a reply came in, then the thread died). Existing pre-2026-07-27 rows are NOT backfilled; Wave 2 sources those from `docs/leads/_dq-extraction.json` instead. |
+| `Gate 0 Failed Floors` | multi_select | Added 2026-07-27. `Not UAE-based` `No funnel or paid offer` `Inactive 30d` `Audience below floor` — which of Gate 0's four floors actually fired (a lead can fail more than one). Set alongside `Gate 0 = Fail`, before moving to `Disqualified`. See `docs/uae-track/schema-delta.md` for the Airtable mapping and the spelling hazard vs. `Disqualification Reason` (different property, deliberately different wording — do not conflate). |
+| `Gate 1 Failed Reason` | select | Added 2026-07-27. `Team gatekeeper` `Agency-run` `Assistant-managed` `Other`. Set alongside `Gate 1 = Fail`. |
+| `Disqualification Reason` | select | Added 2026-07-27. 11-option taxonomy data-derived from `docs/leads/_dq-extraction.json` (246 already-disqualified rows) — see that file or `docs/uae-track/schema-delta.md` for the exact option strings and definitions. Set whenever `Status` moves to `Disqualified`. Coarser than `Gate 0 Failed Floors`/`Gate 1 Failed Reason` and includes non-gate reasons (`Duplicate/re-sourced by mistake`, `Lane 3 skip`). |
+| `Hook Type` | select | Added 2026-07-27. `WORK` `LIFE` `METRIC` `No hook found`. Written by the `hook-verifier` the same moment it writes the resolved `SMYKM Hook` line — it already has the cited source in hand. |
+| `Hook Source URL` | url | Added 2026-07-27. The citation for the SMYKM line, written alongside `Hook Type`. |
+| `Last Reply Type` | select | Added 2026-07-27. `Interested` `Price question` `Brush-off` `Logistics` `Blunt` `Decline`. **Denormalised convenience mirror of the most recent reply only** — the authoritative per-reply type lives in the `TOUCH:` line's `type=` token in the page body (`docs/uae-track/log-grammar.md`), because a lead can have several replies of different types. Never analyse off this property; it exists for views and the Constraint Board. |
 | `Notes` | text | One-line flags only. Detail goes in page body. |
 | `Created` | created_time | system |
 | `Last Update` | last_edited_time | system |
@@ -355,11 +361,22 @@ Same trust model as the vision gate: fetch fresh, pipe verbatim.
 
 ## 7. Page body format for a lead
 
+**Changed 2026-07-27** (`docs/uae-track/log-grammar.md`): `## Email Thread
+Log`, `## Money`, and the sourcing line under `## Overview` now use a
+machine-readable sentinel grammar instead of free prose, so the next
+Notion -> Airtable migration is a parser (`audit/touchlog.py`), not a
+per-lead recovery session. **This applies to logs written from now on —
+existing pre-2026-07-27 page bodies are NOT rewritten**, and
+`parse_body()` is tolerant of the old shape so mixed-format pages work
+unmodified. The other sections stay prose exactly as before; they migrate
+to the repo's walk doc, not to an Airtable field.
+
 Each lead page body should carry, in this order:
 
 ```
 ## Overview
 Who they are, audience, offers, platform, city, solo-operator evidence.
+SOURCE: channel="..." query="..." date=YYYY-MM-DD
 
 ## Funnel Walk
 Stop 1 (entry point): ...
@@ -374,8 +391,8 @@ Pasted evidence: [what Haytham supplied, or "none — crawl-only walk"]
 Machine flags rejected: [N + one-word reasons, or "none rejected"]
 
 ## Gates
-Gate 0: pass/fail + why
-Gate 1: pass/fail + why
+Gate 0: pass/fail + why (+ `Gate 0 Failed Floors` set on a fail)
+Gate 1: pass/fail + why (+ `Gate 1 Failed Reason` set on a fail)
 
 ## Lane + Finding
 Lane assignment. The strongest verified finding (bank #1). The innocent explanation.
@@ -389,29 +406,48 @@ fix is call-only, never written into email. If no deep finding exists, note
 into the `Findings Bank` property (`N. STATUS | DEPTH | verified:YYYY-MM-DD |
 finding`, STATUS ∈ UNUSED/USED-Tn/RESERVED) for the send/offer gates to parse
 — `verified:` is set to the walk date here and bumped by `refresh-finding` on
-every later re-check.
+every later re-check. **This DSL is unchanged by the 2026-07-27 log-grammar
+work** — do not touch it, `parse_findings_bank` and `--carries second-finding`
+depend on it exactly as it is.
 
 ## SMYKM Hook
-One line, with the source it came from.
+One line, with the source it came from. `Hook Type` and `Hook Source URL`
+are written as properties at the same moment (the hook-verifier already has
+the cited source in hand).
 
 ## Email Thread Log
-[date] — Touch #N — Subject: "..." — Sent
-[body]
-Reply: [verbatim, or "No reply"]
-Artifact: [offered/delivered + date, or omit]
-Next: [date + planned action]
+TOUCH: n=1 dir=out date=YYYY-MM-DD inbox="Inbox 1" seq=cold carries=opener subject="..." thread=<gmail-thread-id> gate=<literal crm-gate send verdict>
+````
+[verbatim body, byte for byte as it left Gmail]
+````
+TOUCH: n=1 dir=in date=YYYY-MM-DD reply_to=1 type=<Interested|Price question|Brush-off|Logistics|Blunt|Decline> thread=<gmail-thread-id>
+````
+[verbatim reply, or omit this record entirely if there was no reply]
+````
+
+Never hand-type a `TOUCH:` line — build it with `python main.py touch-log
+render` (self-lints before printing) and log it in the SAME step that sets
+`Touch #` / `Last Contacted` / `Status`, never batched to end of day. Full
+token contract, enums, and the legacy-format fallback:
+`docs/uae-track/log-grammar.md`.
 
 ## Money
-Asked for a price: [yes + date, or no]
-Leak Fix: [offered date / sold date / delivered date, or "not offered"]
-Cash collected: [AED, or 0]
-Offer sent: [date + which offer, or "not yet"]
+OFFER: type="Leak Fix" amount=500 currency=AED date=YYYY-MM-DD status=Proposed rung=0
+
+One `OFFER:` line per offer made or per status change — append only, never
+edit or overwrite a prior line (`python main.py touch-log offer`).
 
 ## Price Discovery (advisory, legacy — only if they volunteered something)
 Their answer (VERBATIM): "..."
 Anchor: above / at / below 735 AED (Track A) or 2575 AED (Track B), or
 `Refused to name` — which reads as a TRUST signal, not a price signal
 ```
+
+Run `python main.py log-lint <row.json>` (or `--slug <slug>` from the repo
+archive) after any touch/offer/source write — it re-derives the touch
+history and cross-checks it against `Touch #`, the Findings Bank, and the
+inbox registry, and fails closed on any ERROR. See
+`docs/uae-track/log-grammar.md` for the full rule set.
 
 ---
 

@@ -37,6 +37,77 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — Log discipline for the Notion → Airtable migration: touch-log grammar + parser, Notion schema additions, skills wired
+
+Full implementation of the migration handover (PR 1-3; PR 4 backfill left
+for a later, separate pass — see follow-ups). Wave 1 (122 leads) proved the
+cost of the next migration is set entirely by how logs are written between
+now and cutover: 40/243 sends (16%) missing from their logs and recovered
+from Gmail, 8 permanently unrecoverable, reply type never data anywhere,
+Gate 0 storing a verdict but not which floor fired. Goal: make the next
+migration `parse_body()` in a loop, zero Claude-per-lead judgement.
+
+- **`audit/touchlog.py` (new module)** — the `TOUCH:`/`OFFER:`/`SOURCE:`
+  sentinel-line grammar: `render_touch`/`render_offer`/`render_source`
+  (self-lint, fail closed — the only sanctioned way to write a line),
+  `parse_body` (tolerant of the pre-2026-07-27 legacy prose format,
+  verified against 5 real `docs/leads/<slug>/raw.md` archives including a
+  6-touch multi-reply thread), `validate` (the full log-lint rule set:
+  Touch # reconciliation, n contiguity, required tokens per direction,
+  enums, Findings Bank/inbox cross-checks). Zero third-party deps,
+  verified importable with playwright/PIL/bs4/requests blocked. Does not
+  touch `crm_gate.py`/`send_cap.py`/`inboxes.py` or the Findings Bank DSL.
+- **`main.py log-lint` + `touch-log render|offer|source`** — new commands.
+  38 new tests in `tests/test_touchlog.py`, full suite still 286
+  passed/8 skipped.
+- **Notion schema — live, not just documented.** Added 6 additive
+  properties to the UAE Lead CRM via `notion-update-data-source` (fetched
+  the schema fresh first, confirmed no name collisions): `Gate 0 Failed
+  Floors`, `Gate 1 Failed Reason`, `Disqualification Reason` (11-option
+  taxonomy data-derived from `docs/leads/_dq-extraction.json`), `Hook
+  Type`, `Hook Source URL`, `Last Reply Type`. Documented in
+  `docs/uae-track/schema-delta.md` with every literal option string —
+  Airtable can't create select options via API, so that file is the
+  one-sitting checklist for Haytham to create them by hand before cutover.
+- **Docs** — new `docs/uae-track/log-grammar.md` (standalone grammar
+  reference, token tables, enums, Airtable field mapping); `01-crm-
+  operating-spec.md` §2/§7 updated (new properties, new body template,
+  prose sections untouched); one new CLAUDE.md hard rule (log at
+  confirmation time via `touch-log`, `log-lint` must pass).
+- **Skills wired, not just documented**: `haytham-email-draft` (UAE
+  confirmed-send logging now emits `TOUCH:` via the CLI at confirmation
+  time, runs `log-lint` alongside `crm-gate log`; parenting keeps its
+  legacy format, out of migration scope), `uae-tick` (reply detection logs
+  a classified `type`, sets `Last Reply Type`, new `log-lint --all`
+  hygiene sweep over rows the tick already touched), `hook-verifier` +
+  `haytham-hook-finder` (write `Hook Type`/`Hook Source URL` alongside the
+  SMYKM line), `haytham-opener-finder` (Gate 0/1 fails + Lane 3 skips set
+  the floor properties before Disqualified), `qualify-leads` +
+  `qualifier-worker` + `qualifier-verifier` (same floor-record rule where
+  most Gate 0 kills actually happen; verifier clears the fields on an
+  overturned kill), `source-leads` + `sourcing-worker` (workers return the
+  query string, orchestrator writes a `SOURCE:` line), `process-lead`
+  (points at the grammar doc).
+- Gotcha: the handover doc's `docs/leads/<slug>.raw.md` path was actually
+  `docs/leads/<slug>/raw.md` — found while writing the legacy-parser
+  tests; five real archives (rita-sanna, adam-ashcroft, sadia-khan,
+  noona-nafousi, avneet-kohli) gave enough shape variety (single touch, no
+  reply, multi-touch with real replies) to trust the tolerant parser
+  without inventing fixtures.
+
+### Open follow-ups
+- [ ] PR 4 (backfill, optional/separate): parse `Hook Type`/`Hook Source
+      URL` out of existing SMYKM Hook lines and a `SOURCE:` line where the
+      sourcing journal has the query string, for the 122 already-migrated
+      leads. Fix the one `Chetna Chakravarthy[` trailing-bracket name; leave
+      parenthetical name suffixes alone (real disambiguators).
+- [ ] Haytham: create the 6 new select/multi-select options in Airtable by
+      hand from `docs/uae-track/schema-delta.md` — the API can't do it,
+      and an unlisted option fails the cutover parse silently.
+- [ ] Watch `log-lint --all` adoption over the next few ticks/batches —
+      it should show a rising share of `format: "v2"` touches as skills
+      actually use `touch-log render` instead of hand-typing.
+
 ## 2026-07-27 — uae-tick re-run (same day): Lisa Hugo's held closing draft went out, one more courteous reply, nothing else moved
 
 Same-day re-run a few hours after the morning tick. Only one thing changed on Gmail: Haytham reviewed and sent the closing-reply draft this tick held for Lisa Hugo ("what platform are you running on") at 12:02 Dubai, and she replied again 2 minutes later — "We use GHL, white-labelled agency account, we run sub-accounts for clients." Logged as Touch #6; this is a courteous close-out, not a reopening of her decline, so Status stayed `Lost` and no further action was drafted. Full reply sweep (both inboxes, `after:2026/07/27`) turned up nothing else new — Christina's autoresponder resurfaced in the window (already handled this morning, no new action) and Dina Taji's thread showed no further reply. 🔥 Today view: all 31 rows show `Next Action = 2026-07-28` (tomorrow) — nothing due today. 📤 Send Queue: still 0 rows, top-of-funnel still completely dry. Notion SQL quota was still capped from this morning's run; fell back to the unfiltered view queries per the skill's documented workaround. Inbox headroom: Inbox 1 11/25, Inbox 2 16/25 (after Lisa's Touch 6).

@@ -206,6 +206,11 @@ scores to `docs/deliverability-log.md`.
 - **A dispatched subagent gets one resume, not two.** A status-only reply
   with no new work product means take the task over directly — see
   `.claude/skills/batch-audit/SKILL.md` Step 2.
+- **Every departed send is logged in the same step it is confirmed**, using
+  `python main.py touch-log render` (never hand-typed), and `python main.py
+  log-lint` must pass before moving to the next lead. Batching the log to
+  end-of-day is what produced Wave 1's 16% missing-send rate — see
+  `docs/uae-track/log-grammar.md`.
 
 ## Key pieces
 

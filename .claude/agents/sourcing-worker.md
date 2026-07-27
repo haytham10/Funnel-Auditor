@@ -53,7 +53,7 @@ One fenced JSON object, nothing else:
 {
   "vein": "<the vein you worked>",
   "candidates": [
-    {"name": "<name>", "site_url": "<reachable link to a real offer>", "profile_url": "<LinkedIn/IG or null>", "city": "Dubai | Abu Dhabi | Sharjah | Other UAE | null", "coach_type": "<best guess or null>", "platform": "<if obvious or null>", "audience_size": 4100, "source_channel": "<this vein>", "offer_seen": "<what purchasable offer you confirmed on the page>"}
+    {"name": "<name>", "site_url": "<reachable link to a real offer>", "profile_url": "<LinkedIn/IG or null>", "city": "Dubai | Abu Dhabi | Sharjah | Other UAE | null", "coach_type": "<best guess or null>", "platform": "<if obvious or null>", "audience_size": 4100, "source_channel": "<this vein>", "offer_seen": "<what purchasable offer you confirmed on the page>", "query": "<the literal search/query string that surfaced this candidate, or null for a pure lateral referral with no query behind it>"}
   ],
   "seen_no_offer": ["<name — reachable but no purchasable offer found>"],
   "dedup_skipped": 6,

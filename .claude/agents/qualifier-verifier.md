@@ -52,7 +52,11 @@ the exact failure this rewrite fixes.
   cited tool does NOT return (or returns below floor), or a kill you can refute
   (it IS UAE-based / the number IS ≥1,500 via the cited channel). Flip the row
   back to **Status = `Sourced`**, set the affected gate to **`Not checked`**,
-  reason as the first Notes line. **"Firecrawl couldn't see a LinkedIn/YT count"
+  reason as the first Notes line. **Overturning a kill also clears whatever the
+  worker set on `Gate 0 Failed Floors` / `Gate 1 Failed Reason` /
+  `Disqualification Reason`** (added 2026-07-27) — a false kill you refuted
+  should not leave a stale floor-fail record sitting on a row that's back to
+  `Sourced`. **"Firecrawl couldn't see a LinkedIn/YT count"
   is NOT grounds to overturn — re-run the actor first.**
 
 When genuinely uncertain, OVERTURN to `Sourced`/`Not checked` — a re-gate is

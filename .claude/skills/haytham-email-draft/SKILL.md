@@ -117,7 +117,40 @@ domains) can break a naive match; escaped/non-plain formatting means use
 `replace_content` (full body rewrite) instead. (Added Jul 10, 2026, after a
 failed search-and-replace write forced a recovery fetch.)
 
-Append to the lead's Notion page body under the Email Thread Log section in this exact format:
+**UAE track (changed 2026-07-27) — log at confirmation time, via
+`touch-log`, never hand-typed.** The moment the user says "log this" is
+also the moment to build the block — do not batch it to later in the
+session or to end of day; batching to end-of-day is exactly what produced
+Wave 1's 16% missing-send rate (`docs/uae-track/log-grammar.md`). Write the
+body to a scratch file, then:
+
+```bash
+python main.py touch-log render --n <Touch #+1> --dir out --date <today, Dubai> \
+    --inbox "<the lead's Inbox>" --seq <cold|warm> \
+    --carries <opener | second-finding | leak-fix-offer | disambiguating-question | ...> \
+    [--finding <bank rank, if carries=second-finding>] \
+    --subject "exact subject line" --thread <Gmail thread ID> \
+    --gate "<literal crm-gate send verdict line, quoted>" --body-file <scratch file>
+```
+
+`touch-log render` self-lints before printing — an invalid block prints
+nothing and exits non-zero rather than emit something half-valid. Append
+its exact stdout to the page body under Email Thread Log (do not
+hand-edit it). If she replied on this thread, log the reply as its own
+`TOUCH:` block too:
+
+```bash
+python main.py touch-log render --n <the touch it answers> --dir in --date <reply date> \
+    --reply-to <that touch's n> --type "<Interested|Price question|Brush-off|Logistics|Blunt|Decline>" \
+    --thread <same Gmail thread ID> --body-file <scratch file with her reply>
+```
+
+Set `Last Reply Type` to match on the same property update. Full token
+contract and enums: `docs/uae-track/log-grammar.md`.
+
+**Parenting track (live threads only) — unchanged, still the legacy
+format.** This track predates the migration and isn't in scope for it;
+append to the Email Thread Log section in this exact format:
 
 ```
 [Date] — Touch #N — Subject: "exact subject line" — Sent
@@ -167,11 +200,17 @@ lead, before touching the next one:
 3. Run `python main.py crm-gate log <row.json> --page-body <body.md>` and
    quote the literal output line, same trust model as every other gate in
    this system — never paraphrase a PASS.
-4. **FAIL means the send is not logged yet, full stop.** Do not report the
-   touch as sent, do not move to the next lead, do not explain it away in
-   Notes. Fix the append immediately and re-run the gate until it PASSes.
-   A FAIL naming a specific missing touch number is telling you exactly
-   which block didn't make it — append that one, not a summary.
+4. **UAE track only:** also run `python main.py log-lint <row.json>
+   --page-body <body.md>` and quote its verdict line. This is the new
+   grammar's own check (Touch # reconciliation, required tokens, enums,
+   Findings Bank/inbox cross-checks) — a `crm-gate log` PASS does not imply
+   a `log-lint` PASS, run both.
+5. **FAIL (either gate) means the send is not logged yet, full stop.** Do
+   not report the touch as sent, do not move to the next lead, do not
+   explain it away in Notes. Fix the append immediately and re-run both
+   gates until they PASS. A FAIL naming a specific missing touch number is
+   telling you exactly which block didn't make it — append that one, not a
+   summary.
 
 ## What this skill does NOT do
 
