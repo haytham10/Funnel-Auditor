@@ -195,6 +195,78 @@ def test_send_ungated_on_legacy_row_with_no_bank_at_all():
     assert ok, problems
 
 
+# --- H7: the opener must be DEEP (2026-07-27) ------------------------------
+# Depth shipped 2026-07-26 as ranking guidance and died as an optional field:
+# on 2026-07-27 the live CRM had 203 of 225 entries untagged and 8 of 91 leads
+# with any DEEP finding. These pin the enforcement that replaced the guidance.
+
+def _t1(bank, rank=1):
+    row = dict(_BASE, **{"Findings Bank": bank})
+    return crm_gate.check_send(
+        row=row, sends_today=0, touch=1, followups_due=0, opener_rank=rank,
+        cap_state=_CAP, now=_NOW,
+    )
+
+
+def test_touch1_opener_fails_on_untagged_depth():
+    ok, problems, _ = _t1("1. UNUSED | verified:2026-07-22 | some finding")
+    assert not ok
+    assert any("no DEPTH tag" in p for p in problems), problems
+
+
+def test_touch1_opener_fails_on_shallow_finding():
+    # The whole point: she fixes a shallow finding herself and leaves.
+    ok, problems, _ = _t1("1. UNUSED | SHALLOW | verified:2026-07-22 | dead link on pricing page")
+    assert not ok
+    assert any("is SHALLOW, so it cannot be the opener" in p for p in problems), problems
+    assert any("Rita" in p and "Avneet" in p for p in problems), problems
+
+
+def test_touch1_opener_passes_on_deep_finding():
+    ok, problems, notes = _t1("1. UNUSED | DEEP | verified:2026-07-22 | calendar wide open")
+    assert ok, problems
+    assert any("is DEEP (not self-fixable)" in n for n in notes), notes
+
+
+def test_depth_gate_does_not_apply_to_warm_touches():
+    # Touch 2+ carriers are already constrained by --carries, and a warm
+    # thread stands on what was already sent. Scoping this to touch 1 is
+    # deliberate; widening it would block every live follow-up.
+    row = dict(_BASE, **{"Findings Bank": "1. USED-T1 | SHALLOW | verified:2026-07-22 | dead link"})
+    ok, problems, _ = crm_gate.check_send(
+        row=row, sends_today=0, touch=2, carries="disambiguating-question",
+        cap_state=_CAP, now=_NOW,
+    )
+    assert ok, problems
+
+
+# --- refresh-finding routes calendar findings away from the text diff -------
+
+def test_calendar_finding_is_routed_to_calendar_state_not_a_text_diff():
+    # A Calendly page is a ~1KB JS shell, so _fetch_page_text pulls nothing
+    # and the diff is meaningless in BOTH directions — the dangerous one being
+    # "unchanged", which would auto-stamp a finding nobody re-checked.
+    bank = "1. UNUSED | DEEP | verified:2026-07-22 | her Calendly has 26 of 30 days wide open"
+    ok, result = crm_gate.check_refresh_finding(
+        row={"Findings Bank": bank}, rank=1, page_text="", baseline_text="",
+    )
+    assert ok
+    assert result["use_calendar_state"] is True
+    assert result["new_findings_bank"] is None, "must not auto-stamp"
+    assert "calendar-state" in result["note"]
+
+
+def test_ordinary_finding_still_takes_the_text_diff():
+    bank = "1. UNUSED | DEEP | verified:2026-07-22 | pricing split across 4 platforms"
+    ok, result = crm_gate.check_refresh_finding(
+        row={"Findings Bank": bank}, rank=1, page_text="same", baseline_text="same",
+    )
+    assert ok
+    assert not result.get("use_calendar_state")
+    assert result["changed"] is False
+    assert result["new_findings_bank"] is not None
+
+
 # --- the unparseable-bank hole (2026-07-27) --------------------------------
 # "No bank" and "a bank nothing can read" used to be the same thing to the
 # gate: both skipped the freshness check silently. Rita Baki's row was the
@@ -238,7 +310,9 @@ def test_send_fails_closed_on_unparseable_bank():
 def test_send_on_mixed_bank_checks_the_line_that_parses():
     # The surviving live finding is fresh, so this passes — proving the mixed
     # bank reached the freshness check instead of being rejected wholesale.
-    mixed = _RITA_BANK + "\n3. UNUSED | SHALLOW | verified:2026-07-22 | currency split across pages"
+    # DEEP because H7 (below) blocks a SHALLOW touch-1 opener; this test is
+    # about the mixed bank reaching the freshness check at all, not depth.
+    mixed = _RITA_BANK + "\n3. UNUSED | DEEP | verified:2026-07-22 | pricing split across platforms"
     row = dict(_BASE, **{"Findings Bank": mixed})
     ok, problems, _ = crm_gate.check_send(
         row=row, sends_today=1, touch=1, followups_due=0, opener_rank=3,

@@ -299,6 +299,31 @@ def parse_findings_bank(value) -> list[dict]:
     return entries
 
 
+_CALENDAR_FINDING_RE = re.compile(
+    r"\b(calendar|calendly|cal\.com|tidycal|acuity|savvycal|youcanbook|"
+    r"booking (?:slots?|availability)|open slots?|unbooked)\b",
+    re.I,
+)
+
+
+def _looks_like_calendar_finding(entry: dict | None) -> bool:
+    """Is this bank entry an unbooked-calendar finding?
+
+    Text-matched rather than typed, because the bank line is prose and the
+    `Finding Type` property lives on the row, not the entry. Only used to
+    ROUTE a re-check to the right instrument — never to assert a finding — so
+    a false positive costs a redirected note, not a wrong claim.
+    """
+    if not entry:
+        return False
+    return bool(_CALENDAR_FINDING_RE.search(entry.get("finding") or ""))
+
+
+def calendar_state_platform(row: dict) -> str:
+    """The row's booking platform, if its Finding Type names a calendar."""
+    return "calendly" if _norm(row.get("Finding Type")) == "Unbooked calendar" else ""
+
+
 def bank_is_unparseable(value) -> bool:
     """True when `Findings Bank` has real content but NOT ONE line parses.
 
@@ -548,6 +573,26 @@ def check_refresh_finding(
         "today": today,
         "new_findings_bank": None,
     }
+
+    # A booking page is a JavaScript shell — Calendly's is ~1KB with an empty
+    # root div — so `_fetch_page_text` extracts nothing from it and the diff
+    # is meaningless in both directions. An unbooked-calendar finding is also
+    # the fastest-decaying kind in the bank: availability changes daily, where
+    # a broken link stays broken for weeks. Text-diffing it is the wrong
+    # instrument entirely; `main.py calendar-state` re-reads the live public
+    # availability and is what re-verifies this finding (2026-07-27).
+    if calendar_state_platform(row) or _looks_like_calendar_finding(entry):
+        result["note"] = (
+            "this reads as an unbooked-calendar finding, and a booking page is a JS "
+            "shell with no text to diff — re-verify it with `python main.py "
+            "calendar-state <booking-url>` instead, then bump `verified:` only if it "
+            "still returns verdict=wide_open; NOT auto-stamped"
+        )
+        result["changed"] = None
+        result["diff"] = []
+        result["use_calendar_state"] = True
+        return True, result
+
     if baseline_text is None:
         result["changed"] = None
         result["diff"] = []
@@ -857,6 +902,40 @@ def check_send(
         )
         problems.extend(fresh_problems)
         notes.extend(fresh_notes)
+
+        # H7 (2026-07-27): the opener must draw on a finding the coach CANNOT
+        # fix by reading the email.
+        #
+        # Do not soften this back to a warning. The depth axis shipped
+        # 2026-07-26 as ranking guidance only, and on 2026-07-27 the live CRM
+        # read: 203 of 225 bank entries carried NO depth tag at all, 8 of 91
+        # leads had any DEEP finding, and roughly a third of rank-1 openers
+        # were still self-fixable. An optional field died exactly as the fix
+        # list predicted it would. Guidance was tried; this is the correction.
+        #
+        # Scoped to touch 1 on purpose: touch 2/3 carriers are already
+        # constrained by --carries, and a warm thread stands on whatever was
+        # already sent.
+        if touch == 1 and drawn is not None:
+            depth = (drawn.get("depth") or "").upper()
+            if not depth:
+                problems.append(
+                    f'bank #{drawn["rank"]} ("{drawn["finding"]}") has no DEPTH tag. '
+                    "Every bank line needs `SHALLOW` or `DEEP` — an opener built on an "
+                    "unclassified finding is how self-fixable findings kept shipping "
+                    "(203 of 225 live entries were untagged on 2026-07-27). Re-walk or "
+                    "classify it: can she close this gap by editing a page this afternoon?"
+                )
+            elif depth == "SHALLOW":
+                problems.append(
+                    f'bank #{drawn["rank"]} ("{drawn["finding"]}") is SHALLOW, so it cannot '
+                    "be the opener. She fixes it herself in five minutes, thanks you and "
+                    "leaves — that is 4 of 9 engaged leads (Rita's booking redirect, "
+                    "Avneet's test-SKU checkout). Open on a DEEP finding and keep this one "
+                    "as touch-2 material or call bait"
+                )
+            else:
+                notes.append(f'bank #{drawn["rank"]} is DEEP (not self-fixable)')
 
     if touch == 1:
         # A fresh opener queued after noon Dubai can't leave today — it is

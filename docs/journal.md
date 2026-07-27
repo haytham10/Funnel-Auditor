@@ -37,6 +37,83 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — The finding taxonomy: calendar-state check, DEPTH enforced at the gate (PR 2 of the First Five pivot)
+
+The opener stops being a funnel-mechanics defect. Under The First Five we sell
+booked calls, so a finding the coach fixes in five minutes and walks away from
+is worse than no finding — that is 4 of 9 engaged leads.
+
+**The rule already existed and had quietly died.** `walk.md` added the depth
+axis (SHALLOW/DEEP = self-fixability) on 07-26 and `SKILL.md:152` already ranked
+depth-first. One day later the live CRM read: **203 of 225 bank entries with no
+DEPTH tag, 8 of 91 leads with any DEEP finding, 8 with a RESERVED entry**, and
+roughly a third of rank-1 openers still self-fixable. Exactly the "optional
+fields die" failure the fix list predicts in §5. So this PR is enforcement, not
+new doctrine.
+
+- **`crm-gate send` hard-fails a touch-1 opener** drawing an untagged or SHALLOW
+  bank entry (fix-list H7). Scoped to touch 1 — touch 2/3 are already bounded by
+  `--carries`, and widening it would block every live follow-up.
+- **`audit/calendar_state.py` + `main.py calendar-state`** — new. Reads the
+  lead's PUBLIC booking availability with three unauthenticated `requests.get`
+  calls. Verified live: Sadia Khan **271 open slots / 26 days** → `wide_open`,
+  DEEP, opener-legal; Aleli Carissa 58 / 12 → `partial`, not a finding.
+- **The calendar split.** `walk.md:44-46` listed "an empty calendar" as SHALLOW.
+  That was two facts under one label. A scheduler publishing *zero* bookable
+  time is a config bug she fixes herself → SHALLOW. A scheduler *working* with
+  most of the month open is nobody booking her → DEEP, opener-legal. Only the
+  second is an opener; a normally-busy calendar is not a finding at all and
+  carries no depth tag, so it can't be banked as touch-2 material.
+- **`verified:` is now stamped at walk time.** Both the CRM spec and
+  `crm_gate.py` claimed it already was; the opener-finder never wrote it, so
+  every freshly-walked row arrived already failing the freshness gate. Silvia
+  Vladimirova did exactly that this morning. Three markdown edits, no code.
+- **`Finding Type` gains `Unbooked calendar`** (needs adding by hand in the
+  Notion UI — select options can't be created via API).
+- **`refresh-finding` routes calendar findings to `calendar-state`** instead of
+  the text diff. A Calendly page is a ~1KB JS shell, so the diff would read
+  "unchanged" and auto-stamp a finding nobody re-checked.
+- **The free win:** `_interactive_blind_spots` now captures `data-url` off
+  inline booking widgets. That attribute is the lead's booking URL and was
+  being discarded — the repo's documented screenshot blind spot is now this
+  check's input. Also collapsed the 4th hand-maintained copy of the six
+  scheduler hosts (`crawler._funnel_category`) onto `config.BOOKING_EMBED_HOSTS`.
+
+**Gotcha that shaped the whole module.** A live Calendly call returned HTTP 400
+with `failure.external_calendar_error` and no `days` key. A parser doing
+`.get("days", [])` reads that as "this coach has no availability" — a fabricated
+finding, which is the one thing this repo forbids outright. So status and
+`failure` are checked before anything is counted, errors raise instead of
+returning empty, and a verdict needs **2 consistent reads** (that same 400
+cleared on 4 of 4 retries). `test_external_calendar_error_raises_never_reports_empty`
+is the regression; if it ever passes by returning zero, the check is broken.
+
+**The vitamin filter stays as written.** It bans a missing MECHANISM as an
+opener ("you have no email capture"), which means the market study's 41%
+no-email-capture figure is *not* promotable to an opener. An unbooked calendar
+passes it because it is a felt cost, not a missing mechanism.
+
+Tests: 313 → 333 (16 new for calendar-state, 6 for the depth gate and routing).
+Two fixtures updated: `_TAGGED` in `test_findings_bank_depth.py` models the
+pre-H7 shape (shallow opener) and now has a `_DEEP_FIRST` sibling for the
+passing case, plus a regression pinning that a shallow opener no longer passes.
+
+### Open follow-ups
+- [ ] **`evidence.py` and `crawler.py` changes are NOT runtime-verified** — bs4
+      is not installed in this container (same reason `test_evidence_promotion.py`
+      fails). Syntax-checked and the regex logic tested standalone; the
+      `data-url` capture needs a real walk to confirm.
+- [ ] Add `Unbooked calendar` to the Notion `Finding Type` select by hand.
+- [ ] TidyCal / Acuity / SavvyCal / YouCanBook.me return `unsupported`. TidyCal's
+      routes need a network-capture pass; the other three are uninvestigated.
+- [ ] ~55 of 91 live rows have no opener-legal finding banked. Per Haytham's
+      call, only rows actually queued to send get re-walked. This also absorbs
+      the 219 entries still on the `verified:2026-07-26` migration stamp, which
+      expire for sends on **07-30**.
+- [ ] PR 3 (retire the old offer + the drafting overhaul) still to come. Order
+      bump take rate settled at **1 in 4**; `mechanics.md:124`, `:137` and
+      `02-the-offer-gso-v2.md:187` still say 1 in 2 and get corrected there.
+
 ## 2026-07-27 — H3a: offer freshness ceiling dropped, unparseable-bank hole closed, 2 rows repaired (PR 1 of the First Five pivot)
 
 First of three PRs for the UAE pivot to **The First Five** (AED 1,500 setup

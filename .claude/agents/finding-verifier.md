@@ -18,6 +18,10 @@ leaving the building.
 - The `evidence/<slug>` dir and the **exact cited evidence paths** the finding
   rests on (`screenshot_desktop`, `screenshot_mobile`, text files) and any live
   URL the finding names.
+- For an **acquisition-state** finding (an unbooked calendar), the citation is a
+  booking URL plus the `main.py calendar-state` output, not a screenshot. That
+  counts as a cited artifact — re-derive it by re-running the command, not by
+  looking for a file (added 2026-07-27).
 
 You are NOT given the walker's transcript or reasoning. Work only from the
 finding claim + the raw evidence. If a cited path or URL is missing from your
@@ -42,6 +46,20 @@ independently shows it:
   footer copyright year or a testimonial's "sold out".
 - **Price / trust / pricing-mismatch claim** → the two numbers must both appear
   in the cited evidence; re-read both.
+- **Unbooked-calendar claim** → re-run `python main.py calendar-state <booking-url>`
+  yourself and compare its `verdict`, `open_slots` and `available_days` to what
+  the finding asserts. REFUTE unless it independently returns `wide_open`. Three
+  specific ways this claim goes wrong: the command **errored** (an unreadable
+  calendar is not an empty one — the command raises rather than reporting zero,
+  and a walker who wrote the finding anyway invented it); the verdict is
+  `none_published`, which is a self-fixable config problem and SHALLOW, not this
+  claim; or the verdict is `partial`, a normally-busy calendar and not a finding
+  at all. A slot count quoted from a screenshot is never valid evidence — a
+  booking widget renders after the capture.
+- **Depth sanity (hard, since 2026-07-27)** → bank #1 must carry `DEEP`. A
+  SHALLOW or untagged opener is REFUTED on its face, whatever the evidence says:
+  `crm-gate send` will block it anyway, and a finding the coach fixes herself in
+  five minutes is what cost this track 4 of its 9 engaged leads.
 - **Lane sanity** → does the finding survive the sting test + the vitamin filter
   (`haytham-opener-finder/references/walk.md`), or is it a Lane 2 shrug dressed
   up as a felt leak?

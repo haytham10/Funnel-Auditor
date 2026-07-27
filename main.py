@@ -357,6 +357,33 @@ def cmd_crm_gate(args) -> None:
     ))
 
 
+def cmd_calendar_state(args) -> None:
+    """How full is a lead's public booking calendar? Three unauthenticated
+    GETs against the same endpoint her own booking widget calls — no browser,
+    no login, nothing reserved.
+
+    Exists because The First Five sells booked calls, so the opener had to
+    stop being a funnel-mechanics defect (which the coach fixes herself in
+    five minutes and then leaves) and start being something she cannot fix by
+    editing a page. A calendar with most of the month unbooked is exactly
+    that. See audit/calendar_state.py for why this is a plain HTTP call and
+    not a Playwright pass, and for the transient-400 trap it guards against.
+
+    Prints the state JSON. Exit 1 on any error — an unreadable calendar is
+    never reported as an empty one.
+    """
+    from audit import calendar_state
+    try:
+        state = calendar_state.check(
+            _normalize_url(args.url), window_days=args.days, timezone=args.timezone,
+            reads=args.reads,
+        )
+    except calendar_state.CalendarStateError as exc:
+        print(json.dumps({"url": args.url, "error": str(exc)}, indent=2))
+        sys.exit(1)
+    print(json.dumps(state, indent=2))
+
+
 def cmd_refresh_finding(args) -> None:
     from audit import crm_gate
     sys.exit(crm_gate.print_refresh_finding(
@@ -1424,6 +1451,24 @@ def main() -> None:
                          help="the page's link_type (click scope excludes checkout pages by design)")
     p_probe.set_defaults(func=cmd_cta_probe)
 
+    p_cal = sub.add_parser(
+        "calendar-state",
+        help="read a lead's PUBLIC booking calendar (Calendly / Cal.com) and report how "
+             "much of the next month is unbooked — the acquisition-state finding that "
+             "replaced self-fixable funnel defects as the cold opener",
+    )
+    p_cal.add_argument("url", help="the lead's booking page URL")
+    p_cal.add_argument("--days", type=int, default=30,
+                       help="window width in days; mirrors calendar_state.MAX_WINDOW_DAYS "
+                            "(the API rejects wider ranges with the same error string it "
+                            "uses for a real calendar fault, so wider is refused)")
+    p_cal.add_argument("--timezone", default="Asia/Dubai")
+    p_cal.add_argument("--reads", type=int, default=2,
+                       help="independent reads that must AGREE before a verdict is "
+                            "returned; a transient API 400 cleared on 4 of 4 retries "
+                            "during design, so one read is not evidence")
+    p_cal.set_defaults(func=cmd_calendar_state)
+
     p_promote = sub.add_parser(
         "promote-evidence",
         help="resize/strip/compress one working evidence/<slug>/ screenshot and commit "
@@ -1611,6 +1656,7 @@ def main() -> None:
     if argv[0] not in (
         "walk", "crawl", "slug", "vision", "crm-gate", "refresh-finding", "send-cap", "inbox",
         "dashboard", "email-check", "email-verify", "email-enrich", "cta-probe", "apify",
+        "calendar-state",
         "classify-footprint", "gmail-gethaytham", "discover-links", "discover-checkout",
         "screenshot-name", "ingest", "promote-evidence", "log-lint", "touch-log", "-h", "--help",
     ):

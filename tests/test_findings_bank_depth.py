@@ -37,6 +37,16 @@ _TAGGED = (
     "3. RESERVED | DEEP | verified:2026-07-22 | whole program readable free\n"
     "4. USED-T1 | SHALLOW | verified:2026-07-22 | stale cohort dates"
 )
+# _TAGGED above deliberately models the PRE-H7 shape — a SHALLOW opener at
+# rank 1 — because the rank-mechanics tests around it are about rank, not
+# depth. Since 2026-07-27 that shape can no longer send (H7: a touch-1 opener
+# must draw a DEEP finding), so anything asserting a PASSING opener needs a
+# correctly-walked bank instead. This is it.
+_DEEP_FIRST = (
+    "1. UNUSED | DEEP | verified:2026-07-22 | pricing split across 4 platforms\n"
+    "2. UNUSED | SHALLOW | verified:2026-07-22 | checkout 404s on mobile\n"
+    "3. RESERVED | DEEP | verified:2026-07-22 | whole program readable free"
+)
 _LEGACY = (
     "1. UNUSED | verified:2026-07-22 | dead link\n"
     "2. UNUSED | verified:2026-07-22 | no pricing shown"
@@ -152,9 +162,19 @@ def test_opener_rank_pointing_at_wrong_unused_rank_fails():
 
 
 def test_opener_rank_matching_bank_one_passes():
-    ok, problems, notes = _opener(_TAGGED, opener_rank=1)
+    ok, problems, notes = _opener(_DEEP_FIRST, opener_rank=1)
     assert ok and not problems
     assert any("opener draws bank #1" in n for n in notes)
+
+
+def test_shallow_opener_no_longer_passes_even_at_the_right_rank(mp=None):
+    # The H7 change, stated as a regression: _TAGGED's rank 1 is SHALLOW and
+    # the declared rank is correct, so this passed before 2026-07-27 and must
+    # not again. A right-rank pointer at a self-fixable finding is still an
+    # email the coach answers with "thanks, fixed it."
+    ok, problems, notes = _opener(_TAGGED, opener_rank=1)
+    assert not ok
+    assert any("is SHALLOW, so it cannot be the opener" in p for p in problems), problems
 
 
 def test_opener_rank_unknown_rank_fails():
