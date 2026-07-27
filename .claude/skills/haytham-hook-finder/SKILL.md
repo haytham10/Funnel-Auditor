@@ -269,12 +269,18 @@ Replace the placeholder with one of:
 - `SMYKM hook: no hook found in public evidence — draft opens on the finding alone`
 
 Also set the `SMYKM Hook` property to the same hook text (or leave it
-empty on a "no hook found").
+empty on a "no hook found"). **Also set `Hook Type` and `Hook Source URL`
+in the same update** (added 2026-07-27, `docs/uae-track/log-grammar.md`):
+`Hook Type` = the WORK/LIFE/METRIC label (or `No hook found`), `Hook
+Source URL` = the citation URL (empty on "no hook found" — nothing to
+cite). You already have both from the line you just wrote; this is one
+extra write, not new work.
 
-**Blast radius is exactly one line (plus that one property).** Do not
-touch Overview, Funnel Walk, Evidence, Gates, the Lane verdict, the
-opening angle, the innocent explanation, or the Email Thread Log. This
-skill has no opinion on any of those and must not rewrite them.
+**Blast radius is exactly one line plus the `SMYKM Hook` / `Hook Type` /
+`Hook Source URL` properties.** Do not touch Overview, Funnel Walk,
+Evidence, Gates, the Lane verdict, the opening angle, the innocent
+explanation, or the Email Thread Log. This skill has no opinion on any of
+those and must not rewrite them.
 
 ---
 

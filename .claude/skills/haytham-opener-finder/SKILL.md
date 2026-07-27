@@ -89,6 +89,22 @@ No automatic dedup query here — querying the pipeline on every single walk was
 
 Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line reason in Notes, and stop. Do not linger. The floor exists to protect walks and touches, which are the scarcest resources — every opener under each inbox's daily send ceiling needs a verified finding behind it.
 
+**Also set `Gate 0 Failed Floors` (multi-select) and `Disqualification
+Reason` (select)** in the same write (added 2026-07-27,
+`docs/uae-track/log-grammar.md` / `docs/uae-track/schema-delta.md`) — a
+verdict without a floor is now incomplete. `Gate 0 Failed Floors` takes
+ALL floors that failed (a lead can fail more than one), from EXACTLY this
+list, no others: `Not UAE-based`, `No funnel or paid offer`, `Inactive
+30d`, `Audience below floor`. `Disqualification Reason` takes the single
+best-matching bucket for Notes/the write-up, from EXACTLY this list, no
+others: `Not UAE-based`, `No funnel / no paid offer`, `Inactive 30+ days`,
+`Audience below floor` (plus `Has team/gatekeeper`, `No deliverable
+email`, `Duplicate/re-sourced by mistake`, `Lane 3 skip`, `Wrong fit`,
+`Manual judgement call by Haytham`, `Other` — those last six are set by
+other steps/skills, not this one). Note the deliberate spelling
+difference between the two lists (`Inactive 30d` vs `Inactive 30+ days`,
+etc.) — do not swap one property's option string into the other.
+
 ---
 
 ## Step 1 — Gate 1 check (2 seconds)
@@ -98,7 +114,7 @@ One question only: is there a team or gatekeeper between Haytham and the owner?
 Fail signals: "we" / "our team" language, an agency in the footer, a support@ inbox with a ticketing system, a named marketing lead, a verified mega-account with someone triaging the inbox.
 Pass signals: own face, own story, replies to their own comments, single-person About page.
 
-- YES (gatekept) → set `Gate 1` = Fail, `Status` = Disqualified, note reason as "gatekeeper/team," write to Notion and stop. File mentally as long-term inbound, not a bad person.
+- YES (gatekept) → set `Gate 1` = Fail, `Status` = Disqualified, note reason as "gatekeeper/team," write to Notion and stop. File mentally as long-term inbound, not a bad person. **Also set `Gate 1 Failed Reason`** (select — `Team gatekeeper`, `Agency-run`, `Assistant-managed`, or `Other`, pick the one that actually matches what you saw) **and `Disqualification Reason` = `Has team/gatekeeper`** in the same write (added 2026-07-27).
 - NO or unclear → set `Gate 1` = Pass and proceed to Step 2.
 
 The ONLY thing this gate filters is a human wall. A real funnel, a custom site, a Kajabi build, a verified badge — none of these are skip reasons. If a funnel is genuinely optimized with no leaks, the walk finds that in 90 seconds and routes to Lane 2.
@@ -145,7 +161,7 @@ Sort into exactly one lane:
 
 **Lane 2 — WARM-UP (committed buyer, no felt leak).** No finding survives both filters, but the lead is clearly a committed operator (paid ladder, multiple offers, email capture, active engagement). Most Gate 1 survivors land here and that is NORMAL — a felt leak on a real buyer runs roughly 20-25%. Note the warm-up angle (a genuine peer entry anchored to something specific and real they're doing right now). **A Lane 2 lead does not get `Finding Verified` and does not reach Audit Ready** — it moves to Status `Lane 2` (the dedicated no-leak status, added 2026-07-16; not a Qualifying hold) as a long-play/warm-up lead. The hard gate is deliberate: no send without a verified finding.
 
-**Lane 3 — SKIP (not a buyer).** Hobbyist floor, no income signal, MLM, or gatekeeper. Set Status = Disqualified. No opener. A felt leak on a non-buyer is still a skip — leak does not equal buyer.
+**Lane 3 — SKIP (not a buyer).** Hobbyist floor, no income signal, MLM, or gatekeeper. Set Status = Disqualified, and `Disqualification Reason` = `Lane 3 skip` (added 2026-07-27). No opener. A felt leak on a non-buyer is still a skip — leak does not equal buyer.
 
 **Drift-guard:** the warm-up lane is easier, so it tends to crowd out leak-hunting. Lane 1 leads are the only sendable ones here. Run the finding scan honestly before defaulting to warm-up.
 

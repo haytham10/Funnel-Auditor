@@ -121,6 +121,23 @@ Own face, own story, single-person About = Pass.
 
 - **Fail** → `Gate 0`/`Gate 1` = Fail (whichever failed), Status =
   `Disqualified`, one-line reason in Notes. Set and move on, do not linger.
+  **Also set the floor-record properties in the same write** (added
+  2026-07-27, `docs/uae-track/schema-delta.md` — most Gate 0 kills happen
+  at THIS stage, so this is where the floor data matters most):
+  - A Gate 0 fail → `Gate 0 Failed Floors` (multi-select, every floor that
+    actually failed — a lead can fail more than one), from EXACTLY:
+    `Not UAE-based`, `No funnel or paid offer`, `Inactive 30d`, `Audience
+    below floor`. No other strings.
+  - A Gate 1 fail → `Gate 1 Failed Reason` (select) from EXACTLY: `Team
+    gatekeeper`, `Agency-run`, `Assistant-managed`, `Other`.
+  - Either fail → `Disqualification Reason` (select), the single
+    best-matching bucket, from EXACTLY: `Not UAE-based`, `No funnel / no
+    paid offer`, `Inactive 30+ days`, `Audience below floor`, `Has
+    team/gatekeeper` (note this list's spelling deliberately differs from
+    `Gate 0 Failed Floors`' — do not swap one property's strings into the
+    other). The exact literal list is what produced zero select-option
+    errors across 61 leads in Wave 1 — copy from here, never freehand a
+    new string.
 - **Genuinely can't resolve** (after trying the cheap tools) → leave the failing
   check `Not checked`, `Unconfirmed` + what you tried in Notes, Status stays
   `Sourced`. Do NOT guess it into a Pass or a Fail — but "I didn't try the actor"

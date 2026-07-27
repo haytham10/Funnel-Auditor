@@ -171,7 +171,18 @@ UAE-based and solo before a row, same as any candidate.
 
 Contact Name, Site URL, Profile URL, City if stated, Coach Type best guess,
 Platform if obvious, **Audience Size whenever findable**, Source Channel,
-Status = `Sourced`. Nothing else. No page body, no notes essays. Speed is
+Status = `Sourced`. Plus, in the page body under `## Overview` (added
+2026-07-27, `docs/uae-track/log-grammar.md`): one `SOURCE:` line built with
+`python main.py touch-log source --channel "<Source Channel>" --query
+"<the literal search/query string that surfaced this candidate>" --date
+<today>`. This is what makes source yield answerable one level deeper than
+the `Source Channel` select — it tells you which QUERY produced the good
+leads, not just which platform. A `sourcing-worker` returns the query
+string it used alongside each candidate (see the worker's RETURN fields)
+so the orchestrator can build this line at row-creation time; skip it only
+when a candidate came from a channel with no real query (e.g. a pure
+lateral referral with no search behind it — say so, don't invent one).
+Otherwise nothing else. No page-body prose, no notes essays. Speed is
 the deliverable.
 
 **Audience Size is a first-class field now, not an afterthought.** Grab a

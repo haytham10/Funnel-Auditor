@@ -87,6 +87,17 @@ other — the Caroline Bakker case), never for "the number wasn't on the homepag
     City / Platform / Audience Size / Coach Type + any `Site URL`/`Profile URL`
     you resolved.
   - **Fail** → the failing gate = Fail, Status = `Disqualified`, one-line reason.
+    **Also, in the same write** (added 2026-07-27,
+    `docs/uae-track/schema-delta.md` — copy these literal strings, never
+    freehand a new one): a Gate 0 fail sets `Gate 0 Failed Floors`
+    (multi-select, every floor that failed) from EXACTLY `Not UAE-based` /
+    `No funnel or paid offer` / `Inactive 30d` / `Audience below floor`; a
+    Gate 1 fail sets `Gate 1 Failed Reason` (select) from EXACTLY `Team
+    gatekeeper` / `Agency-run` / `Assistant-managed` / `Other`; either fail
+    sets `Disqualification Reason` (select) from EXACTLY `Not UAE-based` /
+    `No funnel / no paid offer` / `Inactive 30+ days` / `Audience below
+    floor` / `Has team/gatekeeper` (spelling deliberately differs from
+    `Gate 0 Failed Floors` — don't cross the two lists).
   - **Genuinely can't resolve** (per the honest-holds rule) → the check
     `Not checked`, `Unconfirmed` + what you tried in Notes, Status stays `Sourced`.
 
