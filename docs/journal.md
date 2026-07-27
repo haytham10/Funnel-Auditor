@@ -37,6 +37,75 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-27 — H3a: offer freshness ceiling dropped, unparseable-bank hole closed, 2 rows repaired (PR 1 of the First Five pivot)
+
+First of three PRs for the UAE pivot to **The First Five** (AED 1,500 setup
+credited against the first three calls, then AED 600 per call that happens;
+spec in `docs/claude-docs/offer-the-first-five.md`). Shipped alone and first
+because it was time-critical and independent of the offer rewrite.
+
+**The brief's premise was stale, and it matters.** `fix-list-final.md` says *"no
+lead carries a `verified:` tag, so every live row fails on its next send"* —
+that was verified against `d772391`, before PR #86 and the 90-row backfill
+landed on 07-26. Queried the live CRM: **all 91 live rows with a bank carry
+tags.** The fix-list's evidence was `grep -rn "verified:20"` over the repo,
+which structurally cannot see Notion, where lead rows actually live. Re-verify
+that doc against HEAD before trusting its other P0 items.
+
+The real problems, and what shipped:
+
+- **`STALE_OFFER_DAYS` removed entirely** (`audit/crm_gate.py`). Its whole
+  rationale was "a priced offer quotes work, the work must still need doing" —
+  true when the offer was a 735/2,575 AED fix scoped around the finding. The
+  First Five sells booked calls and quotes no work against the finding, so the
+  1-day ceiling was blocking offers for a reason that no longer exists. It was
+  also the near cliff: every migration-stamped row would have failed the offer
+  gate from 07-28. Reversal-guard comment written where the constant used to be.
+- **`STALE_SEND_DAYS = 3` untouched**, with the reason now written next to it.
+  The finding is still cited in the opener as evidence the work was done, and
+  citing a dead one is what Lisa and William both pushed back on.
+- **The unparseable-bank hole is closed.** Both freshness blocks were guarded by
+  a bare `if parse_findings_bank(...)`, so a bank with content that parsed to
+  *nothing* was read as "legacy row, no bank" and **skipped the gate entirely** —
+  strictly worse than a missing tag, which at least fails loudly. Rita's row was
+  in exactly that state while carrying a live 3,200 AED quote. New
+  `bank_is_unparseable()` + hard fail in `check_send`. A bank where SOME lines
+  parse is deliberately NOT unparseable: leaving a killed finding in a
+  non-matching grammar is the sanctioned way to hide it from the gate, and that
+  had to keep working.
+- **Tests 35 → 40.** Dead offer-ceiling tests replaced with ones pinning that
+  there is no ceiling; Rita's real `DEAD`/`RETIRED` grammar added as a named
+  fixture across four new cases. Suite otherwise unchanged (~285 pass; the two
+  failures in `test_evidence_promotion.py` and `test_inbox_routing.py` are the
+  pre-existing missing-`pytest` harness artifacts, not logic).
+
+**Two rows repaired, not three.** The plan said three; on the full banks only two
+were actually broken:
+- **Rita Baki** — her rank 1 was tagged `USED-T1` and described as DEAD in prose,
+  so the gate could still draw a finding she had already fixed herself. Demoted
+  to the non-matching `DEAD (...)` grammar. Only her live rank 3 parses now.
+- **Silvia Vladimirova** (Audit Ready, walked today) — three entries, no
+  `verified:` tags. Stamped `2026-07-27`, which is honest: the walk was today.
+- **Lucia Csobonyei was NOT broken.** Her `1. RETIRED |` line doesn't parse, but
+  ranks 2-4 do — which is the mechanism working as designed, not a fault. The
+  truncated first query made it look otherwise.
+
+**Gotcha worth keeping:** the opener-finder does not stamp `verified:` at walk
+time. Silvia was walked this morning and came out untagged, which is why a
+brand-new row was already failing the gate. That is a walk-time bug, not a
+backfill gap.
+
+### Open follow-ups
+- [ ] **219 of 225 live bank entries still read `verified:2026-07-26`, a
+      migration stamp, not a real check.** They expire for SEND on **2026-07-30**
+      (age 4). The offer cliff is gone; this one is not. A real `refresh-finding`
+      pass needs per-finding page fetches and there are no stored baselines, so
+      it is a real job, not a sweep — do it on the rows actually queued to send.
+- [ ] Stamp `verified:` at walk time in `haytham-opener-finder` so new rows never
+      arrive untagged (see gotcha above).
+- [ ] PR 2 (finding taxonomy: openers move to client-acquisition state, calendar
+      check) and PR 3 (retire the old offer, drafting overhaul) still to come.
+
 ## 2026-07-27 — Log discipline for the Notion → Airtable migration: touch-log grammar + parser, Notion schema additions, skills wired
 
 Full implementation of the migration handover (PR 1-3; PR 4 backfill left
