@@ -107,8 +107,14 @@ canonical turn-two script violated all four ("want me to fix it? … or here's m
 calendar"). The new close can reintroduce exactly that if a calendar link gets
 put beside the two times, so `gate.md` now checks for its absence explicitly.
 
-Tests 333, unchanged count from PR 2 — six existing tests updated to the new
+Tests 313, unchanged count from PR 2 — six existing tests updated to the new
 vocabulary (carrier aliases, guarantee names, offer types), none dropped.
+
+Suite arithmetic for the whole pivot: 285 at session start → 290 (PR 1) → 313
+(PR 2) → 313 (PR 3). The two non-passing files are pre-existing harness
+artifacts, not logic: `test_evidence_promotion.py` imports pytest outright, and
+one `test_inbox_routing.py` test needs a pytest fixture its bare runner can't
+supply.
 
 ### Open follow-ups
 - [ ] **The 07-30 send cliff is still open.** 219 entries on the
@@ -179,7 +185,8 @@ opener ("you have no email capture"), which means the market study's 41%
 no-email-capture figure is *not* promotable to an opener. An unbooked calendar
 passes it because it is a felt cost, not a missing mechanism.
 
-Tests: 313 → 333 (16 new for calendar-state, 6 for the depth gate and routing).
+Tests: 290 → 313 (16 new for calendar-state, 6 for the depth gate and the
+refresh-finding routing, 1 for the shallow-opener regression).
 Two fixtures updated: `_TAGGED` in `test_findings_bank_depth.py` models the
 pre-H7 shape (shallow opener) and now has a `_DEEP_FIRST` sibling for the
 passing case, plus a regression pinning that a shallow opener no longer passes.
