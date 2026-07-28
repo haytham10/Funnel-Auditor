@@ -875,7 +875,7 @@ def check_offer(row: dict, now=None, tier: str = "core") -> tuple[bool, list[str
             'WARNING Discovery Anchor "Refused to name" — that is a TRUST signal, not '
             "a price signal: they withheld a number because they do not yet believe "
             "the outcome, not because of the number. Lead the offer email harder with "
-            "the No-Show No-Charge Guarantee and Five or Free, both by name; a discount "
+            "the Empty Chair Guarantee and Five or Free, both by name; a discount "
             "answers a question they never asked"
         )
     elif anchor and anchor != "Not asked yet":

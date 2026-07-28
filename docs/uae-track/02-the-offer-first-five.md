@@ -162,8 +162,8 @@ Risk is the #1 objection and the market brief's own conclusion is that the
 blocker is trust. Both go in every money email, stated boldly before any
 objection arrives, by name:
 
-1. **The Empty Chair Guarantee** (performance, type 4) *(renamed from "The
-   No-Show, No-Charge Guarantee" 2026-07-28 — same promise, a name that says
+1. **The Empty Chair Guarantee** (performance, type 4) *(renamed 2026-07-28
+   from "The No-Show, No-Charge Guarantee" — same promise, a name that says
    what it protects)*:
    > You pay for seats that get filled. If she doesn't show, you don't pay.
    > Cancellations, no-shows and people who turn out not to be your buyer are
@@ -323,7 +323,7 @@ moment his own calendar has calls on it, the proof asset exists.
    discount.
 
 2. **Risk reversal goes first, boldly, before she objects — and that means BOTH
-   guarantees, by name.** The No-Show No-Charge Guarantee and Five or Free
+   guarantees, by name.** The Empty Chair Guarantee and Five or Free
    (with its 30-day condition), stacked, in every money email. "State a
    guarantee" is not enough instruction; say which. Naming the worst case
    unprompted ("the most this can cost you is nothing, and you keep everything I

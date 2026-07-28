@@ -35,7 +35,7 @@ What remains is the part that is actually **proven** and **transfers**.
 
 **A free artifact at turn-two does not convert.** The Loom offer was made to Ben Pringle, Lisa Hugo and Lucia Csobonyei. Zero took it. On the Value Equation a Loom is high effort for the prospect (watch a video, then decide) and low dream outcome (someone describing a problem they now feel worse about). It was replaced by the paid 48-Hour Leak Fix on 2026-07-24, and that was retired in turn on 2026-07-27: findings don't sell at all, because 4 of 9 engaged leads fixed them and left. The turn-two is now a call ask with two specific times.
 
-**Risk reversal was missing entirely from the flagship offer.** The old Track B carried no guarantee at all, in a market whose own brief says the blocker is trust. Two named guarantees now ride with every money email (the No-Show No-Charge Guarantee, Five or Free). Untested as of this writing.
+**Risk reversal was missing entirely from the flagship offer.** The old Track B carried no guarantee at all, in a market whose own brief says the blocker is trust. Two named guarantees now ride with every money email (the Empty Chair Guarantee, Five or Free). Untested as of this writing.
 
 ---
 
@@ -57,7 +57,7 @@ What remains is the part that is actually **proven** and **transfers**.
 4. **They reply.**
 5. **TURN TWO.** A **call ask with two specific times** ("Tuesday around 4, or Wednesday morning"). Always ends in a one-word yes. Never a soft exit, never a menu, never a re-pitch, never a question about her business.
 6. **They book.** `Call Booked`. That earns the right to name the number, and it is the product itself. *(Price discovery, if it happens at all, happens on the call. It is no longer an email step — see WHAT IS NOW PROVEN.)*
-7. **The priced offer.** The First Five, quoted as the named stack: 1,500 AED setup credited against the first three calls, then 600 AED per call that happens. The price never moves. Gated: `python main.py crm-gate offer` must PASS (earned status, or `Asked For Price`).
+7. **The priced offer.** The First Five, quoted as the named stack: 2,000 AED setup, then 900 AED per qualified call that happens, billing from call one. (The AED 500 Named Fifty is the attraction offer that can come earlier, on a live thread — `docs/uae-track/05-the-named-fifty.md`.) The price never moves. Gated: `python main.py crm-gate offer` must PASS (earned status, or `Asked For Price`).
 8. **Close.**
 
 ---
@@ -247,7 +247,7 @@ The artifact is logged in the lead's page body (Email Thread Log, `Artifact:` li
 
 **The reply lands warm, they're engaged.** The hinge: free finding → paid customer. The soft-exit habit will betray you here ("glad it helped, no pressure, lmk!" = thread dies warm). The move is ONE concrete next step, and in this track that step is a call at two named times. Never a question, never a menu.
 
-**They want to talk money.** Traps: under-charging from nerves, over-scoping to justify a price, freezing with no quote ready. Decide the offer and price BEFORE the conversation. It is already decided: The First Five (1,500 AED setup credited against the first three calls, then 600 AED per call that happens). The price never moves. If they jump straight to "how much," **answer with the number** — check `Asked For Price` on their row and quote the flat figure with both guarantees. Do not flip the question back at them; that is the retired move and it produced refusals, not answers.
+**They want to talk money.** Traps: under-charging from nerves, over-scoping to justify a price, freezing with no quote ready. Decide the offer and price BEFORE the conversation. It is already decided: The First Five (2,000 AED setup, then 900 AED per qualified call that happens, billing from call one). The price never moves. If they jump straight to "how much," **answer with the number** — check `Asked For Price` on their row and quote the flat figure with both guarantees. Do not flip the question back at them; that is the retired move and it produced refusals, not answers.
 
 **Emotional rule:** do not lunge past the value to the close (eager). Do not under-ask and give it away free (nervous). Calm, deliver fast, one clear ask per step.
 
