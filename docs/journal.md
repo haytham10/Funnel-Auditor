@@ -37,6 +37,70 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-28 — First `outbound/` run: 52 noomii leads through enrich → verify-hook → export, PR #94
+
+Haytham dropped in a raw noomii.com export (336 scraped UAE coach listings)
+and asked to run the outbound system on it. Full first end-to-end pass through
+the pipeline built earlier the same day. Branch
+`claude/outbound-noomii-leads-fvv9dc`, PR
+[#94](https://github.com/haytham10/Funnel-Auditor/pull/94).
+
+- **336 scraped rows → 52 usable leads.** Only 54 had any contact email at
+  all (mostly `contact_email_from_site`, not noomii's own `email` column,
+  which was empty on all but one row); 2 of those 54 were noise — a domain
+  that used to belong to a coach and is now an auto garage, and one now a
+  real estate agency (`sekenkoum.com`). Both squatted the URL noomii had on
+  file; excluded as not coaches.
+- **Enrich ran as 6 parallel research agents** (~9 leads each, Firecrawl
+  scrape + search) against the `enrich` work-packet contract — this is the
+  first time that stage ran for real at more-than-trivial volume. **12 of 52
+  dropped** on Gate 0/1: not solo (8, mostly small practices/agencies under a
+  personal-sounding domain), not UAE-based (2), inactive site (1), one both.
+  **40 live.**
+- **verify-hook caught 2 of 23 proposed hooks as unsupported on refetch** —
+  exactly the failure mode the independent-verifier split exists to catch.
+  One cited a TEDx talk that didn't check out on re-fetch; the other cited a
+  Favikon "#1 UAE Executive Leadership Coach" Instagram post that, on
+  refetch, turned out to belong to a *different* Instagram post/person — the
+  original agent likely conflated a template example with this lead.
+  **21 leads ship with a verified hook, 19 run on the four-beat fallback
+  (47.5% no-hook rate)** — a real number now, not a guess about how often the
+  hook path will come up empty at this lead quality.
+- **Batch-1's enrich agent wrote hooks in third person** ("Abdulla wrote his
+  first children's book...") while every other batch correctly used second
+  person ("You wrote..."), which is what actually reads naturally right after
+  the `Hey {name},` greeting the template renders. Caught in review, not by
+  any gate — `enrich`'s validation checks subject/hook mechanics (word count,
+  punctuation, required source URL) but has no opinion on grammatical person.
+  Rewrote by hand before writing to `enriched.csv`.
+- **noomii's `name` field is not reliably a person's name.** Two rows in the
+  40 live leads would have broken the `Hey {firstName},` greeting if exported
+  as-is: `anita@atmaanaan.com` was listed as "Atmaanaan Wellness Centre" (her
+  business, not her — the real first name only surfaced via the enrich
+  agent's research), and `lee@dubailifecoach.com` as "Dubai Life Coach Lee
+  Levy" (`first_name()` would have produced "Hey Dubai,"). Fixed by hand in
+  `raw.csv`, plus one casing fix. **Nothing in the pipeline validates that
+  `name` looks like a person's name** — this class of bug is silent unless
+  someone reads the actual preview output.
+- Also a small, easy-to-hit data-shape bug: an enrich agent returned
+  `audience_size`/`top_program_price_aed` as JSON numbers instead of strings
+  for a couple of rows, and `_validate_enrich_row` calls `.strip()`
+  unconditionally on those fields — `AttributeError` on `--write`, not a
+  clean validation error. Worked around by coercing the merged results file
+  before writing rather than patching `main.py`; worth a `str()`-coercion
+  fix in `_validate_enrich_row` itself if this recurs.
+- Final artifacts: `outbound/leads/{raw,enriched,smartlead}.csv` and
+  `preview.txt` (all 40 rendered emails) committed and pushed; both files
+  also sent directly to Haytham for review. Nothing sent, no CRM touched.
+
+### Open follow-ups
+- [ ] Haytham review of `outbound/leads/preview.txt` / `smartlead.csv` before
+      anything goes into Smartlead.
+- [ ] Consider a `_validate_enrich_row` fix to coerce numeric-looking JSON
+      values instead of erroring — this is the second time a research agent
+      has returned a number where the contract says "number or blank" but
+      the code assumes a string.
+
 ## 2026-07-28 — `outbound/`: a second, disposable path for a ~120-lead Smartlead test
 
 Built from a spec Haytham brought in, plus four copy CSVs (40 cold reads, 15
