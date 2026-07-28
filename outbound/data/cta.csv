@@ -1,0 +1,5 @@
+id,line,weight_pct,roll_1_100,word_count,fk_grade
+cta-01,Fifteen minutes and the ten are yours. I'll tell you why these ten and not the other forty.,55,1-55,18,2.3
+cta-02,"Give me fifteen minutes and they're yours, along with why these ten and not the other forty.",20,56-75,17,6.3
+cta-03,"Fifteen minutes and I'll hand them over, and tell you how I picked these ten out of fifty.",15,76-90,18,5.9
+cta-04,"Fifteen minutes, the ten are yours, and I'll explain what ruled the other forty out.",10,91-100,15,6
