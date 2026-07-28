@@ -1,0 +1,16 @@
+id,coach_type,register,line,word_count,fk_grade
+b3-biz-1,Business,flat,I go find founders who can pay for a coach. Then I set up the call.,16,0.1
+b3-biz-2,Business,soft,Filling up coaches' calendars is my whole job.,8,5.2
+b3-lead-1,Leadership,flat,I track down whoever signs off the budget and get you a meeting with them.,15,5.2
+b3-lead-2,Leadership,soft,I spend my day finding the people who can actually say yes.,12,5.8
+b3-life-1,Life,flat,"I find people who are ready to work with someone, and I book them in.",15,4.4
+b3-life-2,Life,soft,I go get clients so you don't have to post every day to find them.,15,4.4
+b3-mind-1,Mindset,flat,I bring you people who already want this kind of work.,11,3.7
+b3-mind-2,Mindset,soft,My job is finding the ones who are done deciding.,10,3.7
+b3-career-1,Career,flat,I find people who just lost a job or are about to move. Then I book the call.,18,1
+b3-career-2,Career,soft,I go looking for people mid-move and put them in touch with you.,13,4
+b3-health-1,Health,flat,I find people who are done googling and ready to pay someone.,12,3.8
+b3-health-2,Health,soft,My whole job is finding clients who already made up their mind.,12,4.8
+b3-fit-1,Fitness,flat,I find people who want a trainer and know what it costs. Then I book them in.,17,0.9
+b3-fit-2,Fitness,soft,I go get clients so you're not relying on the gym for them.,13,4
+b3-any-1,Any,flat,"I find people who are ready to talk, and I set up the call.",14,3.4

@@ -37,6 +37,74 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-28 — `outbound/`: a second, disposable path for a ~120-lead Smartlead test
+
+Built from a spec Haytham brought in, plus four copy CSVs (40 cold reads, 15
+identity lines, 4 weighted offer lines, 4 weighted CTAs). Everything lives in
+the new `outbound/` directory on `claude/outbound-pipeline-spec-uvbteg`.
+**Nothing on the Gmail path changed** — no skill, gate, doc or `audit/` module
+was touched, and `outbound/` imports nothing from `audit/`.
+
+`leads/raw.csv → enrich → verify-hook → assemble → export → preview`, one CLI
+(`outbound/main.py`), five commands, stdlib only. No CRM, no sending (Smartlead
+sends), no follow-ups, no dedupe against history.
+
+**Decisions worth remembering:**
+- **Why separate rather than an extension.** The Gmail path's value IS its
+  gates — Finding Verified, Email Verified, per-inbox ceilings, the Sunday
+  pause. Every one is meaningless when Smartlead owns sending. Wiring them
+  together would either drag the gates somewhere unenforceable or weaken them
+  where they work.
+- **`assemble` is pure Python, zero model calls**, so a bad email is a data bug
+  someone fixes in a CSV, not a model that had an off day. Seeded on
+  `sha256(email)` — *not* the builtin `hash()`, which is salted per process by
+  `PYTHONHASHSEED` and would have made "reproducible" quietly false between
+  runs. The draw order (cold_read → identity → offer → cta) is load-bearing:
+  all four come off one stream, so reordering changes every email in the batch.
+- **`enrich` / `verify-hook` need a model and Python cannot make one**, so they
+  split like `main.py ingest` already does: the command prints a JSON work
+  packet, the agent researches, `--write` merges validated results back.
+  Idempotency falls out for free — a row with all three gates answered is never
+  re-emitted, so a re-run never re-scrapes.
+- **`--write` rejects the whole file** rather than writing the good rows. A
+  half-applied enrich is worse than none, because the rows that silently did
+  not land still look settled.
+- **`drop_reason` is derived, never asserted.** Supplying it in a results file
+  is a hard error, so the gates stay the only thing that can drop a lead.
+- Copy questions were settled by Haytham: the four CSVs ship **verbatim**
+  (nothing in `outbound/` lints them against the Gmail track's copy rules), the
+  cold read is `cold_read_text` **only** (`cost_line_pairs_with` stays unused
+  reference data), and all the lead CSVs are git-tracked so a run is
+  reproducible from the repo alone.
+- The two Gate 0 floors the spec removed — "has a funnel/paid offer" and
+  "audience ≥ 1,500" — are gone here on purpose. The first was a floor for
+  selling funnel fixes; we sell booked calls now, and a coach with no pipeline
+  is a better buyer. The second killed 47 leads and is contradicted by the
+  `audience-decoupled` cold read. Solo stays hard: a gatekeeper genuinely
+  breaks the offer.
+
+**Gotchas:**
+- `summer-cliff` carries a seasonal caution in the CSV ("live roughly June to
+  mid-August") that the spec's skip rules do not implement. Harmless today, but
+  the same list run in October will ship a July cold read.
+- A row with no verified hook exports an **empty subject**. Smartlead needs a
+  campaign-level fallback subject, or those rows go out subject-less.
+- Pre-existing and unrelated to this work: `tests/test_price_floor.py` has no
+  `sys.path` bootstrap so it cannot import `audit`; `test_evidence_promotion.py`
+  and `test_offer_tiers.py` lack the `__main__` fallback and need pytest, which
+  is not installed in the container.
+
+### Open follow-ups
+- [ ] Hand-source the ~120 leads into `outbound/leads/raw.csv` (shipped as a
+      header-only template — the branch carries the machinery, not a loaded
+      campaign).
+- [ ] Run `enrich` and `verify-hook` for real; the **no-hook rate** printed by
+      `verify-hook` decides how much of the campaign runs on the weaker
+      four-beat email.
+- [ ] Configure a fallback subject on the Smartlead campaign for no-hook rows.
+- [ ] Decide whether `summer-cliff` should get its seasonal guard before any
+      re-run after mid-August.
+
 ## 2026-07-28 — The First Five v2: repriced to 2,000/900, re-niched to AED 5,000+, The Named Fifty added as the attraction offer
 
 Haytham brought three documents from his Claude project — an offer study run

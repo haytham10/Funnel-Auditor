@@ -1,0 +1,5 @@
+id,line,weight_pct,roll_1_100,word_count,fk_grade
+b4-01,I pulled ten names before I wrote this. People here I'd start with if I were you.,55,1-55,17,0.9
+b4-02,I've got ten names already. People here I think you'd want to talk to.,20,56-75,14,1.5
+b4-03,"Ten names are sitting on my desk. Real people, here, and I'd start with them.",15,76-90,15,0.7
+b4-04,I went and found ten already. People here who'd actually be worth your time.,10,91-100,14,4
