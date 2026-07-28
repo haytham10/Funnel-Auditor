@@ -37,6 +37,40 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-28 — Recalibration: `docs/START-HERE.md` added, stale finding-era text purged from the outreach method
+
+Haytham said the pivot left him lost — the vision was clear before the offer
+swap and is now blurry, and his Claude project is full of docs he can no longer
+tell apart. Diagnosed as a doc problem, not a strategy problem: the strategy is
+coherent, but three post-pivot documents still asserted the pre-pivot method, and
+a retired doc that still claims authority keeps winning arguments after it's
+dead.
+
+- **New `docs/START-HERE.md`** — the single orientation page. Offer in one
+  sentence, why it changed (the two mechanical causes: question-CTA can't book,
+  a finding in an inbox is a free fix), the five beats of the opener, the machine
+  in one line per stage, the five gates that fail closed, a canonical / advisory
+  / historical ledger over every doc in the repo, and the one open bet
+  (reply → call, still 0). Linked from the top of `CLAUDE.md`.
+- **`04-the-outreach-method.md` was the worst offender and is now corrected.**
+  It still told the reader to lead the opener with the verified finding, still
+  had the free Loom as the turn-two artifact, and still named GSO v2 as the
+  priced offer. Fixed: standard motion steps 2/3/7, Lane 1's opener line, the
+  whole OPENER section (rewritten to the five beats), TURN TWO, WHEN THEY SAY
+  YES, and THE ARTIFACT (marked RETIRED with the delivery-speed lesson kept).
+  "The finding is what earns the reply" corrected to "specificity is what earns
+  the reply" — the reply rate held, the carrier was wrong.
+- **The three-tell heuristic** for triaging his Claude project offline: a doc is
+  dead if it names a price that isn't 1,500 / 600, puts a finding in an email, or
+  asks a lead what they'd pay.
+
+### Open follow-ups
+- [ ] Haytham to delete or archive the superseded docs in his own Claude project
+      using the three-tell heuristic; the repo copies are now labelled.
+- [ ] Nothing in the machine changed. The only number that matters is
+      reply → call, still 0 of 9, with two live call-asks standing (Rita Sanna,
+      Lucia Csobonyei).
+
 ## 2026-07-28 — uae-tick: 32-lead overnight batch reconciled, `crm-gate log` false-FAIL bug found and fixed, two live call-asks now standing
 
 Scheduled daily tick, fresh session on `uae-track`. The entire 32-lead due-today batch (17 Inbox 1 + 15 Inbox 2 — every row with `Next Action` = 2026-07-28) had already been drafted by the previous tick, reviewed by Haytham, and departed overnight/this morning before this session started. Reconciled all 32 against Gmail reality via 4 parallel agents (8 leads each): 30 were the mechanical cold Touch 2→3 disambiguating-question closer, no reply on any thread, cold sequence complete → `Dormant`, `Next Action` bumped 2026-08-11 (confirmed non-Sunday). Two were NOT standard closes:

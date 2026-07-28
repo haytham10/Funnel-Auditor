@@ -14,9 +14,10 @@ What remains is the part that is actually **proven** and **transfers**.
 
 ## WHAT IS PROVEN (lean on this)
 
-**The opener mechanic works.** A specific verifiable finding + one line of warmth + a real question = a healthy reply rate. Across 125 cold-touched leads and ~364 touches, ~9% of unique leads replied. Industry cold-email benchmark is 1-5%. The mechanic is not the problem.
+**The opener mechanic works.** Something specific and real + one line of warmth + a real question = a healthy reply rate. Across 125 cold-touched leads and ~364 touches, ~9% of unique leads replied. Industry cold-email benchmark is 1-5%. The mechanic is not the problem.
 
-**The finding is what earns the reply.** Not the pitch, not the credentials, not the offer. The thing they can go check in 30 seconds.
+**Specificity is what earns the reply.** Not the pitch, not the credentials, not the offer. Something the reader recognises as written for her and nobody else.
+*(Corrected 2026-07-27: this used to read "the finding is what earns the reply." The reply rate held, but the finding turned out to be the wrong carrier of the specificity — 4 of 9 engaged leads consumed it, fixed it themselves and left. The specificity now comes from the SMYKM hook plus a measured cold read. See `references/cold-reads.md`.)*
 
 **The soft exit kills warm leads.** "No pressure / no rush / whenever timing's right" appeared at nearly every death point in the old pipeline. This is the most reliable negative finding in the whole dataset.
 
@@ -51,12 +52,12 @@ What remains is the part that is actually **proven** and **transfers**.
 ## THE STANDARD MOTION
 
 1. **Find** a coach who passes Gate 0 and Gate 1.
-2. **Walk the funnel.** Verify a real finding from a clean state.
-3. **Open by email.** Subject + one line of warmth + the specific finding + one real question.
+2. **Walk the funnel.** Verify real findings from a clean state and BANK them. They are call bait, not email content — the walk still runs, because the deep finding is what makes the call worth taking.
+3. **Open by email.** Subject (SMYKM hook) + the hook + a **cold read** + the identity beat + the cost + a **call ask with two specific times**. The finding is not in the email.
 4. **They reply.**
 5. **TURN TWO.** A **call ask with two specific times** ("Tuesday around 4, or Wednesday morning"). Always ends in a one-word yes. Never a soft exit, never a menu, never a re-pitch, never a question about her business.
 6. **They book.** `Call Booked`. That earns the right to name the number, and it is the product itself. *(Price discovery, if it happens at all, happens on the call. It is no longer an email step — see WHAT IS NOW PROVEN.)*
-7. **The priced offer.** GSO v2, quoted as the named stack. The price never moves. Gated: `python main.py crm-gate offer` must PASS (earned status, or `Asked For Price`).
+7. **The priced offer.** The First Five, quoted as the named stack: 1,500 AED setup credited against the first three calls, then 600 AED per call that happens. The price never moves. Gated: `python main.py crm-gate offer` must PASS (earned status, or `Asked For Price`).
 8. **Close.**
 
 ---
@@ -106,7 +107,7 @@ A finding that fails either filter is NOT a leak opener.
 
 ## THE THREE LANES
 
-**LANE 1 — OPEN (felt leak + committed buyer).** The conversion lane. A flagged finding survives both filters. Opener: warmth + the single strongest verified finding + one real question. Favor-framed, no pitch. This lane produces the first close. Always work a real finding when you find one.
+**LANE 1 — OPEN (felt leak + committed buyer).** The conversion lane. A flagged finding survives both filters. The finding is BANKED as call bait, not written into the email; the opener is hook + cold read + identity beat + cost + call ask. Always work a real finding when you find one — it is what makes the call worth her time. This lane produces the first close.
 
 **LANE 2 — WARM-UP (committed buyer, no felt leak).** Most profiles land here and that is NORMAL. A felt leak on a real buyer is rare, roughly 20-25% of profiles that pass Gate 1. Opener: not a finding. Enter as a genuine peer, anchored to something specific and real they are doing right now. Goal: intel first, relationship second, conversion third.
 
@@ -130,11 +131,15 @@ A finding that fails either filter is NOT a leak opener.
 
 ## THE OPENER
 
-- Lead with the specific, verifiable finding. NOT praise. Praise-only openers stall.
-- One line of warmth max, then the observation.
-- The first line has to earn the second. If it reads like a paste, it is dead.
-- End on ONE real question or ONE concrete offer. Not two. Not a CTA plus a question.
-- 4-6 lines max. Not a paragraph wall.
+*(Rewritten 2026-07-27. It used to lead with the verified finding; the finding is now RESERVED call bait and never appears in an email. Full copy spec: `.claude/skills/haytham-email-draft/references/cold-reads.md` + `mechanics.md`.)*
+
+The five beats, in order: **SMYKM hook → cold read → identity beat → the cost → the call ask.**
+
+- Lead with the hook: the one line only this person would recognise, from real cited public evidence. NOT praise. Praise-only openers stall.
+- Then the cold read: a measured observation about coaches in this market, never a claim about her. It cannot be refuted and cannot be fixed by editing a page.
+- Then the identity beat: one sentence on who is writing and why he'd know. Without it the email reads as someone wanting to buy from her (Lucia and Lee both replied with their own pricing).
+- End on ONE call ask with two specific times. A question about her business is legal only riding on the ask, never instead of it.
+- 4-6 lines max, 90-130 words. Not a paragraph wall.
 - No formal greeting. "Hi [Name], I hope this finds you well" goes in the bin.
 - No attachments and no video link on a cold open. Earn the reply first.
 
@@ -148,7 +153,7 @@ A finding that fails either filter is NOT a leak opener.
 
 ## TURN TWO (the message right after they reply)
 
-This was diagnosed as the leak in the old pipeline. It must contain **ONE concrete artifact offer** (a recorded walkthrough of their live page) **OR one single-tap next step**.
+This was diagnosed as the leak in the old pipeline. It contains **ONE call ask with two specific times**, and nothing else. *(The "concrete artifact offer" that used to live here — the free Loom — was tested on three warm leads and taken by zero. Retired 2026-07-24, replaced by the paid Leak Fix, which was retired in turn 2026-07-27. The turn-two is now the call ask, always.)*
 
 Never:
 - A soft exit
@@ -207,7 +212,16 @@ A follow-up that carries none of these is a wasted send eating the day's budget.
 
 ---
 
-## THE ARTIFACT (what does the converting)
+## THE ARTIFACT (RETIRED 2026-07-24 — kept for the delivery-speed lesson only)
+
+> **Do not offer a Loom, and do not offer any free artifact at turn-two.** Offered
+> to Ben Pringle, Lisa Hugo and Lucia Csobonyei; taken by zero. On the Value
+> Equation it is high effort for the prospect and low dream outcome. The turn-two
+> is a call ask with two specific times.
+>
+> What survives from this section is one rule that still applies to a booked call
+> and to delivery: **treat a yes as the starting gun, not the finish line.**
+> Everything below is historical.
 
 **A 3-5 minute screen recording of THEIR live page.** Face and voice on. This is the workhorse.
 
@@ -229,11 +243,11 @@ The artifact is logged in the lead's page body (Email Thread Log, `Artifact:` li
 
 ## WHEN THEY SAY YES
 
-**"Yeah, send it."** Deliver fast. See above.
+**"Yes to one of those times."** That is the yes now — a booked call, not a delivered artifact. Confirm the one time, send nothing else, `Call Booked`.
 
 **The reply lands warm, they're engaged.** The hinge: free finding → paid customer. The soft-exit habit will betray you here ("glad it helped, no pressure, lmk!" = thread dies warm). The move is ONE concrete next step, and in this track that step is a call at two named times. Never a question, never a menu.
 
-**They want to talk money.** Traps: under-charging from nerves, over-scoping to justify a price, freezing with no quote ready. Decide the offer and price BEFORE the conversation. It is already decided: GSO v2. The price never moves. If they jump straight to "how much," **answer with the number** — check `Asked For Price` on their row and quote the flat figure with both guarantees. Do not flip the question back at them; that is the retired move and it produced refusals, not answers.
+**They want to talk money.** Traps: under-charging from nerves, over-scoping to justify a price, freezing with no quote ready. Decide the offer and price BEFORE the conversation. It is already decided: The First Five (1,500 AED setup credited against the first three calls, then 600 AED per call that happens). The price never moves. If they jump straight to "how much," **answer with the number** — check `Asked For Price` on their row and quote the flat figure with both guarantees. Do not flip the question back at them; that is the retired move and it produced refusals, not answers.
 
 **Emotional rule:** do not lunge past the value to the close (eager). Do not under-ask and give it away free (nervous). Calm, deliver fast, one clear ask per step.
 

@@ -1,5 +1,10 @@
 # Funnel Auditor — outreach automation system
 
+> **Lost? Read `docs/START-HERE.md` first.** One page: what the offer is, why it
+> changed, the five beats of the email, the machine in one line per stage, the
+> gates that fail closed, and which docs are canonical vs. dead. This file is the
+> full map; that one is the orientation.
+
 This repo is the machine layer of Haytham's cold-outreach system, plus the
 Claude skills that orchestrate it. Two tracks run in parallel:
 
