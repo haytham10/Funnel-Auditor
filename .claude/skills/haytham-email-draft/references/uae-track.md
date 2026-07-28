@@ -28,16 +28,25 @@ quoted, what the turn-two sells, the guarantees, and the downsell ladder.
 
 ## AED framing (how the price is said)
 
-- **The First Five is 1,500 AED setup, credited against the first three
-  calls, then 600 AED per call that actually happens.** Native AED, not a
-  conversion of anything. The price never moves.
+- **The First Five is 2,000 AED setup, then 900 AED per qualified call that
+  actually happens, billing from call one.** No credit-back — setup is
+  revenue. Native AED, not a conversion of anything. The price never moves.
+  *(Repriced 2026-07-28 from 1,500 credited against the first three calls,
+  then 600. Reasons in `docs/uae-track/02-the-offer-first-five.md`: 600 AED is
+  $163, below the cheapest tier of the category we deliver the top of, and the
+  credit-back gave away 1,800 AED of month-one cash for a concession Five or
+  Free already buys.)*
+- **The attraction offer is The Named Fifty, 500 AED**, 50 verified UAE
+  contacts in 72 hours (`docs/uae-track/05-the-named-fifty.md`). It is the
+  only other number that may be quoted, it needs a live thread (`crm-gate
+  offer --tier attraction`), and it is never pitched in a cold email.
 - **Quote AED only.** Never a dollar figure, never both currencies in one
-  breath. "1,500 to set up" reads local; "$400 (about 1,500 AED)" reads
+  breath. "2,000 to set up" reads local; "$545 (about 2,000 AED)" reads
   like a foreign freelancer converting currencies at her. If SHE talks in
   dollars, mirror her currency in that reply and stay consistent from
   then on — the point is her comfort, not a rule about dirhams.
 - **Never present the AED figure as a favor or a localization.** It's the
-  price. Saying "for UAE clients I do 1,500" implies a special rate that
+  price. Saying "for UAE clients I do 2,000" implies a special rate that
   invites negotiation.
 - All the money-email field rules from mechanics.md apply unchanged:
   guarantees stated boldly and unprompted, one CTA (price + one concrete
@@ -86,12 +95,13 @@ priced offer is quoted after it, never before.
 
 ## THE FIRST FIVE — the priced offer, as a stack
 
-**"The First Five — 30 Days to a Booked Calendar, for UAE Coaches."**
-(Alternates to test: "Five Calls, Thirty Days", "The Booked Week".)
+**"The First Five — a 30-Day Booked-Calendar System for UAE Coaches."**
+(Alternates worth testing later, not now: "Five Chairs, Thirty Days", "The
+Full Week Intensive".)
 
-**AED 1,500 setup, credited back against the first three calls. Then AED 600
-per qualified call that actually happens.** No retainer, no contract, no minimum
-term. Billing starts at call four.
+**AED 2,000 to set up. Then AED 900 per qualified call that actually happens.
+Billing starts at call one.** No retainer, no contract, no minimum term, and
+no credit-back — setup is revenue.
 
 Never quote it as a flat fee for a service — that is directly price-comparable
 to an agency retainer. A stack whose summed value dwarfs the price is comparable
@@ -100,17 +110,26 @@ to nothing.
 | Component | Value |
 | --- | --- |
 | The Client Mirror — ICP built backwards from their own best-paying clients | 1,800 AED |
+| The 48-Hour First Draft — the list, the profile and the first twenty openers on her desk within two days of go, before a single email sends | 2,000 AED |
 | The Named List — verified, deliverable, gate-checked contacts | 2,400 AED |
 | The Clean Domain Shield — separate sending domain, warmed, SPF/DKIM/DMARC | 3,000 AED |
 | The Written Opener — every message built on something real about that person | 3,600 AED |
 | The Price-First Filter — prospects told what they charge before a call is booked | 1,200 AED |
+| The Call Brief — a one-page read on each person before she speaks to them: what they sell, what they said, what they are likely to want | 2,400 AED |
 | The Show-Up System — confirmation and reminder sequence | 1,200 AED |
+| The Objection File — every reply that wasn't a yes, sorted, so she learns what her market pushes back on | 1,500 AED |
 | The Weekly Read — what went out, what replied, what booked, what's changing | 900 AED |
-| **Stacked value** | **14,100 AED** |
+| **Stacked value** | **20,000 AED** |
+
+**Lead with The Call Brief.** It is the only component a competitor cannot copy
+this quarter: an appointment setter hands over a name, we hand over a page on
+who they are, because we have walked 373 of these businesses. It is what ends
+the commodity comparison.
 
 **The comparison she makes for herself:** appointment-setting agencies charge
-7,300-22,000 AED/month whether they deliver or not. A coach closing one in four
-5,000 AED programs makes 1,250 AED per call taken, and pays 600.
+7,300-22,000 AED/month whether they deliver or not. A coach with an 8,000 AED
+program closing one in four takes 2,000 AED per call taken, and pays 900. At
+one in three, 2,667 AED against 900.
 
 **Scarcity, honest and true** (never invent it): "I run four of these at a
 time. Solo, no team, that's the real ceiling." Plus rolling slot urgency: the
@@ -133,14 +152,25 @@ Risk is the #1 objection, and the market brief's own conclusion is that
 the blocker is trust. Both guarantees go in every money email, stated
 boldly before any objection arrives, by name:
 
-1. **The No-Show, No-Charge Guarantee.**
-   > You are billed only for calls where a real, qualified person actually
-   > shows up. Cancellations, no-shows and time-wasters are on me, not you.
+1. **The Empty Chair Guarantee.** *(Renamed 2026-07-28 from "The No-Show,
+   No-Charge Guarantee" — same promise, a name that says what it protects.)*
+   > You pay for seats that get filled. If she doesn't show, you don't pay.
+   > Cancellations, no-shows and people who turn out not to be your buyer are
+   > my cost, not yours.
 
-2. **Five or Free.**
-   > I'll put five qualified calls on your calendar in your first 30 days.
-   > If I don't, the setup fee comes back and you keep everything I built,
-   > the domain, the warmed inboxes, the list, the copy, all of it.
+2. **Five or Free.** *(Upgraded 2026-07-28 from a refund to a SERVICE
+   guarantee, and the clock moved to first send.)*
+   > Five qualified calls in your first thirty days of sending, or the setup
+   > comes back and I keep sending free until you have five. You keep the
+   > domain, the warmed inboxes, the list and the copy either way. All I ask
+   > is that you take the calls and get me access in the first week.
+
+   **"Of sending", never "from payment"** — warming a fresh domain takes two
+   to three weeks, so the old clock made this close to unwinnable. **"I keep
+   sending free until you have five"** removes the time risk instead of just
+   repaying the money, and costs time rather than cash. **The client-side
+   condition is load-bearing:** without it she can disappear for thirty days
+   and still claim.
 
 **The condition on ② is load-bearing** and is never dropped to sound
 generous. It bounds the promise to a window and a number; without it the
@@ -163,13 +193,14 @@ The standing rule is "the price never drops, the scope does". Without a
 named ladder that resolves in the moment, which is exactly when people
 cave. Work the rungs in order:
 
-1. **Fewer calls, same rate** — the setup fee stands, the guarantee window
-   scales to three calls instead of five. Same per-call price, smaller
-   promise. ("It costs too much" almost always means "it costs too much
-   before I see anything.")
-2. **Setup deferred** — no setup fee, 750 AED per call for the first five,
-   reverting to 600 after. They pay only for outcomes and the premium
-   covers the risk. Delays cash, so never the opening move.
+1. **Fewer Calls** — commit to three instead of five; setup drops to 1,200
+   AED, the per-call rate stands at 900. Less product for less money, which
+   is a feature downsell, not a discount. ("It costs too much" almost always
+   means "it costs too much before I see anything.")
+2. **Setup Deferred** — no setup fee at all, 1,250 AED per call instead of
+   900. She pays only for outcomes and the premium covers the risk we carry,
+   so the total is HIGHER, not lower. Delays cash, so never the opening
+   move.
 3. **The 1-10 check, after two downsells** — "how badly do you want the
    calendar full, 1 to 10?" 8+ → rung 1. 7 or below → recombine to
    whatever their 10 actually is, or let it go.

@@ -34,10 +34,9 @@ finding) → finding-verifier (independent check) → CRM write → email
 address resolved + verified → HELD at "Audit Ready" (no draft yet) →
 haytham-hook-finder (finds a real, cited personal hook; independent
 hook-verifier confirms it) → drafts a Gmail draft (held, not sent) →
-human reviews and sends by hand → reply → turn-two = the paid 48-Hour Leak
-call ask with two specific times → Call Booked → priced offer (The First
-Five: 1,500 AED setup credited against the first three calls, then 600 AED
-per call that happens) → close.
+human reviews and sends by hand → reply → turn-two = a call ask with two
+specific times → Call Booked → priced offer (The First Five: 2,000 AED setup,
+then 900 AED per qualified call that happens, billing from call one) → close.
 
 ## The core architectural pattern: worker → independent verifier
 
@@ -79,7 +78,8 @@ conversation.
   is the rung that earns the right. (This replaced the price-discovery
   gate on 2026-07-24, after asking 100 leads' worth of coaches what they'd
   pay produced 3 answers, all refusals, and 0 numbers.)
-- Price is fixed: 1,500 AED setup + 600 AED per booked call. Never discounted;
+- Price is fixed: 2,000 AED setup + 900 AED per qualified call (and 500 AED for
+  The Named Fifty, the attraction offer). Never discounted;
   objections get bonuses or restructured terms, not a lower number.
 - Copy rules for every generated email: no em-dashes, no jargon words
   ("funnel," "conversion," "audit," "sequence"), sign off with the

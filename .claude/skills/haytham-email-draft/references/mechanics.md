@@ -115,8 +115,8 @@ The soft-exit reflex (trailing off with "no pressure, whenever") is one killer; 
 - **Polite brush-off** ("thanks, we're all set" / "not right now"). Acknowledge, plant ONE doubt, leave the door open. Don't re-pitch.
   - Good: "Understood. The one thing I'd still glance at is whether that checkout works on mobile, most don't. If it's clean, ignore me."
   - Bad: "I understand, but let me explain everything my $200 package includes and why now is the right time..."
-- **Price question** ("how much?"). **Answer with the number.** Do not dodge to a call, and do not flip the question back at her — the old "what were you expecting it to cost?" flip is retired (it produced two of the three refusals that killed the price-discovery premise; see uae-track.md). Check `Asked For Price` on her row, which is the highest-intent signal in the CRM and earns the money email on its own, then name the flat number. The number is 1,500 AED to set up (credited against the first three calls) and 600 AED per call that actually happens. There is no range and no haggle.
-  - Good: "1,500 to set up, and that comes straight back off your first three calls. After that it is 600 a call, and only for calls where someone actually turns up."
+- **Price question** ("how much?"). **Answer with the number.** Do not dodge to a call, and do not flip the question back at her — the old "what were you expecting it to cost?" flip is retired (it produced two of the three refusals that killed the price-discovery premise; see uae-track.md). Check `Asked For Price` on her row, which is the highest-intent signal in the CRM and earns the money email on its own, then name the flat number. The number is 2,000 AED to set up and 900 AED per qualified call that actually happens, billing from call one. There is no range, no credit-back and no haggle.
+  - Good: "2,000 to set up, and after that it is 900 a call, only for calls where someone actually turns up."
   - Bad: "Depends on scope, let's hop on a call and I'll walk you through the packages." (Dodging a price question reads as hiding the price.)
 - **Logistics / procurement question** ("what does it cover, where are you based, can I see proof?"). This is a buying signal, not a stall. Answer every question asked, in order, in one reply. Don't pad. Offer one or two real proof links, then offer to move to a faster channel, WhatsApp especially for UAE leads.
   - Good: "It covers the fixes plus a short recorded walkthrough. I'm based in Dubai. Proof: [one live client link with an explicit https://]. Easier on WhatsApp if you want, I'm on [number]."
@@ -133,14 +133,14 @@ This replaces the old "ask for a call, then negotiate" pattern entirely. Louise 
 
 **The offer (The First Five — read `references/uae-track.md` before any money email):**
 
-**AED 1,500 setup, credited back against the first three calls. Then AED 600 per qualified call that actually happens.** No retainer, no contract, no minimum term; billing starts at call four. Presented as the named stack ("The First Five — 30 Days to a Booked Calendar", 14,100 AED of components), never as a flat fee for a service — the bare version is price-comparable to an agency retainer.
+**AED 2,000 to set up. Then AED 900 per qualified call that actually happens.** Billing starts at call one; no retainer, no contract, no minimum term, no credit-back. Presented as the named stack ("The First Five — a 30-Day Booked-Calendar System for UAE Coaches", 20,000 AED of components), never as a flat fee for a service — the bare version is price-comparable to an agency retainer. *(Repriced 2026-07-28; the v1 numbers were 1,500 credited against the first three calls, then 600.)*
 
 *(Retired 2026-07-27, do not quote: Track A at 735 AED / $200, Track B "The Booked-Out Funnel" at 2,575 AED / $700, the 500 AED 48-Hour Leak Fix, the 3,600 AED next step, and every bonus attached to them.)*
 
 **Field rules for every money email:**
 1. The price never drops. Bonuses answer stalls. Term restructures answer term objections (see deposit/payment objections below). The unbundle answers scope objections. The named downsell ladder answers "too expensive" (uae-track.md). Four different moves, none of them a discount.
 2. **State BOTH named guarantees up front, boldly, stacked, before she can object.** Naming the worst case unprompted is the strongest line available, and "guarantee stated boldly" is not enough instruction on its own — say which:
-   - **The No-Show, No-Charge Guarantee** — billed only for calls where a real, qualified person actually shows up; cancellations, no-shows and time-wasters are on Haytham, not her.
+   - **The Empty Chair Guarantee** *(renamed 2026-07-28)* — she pays for seats that get filled; cancellations, no-shows and people who turn out not to be her buyer are Haytham's cost, not hers.
    - **Five or Free** — five qualified calls on her calendar in the first 30 days, or the setup fee comes back and she keeps everything built: the domain, the warmed inboxes, the list, the copy. **The 30-day/five-call condition is load-bearing** and never dropped to sound generous; without it the guarantee is unbounded and reads as desperate.
    Both, by name, in every money email. Full wording in `references/uae-track.md`.
 3. **The friction sentence, every time:** "All I need from you is about twenty minutes at the start. After that you do not hear from me until there are calls on your calendar." One sentence, and it kills the objection three separate frameworks independently flagged as unaddressed.
@@ -165,10 +165,10 @@ Rotate ONE per prospect in beat 3. Every line is verified against a source in th
 
 ## Small-deal closing
 
-The First Five's entry number is small (1,500 AED, credited back), and small deals close differently from big ones: the buyer wants a fast, direct answer and a single low-risk decision, not a consultative dance. On a warm thread at the money moment:
+The First Five's entry number is small (2,000 AED), and small deals close differently from big ones: the buyer wants a fast, direct answer and a single low-risk decision, not a consultative dance. On a warm thread at the money moment:
 
 - **Answer the price question directly.** For a sub-$1k deal, dodging "how much?" to a call reads as hiding the number and stalls the close. Give the flat figure. There is no exception any more — the old price-discovery flip ("what were you expecting it to cost?") is retired, because it read as fishing and produced refusals rather than numbers.
-- **There is no range.** One structure: 1,500 setup credited against the first three calls, then 600 a call. The number never moves (hard rule). A low anchor from her is market data, not permission to discount; answer objections with bonuses, a term restructure, or a named rung of the downsell ladder (uae-track.md), never a lower number for the same scope.
+- **There is no range.** One structure: 2,000 setup, then 900 a call, billing from call one. The number never moves (hard rule). A low anchor from her is market data, not permission to discount; answer objections with bonuses, a term restructure, or a named rung of the downsell ladder (uae-track.md), never a lower number for the same scope.
 - **Attach the standing risk-reversal to every quote.** The guarantee rides with the price in the same breath, unprompted: "you are only billed for calls where someone real actually shows up, and if there are not five of them in the first thirty days the setup fee comes back and you keep everything I built." On a small deal the risk-reversal does more work than any feature list.
 - **Offer a channel switch on a buying signal, WhatsApp especially for UAE.** A logistics or procurement question is a buying signal; after answering it, offer to move to WhatsApp or a quick voice note. UAE buyers close over WhatsApp far more readily than over email (Natavia receipt, trust-verification section).
 - **After the ask, stop.** One decision on the table, then silence. Continuing to talk (adding a second reassurance, re-opening a doubt she didn't raise, stacking another bonus unprompted) reads as nerves and un-sells the close. Make the ask ONE decision and let it sit.

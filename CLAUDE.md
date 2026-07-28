@@ -12,8 +12,10 @@ Claude skills that orchestrate it. Two tracks run in parallel:
   and course creators with real funnels. Sourced dynamically through
   no-login web tools, worked
   through the UAE Lead CRM, priced in AED. **The offer is The First Five:
-  we sell booked calls.** AED 1,500 setup credited against the first three
-  calls, then AED 600 per call that actually happens.
+  we sell booked calls.** AED 2,000 setup, then AED 900 per qualified call
+  that actually happens, billing from call one. The attraction offer that
+  opens the money model is **The Named Fifty** (AED 500, 50 verified UAE
+  contacts in 72 hours).
 - **Parenting track (live threads only).** The original
   parenting/faith-based pipeline: 125 cold-touched leads, ~9% reply rate
   by lead (above benchmark), zero closes. No new leads get sourced into
@@ -35,8 +37,9 @@ was always **reply → call, which is 0/9**, and its mechanical cause is that
 a question-shaped CTA cannot produce a booking. So the offer became the
 call itself, **every close is a call ask with two specific times**, and the
 finding demoted from product to credibility line. Retired and not to be
-reinstated: Track A (735 AED), Track B (2,575 AED), the 500 AED 48-Hour
-Leak Fix, the Loom offer, price discovery as an email step. The method
+reinstated: Track A (735 AED), Track B (2,575 AED), the 48-Hour Leak Fix,
+the Loom offer, price discovery as an email step. (That Leak Fix was priced
+at 500 AED; 500 AED now means The Named Fifty and nothing else.) The method
 files live in
 `docs/uae-track/` (CRM spec, offer, targeting, outreach method) — the
 files are the method; **Notion is the source of truth for live state.**
@@ -68,7 +71,8 @@ qualifier-workers over slices of Sourced rows → `qualifier-verifier` re-checks
 every promotion/kill → Qualifying) → `/batch-audit` (one lead-processor agent
 per lead, ~5 parallel, cap 20) → per lead:
 **pre-flight qualification first** (the cheap floors — UAE-base, gatekeeper,
-paid-offer-exists, 30-day activity, 1,500 audience — settled from one search
+paid-offer-exists, 30-day activity, 1,500 audience, AED 5,000+ top
+program — settled from one search
 + at most one light profile scrape + one entry-page fetch, BEFORE the walk,
 so a Gate 0 kill costs a lookup not a full crawl; audience is three-way:
 hard number decides / inconclusive+strong stature proceeds /
@@ -95,8 +99,8 @@ DRAFTS are created in the same session (SMYKM opening A or B), Status =
 `Draft Ready` → Haytham reviews the finished drafts in Gmail and sends by hand
 (or schedules — Status `Scheduled`) → tick reconciles Gmail reality → `Outreach Sent` → reply →
 **turn-two = a call ask with two specific times** → `Call Booked` →
-priced offer (The First Five: 1,500 AED setup credited against the first
-three calls, then 600 AED per call that happens; gated by `crm-gate offer`
+priced offer (The First Five: 2,000 AED setup, then 900 AED per qualified
+call that happens, billing from call one; gated by `crm-gate offer`
 on EARNED RIGHT — an earned status or `Asked For Price`) →
 close. `uae-tick` runs the daily loop; the send-day is the Dubai calendar
 day everywhere.
@@ -171,7 +175,10 @@ scores to `docs/deliverability-log.md`.
   cannot reach Offer Sent without either an earned `Status` (`Call
   Booked`, `Offer Sent`, `Won`, or the legacy `Leak Fix Sold` / `Leak Fix
   Delivered`) or the `Asked For Price` checkbox. Enforced: `python main.py
-  crm-gate offer <row.json>`. No PASS, no money email. **The turn-two call
+  crm-gate offer <row.json>`. No PASS, no money email. **The AED 500 Named
+  Fifty is the one exception, and it is a narrower gate rather than no gate:
+  `--tier attraction` needs a live thread (she replied), because the
+  attraction offer's whole job is to be the first paid yes.** **The turn-two call
   ask is exempt** — a booked call IS the rung that earns the right, which
   is the whole point of the offer. *(Changed 2026-07-24.
   The old rule required a VERBATIM `Price Discovery Answer` and a
@@ -182,14 +189,20 @@ scores to `docs/deliverability-log.md`.
   stay in the CRM as advisory data and the gate reports them; a `Refused
   to name` anchor is now read as a TRUST signal, answered with more risk
   reversal, never a smaller number.)*
-- **The price never moves.** The First Five is **1,500 AED setup,
-  credited against the first three calls, then 600 AED per qualified call
-  that actually happens.** Quoted natively in AED, never as a conversion,
+- **The price never moves.** The First Five is **2,000 AED setup, then 900
+  AED per qualified call that actually happens, billing from call one. No
+  credit-back — setup is revenue.** The attraction offer is **The Named
+  Fifty, 500 AED** (`docs/uae-track/05-the-named-fifty.md`), and it is the
+  only other number that may be quoted. Quoted natively in AED, never as a conversion,
   never two currencies in one breath. A low anchor from a lead is market
   data, not permission to discount — objections get bonuses, restructured
   terms, or a named rung of the downsell ladder, never a lower number for
   the same scope. It holds until two clients are delivered. **Retired, do
-  not quote: 735 / 2,575 / 500 / 3,600 AED.**
+  not quote: 735 / 2,575 / 3,600 AED, and the v1 First Five numbers 1,500
+  setup / 600 per call (repriced 2026-07-28 — 600 AED is $163, below the
+  cheapest tier of the category, and the credit-back gave away 1,800 AED of
+  month-one cash for something Five or Free already buys). 500 AED is no
+  longer retired: it is The Named Fifty.**
 - **Every close is a call ask with two specific times.** "I can call
   Tuesday around 4, or Wednesday morning, whichever is less annoying." A
   question about her business is legal only riding on the call ask, never
@@ -262,15 +275,20 @@ in the code and is one file-open away.
 - `main.py vision …` — the vision-pass completeness gate ("read every
   screenshot" is a computed fact, not a claim).
 - `audit/gates.py` — Gate 0 floors (UAE-based / funnel / 30-day activity /
-  1,500 audience). `audit/crawler.py` — Playwright fallback + the
+  1,500 audience / AED 5,000+ top live program). `audit/crawler.py` — Playwright fallback + the
   link/checkout classification both fetch paths share.
 
 **Gates + sending** — all fail closed. Skills dump the FRESH Notion row to
 JSON, run the gate, and quote its literal output line (same trust model as
 the vision gate).
 - `main.py crm-gate offer|send` (`audit/crm_gate.py`) — offer = the lead has
-  EARNED a number (an earned `Status`, or `Asked For Price`) before any priced
-  Sprint offer, with the discovery answer/anchor reported as advisory notes;
+  EARNED a number (an earned `Status`, or `Asked For Price`) before the priced
+  First Five offer, with the discovery answer/anchor reported as advisory
+  notes. **Two tiers** (2026-07-28): `--tier core` (default) is The First Five
+  and needs the earned right; `--tier attraction` is the AED 500 Named Fifty
+  and needs only a live thread, because an attraction offer exists to buy a
+  customer and the earned right would make it unsendable. Pick the tier by
+  which offer is being drafted, never by which verdict you want;
   send = Finding Verified
   + Email Verified + follow-ups-first headroom under THAT inbox's ceiling
   (`--inbox`) + a declared carrier on touch 2/3 (checked against `Findings

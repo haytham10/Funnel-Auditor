@@ -40,6 +40,7 @@ UAE track (active) — all UNSENT:
 - 10 — turn-two, she replied warmly
 - 11 — she asked "how much?", answer with the number
 - 12 — the full money email, the named stack
+- 13 — the attraction offer: The Named Fifty on a warm thread
 - The things that get these rejected
 
 Parenting track (live threads only) — really sent:
@@ -337,15 +338,16 @@ question back.** The flip produced two of the three `Refused to name` answers.
 
 > Straight answer, since you asked.
 >
-> It is 1,500 dirhams to set up, which covers the sending domain, the warming,
+> It is 2,000 dirhams to set up, which covers the sending domain, the warming,
 > the list built backwards from your own best clients, and the writing. After
-> that it is 600 dirhams for each qualified call that actually happens.
+> that it is 900 dirhams for each qualified call that actually happens.
 >
-> Two things I will say without you having to ask. You are only billed for calls
-> where a real, qualified person shows up. Cancellations and no-shows are my
-> cost, not yours. And if you do not have five qualified calls in your first
-> thirty days of sending, the setup comes back and you keep everything I built,
-> the domain, the inboxes, the list and the copy.
+> Two things I will say without you having to ask. You pay for seats that get
+> filled. If she does not show, you do not pay, and people who turn out not to
+> be your buyer are my cost. And if you do not have five qualified calls in
+> your first thirty days of sending, the setup comes back and I keep sending
+> free until you have five. You keep the domain, the inboxes, the list and the
+> copy either way.
 >
 > I run four of these at a time. Want me to start on yours?
 >
@@ -367,15 +369,16 @@ Only after `crm-gate offer` prints PASS.
 > hand. Everyone who books is told what you charge before the call exists, so
 > you are not spending your week on people who were never going to pay it.
 >
-> 1,500 dirhams to set up. Then 600 dirhams for every qualified call that
+> 2,000 dirhams to set up. Then 900 dirhams for every qualified call that
 > actually happens. No retainer, no contract, and nothing to cancel.
 >
 > **The Empty Chair Guarantee.** You pay for seats that get filled. If she does
 > not show, you do not pay.
 >
 > **Five or Free.** Five qualified calls in your first thirty days of sending,
-> or the setup comes back and you keep the domain, the warmed inboxes, the list
-> and the copy.
+> or the setup comes back and I keep sending free until you have five. You keep
+> the domain, the warmed inboxes, the list and the copy either way. All I ask
+> is that you take the calls and get me access in the first week.
 >
 > All I need is about twenty minutes at the start. After that you do not hear
 > from me until there is something on your calendar.
@@ -385,6 +388,32 @@ Only after `crm-gate offer` prints PASS.
 > Haytham
 
 <sub>Named stack, not a flat fee. Both guarantees stated boldly and unprompted, before any objection. Exactly one scarcity line, exactly one CTA, and it stops after the ask. No second reassurance.</sub>
+
+---
+
+## 13 · The Named Fifty — the attraction offer on a warm thread
+
+The AED 500 attraction offer (`docs/uae-track/05-the-named-fifty.md`). Gated by
+`crm-gate offer --tier attraction`, which needs a LIVE THREAD, not the earned
+right. **Never in a cold email, at any touch.** Use it when a warm thread has
+stalled short of a call: it is a smaller yes than a call, and it makes us the
+person holding her list.
+
+> Different idea, since the calendar thing is clearly not the priority this
+> month.
+>
+> I keep a running read on this market and I can build you a list of fifty
+> people in the UAE who look like the clients you already have and like. Real
+> businesses, real names, and every address checked so they actually land. Two
+> or three days, five hundred dirhams, and the list is yours to keep whatever
+> you do with it after.
+>
+> If you want it I will start from the three clients you have enjoyed working
+> with most. Just tell me who they are.
+>
+> Haytham
+
+<sub>93 words. Note the shape: it is a complete solution to a narrow problem, not a sample of the bigger one. It names a real turnaround, it hands over ownership explicitly ("yours to keep whatever you do with it"), and the CTA is a piece of information rather than a payment, so the yes is cheap. It does NOT mention The First Five — that upsell happens at delivery, in the ninety minutes after she opens the list, never here.</sub>
 
 ---
 
@@ -401,6 +430,9 @@ Every one of these has actually happened in this repo.
 | A number that is not on the credibility list | "Verified numbers only" is not a style rule. It is what keeps the whole thing honest under scrutiny. |
 | The identity beat missing | Lucia and Lee both replied with their own pricing. They were not confused about the message. They were confused about who was writing. |
 | Any em-dash | Not one. Anywhere. |
+| The Named Fifty in a cold email | It is an attraction offer, not an opener. A priced offer to someone who has never replied is a cold pitch at any price, and AED 500 does not make it not one. `--tier attraction` still requires a live thread. |
+| Quoting The First Five through `--tier attraction` | The one abuse the two-tier gate makes possible. The tier is chosen by which offer you are drafting, never by which verdict you want. |
+| A retired price | 735 / 2,575 / 3,600, and the v1 First Five numbers (1,500 setup credited against three calls, then 600). The live numbers are 2,000 + 900, and 500 for The Named Fifty. |
 
 ---
 

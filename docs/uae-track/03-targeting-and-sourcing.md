@@ -2,22 +2,25 @@
 
 Who counts as a lead, and where to find them. Gate 0 and Gate 1 rewritten for this market.
 
-> Adopted into the repo 2026-07-13, unchanged in substance. The Gate 0 floors
-> are enforced in code where machine-checkable (`audit/gates.py`: audience
-> 1,500, activity 30 days, funnel present; UAE residency comes back as
+> Adopted into the repo 2026-07-13. The Gate 0 floors are enforced in code
+> where machine-checkable (`audit/gates.py`: audience 1,500, activity 30 days,
+> funnel present, **top live program AED 5,000+**; UAE residency comes back as
 > needs-review for the judgment layer).
+>
+> **A fifth floor was added 2026-07-28: the AED 5,000 program price.** It is
+> the re-niche, and it is the biggest change to this document since adoption.
 
 ---
 
 ## The ICP, one line
 
-**A UAE-based solo coach or course creator with a real funnel or paid digital product, active in the last 30 days, operating in English.**
+**A UAE-based solo coach or course creator with a live program priced at AED 5,000 or above, a real funnel, active in the last 30 days, operating in English.**
 
 ---
 
 ## GATE 0 — mechanical, no judgment needed
 
-All four must be true. Any fail = Disqualified. Do not spend another minute.
+All five must be true. Any fail = Disqualified. Do not spend another minute.
 
 | Check | Pass condition | Why |
 | --- | --- | --- |
@@ -25,6 +28,28 @@ All four must be true. Any fail = Disqualified. Do not spend another minute.
 | **Has a funnel or paid product** | A live sales page, checkout, course, or paid digital offer exists | This is the entire scope of the niche. A coach who only sells 1:1 by DM has nothing to fix. |
 | **Activity recency** | Posted, emailed, or launched something in the last 30 days | Dormant operators do not buy. |
 | **Audience floor** | 1,500+ on their largest owned or social channel | Lowered from the US pool. UAE audiences are smaller. A 2K UAE-focused list is worth what 8K is in the US. |
+| **Price floor** 🆕 | Her HIGHEST live program is AED 5,000 or above | Added 2026-07-28. The market study's purchasing-power indicator is a measured FAIL — ICF puts average coach revenue at $49,283/yr and most UAE coaches sit under the AED 375,000 VAT line. A coach with an AED 8,000 program closing one in four takes AED 2,000 per call taken and pays 900 for it. A coach with an AED 800 program cannot make that work at any price we could charge, so a reply from her was never revenue. |
+
+### Working the price floor without killing good leads
+
+Three rules, all enforced in `audit/gates.py`:
+
+1. **It is her HIGHEST live program, not her cheapest thing.** A coach with a
+   AED 299 workshop and AED 6,600 1:1 containers PASSES, on the containers.
+2. **A scraped price can promote but never kill.** If the highest price on her
+   site clears the floor at every plausible exchange rate, that is an automatic
+   pass. If it does not, that is NEEDS_REVIEW and never an automatic
+   disqualification — application-only 1:1 work is routinely off-page, and a
+   Gate 0 hard fail is permanent.
+3. **No price visible at all is NEEDS_REVIEW, never a silent pass and never a
+   silent kill.** 48 of 122 walked leads show no price anywhere. Settle it from
+   a checkout, an application page, a rate card, or a directory listing before
+   promoting the row.
+
+Foreign currencies get a wide BAND rather than an exchange rate, and the gate
+only rules when every rate in the band agrees (GBP 8,999 clears at any of them;
+GBP 200 fails at any of them). Anything straddling AED 5,000 is settled by hand
+with a live rate.
 
 ---
 
@@ -49,11 +74,14 @@ The ONLY thing this gate filters is a human wall. A real funnel, a custom site, 
 
 Business coaches, life coaches, executive and leadership coaches, career coaches, mindset coaches, fitness and health coaches, and course creators of any of the above.
 
-The only thing that matters: **do they have a funnel with something in it that can leak.**
+Two things matter, and since 2026-07-28 the second one is a hard gate:
+**do they have a funnel with something in it that can leak, and does their top
+live program clear AED 5,000.**
 
 ## Out of scope
 
 - Call-only coaches with no digital product and no funnel. Nothing to fix, nothing to sell.
+- **Coaches whose top live program is under AED 5,000.** Added 2026-07-28. Not a judgment about them — the per-call arithmetic cannot work for her, so she was never going to buy at any price we could name. This is the single biggest change to who gets sourced, and it shrinks the pool on purpose. Fewer, better. The Instagram vein (best yield, only ~20 rows worked) and Arabic sourcing are both nearly untouched and are where the replacement volume comes from.
 - Agencies, consultancies, anyone with a team. Gate 1 fail.
 - Anyone whose funnel is not in English. Standing decision for this track.
 - Coaches outside the UAE, even if Arab or adjacent. The whole thesis is geographic concentration. Do not dilute it.

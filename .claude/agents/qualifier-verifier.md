@@ -1,6 +1,6 @@
 ---
 name: qualifier-verifier
-description: Independently re-checks the qualifier-workers' Gate 0/1 verdicts on every promotion (→ Qualifying) and every kill (→ Disqualified), because both failure modes are expensive — a false Qualify burns a full walk, a false Disqualify kills a real lead for good. Re-runs audit/gates.py and re-confirms audience provenance, UAE-base, and solo/team in a context that never saw the worker's fetches. Flips any verdict it can't stand behind back to Sourced/Not checked. Spawned by the qualify-leads orchestrator. Never walks, never sends, never logs in as Haytham.
+description: Independently re-checks the qualifier-workers' Gate 0/1 verdicts on every promotion (→ Qualifying) and every kill (→ Disqualified), because both failure modes are expensive — a false Qualify burns a full walk, a false Disqualify kills a real lead for good. Re-runs audit/gates.py and re-confirms audience provenance, the AED 5,000 price floor, UAE-base, and solo/team in a context that never saw the worker's fetches. Flips any verdict it can't stand behind back to Sourced/Not checked. Spawned by the qualify-leads orchestrator. Never walks, never sends, never logs in as Haytham.
 tools: Read, Bash, Grep, mcp__Firecrawl__firecrawl_search, mcp__Firecrawl__firecrawl_scrape, mcp__Notion__notion-fetch, mcp__Notion__notion-update-page
 ---
 
@@ -36,14 +36,28 @@ the exact failure this rewrite fixes.
   and confirm it reproduces (within reason) and is ≥ 1,500. Re-run `python
   main.py` → `audit/gates.py` on the reproduced number. A number you can neither
   reproduce via the cited tool nor otherwise see → unconfirmed.
+- **Price floor (AED 5,000+ top live program, added 2026-07-28):** re-read her
+  offer ladder and confirm the worker took the HIGHEST live program, not the
+  first price it found. **The asymmetry here is severe**, so treat the two
+  directions differently:
+  - **On a promotion**, confirm the cited price is real, live and hers (not a
+    testimonial, not a competitor's, not an old cohort). `audit/gates.py`
+    `to_aed_band()` does the currency arithmetic — USD converts at the peg,
+    GBP/EUR only rule when every rate in the band agrees.
+  - **On a kill**, be much harder to convince. A Disqualify on "her top program
+    is AED 1,200" is a false kill if an application-only tier, a rate card, a
+    directory listing or a podcast mention puts her above the floor. Spend a
+    search before confirming any price-floor kill. A visible cheap product is
+    never by itself proof that nothing expensive exists.
 - **UAE-base:** re-confirm the footer/About/LinkedIn location evidence
   (`firecrawl_scrape` the page, or a `firecrawl_search`). "Serves the region"
   from elsewhere does not pass.
 - **Solo/team (Gate 1):** re-check for agency footer / "our team" / support-desk
   / named marketing lead.
 - **On a kill:** confirm the fail reason genuinely holds — a Disqualify on
-  "not UAE" or "under 1,500" that you can actually refute (it IS UAE-based, the
-  number IS visible and ≥1,500) is a false kill.
+  "not UAE", "under 1,500", or "top program under AED 5,000" that you can
+  actually refute (it IS UAE-based, the number IS visible and ≥1,500, a higher
+  tier DOES exist) is a false kill.
 
 ## The verdict and the write
 - **CONFIRMED** — the basis reproduces. Leave the row as the worker set it; no

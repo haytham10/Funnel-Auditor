@@ -7,9 +7,13 @@ else is detail you can fetch when you need it._
 
 ## 1. What you sell, in one sentence
 
-**You sell booked calls to UAE solo coaches.** AED 1,500 setup, credited back
-against the first three calls, then AED 600 per qualified call that actually
-happens. No retainer, no contract, billing starts at call four.
+**You sell booked calls to UAE solo coaches with a program at AED 5,000+.**
+AED 2,000 setup, then AED 900 per qualified call that actually happens, billing
+from call one. No retainer, no contract, no credit-back.
+
+The way in is **The Named Fifty**: AED 500 for fifty verified UAE contacts in
+72 hours, built backwards from her own best clients. It buys the customer; the
+upsell happens when she opens the list.
 
 That is the whole business. Not audits, not funnel fixes, not findings.
 
@@ -62,7 +66,7 @@ self-certifies → the orchestrator writes the CRM.
 | Stage | Skill | What it produces |
 |---|---|---|
 | Fill the top | `source-leads` | raw names → `Sourced` |
-| Cheap gates | `qualify-leads` | Gate 0 + Gate 1 → `Qualifying` |
+| Cheap gates | `qualify-leads` | Gate 0 (5 floors, incl. AED 5,000+ program) + Gate 1 → `Qualifying` |
 | Walk the funnel | `batch-audit` | verified finding **banked** → `Audit Ready` (held, no draft) |
 | Hook + draft | `haytham-hook-finder` | verified hook → held Gmail draft → `Draft Ready` |
 | You | — | review the drafts in Gmail, send by hand |
@@ -71,7 +75,7 @@ self-certifies → the orchestrator writes the CRM.
 The walk still runs, and the finding still matters — it is just spent on the
 call now instead of in the inbox.
 
-## 5. The five things the code will not let you do
+## 5. The six things the code will not let you do
 
 You do not have to hold these in your head; they fail closed.
 
@@ -83,6 +87,11 @@ You do not have to hold these in your head; they fail closed.
 - **No sends on Sunday**, Dubai calendar day, every inbox, cold and warm.
 - **No priced offer** until the lead has earned a number — an earned `Status` or
   `Asked For Price` (`crm-gate offer`). A booked call is the rung that earns it.
+  The AED 500 Named Fifty is the one narrower path: `--tier attraction` needs
+  only a live thread, because an attraction offer exists to buy a customer.
+- **No lead below the money floor.** Gate 0 kills a coach whose top live
+  program is under AED 5,000 — the per-call arithmetic cannot work for her, so
+  a reply was never revenue.
 - **No bare bump.** Touches 2 and 3 (day 3, day 9) must each carry something
   new: the next banked finding, the call ask, or the disambiguating question.
   Then Dormant.
@@ -101,6 +110,7 @@ doc that still claims authority keeps winning arguments after it is dead.
 |---|---|
 | `CLAUDE.md` | the hard rules, the whole map |
 | `docs/uae-track/02-the-offer-first-five.md` | the offer, the price, the guarantees, the downsell ladder |
+| `docs/uae-track/05-the-named-fifty.md` | the AED 500 attraction offer and the money model |
 | `docs/uae-track/01-crm-operating-spec.md` | CRM schema, statuses, lifecycle |
 | `docs/uae-track/03-targeting-and-sourcing.md` | who to look for, where |
 | `docs/uae-track/04-the-outreach-method.md` | the motion, the walk, the sequence |
@@ -119,9 +129,9 @@ header), `docs/claude-docs/offer-the-first-five.md` (superseded by the repo copy
 at `docs/uae-track/02-the-offer-first-five.md`), `docs/journal-archive.md`.
 
 **Rule of thumb for anything in your Claude project:** if a doc names a price
-that is not 1,500 / 600, or tells you to put a finding in an email, or asks a
-lead what they'd pay — it is dead. Those three tells catch nearly every stale
-document you have.
+that is not 2,000 / 900 / 500, or tells you to put a finding in an email, or
+asks a lead what they'd pay — it is dead. Those three tells catch nearly every
+stale document you have.
 
 ## 7. What is actually still unknown
 
@@ -129,6 +139,15 @@ Be honest about the open bet, because it is the only thing that matters now:
 
 - **No call has ever been booked, for anyone.** The call-ask CTA is one week
   old. It has never been tested at volume.
+- **Nobody has bought The Named Fifty.** It is one day old and has never been
+  offered to a human. Test the cheap version first: example 8's "twenty names"
+  call ask tests the same premise (does a deliverable in the call fix reply →
+  call) at zero build cost.
+- **Volume is a fifth of the floor.** The Rule of 100 says 100 primary actions
+  a day; you run 15-50 across two inboxes. This is fixed with MORE INBOXES
+  (four to five at 20-25/day), never by sending more per inbox. It is the
+  largest uncapped lever you have and everything else is a percentage
+  improvement on a base five times too small.
 - **The delivery math is unproven.** Five calls in 30 days needs roughly one
   reply in seven to book. Plausible — the CTA has never once asked — but it is a
   bet, and Five or Free means you carry it.

@@ -16,7 +16,7 @@ The whole problem this skill solves: the draft has to be right on the first try,
 Do these in sequence. Do not skip ahead to writing.
 
 1. **Identify the track, then the email type.** Which CRM does this lead live in?
-   - **UAE Lead CRM** (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`) — the active pipeline. Read `references/uae-track.md` before drafting anything for these leads: the offer is The First Five (1,500 AED setup credited against the first three calls, then 600 AED per call that happens, never a discount), the lifecycle differs, and the turn-two call ask, the guarantees, the stack and the downsell ladder all live there. The UAE worked examples at the top of `references/examples.md` are the anchor for these — pattern-match to them, not to the parenting examples below.
+   - **UAE Lead CRM** (`collection://5efbdd9b-1e19-468c-96db-f94a525846e0`) — the active pipeline. Read `references/uae-track.md` before drafting anything for these leads: the offer is The First Five (2,000 AED setup, then 900 AED per qualified call that happens, billing from call one, never a discount; the AED 500 Named Fifty is the attraction offer), the lifecycle differs, and the turn-two call ask, the guarantees, the stack and the downsell ladder all live there. The UAE worked examples at the top of `references/examples.md` are the anchor for these — pattern-match to them, not to the parenting examples below.
    - **Parenting Lead Pipeline** (`c6209e29-55ef-4781-b735-73b2a254e34f`) — live threads only, no new cold leads. Existing rules apply unchanged.
    Never log a lead into the other track's DB.
 
