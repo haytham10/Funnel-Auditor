@@ -15,7 +15,7 @@ scraper (sourcing + finding episode / About / profile pages).
 
 Everything web-fetchable (podcasts, YouTube, About pages, funnel walks,
 checkout probes) stays on Firecrawl, which is cheaper and already
-connected. This layer is deliberately small: the five Haytham-vetted
+connected. This layer is deliberately small: the Haytham-vetted
 actors below and nothing else. Adding actors is surface area and cost, not
 capability.
 
@@ -45,6 +45,8 @@ reason to look before a run that costs real money.
     yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number Firecrawl can't read for YT-native coaches)
     email       account56/email-verifier                MillionVerifier-backed address verification
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
+    x_tweets    xquik/x-tweet-scraper                   X posts, searches, timelines, lists, threads, and engagement
+    x_followers xquik/x-follower-scraper                public X relations, lists, communities, and overlap
 
     (yt_channel added 2026-07-19 for the qualifier's audience floor: a coach
     whose only sizeable channel is YouTube (subscriber count is JS/login-walled
@@ -86,12 +88,15 @@ reason to look before a run that costs real money.
   $10/1k — only pass `with_email=True` when you're actually hunting an
   address. Never re-verify an address already MX-confirmed.
 - Search: tight scoped queries, low page counts.
+- X: explicit, bounded runs only. Keep existing X integrations available.
+  Set both `maxItems` and a server-side maximum charge.
 
 ## Cost approval gate
 
 Every wrapper below (`instagram`, `instagram_post`, `linkedin_posts`,
-`linkedin_profile`, `youtube_channel`, `verify_emails`, `google_search`) estimates the run's
-cost BEFORE calling Apify — its primary charge event's live per-unit price
+`linkedin_profile`, `youtube_channel`, `verify_emails`, `google_search`,
+`x_tweets`, `x_followers`) estimates the run's cost BEFORE calling Apify.
+It uses the primary charge event's live per-unit price
 (read from `GET /v2/acts/<id>`, at this account's actual plan tier) times
 the item count the call implies (`resultsLimit`, `maxPosts`,
 `len(emails)`, `pages`, ...). If that estimate is missing (pricing
@@ -120,6 +125,7 @@ from typing import Any
 
 import requests
 
+from audit.apify_xquik import x_followers, x_tweets  # noqa: F401 - public API
 from audit.footprint import (  # re-exported for backward compat (tests import these off `apify`)
     PLATFORM_FOOTPRINTS,
     _host_of,
@@ -139,6 +145,8 @@ ACTORS = {
     "yt_channel": "apidojo~youtube-channel-information-scraper",
     "email": "account56~email-verifier",
     "search": "apify~google-search-scraper",
+    "x_tweets": "xquik~x-tweet-scraper",
+    "x_followers": "xquik~x-follower-scraper",
 }
 
 # Default sync-run ceiling. run-sync-get-dataset-items holds the HTTP
@@ -175,7 +183,8 @@ class ApifyCostApprovalRequired(ApifyError):
         if estimated_usd is None:
             detail = f"cost could not be estimated ({reason})" if reason else "cost could not be estimated"
         else:
-            detail = f"estimated cost ${estimated_usd:.3f}"
+            label = reason or "estimated cost"
+            detail = f"{label} ${estimated_usd:.3f}"
         super().__init__(
             f"{detail} for {actor_id} — exceeds the ${COST_APPROVAL_THRESHOLD_USD:.2f} "
             "approval threshold. Get Haytham's approval, then re-run with "
@@ -206,6 +215,8 @@ def run_actor(
     *,
     timeout_secs: int = _SYNC_TIMEOUT_SECS,
     memory_mbytes: int | None = None,
+    max_items: int | None = None,
+    max_total_charge_usd: float | None = None,
 ) -> list[dict]:
     """Run an actor synchronously and return its dataset items.
 
@@ -217,6 +228,14 @@ def run_actor(
     params: dict[str, Any] = {"timeout": timeout_secs}
     if memory_mbytes:
         params["memory"] = memory_mbytes
+    if max_items is not None:
+        if max_items <= 0:
+            raise ApifyError("max_items must be greater than zero")
+        params["maxItems"] = max_items
+    if max_total_charge_usd is not None:
+        if max_total_charge_usd <= 0:
+            raise ApifyError("max_total_charge_usd must be greater than zero")
+        params["maxTotalChargeUsd"] = max_total_charge_usd
     try:
         resp = requests.post(
             f"{APIFY_BASE}/acts/{actor_id}/run-sync-get-dataset-items",

@@ -997,7 +997,7 @@ def cmd_apify(args) -> None:
     prints `{"error": ..., "needs_approval": true, "estimated_usd": ...}`
     and exits 3 instead of running — get Haytham's approval, then re-run
     the same command with `--approve-cost`."""
-    from audit import apify
+    from audit import apify, apify_xquik_cli
 
     cmd = args.apify_command
     approved = getattr(args, "approve_cost", False)
@@ -1027,6 +1027,8 @@ def cmd_apify(args) -> None:
                                          approved=approved)
         elif cmd == "youtube":
             out = apify.youtube_channel(args.channel, raw=args.raw, approved=approved)
+        elif cmd in apify_xquik_cli.COMMANDS:
+            out = apify_xquik_cli.run_command(apify, args, approved)
         elif cmd == "verify-email":
             out = apify.verify_emails(args.addresses, raw=args.raw, approved=approved)
         elif cmd == "search":
@@ -1587,6 +1589,10 @@ def main() -> None:
     a_yt.add_argument("--approve-cost", action="store_true",
                       help="Haytham has approved this run's estimated cost (only needed if "
                            "it's over $0.10 — see audit/apify.py's cost approval gate)")
+
+    from audit import apify_xquik_cli
+
+    apify_xquik_cli.add_subparsers(apify_sub)
 
     a_ver = apify_sub.add_parser("verify-email", help="verify one or more addresses before they enter the CRM")
     a_ver.add_argument("addresses", nargs="+")
