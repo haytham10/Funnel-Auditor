@@ -37,6 +37,32 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-28 — uae-tick: 32-lead overnight batch reconciled, `crm-gate log` false-FAIL bug found and fixed, two live call-asks now standing
+
+Scheduled daily tick, fresh session on `uae-track`. The entire 32-lead due-today batch (17 Inbox 1 + 15 Inbox 2 — every row with `Next Action` = 2026-07-28) had already been drafted by the previous tick, reviewed by Haytham, and departed overnight/this morning before this session started. Reconciled all 32 against Gmail reality via 4 parallel agents (8 leads each): 30 were the mechanical cold Touch 2→3 disambiguating-question closer, no reply on any thread, cold sequence complete → `Dormant`, `Next Action` bumped 2026-08-11 (confirmed non-Sunday). Two were NOT standard closes:
+- **Rita Sanna** — cold Touch 1→2, carries `call-ask`: proposed "Wednesday morning or Thursday around 3." No reply yet. Stays `Outreach Sent`, `Next Action` 2026-08-03 (day 9).
+- **Lucia Csobonyei** — warm Touch 5→6: she'd replied confused to the Touch 5 iheal finding ("I don't understand what are you referring to"); Haytham deleted the first redraft and sent a reframed Touch 6 that drops iheal entirely and closes with a call-ask (Thursday morning / Friday ~2pm). Stays `Reply Received`/Warm, `Next Action` 2026-07-30.
+
+**Real bug found and fixed, not just a data problem.** Several of the 32 reconciliations initially FAILed `crm-gate log` with "no block for touch N" even though the touch was correctly logged. Root cause: `audit/crm_gate.py`'s `touch_blocks()` only ever recognized the legacy `[date] — Touch #N —` header — it was never updated for the `TOUCH: n=N dir=out ...` sentinel grammar that `touch-log render` produces and that `docs/uae-track/log-grammar.md` (2026-07-27) declares the only sanctioned way to write a line. Every lead logged with the new grammar was silently false-failing this gate. Fixed `touch_blocks()` to also count v2 touches via `audit.touchlog.parse_body` (local import, dodges a circular import — `touchlog` imports `parse_findings_bank` from `crm_gate`). Found a second, narrower bug while verifying the fix on Rita Sanna's real page: her legacy Touch #1 header had no trailing "Reply:"/"Next:" lines, so `touchlog.parse_body`'s legacy body-scan (which only stopped at another legacy header/heading/reply) swallowed the immediately-following v2 Touch #2 block whole. Fixed by also stopping the legacy scan at a `TOUCH:`/`OFFER:`/`SOURCE:` sentinel line. Both fixes verified against the actual affected Notion rows (not just synthetic tests) before and after; regression tests added (`tests/test_log_integrity_gate.py`, `tests/test_touchlog.py`); full suite green (322 passing). Commit `8603593`, pushed to `uae-track`.
+
+**Minor follow-up, non-blocking:** several of the newly-inserted `TOUCH:` blocks (written by the reconciliation agents via Notion's `update_content`) carry a 3-backtick fence (```` ```javascript ```` ) instead of the log-grammar spec's literal 4-backtick fence. This means the sent body isn't attached to the parsed touch record (`body: None`) — `log-lint` reports this as a WARN ("empty body on a non-bounce touch"), never an ERROR, and it doesn't affect `crm-gate log`'s touch-count check (confirmed). Worth a cleanup pass re-inserting the correct 4-backtick fence on the affected rows, but not urgent.
+
+**Top-of-funnel moved for the first time in 3 ticks:** after 07-25/26/27 all showing 0 `Sourced`/`Qualifying`/`Audit Ready`, this tick found 1 `Audit Ready` (Silvia Vladimirova, textalent.io — Finding Verified + Email Verified, no `Inbox` assigned yet, needs `haytham-hook-finder` before a draft can exist) and 1 `Qualifying` (Nedal Mohamadeiah, no email yet). Still thin, but not zero.
+
+**Reply sweep:** clean beyond what's already logged — Christina Steinhoff's autoresponder resurfaced again (4th confirmed instance, no action), Lisa Hugo/Dina Taji/Rita Baki's 07-27 replies were all already fully reconciled with no new development.
+
+**Ceilings:** Inbox 1 25/day (ramp step 2, day 7 — RAMP REMINDER: eligible for 30 if deliverability held, Haytham's call), Inbox 2 25/day (ramp step 2, day 4, next step eligible 2026-07-31). Today's sends: Inbox 1 17/25, Inbox 2 15/25 — both entirely the overnight batch above, no new opener headroom spent.
+
+**Conversion ladder — still 0/9 replies converted to a booked call, but two live standing call-asks now exist for the first time**, both awaiting reply: Rita Sanna (Wed morning/Thu ~3pm) and Lucia Csobonyei (Thu morning/Fri ~2pm). Worth watching closely on the next tick.
+
+**Hygiene:** clean sweep — no stale Asked For Price, no un-turn-two'd stale Reply Received, no Touch #0 on Outreach Sent, no cold Touch ≥4, no Sunday-landing Next Action. Notion SQL quota ran out partway through (as usual) right after the due-today query, before the future-dated-Last-Contacted check could run — deferred, same recurring limitation as prior ticks. Scoreboard not due (last partial computation was yesterday, 07-27).
+
+### Open follow-ups
+- [ ] Silvia Vladimirova needs `haytham-hook-finder` to get a hook + held draft — first fresh Audit Ready lead in 3 ticks.
+- [ ] Cosmetic: re-fence the ~13-ish v2 `TOUCH:` blocks written this tick with 3 backticks instead of 4 (log-lint WARN only, not blocking).
+- [ ] `Run source-leads`/`qualify-leads` — top-of-funnel is still thin (1 Audit Ready, 1 Qualifying) even after today's small movement.
+- [ ] Watch Rita Sanna's and Lucia Csobonyei's threads next tick for a reply to their standing call-asks.
+
 ## 2026-07-27 — The opener is a cold read, not a finding (PR 4 of the First Five pivot)
 
 **Findings stopped opening emails.** Every coach already wants more booked
