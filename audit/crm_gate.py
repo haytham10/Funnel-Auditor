@@ -252,6 +252,39 @@ EARNED_STATUSES = (
     "Won",
 )
 
+# --- Offer tiers (added 2026-07-28 with The Named Fifty) --------------------
+#
+# There are now TWO priced offers, and they cannot share one gate.
+#
+#   core       — The First Five (AED 2,000 setup + 900/qualified call). The
+#                flagship. Requires the EARNED RIGHT, unchanged: an earned
+#                status or `Asked For Price`. Quoting it to a stranger is a
+#                cold pitch dressed as an offer, which is what the rule has
+#                always existed to stop.
+#
+#   attraction — The Named Fifty (AED 500, 50 verified UAE contacts in 72
+#                hours). Its whole JOB is to be the first paid yes, so gating
+#                it behind the earned right would make it unsendable and
+#                pointless. It still is not cold-pitchable: it requires a live
+#                two-way thread — she has replied.
+#
+# The distinction that matters is not price, it is whether the offer is
+# supposed to CREATE the relationship or CONVERT one. Never let a caller quote
+# the core offer through the attraction tier; the tier is chosen by which offer
+# is being drafted, never by which verdict the caller wants.
+OFFER_TIERS = ("core", "attraction")
+
+# A reply is the floor for the attraction offer: she has to be in a live
+# conversation. Anything before this is a cold pitch with a price on it.
+REPLIED_STATUSES = (
+    "Reply Received",
+    "Call Booked",
+    "Offer Sent",
+    "Won",
+    "Leak Fix Sold",
+    "Leak Fix Delivered",
+)
+
 # Values that mean "no real verbatim answer was logged".
 _ANSWER_PLACEHOLDERS = {
     "", "-", "n/a", "na", "none", "not asked", "not asked yet", "tbd", "pending",
@@ -747,15 +780,25 @@ def check_log_integrity(row: dict, page_body: str) -> tuple[bool, list[str], lis
     return not problems, problems, notes
 
 
-def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
-    """Gate for Reply → Offer Sent (and for drafting the priced First Five offer).
+def check_offer(row: dict, now=None, tier: str = "core") -> tuple[bool, list[str], list[str]]:
+    """Gate for Reply → Offer Sent (and for drafting either priced offer).
 
-    The question this answers is NOT "do we know their budget" — it is "have
-    they earned the right to be told a number". Two routes earn it: they got
-    far enough down the funnel that a price is the obvious next thing (an
-    EARNED_STATUSES status), or they literally asked what it costs
-    (`Asked For Price`). Either one, and the priced offer is a reply. Neither,
-    and it is a cold pitch dressed as an offer.
+    `tier` picks which offer is being drafted (see OFFER_TIERS):
+
+    - **core** (default) — The First Five. The question this answers is NOT
+      "do we know their budget", it is "have they earned the right to be told
+      a number". Two routes earn it: they got far enough down the funnel that
+      a price is the obvious next thing (an EARNED_STATUSES status), or they
+      literally asked what it costs (`Asked For Price`). Either one, and the
+      priced offer is a reply. Neither, and it is a cold pitch dressed as an
+      offer.
+
+    - **attraction** — The Named Fifty (AED 500). Requires only a live thread
+      (a REPLIED_STATUSES status, or `Asked For Price`). The attraction offer
+      exists to BUY a customer, so gating it behind the earned right would
+      make it unsendable and defeat its purpose. It is still never cold: a
+      priced offer to someone who has never replied is a cold pitch at any
+      price.
 
     `Price Discovery Answer` / `Discovery Anchor` are ADVISORY here — they
     sharpen the number, they no longer license it. They come back as notes.
@@ -771,23 +814,49 @@ def check_offer(row: dict, now=None) -> tuple[bool, list[str], list[str]]:
     problems: list[str] = []
     notes: list[str] = []
 
+    tier = (tier or "core").strip().lower()
+    if tier not in OFFER_TIERS:
+        problems.append(
+            f'unknown offer tier "{tier}" — valid: {", ".join(OFFER_TIERS)}. '
+            "core = The First Five (needs the earned right), attraction = The Named "
+            "Fifty (needs a live thread)"
+        )
+        return False, problems, notes
+
     status = _norm(row.get("Status"))
-    by_status = status in EARNED_STATUSES
     by_ask = _is_checked(row.get("Asked For Price"))
 
-    if by_status:
-        notes.append(f'earned by status "{status}"')
-    if by_ask:
-        notes.append("earned by ask (Asked For Price checked)")
-
-    if not (by_status or by_ask):
-        problems.append(
-            f'the lead has not earned a number yet: Status = "{status or "unset"}" is '
-            f'not one of {", ".join(EARNED_STATUSES)}, and `Asked For Price` is '
-            "unchecked. Two routes earn it — get them to an earned status (a booked "
-            "call), or check `Asked For Price` once they have actually asked what it "
-            "costs. Naming a price before either is a cold pitch, not an offer"
-        )
+    if tier == "attraction":
+        by_status = status in REPLIED_STATUSES
+        if by_status:
+            notes.append(f'attraction tier: live thread by status "{status}"')
+        if by_ask:
+            notes.append("attraction tier: live thread by ask (Asked For Price checked)")
+        if not (by_status or by_ask):
+            problems.append(
+                f'the attraction offer (The Named Fifty, AED 500) needs a LIVE THREAD: '
+                f'Status = "{status or "unset"}" is not one of '
+                f'{", ".join(REPLIED_STATUSES)}, and `Asked For Price` is unchecked. '
+                "The attraction offer is allowed to skip the earned right — it exists "
+                "to buy a customer — but a priced offer to someone who has never "
+                "replied is a cold pitch at any price. Get a reply first"
+            )
+    else:
+        by_status = status in EARNED_STATUSES
+        if by_status:
+            notes.append(f'earned by status "{status}"')
+        if by_ask:
+            notes.append("earned by ask (Asked For Price checked)")
+        if not (by_status or by_ask):
+            problems.append(
+                f'the lead has not earned a number yet: Status = "{status or "unset"}" is '
+                f'not one of {", ".join(EARNED_STATUSES)}, and `Asked For Price` is '
+                "unchecked. Two routes earn it — get them to an earned status (a booked "
+                "call), or check `Asked For Price` once they have actually asked what it "
+                "costs. Naming a price before either is a cold pitch, not an offer. "
+                "If you meant the AED 500 Named Fifty, run the gate with "
+                "--tier attraction (a live thread is enough for that one)"
+            )
 
     # --- advisory from here down: reported, never blocking --------------------
     answer = _norm(row.get("Price Discovery Answer"))
@@ -1146,14 +1215,19 @@ def check_send(
     return (not problems), problems, notes
 
 
-def print_offer(row_json: str | Path) -> int:
+def print_offer(row_json: str | Path, tier: str = "core") -> int:
     row = _load_row(row_json)
-    ok, problems, notes = check_offer(row)
+    ok, problems, notes = check_offer(row, tier=tier)
     name = _norm(row.get("Contact Name")) or "unnamed lead"
+    # The core tier keeps the bare `offer` label it has always had: every skill
+    # quotes this line literally, and several match on the exact prefix. Only
+    # the new tier gets a suffix.
+    t = (tier or "core").strip().lower()
+    label = "offer" if t == "core" else f"offer/{t}"
     if ok:
-        print(f"CRM GATE (offer): PASS — {name}: " + ", ".join(notes))
+        print(f"CRM GATE ({label}): PASS — {name}: " + ", ".join(notes))
         return 0
-    print(f"CRM GATE (offer): FAIL — {name}: " + "; ".join(problems))
+    print(f"CRM GATE ({label}): FAIL — {name}: " + "; ".join(problems))
     return 1
 
 

@@ -322,7 +322,7 @@ def _cold_read_choices():
 def cmd_crm_gate(args) -> None:
     from audit import crm_gate
     if args.gate == "offer":
-        sys.exit(crm_gate.print_offer(args.row_json))
+        sys.exit(crm_gate.print_offer(args.row_json, tier=args.tier))
     if args.gate == "log":
         if not args.page_body:
             print("CRM GATE (log): FAIL — --page-body is required: path to the lead's "
@@ -1155,6 +1155,15 @@ def main() -> None:
              "audit/crm_gate.py",
     )
     p_crm.add_argument("gate", choices=["offer", "send", "log"])
+    p_crm.add_argument("--tier", choices=["core", "attraction"], default="core",
+                       help="(offer gate) which priced offer is being drafted. `core` (default) "
+                            "is The First Five (AED 2,000 setup + 900/call) and needs the EARNED "
+                            "RIGHT — an earned Status or `Asked For Price`. `attraction` is The "
+                            "Named Fifty (AED 500) and needs only a LIVE THREAD (she replied), "
+                            "because an attraction offer exists to buy a customer and would be "
+                            "unsendable behind the earned right. Pick the tier by which offer you "
+                            "are actually drafting, never by which verdict you want. Mirrors "
+                            "audit/crm_gate.OFFER_TIERS")
     p_crm.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
     p_crm.add_argument("--page-body",
                        help="(log gate) path to the lead's page body, fetched FRESH and dumped "
