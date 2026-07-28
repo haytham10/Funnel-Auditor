@@ -80,12 +80,13 @@ Read `references/walk.md` and `references/schema.md` now, before doing anything 
 
 No automatic dedup query here — querying the pipeline on every single walk was burning tokens for a check that's rarely the actual failure point. If Haytham already has the lead's Notion page open or pasted, that page IS the dedup check; a walk on an existing row just overwrites it fresh, which is fine. Only query the pipeline for a name/URL match if something feels off — e.g. Haytham pastes a lead with no page link at all, or a name that rings a bell — and even then, one targeted query, not a routine step.
 
-**Gate 0 (docs/uae-track/03).** Sourcing and the `qualify-leads` gate are supposed to settle this upstream, but the old pipeline's rows proved gates get skipped, so the walk re-enforces all four before any touches get spent. The machine-checkable half comes back in the evidence packet (`audit/gates.py`); complete the rest by judgment:
+**Gate 0 (docs/uae-track/03).** Sourcing and the `qualify-leads` gate are supposed to settle this upstream, but the old pipeline's rows proved gates get skipped, so the walk re-enforces all five before any touches get spent. The machine-checkable half comes back in the evidence packet (`audit/gates.py`); complete the rest by judgment:
 
 - **UAE-based:** physically in Dubai, Abu Dhabi, Sharjah, or elsewhere in the UAE. "Serves the region" does not count. Check the About page, LinkedIn location, event appearances from the Step A search.
 - **Has a funnel or paid product:** a live sales page, checkout, course, or paid digital offer exists. A coach who only sells 1:1 by DM or call has nothing to fix — out of scope.
 - **Activity floor:** posted, emailed, or launched something within the last **30 days**. Check this against the Step A search results, not secondhand notes.
 - **Audience floor:** **1,500+** on their largest owned or social channel. UAE audiences run smaller; a 2K UAE-focused list is worth what 8K is in the US.
+- **Price floor (added 2026-07-28):** her **HIGHEST live program is AED 5,000 or above** — not her cheapest workshop. This is the re-niche: a coach with an AED 800 program cannot make AED 900/call work at any price, so a reply from her was never revenue. You have just walked her whole funnel, so you are in the best position in the pipeline to settle this — read the full offer ladder, and record the number on `Top Program Price (AED)`. If the highest price you can see is under the floor, check for an application-only tier before failing her; application work is routinely off-page and a Gate 0 fail is permanent. No price anywhere = leave blank and hold, never a soft pass.
 
 Any floor failed → set `Gate 0` = Fail, `Status` = Disqualified, one-line reason in Notes, and stop. Do not linger. The floor exists to protect walks and touches, which are the scarcest resources — every opener under each inbox's daily send ceiling needs a verified finding behind it.
 
@@ -95,10 +96,10 @@ Reason` (select)** in the same write (added 2026-07-27,
 verdict without a floor is now incomplete. `Gate 0 Failed Floors` takes
 ALL floors that failed (a lead can fail more than one), from EXACTLY this
 list, no others: `Not UAE-based`, `No funnel or paid offer`, `Inactive
-30d`, `Audience below floor`. `Disqualification Reason` takes the single
+30d`, `Audience below floor`, `Program below AED 5000`. `Disqualification Reason` takes the single
 best-matching bucket for Notes/the write-up, from EXACTLY this list, no
 others: `Not UAE-based`, `No funnel / no paid offer`, `Inactive 30+ days`,
-`Audience below floor` (plus `Has team/gatekeeper`, `No deliverable
+`Audience below floor`, `Program below AED 5000` (plus `Has team/gatekeeper`, `No deliverable
 email`, `Duplicate/re-sourced by mistake`, `Lane 3 skip`, `Wrong fit`,
 `Manual judgement call by Haytham`, `Other` — those last six are set by
 other steps/skills, not this one). Note the deliberate spelling

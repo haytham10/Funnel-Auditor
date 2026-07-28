@@ -208,6 +208,19 @@ purchasable:
   (a coach with reach may launch an offer later), and move on.
 - A candidate whose link to a real offer you can't find in one obvious hop
   does NOT get a row — same "seen, no offer found" list.
+- **Log the top program price whenever it is visible** (added 2026-07-28). Gate
+  0 now has a fifth floor: her HIGHEST live program must be AED 5,000 or above.
+  Sourcing still does not GATE on it — you collect, `qualify-leads` decides —
+  but a price you already saw while confirming the offer is free information
+  that saves the qualifier a fetch. Put it in Notes as `top price: AED 6,600
+  (1:1 containers)`, or `top price: none visible`. Never guess one, and never
+  drop a candidate over it: application-only work is routinely off-page, so a
+  cheap visible product is not evidence that nothing expensive exists.
+- **Bias the veins toward the money, though.** The re-niche means a coach whose
+  whole ladder tops out at AED 500 is now a Gate 0 kill, so veins that surface
+  premium operators (corporate/executive work, speaker bureaus, application-only
+  1:1, high-ticket retreats) are worth more per name than volume veins that
+  surface AED 99 mini-courses. Same collect-only job, better-aimed.
 
 **Only the orchestrator writes rows.** A `sourcing-worker` RETURNS these fields
 per candidate; it never calls `notion-create-pages` (it can't see what a sibling

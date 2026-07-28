@@ -159,6 +159,28 @@ def test_unsanctioned_cold_read_fails():
     assert any("is not a sanctioned pattern" in p for p in problems), problems
 
 
+def test_retired_price_display_cold_reads_fail_with_a_redraft_message():
+    # The v1 list was written against the funnel-fix offer: price-invisible,
+    # no-aed and price-band all observe how she displays a PRICE. Under The
+    # First Five beat 2 has to terminate in an empty chair, and a prospect
+    # reads beat 2 and beat 5 as one sentence — "your price isn't visible" then
+    # "let me book calls for you" makes her build the bridge herself. They fail
+    # with an explanation and a redraft list, not a bare "not sanctioned".
+    from audit.crm_gate import RETIRED_COLD_READS
+    for retired in RETIRED_COLD_READS:
+        ok, problems, notes = _opener(_ALL_RESERVED, cold_read=retired)
+        assert not ok, retired
+        assert any("is RETIRED" in p and "half-empty-week" in p
+                   for p in problems), (retired, problems)
+
+
+def test_retired_cold_reads_are_not_also_sanctioned():
+    # Belt and braces: a retired id must never appear on both lists, or the
+    # RETIRED branch is dead code and the pattern silently ships.
+    from audit.crm_gate import COLD_READS, RETIRED_COLD_READS
+    assert not set(COLD_READS) & set(RETIRED_COLD_READS)
+
+
 def test_all_reserved_bank_passes_touch_1_with_a_cold_read():
     # THE regression for this whole change. Before 2026-07-27 an all-RESERVED
     # bank could not pass touch 1 at all — three independent vetoes fired
@@ -166,9 +188,9 @@ def test_all_reserved_bank_passes_touch_1_with_a_cold_read():
     # returned None so freshness failed on "no entry to check"). A walked lead
     # is now all-RESERVED by definition, so if this ever goes red again the
     # entire cold pipeline is blocked.
-    ok, problems, notes = _opener(_ALL_RESERVED, cold_read="price-invisible")
+    ok, problems, notes = _opener(_ALL_RESERVED, cold_read="half-empty-week")
     assert ok, problems
-    assert any('cold read "price-invisible"' in n for n in notes), notes
+    assert any('cold read "half-empty-week"' in n for n in notes), notes
 
 
 def test_touch_1_does_not_freshness_check_a_finding_it_never_sends():
@@ -176,7 +198,7 @@ def test_touch_1_does_not_freshness_check_a_finding_it_never_sends():
     # cites no finding, so there is nothing for a stale one to misstate. Warm
     # touches still get the ceiling (see test_finding_staleness.py).
     stale = "1. RESERVED | DEEP | verified:2026-07-01 | pricing split across 4 platforms"
-    ok, problems, notes = _opener(stale, cold_read="no-aed")
+    ok, problems, notes = _opener(stale, cold_read="agency-burn")
     assert ok, problems
 
 

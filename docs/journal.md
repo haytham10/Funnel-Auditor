@@ -37,6 +37,112 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-28 — The First Five v2: repriced to 2,000/900, re-niched to AED 5,000+, The Named Fifty added as the attraction offer
+
+Haytham brought three documents from his Claude project — an offer study run
+through the Hormozi skills, plus v2 cold-reads and v2 examples. The two copy
+files were shippable as-is; the study was a decision packet. He took all three
+recommendations after a recommendation-with-pushback.
+
+**Shipped first (copy, independent of the pricing decision):**
+- **`cold-reads.md` v2.** The v1 list was written against the funnel-fix offer:
+  `price-invisible`, `no-aed` and `price-band` all observe how she displays a
+  PRICE, which is a non-sequitur when the thing being sold is a booked call. A
+  prospect reads beat 2 and beat 5 as one sentence. Six patterns now, every one
+  terminating in an empty chair, `half-empty-week` leading. `COLD_READS`
+  updated; `RETIRED_COLD_READS` added so a retired id fails with a redraft list
+  rather than a bare "not sanctioned", and the CLI accepts the retired ids on
+  purpose so the gate is what fails.
+- **`examples.md` v2.** The four sent UAE openers (finding opener, question
+  close, 9 replies / 0 calls) replaced by 12 worked examples of the current five
+  beats, plus a 13th for the Named Fifty. Parenting examples untouched.
+
+**The three decisions, and what each cost:**
+
+1. **Repriced to AED 2,000 setup + 900/qualified call, billing from call one,
+   no credit-back.** AED 600 is $163 — below the *basic* tier ($150-300, "a name
+   and a slot") while delivering the top tier ($400-750, BANT-verified with
+   no-show replacement). The credit-back gave away AED 1,800 of month-one cash
+   for a concession Five or Free already buys. The "price never moves" rule was
+   not violated: it exists to protect the read on a running test, and there was
+   no test and no closes. Frozen now until two clients are delivered.
+   Guarantees also changed: **The Empty Chair Guarantee** (renamed), and **Five
+   or Free upgraded from a refund to a SERVICE guarantee** with the clock
+   starting at FIRST SEND, not payment — domain warming ate two to three weeks
+   of a 30-day window, which made the old wording close to unwinnable.
+2. **Re-niched to a live program at AED 5,000+**, as Gate 0's fifth floor in
+   `audit/gates.py`. Purchasing power is the market study's one measured FAIL.
+   Two design decisions inside it: floating currencies get a **band**, not a
+   rate, and the gate only rules when every rate in the band agrees; and a
+   scraped price can **promote but never kill**, because application-only 1:1
+   work is routinely off-page and a Gate 0 hard fail is permanent.
+3. **The Named Fifty** (AED 500, 50 verified UAE contacts in 72h) as the
+   attraction offer, `docs/uae-track/05-the-named-fifty.md`. Needed a new gate
+   shape: `crm-gate offer --tier attraction` requires a LIVE THREAD instead of
+   the earned right, because an attraction offer exists to buy a customer and
+   the earned right would make it unsendable. Core tier unchanged and still the
+   default, and it keeps the bare `CRM GATE (offer):` label because skills match
+   that prefix.
+
+**Gotchas:**
+- Moving the price-floor helpers into `audit/gates.py` was forced, not stylistic:
+  `evidence.py` imports Playwright, so anything living there is untestable in a
+  managed session.
+- **The `Program below AED 5000` select option was deliberately NOT created.**
+  Notion creates a select option on first write, and a DDL `ALTER` would have
+  rewritten the option list across 246 already-disqualified rows for a cosmetic
+  addition. The first real price-floor kill creates it. `Top Program Price
+  (AED)` (number) WAS added live — purely additive, zero risk.
+- 41 new tests; suite green at 357.
+
+### Open follow-ups
+- [ ] **Test the cheap version of the Named Fifty premise first.** Example 8's
+      "twenty names" call ask puts a deliverable in the call at zero build cost
+      and tests the same hypothesis. Only build the AED 500 product if that
+      moves reply → call.
+- [ ] **Stand up 3 more warmed inboxes.** The Rule of 100 floor is 100 actions
+      a day; we run 15-50 across two. This is the largest uncapped lever and
+      everything else is a percentage improvement on a base five times too
+      small. It cannot be fixed by raising a per-inbox ceiling.
+- [ ] Re-pitch the six live warm threads (Dina, William, Avneet, Rita, Lee,
+      Lucia) on the new offer. Human job.
+- [ ] The two unsourced cold reads (`call-centric`, `waiting-room`) still need a
+      fresh CRM count before they can ship.
+
+## 2026-07-28 — Recalibration: `docs/START-HERE.md` added, stale finding-era text purged from the outreach method
+
+Haytham said the pivot left him lost — the vision was clear before the offer
+swap and is now blurry, and his Claude project is full of docs he can no longer
+tell apart. Diagnosed as a doc problem, not a strategy problem: the strategy is
+coherent, but three post-pivot documents still asserted the pre-pivot method, and
+a retired doc that still claims authority keeps winning arguments after it's
+dead.
+
+- **New `docs/START-HERE.md`** — the single orientation page. Offer in one
+  sentence, why it changed (the two mechanical causes: question-CTA can't book,
+  a finding in an inbox is a free fix), the five beats of the opener, the machine
+  in one line per stage, the five gates that fail closed, a canonical / advisory
+  / historical ledger over every doc in the repo, and the one open bet
+  (reply → call, still 0). Linked from the top of `CLAUDE.md`.
+- **`04-the-outreach-method.md` was the worst offender and is now corrected.**
+  It still told the reader to lead the opener with the verified finding, still
+  had the free Loom as the turn-two artifact, and still named GSO v2 as the
+  priced offer. Fixed: standard motion steps 2/3/7, Lane 1's opener line, the
+  whole OPENER section (rewritten to the five beats), TURN TWO, WHEN THEY SAY
+  YES, and THE ARTIFACT (marked RETIRED with the delivery-speed lesson kept).
+  "The finding is what earns the reply" corrected to "specificity is what earns
+  the reply" — the reply rate held, the carrier was wrong.
+- **The three-tell heuristic** for triaging his Claude project offline: a doc is
+  dead if it names a price that isn't 1,500 / 600, puts a finding in an email, or
+  asks a lead what they'd pay.
+
+### Open follow-ups
+- [ ] Haytham to delete or archive the superseded docs in his own Claude project
+      using the three-tell heuristic; the repo copies are now labelled.
+- [ ] Nothing in the machine changed. The only number that matters is
+      reply → call, still 0 of 9, with two live call-asks standing (Rita Sanna,
+      Lucia Csobonyei).
+
 ## 2026-07-28 — uae-tick: 32-lead overnight batch reconciled, `crm-gate log` false-FAIL bug found and fixed, two live call-asks now standing
 
 Scheduled daily tick, fresh session on `uae-track`. The entire 32-lead due-today batch (17 Inbox 1 + 15 Inbox 2 — every row with `Next Action` = 2026-07-28) had already been drafted by the previous tick, reviewed by Haytham, and departed overnight/this morning before this session started. Reconciled all 32 against Gmail reality via 4 parallel agents (8 leads each): 30 were the mechanical cold Touch 2→3 disambiguating-question closer, no reply on any thread, cold sequence complete → `Dormant`, `Next Action` bumped 2026-08-11 (confirmed non-Sunday). Two were NOT standard closes:

@@ -1,6 +1,6 @@
 ---
 name: qualifier-worker
-description: Gates a SLICE of raw Sourced UAE rows (roughly 15) against Gate 0 (UAE-based, funnel/paid product, 30-day activity, 1,500+ audience) and Gate 1 (solo operator), and writes each verdict. It REACHES A REAL VERDICT by spending the cheapest tool that resolves each blocked datum — Firecrawl first, then the right count-only Apify actor (LinkedIn/IG/YouTube) — instead of deferring to manual review. Spawned by the qualify-leads orchestrator, several in parallel over disjoint slices. Never walks a funnel, never sends, never logs in as Haytham. Its verdicts are re-checked by an independent qualifier-verifier.
+description: Gates a SLICE of raw Sourced UAE rows (roughly 15) against Gate 0 (UAE-based, funnel/paid product, 30-day activity, 1,500+ audience, top live program AED 5,000+) and Gate 1 (solo operator), and writes each verdict. It REACHES A REAL VERDICT by spending the cheapest tool that resolves each blocked datum — Firecrawl first, then the right count-only Apify actor (LinkedIn/IG/YouTube) — instead of deferring to manual review. Spawned by the qualify-leads orchestrator, several in parallel over disjoint slices. Never walks a funnel, never sends, never logs in as Haytham. Its verdicts are re-checked by an independent qualifier-verifier.
 tools: Read, Bash, Grep, mcp__Firecrawl__firecrawl_search, mcp__Firecrawl__firecrawl_scrape, mcp__Notion__notion-fetch, mcp__Notion__notion-update-page, mcp__Notion__notion-query-data-sources
 ---
 
@@ -37,6 +37,14 @@ login/JS-walled number Firecrawl genuinely can't return:
   `apify ig "<url>" --mode posts --newer-than "30 days"` → `timestamp`. (The
   YouTube channel actor does NOT give a last-upload date — get YT recency from
   Firecrawl on the channel's `/videos` page.)
+- **Price floor (AED 5,000+ top live program)** — Firecrawl her offer/pricing
+  pages and read the WHOLE ladder, then take the HIGHEST live program, not the
+  cheapest workshop. If the highest visible number is under the floor, spend one
+  more fetch looking for the hidden tier (an application page, "book a call to
+  discuss investment", a rate card, a directory listing) before ruling — a Gate 0
+  Fail is permanent and application-only 1:1 work is routinely off-page. No price
+  visible anywhere → `Not checked`, never a soft Pass. Non-AED: USD converts at
+  the 3.6725 peg; GBP/EUR only rule when every plausible rate agrees.
 - **UAE-base** — Firecrawl the About/footer; else `li-profile … location.full`
   (a concrete "Dubai, UAE" Firecrawl can't see) / `ig --mode details
   --include-about` / a UAE phone (+971) in a YouTube/site description.
@@ -91,7 +99,8 @@ other — the Caroline Bakker case), never for "the number wasn't on the homepag
     `docs/uae-track/schema-delta.md` — copy these literal strings, never
     freehand a new one): a Gate 0 fail sets `Gate 0 Failed Floors`
     (multi-select, every floor that failed) from EXACTLY `Not UAE-based` /
-    `No funnel or paid offer` / `Inactive 30d` / `Audience below floor`; a
+    `No funnel or paid offer` / `Inactive 30d` / `Audience below floor` /
+    `Program below AED 5000`; a
     Gate 1 fail sets `Gate 1 Failed Reason` (select) from EXACTLY `Team
     gatekeeper` / `Agency-run` / `Assistant-managed` / `Other`; either fail
     sets `Disqualification Reason` (select) from EXACTLY `Not UAE-based` /

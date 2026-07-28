@@ -42,7 +42,7 @@ from audit.extract import (
     visible_text, extract_headings, extract_prices, extract_emails,
     extract_dates, extract_availability,
 )
-from audit.gates import evaluate_floors
+from audit.gates import evaluate_floors, price_floor_input
 from audit.urls import same_site, slugify, strip_www
 from audit import vision_gate
 from config import BOOKING_EMBED_HOSTS, JS_BUTTON_NOISE_RE
@@ -610,6 +610,10 @@ def build_evidence(
             for p in pages if not p.page.external
         ),
         followers=followers,
+        **price_floor_input(
+            [(p.page.url, [pr.get("price", "") for pr in p.prices])
+             for p in pages if not p.page.external and not p.page.error]
+        ),
     )
 
     candidates = _leak_candidates(pages, result.seed_url)

@@ -103,7 +103,7 @@ def _sendable_row(**over):
 def test_send_blocks_when_email_verified_unchecked():
     ok, problems, _ = check_send(_sendable_row(**{"Email Verified": "__NO__"}),
                                  sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="price-invisible")
+                                 cold_read="half-empty-week")
     assert not ok
     assert any("Email Verified is unchecked" in p for p in problems)
 
@@ -112,7 +112,7 @@ def test_send_blocks_when_email_verified_missing_fails_closed():
     row = _sendable_row()
     del row["Email Verified"]
     ok, problems, _ = check_send(row, sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="price-invisible")
+                                 cold_read="half-empty-week")
     assert not ok
     assert any("Email Verified is unchecked" in p for p in problems)
 
@@ -120,14 +120,14 @@ def test_send_blocks_when_email_verified_missing_fails_closed():
 def test_send_passes_with_verified_email_and_headroom():
     ok, problems, _ = check_send(_sendable_row(),
                                  sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="price-invisible")
+                                 cold_read="half-empty-week")
     assert ok, problems
 
 
 def test_send_still_requires_finding_verified():
     ok, problems, _ = check_send(_sendable_row(**{"Finding Verified": "__NO__"}),
                                  sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="price-invisible")
+                                 cold_read="half-empty-week")
     assert not ok
     assert any("Finding Verified" in p for p in problems)
 
@@ -137,7 +137,7 @@ def test_send_no_address_reports_address_not_verified_flag():
     # they shouldn't double-report on the same missing field.
     ok, problems, _ = check_send(_sendable_row(**{"Email": "", "Email Verified": "__NO__"}),
                                  sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="price-invisible")
+                                 cold_read="half-empty-week")
     assert not ok
     assert any("no usable address" in p for p in problems)
     assert not any("Email Verified is unchecked" in p for p in problems)
@@ -147,11 +147,11 @@ def test_send_accepts_plain_yes_shape():
     # Notion checkboxes can arrive as bool true or "Yes" as well as "__YES__".
     ok, _, _ = check_send(_sendable_row(**{"Email Verified": True}),
                           sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="price-invisible")
+                                 cold_read="half-empty-week")
     assert ok
     ok2, _, _ = check_send(_sendable_row(**{"Email Verified": "Yes"}),
                            sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="price-invisible")
+                                 cold_read="half-empty-week")
     assert ok2
 
 

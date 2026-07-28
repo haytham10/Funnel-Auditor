@@ -160,7 +160,7 @@ def test_refused_to_name_emits_trust_warning():
     assert "TRUST signal" in warning[0]
     # Both guarantees by name — the answer to a refusal is more risk reversal,
     # never a smaller number. Names updated 2026-07-27 with The First Five.
-    assert "No-Show No-Charge" in warning[0], warning[0]
+    assert "Empty Chair" in warning[0], warning[0]   # renamed 2026-07-28
     assert "Five or Free" in warning[0], warning[0]
 
 

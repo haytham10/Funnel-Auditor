@@ -1,6 +1,6 @@
 ---
 name: qualify-leads
-description: Mechanically gate the UAE Lead CRM's raw `Sourced` rows — run Gate 0 (UAE-based, has a funnel/paid product, active in last 30 days, 1,500+ audience) and Gate 1 (solo operator, no gatekeeper) over each one, promoting survivors to `Qualifying` and killing fails to `Disqualified`. Triage speed, not a funnel walk — it resolves each floor with the cheapest tool that settles it (Firecrawl first, a no-login Apify actor for a login-walled follower count on LinkedIn/IG/YouTube), never a crawl. Use WHENEVER Haytham says "qualify the raw names," "qualify the sourced rows," "run Gate 0 on the batch," "gate the leads," "run the gates," "clear the Sourced pile," or when a batch of fresh `Sourced` rows needs gating before it can reach the Walk Queue. This is the step BETWEEN sourcing (`source-leads`, which only collects `Sourced` rows) and the funnel walk (`batch-audit`/`process-lead`, which works `Qualifying` rows). It never sources new candidates, never walks funnels, never sends anything, and never logs in to or acts as Haytham on any platform. Reads and writes the UAE Lead CRM only, never the parenting DB.
+description: Mechanically gate the UAE Lead CRM's raw `Sourced` rows — run Gate 0 (UAE-based, has a funnel/paid product, active in last 30 days, 1,500+ audience, top live program AED 5,000+) and Gate 1 (solo operator, no gatekeeper) over each one, promoting survivors to `Qualifying` and killing fails to `Disqualified`. Triage speed, not a funnel walk — it resolves each floor with the cheapest tool that settles it (Firecrawl first, a no-login Apify actor for a login-walled follower count on LinkedIn/IG/YouTube), never a crawl. Use WHENEVER Haytham says "qualify the raw names," "qualify the sourced rows," "run Gate 0 on the batch," "gate the leads," "run the gates," "clear the Sourced pile," or when a batch of fresh `Sourced` rows needs gating before it can reach the Walk Queue. This is the step BETWEEN sourcing (`source-leads`, which only collects `Sourced` rows) and the funnel walk (`batch-audit`/`process-lead`, which works `Qualifying` rows). It never sources new candidates, never walks funnels, never sends anything, and never logs in to or acts as Haytham on any platform. Reads and writes the UAE Lead CRM only, never the parenting DB.
 ---
 
 # Qualify Leads — the mechanical gate, as a skill
@@ -60,7 +60,7 @@ the next run.
 **Fan out, don't loop.** Split the batch into slices (roughly 15 rows each) and
 spawn one **`qualifier-worker`** per slice, at most 5 running at once. Each
 worker runs the Gate 0 → Gate 1 mechanics below over its slice — Gate 0 first
-(all four), then Gate 1 on Gate 0 survivors only, resolving each blocked datum
+(all five), then Gate 1 on Gate 0 survivors only, resolving each blocked datum
 with the cheapest tool (Firecrawl first, then the count-only actor per channel),
 `audit/gates.py` for the machine-checkable half (audience 1,500, activity 30
 days, funnel present; UAE residency comes back needs-review for the judgment
@@ -84,7 +84,7 @@ each worker executes; the orchestration above wraps them (`docs/agent-orchestrat
 A genuinely tiny pile (a handful of rows) can run inline with no fan-out — the
 orchestration earns its keep on a real batch, not on three rows.
 
-### Gate 0 — all four must be true. Resolve, then decide; any fail = Disqualified
+### Gate 0 — all five must be true. Resolve, then decide; any fail = Disqualified
 
 - **UAE-based:** site footer/About/LinkedIn location says Dubai, Abu Dhabi,
   Sharjah, or UAE. "Serves the region" from elsewhere = Fail. Not on the site?
@@ -108,6 +108,27 @@ orchestration earns its keep on a real batch, not on three rows.
   (or `Not checked` if a plausible channel just couldn't be located), never a
   soft Pass — that soft pass once sent three leads into walks that all failed on
   the real number.
+- **Price floor (added 2026-07-28):** her HIGHEST live program is AED 5,000 or
+  above. **This is the re-niche and it is the floor most likely to be gotten
+  wrong**, so three rules:
+  1. **Highest, not cheapest.** A AED 299 workshop next to AED 6,600 1:1
+     containers PASSES, on the containers. Read the whole offer ladder before
+     ruling.
+  2. **A visible low price is NOT a Fail on its own.** Application-only 1:1
+     work is routinely off-page, and a Gate 0 Fail is permanent. If the highest
+     visible price is under the floor, look for the hidden tier — an
+     application page, a "book a call to discuss investment" path, a rate card,
+     a directory listing, a podcast mention of her rate. Only Fail when you
+     have positive evidence her top program is genuinely below AED 5,000.
+  3. **No price anywhere = `Not checked`, never a soft Pass.** 48 of 122 walked
+     leads showed no price at all. That is the single most common state and it
+     is unresolved, not passing.
+
+  Foreign currencies: AED is hard-pegged to USD at 3.6725. For GBP/EUR use a
+  wide band and only rule when every plausible rate agrees (GBP 8,999 clears at
+  any rate; GBP 200 fails at any rate). Anything straddling AED 5,000 needs a
+  live rate. `audit/gates.py` does exactly this if you want the arithmetic
+  checked: `to_aed_band()` and `PROGRAM_PRICE_FLOOR_AED`.
 
 ### Gate 1 — the solo test (2 seconds, on Gate 0 survivors only)
 
@@ -127,13 +148,13 @@ Own face, own story, single-person About = Pass.
   - A Gate 0 fail → `Gate 0 Failed Floors` (multi-select, every floor that
     actually failed — a lead can fail more than one), from EXACTLY:
     `Not UAE-based`, `No funnel or paid offer`, `Inactive 30d`, `Audience
-    below floor`. No other strings.
+    below floor`, `Program below AED 5000`. No other strings.
   - A Gate 1 fail → `Gate 1 Failed Reason` (select) from EXACTLY: `Team
     gatekeeper`, `Agency-run`, `Assistant-managed`, `Other`.
   - Either fail → `Disqualification Reason` (select), the single
     best-matching bucket, from EXACTLY: `Not UAE-based`, `No funnel / no
-    paid offer`, `Inactive 30+ days`, `Audience below floor`, `Has
-    team/gatekeeper` (note this list's spelling deliberately differs from
+    paid offer`, `Inactive 30+ days`, `Audience below floor`, `Program below
+    AED 5000`, `Has team/gatekeeper` (note this list's spelling deliberately differs from
     `Gate 0 Failed Floors`' — do not swap one property's strings into the
     other). The exact literal list is what produced zero select-option
     errors across 61 leads in Wave 1 — copy from here, never freehand a

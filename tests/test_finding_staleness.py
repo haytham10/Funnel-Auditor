@@ -145,7 +145,7 @@ def _send_touch1(verified, **kw):
     bank = _bank(verified, rank=1)
     row = dict(_BASE, **{"Findings Bank": bank})
     base = dict(row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP,
-                now=_NOW, cold_read="price-invisible")
+                now=_NOW, cold_read="half-empty-week")
     base.update(kw)
     return crm_gate.check_send(**base)
 
@@ -174,7 +174,7 @@ def test_send_touch2_second_cold_read_checks_no_finding():
     row = dict(_BASE, **{"Findings Bank": bank})
     ok, problems, _ = crm_gate.check_send(
         row=row, sends_today=1, touch=2, carries="second-cold-read",
-        cold_read="no-aed", cap_state=_CAP, now=_NOW,
+        cold_read="agency-burn", cap_state=_CAP, now=_NOW,
     )
     assert ok, problems
 
@@ -206,7 +206,7 @@ def test_send_ungated_on_legacy_row_with_no_bank_at_all():
     row = dict(_BASE, **{"Findings Bank": ""})
     ok, problems, _ = crm_gate.check_send(
         row=row, sends_today=1, touch=1, followups_due=0, cap_state=_CAP, now=_NOW,
-        cold_read="price-invisible",
+        cold_read="half-empty-week",
     )
     assert ok, problems
 
@@ -219,7 +219,7 @@ def test_send_ungated_on_legacy_row_with_no_bank_at_all():
 # bait, it just no longer gates a send. These pin that the gate is genuinely
 # permissive here now, so nobody re-adds it by reflex.
 
-def _t1(bank, cold_read="price-invisible"):
+def _t1(bank, cold_read="half-empty-week"):
     row = dict(_BASE, **{"Findings Bank": bank})
     return crm_gate.check_send(
         row=row, sends_today=0, touch=1, followups_due=0, cold_read=cold_read,
@@ -294,7 +294,7 @@ def test_send_on_mixed_bank_checks_the_line_that_parses():
     mixed = _RITA_BANK + "\n3. UNUSED | DEEP | verified:2026-07-22 | pricing split across platforms"
     row = dict(_BASE, **{"Findings Bank": mixed})
     ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=1, followups_due=0, cold_read="price-invisible",
+        row=row, sends_today=1, touch=1, followups_due=0, cold_read="half-empty-week",
         cap_state=_CAP, now=_NOW,
     )
     assert ok, problems
@@ -346,7 +346,7 @@ def test_send_on_mixed_bank_checks_the_line_that_parses():
     mixed = _RITA_BANK + "\n3. RESERVED | DEEP | verified:2026-07-22 | currency split across pages"
     row = dict(_BASE, **{"Findings Bank": mixed})
     ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=1, followups_due=0, cold_read="price-invisible",
+        row=row, sends_today=1, touch=1, followups_due=0, cold_read="half-empty-week",
         cap_state=_CAP, now=_NOW,
     )
     assert ok, problems
@@ -411,7 +411,7 @@ def test_post_cutoff_opener_is_not_freshness_gated_at_all():
     bank = "1. RESERVED | DEEP | verified:2026-07-01 | call bait, three weeks old"
     row = dict(_BASE, **{"Findings Bank": bank})
     ok, problems, _ = crm_gate.check_send(
-        row=row, sends_today=1, touch=1, followups_due=0, cold_read="price-invisible",
+        row=row, sends_today=1, touch=1, followups_due=0, cold_read="half-empty-week",
         sends_next_day=0, cap_state=_CAP, now=after_noon,
     )
     assert ok, problems
