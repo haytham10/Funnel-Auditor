@@ -1,100 +1,79 @@
 # Cold reads — the opener's beat 2
 
-**The opener is no longer a finding.** (Changed 2026-07-27.) Beat 2 of the cold
-Touch 1 is a *cold read*: an observation that feels personal but is true of most
-coaches in this market, and is true **by measurement** — every pattern below is
-counted from the 373-row UAE dataset, not guessed.
+**v2, 2026-07-27.** Rebuilt after the First Five pivot. The v1 list was written
+against the *old* offer and it shows: `price-invisible`, `no-aed` and
+`price-band` are all observations about how she displays a price. That was the
+right beat 2 when the thing being sold was a funnel fix. It is a non-sequitur
+now. **The offer sells booked calls. The cold read has to be about the empty
+calendar, not the price tag.**
 
-## Why the finding stopped opening emails
+A prospect reads beat 2 and beat 5 as one sentence. If beat 2 is "your price
+isn't visible" and beat 5 is "let me book calls for you," she has to build the
+bridge herself, and she will not bother.
 
-Two reasons, both paid for:
+## The rule that did not change
 
-1. **Proving she wants more booked calls is worthless.** Every coach wants that.
-   A finding spends the whole email establishing something she already knows.
-2. **A finding that turns out wrong, or that she fixes herself, costs more than
-   silence.** 4 of 9 engaged leads consumed the finding, fixed it and left
-   (Rita's booking redirect, Avneet's test-SKU checkout). A third of findings
-   failed under scrutiny while carrying `Finding Verified = YES` (Lisa,
-   William). Both failure modes are *impossible* with a cold read, because a
-   cold read makes no claim about her specifically.
-
-**That last point is the safety property, and it is the whole design.** A cold
-read is a statement about the market. She cannot refute it, and she cannot fix
-it by editing a page. If she disagrees, she disagrees about coaches in general,
-which is a conversation, not a correction.
-
-**Findings are now RESERVED call-bait only.** They are never emailed — not as an
-opener, not as a second-finding, not as a teaser. They are the reason to get on
-the call.
-
----
+A cold read is a statement about the **market**, true **by measurement**, that
+she cannot refute and cannot fix by editing a page. That is the safety property
+and it is the whole design. Findings stay `RESERVED` call bait and are never
+emailed at any touch, in any form.
 
 ## The rules
 
-- **Rotate.** One pattern per prospect. Vary the phrasing every time — the shape
-  is fixed, the wording is not, and a cold read reused verbatim is a tell the
-  second time it ships.
-- **Never invent a pattern.** If a cold read is not on this list, it does not go
-  in an email. Same discipline as "never invent findings" — this list is the
-  bank.
+- **Rotate.** One pattern per prospect. Vary the phrasing every time.
+- **Never invent a pattern.** Not on this list, not in an email.
 - **Never name her as the one with the problem.** "Most coaches here…", not
-  "you don't…". The moment it becomes an accusation about her specifically it
-  is a finding again, with all the risk back.
-- **No number that is not on this page** (or on the credibility list in
-  `mechanics.md`). Every figure below carries its source; if you cannot point at
-  the source line, it does not ship.
-- **Declare it to the gate.** `crm-gate send --touch 1 --cold-read <id>` — the
-  gate validates the id against this list, same declare-what-you-drafted
-  discipline that used to apply to `--opener-rank`.
+  "you don't…".
+- **No number that is not on this page** or on the credibility list in
+  `mechanics.md`.
+- **Declare it to the gate.** `crm-gate send --touch 1 --cold-read <id>`.
+- **Every pattern below must terminate in an empty chair.** If you cannot get
+  from the cold read to "and that is a call that did not happen" in one
+  sentence, it is the wrong pattern for this offer.
 
-Source for every stat: `docs/claude-docs/uae-market-study-2026-07.md`
-(490 currency amounts parsed from 88 priced leads; 122 full funnel walks;
-373 rows found in 14 days).
+Source for every stat: `docs/claude-docs/uae-market-study-2026-07.md`.
 
 ---
 
-## `price-invisible`
+## `half-empty-week` — the strongest on the list
 
-**Stat:** 48 of 122 walked leads show no visible price anywhere. (`:34`)
+**Stat:** ICF measured average coach revenue $49,283/yr on **11.6 working hours
+a week across 12.4 clients**; first year $14,484. (market study, purchasing-power row)
 
-> Most of the coaching sites I go through here never put a number on the page
-> anywhere. The thinking is usually that price is a conversation, not a
-> billboard. What it does in practice is make the first message you get be "how
-> much," from people who were never going to pay it.
+> The coaches I go through here are working about eleven and a half hours a
+> week, across twelve or so clients. That is not a small practice. That is a
+> practice with room in it.
 
-**Cost line pairs with:** the time spent answering price questions from people
-who disqualify themselves one email later.
+**Why it leads the list:** it is the only pattern that lands directly on the
+thing being sold. Beat 4 writes itself, and it flatters rather than accuses:
+the implication is that the work is good and the week is not full, which is a
+supply problem, not a competence problem.
 
----
-
-## `no-aed`
-
-**Stat:** 49 of 88 priced leads use no AED at all. Of 490 amounts: USD 312, AED
-148, GBP 20, EUR 10. (`:65`)
-
-> More than half the coaches pricing UAE work here quote in dollars. It reads
-> normal from the inside, because that is how the industry talks. To someone in
-> Dubai deciding in about four seconds whether this is for her, it quietly reads
-> as "this is not local."
-
-**Cost line pairs with:** the buyers who never write, so you never hear about it.
+**Cost line pairs with:** the hours that are already paid for and already empty.
 
 ---
 
-## `price-band`
+## `agency-burn`
 
-**Stat:** median program AED 1,831; median session AED 894; the distribution is
-bimodal, with a low-ticket mass under AED 500 and a distinct AED 1,000–2,500
-band. (`:57-63`)
+**Stat:** coach-marketing agencies charge AED 7,300–22,000/month. The loudest
+complaint across every source is non-delivery, not price. Verbatim from
+r/lifecoaching: *"I'm so frustrated with coaches approaching me wanting to help
+me market, if I pay them 5000 to 10,000 dollars."* And: *"appointment setting
+agencies charge $4-10k/month whether they deliver or not."*
 
-> The middle of this market sits at about 1,800 for a program and 900 for a
-> session, and almost everyone lands inside that band whether their work belongs
-> there or not. The band is where the market's default lives, not where anyone
-> decided to be.
+> Nearly everyone selling marketing to coaches here charges somewhere between
+> seven and twenty-two thousand dirhams a month, and charges it whether anything
+> lands or not. The complaint I read most often in this market is not that it
+> was expensive. It is that nothing arrived.
 
-**Cost line pairs with:** being priced by the market's habit rather than by the
-work. Use only when her pricing is genuinely visible — otherwise it reads as a
-guess.
+**Why it works:** it pre-frames the price structure before the price exists. By
+the time she hears "you pay per call that happens," the contrast is already
+built. This is the pattern to use when the walk shows she has clearly been sold
+to before (an agency-built site, a template she is paying for, a GHL install).
+
+**Cost line pairs with:** money already spent on a month where nothing arrived.
+
+⚠️ Never name a specific agency and never imply you know who she used.
 
 ---
 
@@ -105,45 +84,97 @@ per corporate workshop off 268 followers; 330,000 followers monetised by one $29
 course. (`:47`)
 
 > Audience size and what people actually charge here have almost nothing to do
-> with each other. The highest per-engagement number I have seen came off 268
-> followers. The biggest following I have seen sells one twenty-nine dollar
-> thing.
+> with each other. The best per-session number I have come across came off 268
+> followers. The biggest following I have come across sells one twenty-nine
+> dollar thing.
 
-**Cost line pairs with:** the effort going into growing a number that is not the
-constraint. Strongest non-accusatory read on the list — it flatters small
-audiences and reframes large ones without blaming either.
+**Why it works for this offer:** it moves the conversation off "grow the
+audience" and onto "fill the week," which is the only move the offer can make
+good on. Strongest non-accusatory read on the list. It flatters small audiences
+and reframes large ones without blaming either.
+
+**Cost line pairs with:** the effort going into a number that is not the
+constraint.
 
 ---
 
 ## `rented-audience`
 
 **Stat:** 36 of 87 walked leads with an audience-ownership verdict (41%) have no
-email capture of any kind — 19 with zero capture, 17 with only a contact or
-booking form. (`:36`)
+email capture of any kind. (`:36`)
 
 > Most coaches here have no way to reach the people who looked and did not book.
-> They are all sitting on the other side of a platform nobody owns, and every
-> launch starts from zero again.
+> They are all on the other side of something nobody owns, and every launch
+> starts from nothing again.
 
-**Framing is load-bearing on this one.** It must be written as a *felt cost*
-("the people who looked and didn't book have no way to hear from you again"),
-never as a missing mechanism ("you have no email capture"). That is the vitamin
-filter's own worked example of the difference (`haytham-opener-finder/references/walk.md`),
-and the filter is unchanged: mechanisms do not convert cold.
+**Framing is load-bearing.** Write it as a *felt cost* ("the people who looked
+and didn't book have no way to hear from you again"), never as a missing
+mechanism ("you have no email capture"). The vitamin filter is unchanged:
+mechanisms do not convert cold.
+
+**Cost line pairs with:** the person who was ready in March and is unreachable
+in July.
 
 ---
 
-## Not shipping: `call-centric`
+## `platform-tenant`
 
-The intended sixth pattern — *"46 of 122 walked leads have a free discovery call
-as the only way in"* — **is not on this list because it could not be sourced.**
+**Stat:** 28 disqualified leads have a marketplace as their only commercial
+presence; 21 of 89 are a third-party directory or marketplace listing only.
+(`:26`, marketplace paragraph)
 
-The figure 46 appears only in the offer spec, unsourced, and the market study
-that spec names as its evidence base contains no 46 at all. The nearest measured
-figure is "own site, free-call / contact-form only, no price, no checkout — 32",
-which is drawn from the **89 disqualified** leads (`:26`), a different and
-opposite population; applying it to qualified leads would be dishonest.
+> A lot of the coaching businesses I go through here only really exist inside
+> somebody else's marketplace. The booking, the profile and the customer all
+> belong to the platform. It works right up until the platform decides who gets
+> shown that week.
 
-The observation is probably true and is worth having — it needs a fresh count
-from the live CRM before it can be written into a cold email. Do not ship it
-from memory.
+**Use when:** the walk found her on Skilldeer, iheal, Playbook, a directory, or
+any third-party as the primary commercial path.
+
+**Cost line pairs with:** a week where the platform showed someone else.
+
+---
+
+## `optimism-gap`
+
+**Stat:** MEA leads the world on every ICF sentiment measure. 71% expect revenue
+growth, 72% expect more clients, 62% expect more sessions. Measured average coach
+revenue is $49,283/yr.
+
+> Coaches in this region are the most optimistic in the world on every measure
+> anyone tracks. Seven in ten expect more revenue this year and seven in ten
+> expect more clients. Almost nobody I read has a written-down way that the
+> second one happens.
+
+**Weakest of the six.** It is true and it is measured, but it is closer to a
+lecture than the others. Use it when nothing else fits, and cut it to two
+sentences.
+
+**Cost line pairs with:** a year of expecting, ending the same size.
+
+---
+
+## Retired from v1 — do not draft these under The First Five
+
+| Pattern | Why it is gone |
+|---|---|
+| `price-invisible` | 48 of 122 show no visible price. True, measured, and about the wrong problem. It sets up a conversation about her pricing page and this offer does not touch her pricing page. Restore it only if a pricing offer ever returns. |
+| `no-aed` | Same. A currency observation is a funnel-copy note, not a reason to take a call about a booked calendar. |
+| `price-band` | Same, plus it only works when her pricing is visible, which is the minority case. |
+
+They stay in this file as a record, not as a menu. The gate list drops to the
+six above.
+
+## Still not shipping: `call-centric` and `waiting-room`
+
+`call-centric` — *"46 of 122 walked leads have a free discovery call as the only
+way in"* — is still unsourced. The 46 appears only in the offer spec; the market
+study has no 46. The nearest measured figure, 32, is drawn from the **disqualified**
+population, a different denominator.
+
+`waiting-room` — *"most coaches here only get found by people already looking
+for them"* — is the pattern this offer most wants to own, and there is no count
+behind it at all yet.
+
+**Both need a fresh CRM count before they exist.** They are the two highest-value
+gaps on this page: get the numbers.

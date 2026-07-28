@@ -308,9 +308,15 @@ def cmd_vision(args: argparse.Namespace) -> None:
 def _cold_read_choices():
     """The sanctioned cold-read pattern ids, read from the gate so the CLI
     cannot drift from `audit.crm_gate.COLD_READS` the way the carrier lists
-    did before they were deduped."""
-    from audit.crm_gate import COLD_READS
-    return COLD_READS
+    did before they were deduped.
+
+    The RETIRED ids are included on purpose. If argparse rejected them up
+    front the caller would get a bare "invalid choice", where the gate has a
+    real explanation ready — that a price-display observation does not
+    terminate in an empty chair, and which patterns to redraft on. Accept
+    them here so the gate is the thing that fails, and fails usefully."""
+    from audit.crm_gate import COLD_READS, RETIRED_COLD_READS
+    return COLD_READS + RETIRED_COLD_READS
 
 
 def cmd_crm_gate(args) -> None:

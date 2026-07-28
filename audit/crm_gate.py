@@ -203,12 +203,24 @@ CARRIERS = ("second-cold-read", "call-ask", "disambiguating-question")
 # The cold-read pattern ids a touch-1 opener may declare with `--cold-read`.
 # Mirrors `.claude/skills/haytham-email-draft/references/cold-reads.md`; a
 # pattern that is not on this list does not go in an email, same discipline as
-# "never invent findings". `call-centric` is deliberately absent — its 46-of-122
-# figure could not be sourced (see the doc's closing section).
+# "never invent findings". `call-centric` and `waiting-room` are deliberately
+# absent — neither has a count behind it yet (see the doc's closing section).
+#
+# v2, 2026-07-28. `price-invisible`, `no-aed` and `price-band` are RETIRED and
+# rejected by the gate: all three are observations about how she displays a
+# PRICE, which was the right beat 2 when the thing being sold was a funnel fix
+# and is a non-sequitur now that the thing being sold is a booked call. A
+# prospect reads beat 2 and beat 5 as one sentence; "your price isn't visible"
+# followed by "let me book calls for you" makes her build the bridge herself.
+# Every pattern below terminates in an empty chair.
 COLD_READS = (
-    "price-invisible", "no-aed", "price-band", "audience-decoupled",
-    "rented-audience",
+    "half-empty-week", "agency-burn", "audience-decoupled",
+    "rented-audience", "platform-tenant", "optimism-gap",
 )
+
+# Retired cold-read ids, kept ONLY so the gate can fail with a useful message
+# instead of a bare "not a sanctioned pattern" when an old draft is re-gated.
+RETIRED_COLD_READS = ("price-invisible", "no-aed", "price-band")
 
 # Carriers that put NO finding in the email, so nothing needs freshness-checking.
 _COLD_READ_CARRIERS = ("second-cold-read", "call-ask", "disambiguating-question")
@@ -1011,6 +1023,13 @@ def check_send(
                 f"pattern the draft was built from ({', '.join(COLD_READS)}). See "
                 ".claude/skills/haytham-email-draft/references/cold-reads.md"
             )
+        elif cold_read in RETIRED_COLD_READS:
+            problems.append(
+                f'--cold-read "{cold_read}" is RETIRED (2026-07-28). It is an observation '
+                "about how she displays a PRICE, which was beat 2 for the funnel-fix offer "
+                "and does not lead anywhere under The First Five — beat 2 has to terminate "
+                f"in an empty chair. Redraft on one of: {', '.join(COLD_READS)}"
+            )
         elif cold_read not in COLD_READS:
             problems.append(
                 f'--cold-read "{cold_read}" is not a sanctioned pattern — a cold read that '
@@ -1071,6 +1090,12 @@ def check_send(
                     f"which pattern this follow-up uses ({', '.join(COLD_READS)}), and "
                     "make it a DIFFERENT one from the opener's; a follow-up that repeats "
                     "touch 1's read carries nothing new"
+                )
+            elif cold_read in RETIRED_COLD_READS:
+                problems.append(
+                    f'--cold-read "{cold_read}" is RETIRED (2026-07-28) — a price-display '
+                    "observation does not terminate in an empty chair. "
+                    f"Redraft on one of: {', '.join(COLD_READS)}"
                 )
             elif cold_read not in COLD_READS:
                 problems.append(

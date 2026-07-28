@@ -53,7 +53,7 @@ def _send(**kw):
     # every case; the cold-read validation itself lives in
     # tests/test_findings_bank_depth.py.
     base = dict(row=_ROW, sends_today=0, touch=1, followups_due=0, cap_state=_CAP,
-                cold_read="price-invisible")
+                cold_read="half-empty-week")
     base.update(kw)
     return crm_gate.check_send(**base)
 

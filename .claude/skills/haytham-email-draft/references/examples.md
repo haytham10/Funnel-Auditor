@@ -1,36 +1,48 @@
 # Worked emails — the anchor
 
-Most of these were actually sent. They are what "passed the gate" looks like. When in doubt, pattern-match to these, not to a generic idea of a good cold email. Read them before drafting. Note what they do, not just what they say.
+When in doubt, pattern-match to these, not to a generic idea of a good cold
+email. Read them before drafting. Note what they do, not just what they say.
 
-> ## ⚠️ Read this before pattern-matching any UAE cold opener below
+> ## ⚠️ What is proof here and what is not
 >
-> **Every UAE cold opener in this file opens on a FINDING and closes on a
-> QUESTION. Both are retired.** Between them those four openers produced 9
-> replies and 0 booked calls.
+> **The UAE examples are UNSENT.** They are worked examples of the current
+> rules, hand-checked against `gate.md`, not evidence that anything converts.
+> The prospects are composites, so **the hook is the one part you must rebuild
+> per lead** — everything else is pattern.
 >
-> Since 2026-07-27 the opener is: hook → **cold read** → identity → cost →
-> **call ask with two specific times**. Findings are RESERVED call bait and are
-> never emailed at all.
+> **The parenting examples were really sent.** They are what "passed the gate"
+> looks like, and they teach voice, a full priced close, a Lane 2 hold and the
+> documented mistakes. Their beat 2 and beat 5 are the retired shape; read them
+> for register and restraint, never for structure.
 >
-> The old openers stay because their *hook craft*, register and restraint are
-> still the standard — but their beat 2 and beat 5 are examples of what not to
-> do. **The current shape is MODEL A and MODEL B at the top of the UAE
-> section.** Match those.
+> The four originally-sent UAE openers were removed on 2026-07-28. All four
+> opened on a finding and closed on a question, both retired, and between them
+> they produced 9 replies and 0 calls. They live in git history if the receipt
+> is ever needed (`git log -- .../examples.md`, before 2026-07-28).
 
-**The UAE track is the active pipeline, so the UAE examples come first and there are more of them.** The parenting examples stay because that track is still live and they teach voice and mechanics the UAE set doesn't (a full priced close, a Lane 2 hold, an ambiguous-leak read, the documented mistakes). One gap to know going in: **no UAE lead has ever closed**, so there is no real UAE money-email example — the parenting Helen arc is the shape anchor for a priced close, at correct current pricing. A second gap: the price-discovery email was retired on 2026-07-24 after producing 3 answers, all `Refused to name` and none a number (UAE 3 is the receipt), so the turn-two reference (UAE 4) is a composite draft rather than a sent one.
+**The current shape, every UAE cold Touch 1:** hook → **cold read** → identity
+→ cost → **call ask with two specific times.** 90 to 130 words, one CTA.
+Findings are RESERVED call bait and are never emailed, at any touch, in any
+form.
 
 **Contents** (jump to the pattern you need):
 
-UAE track (active):
-- **MODEL A — the current cold opener shape (UNSENT).** Hook, cold read, identity, cost, dated call ask.
-- **MODEL B — the Christina rewrite (UNSENT).** Illustrates the identity beat and the CTA fix only; its beat 2 and beat 5 are both retired shapes.
-- UAE 1 — RETIRED SHAPE: cold opener, WORK hook, single finding (Aliya Rajah). Hook craft still exemplary.
-- UAE 2 — RETIRED SHAPE: cold opener + cold Touch-2 carrying a new finding (Carol Glynn). The touch-2 discipline is right; the payload is not.
-- UAE 3 — RETIRED SHAPE: opener → turn-two → Loom → the price-discovery email (Donna Brown). Kept as the receipt that falsified it; the opener is still exemplary.
-- UAE 4 — RETIRED SHAPE: the paid 48-Hour Leak Fix turn-two. The turn-two is now a call ask with two specific times.
-- The throughline (what every real example has in common)
+UAE track (active) — all UNSENT:
+- 1 — `half-empty-week`, a workshop-led coach, small audience
+- 2 — `agency-burn`, a coach with an obviously agency-built site
+- 3 — `audience-decoupled`, small following, serious price
+- 4 — `rented-audience`, a coach living on Instagram
+- 5 — `platform-tenant`, a coach whose only path is a marketplace
+- 6 — no hook found: beat 1 falls away and the email gets shorter
+- 7 — Touch 2 carrying a second cold read
+- 8 — Touch 2 carrying the call ask (the call with a deliverable in it)
+- 9 — Touch 3, the disambiguating question
+- 10 — turn-two, she replied warmly
+- 11 — she asked "how much?", answer with the number
+- 12 — the full money email, the named stack
+- The things that get these rejected
 
-Parenting track (live threads only):
+Parenting track (live threads only) — really sent:
 - P1 — Lane 1 ambiguous leak, SMYKM hook, warm reply (Amanda)
 - P2 — full priced-close arc: reply → turn-two → Loom → priced close → deposit flip (Helen)
 - P3 — Lane 2 holds its ground, warm reply reveals the real finding (Emily Ray)
@@ -39,259 +51,356 @@ Parenting track (live threads only):
 
 ---
 
+
 # UAE track — the active pipeline
 
-All AED-native, all pulled verbatim from the lead's own Email Thread Log in the UAE Lead CRM. Everything in `uae-track.md` (AED framing, the follow-up payload rule, the paid 48-Hour Leak Fix turn-two, the guarantees, the downsell ladder, the two-inbox ceiling) is the layer these run on.
+**v2, 2026-07-27.** Replaces the four question-closing UAE openers, which are the
+retired shape (4 of 4 closed on "is it X, or Y?" and produced 0 calls between
+them).
 
-**Read UAE 4 before drafting any turn-two.** UAE 3 below is kept as the historical record of the retired shape (free Loom, then the price-discovery question) and is marked as such — it is what the current rules exist to prevent, not a pattern to match.
-
-## MODEL A — the current cold opener shape
-
-> ### ⚠️ UNSENT. Never sent to a human. Not proof of anything.
-> This is a constructed illustration of the five-beat shape, written
-> 2026-07-27. It has no reply, no outcome, and no evidence behind it beyond
-> the fact that it obeys the rules. Do not cite it as a receipt, and do not
-> read its performance into anything — it has none.
-
-**Lead:** a Dubai business coach, 12K on LinkedIn, one program, prices visible
-nowhere. Hook resolved to a real LinkedIn post about turning down a corporate
-retainer.
-
-> Subject: the retainer you turned down
->
-> Hey Nadia
->
-> Turning down a corporate retainer because the work had drifted from what you
-> actually wanted to do is a harder call than most people admit out loud. That
-> post stayed with me for the wrong reason: I have read a lot of coaching sites
-> this year and almost none of them would survive being that honest.
->
-> Something I keep running into here though. Most of the coaching sites I go
-> through never put a number on the page anywhere. The thinking is usually that
-> price is a conversation, not a billboard.
->
-> I go through coaching sites here for a living, about a hundred and twenty this
-> year, so I see the same shape a lot.
->
-> What it does in practice is make the first message you get be "how much," from
-> people who were never going to pay it, and you end up doing the qualifying by
-> hand in your inbox.
->
-> I can call Tuesday around 4, or Wednesday morning, whichever is less annoying.
->
-> Haytham
-
-**Why it is shaped this way:**
-
-| Beat | Line | Note |
-|---|---|---|
-| 1 HOOK | the retainer post | Real, cited, only she would recognise it. This is what stops beat 2 reading as a template. |
-| 2 COLD READ | "most of the coaching sites I go through never put a number" | `price-invisible`, 48 of 122. **A statement about the market, not about her** — she cannot refute it and cannot fix it. |
-| 3 IDENTITY | "about a hundred and twenty this year" | On the credibility list. Answers "who is this" — the sentence Lucia and Lee were missing. |
-| 4 COST | "you end up doing the qualifying by hand in your inbox" | What the pattern costs her, pictured. |
-| 5 CLOSE | two named times | One-word yes. Not a question about her business. |
-
-**What it deliberately does NOT do:** name a finding, claim anything specific
-about her site, offer a fix, include a link, or promise a volume. 128 words.
+**Status of everything below: UNSENT.** These are worked examples of the current
+rules, not proof of anything. Every one has been run against `references/gate.md`
+by hand. The prospects are composites, not live CRM rows, so the hooks are
+placeholders in the shape a real hook takes. **The hook is the one part you must
+rebuild per lead.** Everything else is pattern.
 
 ---
 
-## MODEL B — the Christina rewrite
+# Cold Touch 1
 
-> ### ⚠️ UNSENT. Never sent to a human. Not proof of anything.
-> Adapted from `docs/claude-docs/saraev-translation-a-to-z.md`. It was written
-> to demonstrate two fixes — the identity beat and the CTA — **before** the
-> cold-read change, so **two of its beats are now retired shapes**:
-> - **Beat 2 opens on a FINDING** (the Calendly duration mismatch). Findings are
->   call bait now and are never emailed.
-> - **Beat 5 closes on an OFFER-TO-FIX** ("I can have the pages and the booking
->   saying the same thing by tomorrow evening"), not a call ask.
->
-> Read it for the identity sentence and for how much lighter a concrete close
-> is than a question. Do not copy its structure.
-
-> Subject: science and soul fusion
->
-> Hey Christina
->
-> Fusing the clinical side, NLP and hypnosis, with the softer inner work is a
-> real position. Most coaches pick one lane and stay in it. You built a method
-> that refuses to.
->
-> Which is why this small thing stood out. Every page invites people to a
-> complimentary 30 minute discovery call, but the Calendly it opens is booked as
-> 15 minutes, titled that way too. So the first promise someone acts on is
-> already half of what they expected.
->
-> I go through coaching sites here for a living, about a hundred and twenty this
-> year, and this one shows up more than you would think. It is almost always the
-> booking tool that got shortened while the pages stayed as they were.
->
-> For a coach whose whole thing is precision and trust, it is the one detail
-> that quietly undercuts it before the call even starts.
->
-> I can have the pages and the booking saying the same thing by tomorrow
-> evening. Want me to?
->
-> Haytham
-
-**The one line to take from it** is beat 3, which is unchanged and still
-correct: *"I go through coaching sites here for a living, about a hundred and
-twenty this year"* — volume proof, no case study needed, and it carries the
-innocent explanation in the same breath.
+Five beats, 90 to 130 words, one CTA, the CTA is a call ask with two named times.
 
 ---
 
-## UAE 1 — RETIRED SHAPE (finding opener, question close): WORK hook (Aliya Rajah, career/leadership, 8.7K, Inbox 1)
+## 1 · `half-empty-week` · a workshop-led coach, small audience
 
-The finding: her homepage "Work with Me" section shows three boxes — 1:1 Coaching, Live Workshops, Corporate Training — but the "Live Workshops" box links to a page that returns a hard 404. A real, currently-advertised offer on her own entry page dead-ends.
-SMYKM hook (WORK): her LinkedIn post from a week earlier on confidence being built through reflection, not just action — "allow time for nothingness and for your mind to be bored."
+**Subject:** the reset day you run
 
-**Touch 1 — Subject: "room for nothingness"**
-
-> Hey Aliya
+> The reset day is real work. Most people in this market sell a recording and
+> call it a transformation. You built a thing with a room, a date, and people
+> sitting in it.
 >
-> You wrote about protecting real downtime, letting your mind actually sit idle instead of staying busy on purpose. Most confidence advice skips straight to tactics.
+> The coaches I go through here are working about eleven and a half hours a week
+> across twelve or so clients. That is not a small practice. That is a practice
+> with room in it.
 >
-> Then I went to your site and clicked into Live Workshops from your homepage. It goes nowhere, a dead page.
+> I read coaching businesses in this market for a living. I found 373 of them in
+> fourteen days and went through most of them properly.
 >
-> Anyone who reads that post and wants more than a one on one call hits the same wall.
+> So the room you built has empty chairs in it some months, and the chairs are
+> the part that pays.
 >
-> Is that link waiting on a new workshop page, or did group sessions get shelved for now?
+> I can call Tuesday around four, or Thursday morning, whichever is less
+> annoying.
 >
 > Haytham
 
-Why it works: same opener shape as the parenting track — elaborate the WORK hook in her own terms (SMYKM opening A), bridge to one exact finding on one exact page, make the cost visual (hits the same wall), ask one real question, sign Haytham. **No price anywhere in email 1** — AED only enters the thread once there's a number to quote (see uae-track.md). The hook is hers alone; swap the name and it collapses.
+<sub>117 words. Beat 3 credibility: *373 found in 14 days*. Cold read stat carried verbatim from `cold-reads.md`. Rough edge left in: "some months".</sub>
 
 ---
 
-## UAE 2 — RETIRED SHAPE (finding opener, question close): the touch-2 discipline (Carol Glynn, business/finance, national-media coach, Inbox 1)
+## 2 · `agency-burn` · a coach with an obviously agency-built site
 
-The finding (bank #1): the same "Financial Empowerment" course is sold at two live prices at once — the Kajabi storefront homepage her own logo links to lists the tiers in dirhams (1,135 / 2,535 / 3,995 AED) while the /WeareLIVE sales page lists them in dollars ($358 / $998 / $1,850), the AED running up to ~40% under the USD at the fixed peg. A buyer who clicks her logo pays noticeably less than one who came through the sales page.
-SMYKM hook (WORK): her stance that women who understand money change everything, and that after 25+ years auditing the world's largest investment institutions what people lack isn't knowledge, it's clarity.
+**Subject:** the three-month container
 
-**Touch 1 — Subject: "women who understand money"**
-
-> Hey Carol
+> Whoever built the site for you did a careful job. The three-month container is
+> laid out the way someone lays it out when they have actually run it, not the
+> way it gets laid out when someone is guessing.
 >
-> Your line that women who understand money change everything reads different coming from someone who spent 25 years inside the world's biggest investment institutions first. You earned that one, you didn't borrow it.
+> Almost everyone selling marketing to coaches here charges between seven and
+> twenty-two thousand dirhams a month, and charges it whether anything arrives
+> or not. The complaint I read most in this market is not that it was expensive.
+> It is that nothing came.
 >
-> Which is why this is worth a flag. The same financial empowerment course is showing two live prices at once. The page your own logo clicks through to lists the three tiers in dirhams. WeareLIVE lists them in dollars, up to 40% higher.
+> I go through coaching businesses here full time, a hundred and twenty or so
+> properly read.
 >
-> So a buyer who clicks your logo pays noticeably less than one who came through the sales page. And two prices for one thing is exactly what makes a careful person pause right at the buy, which is the opposite of the clarity you sell.
+> So the month gets paid for either way and the calendar looks the same at the
+> end of it.
 >
-> Is the dirham page just an old one that never came down, or is it meant to be live?
+> Wednesday afternoon works for me, or Sunday evening if that is easier.
 >
 > Haytham
 
-**Touch 2 (cold, day 3 — carries bank #2, a *different* finding) — Subject: "women who understand money" (same thread)**
-
-> Hey Carol
->
-> Another one from the same look around.
->
-> Two of the boxes on your homepage, the personal finance coaching one and the workshops one, click through to a page that doesn't exist. The real pages are live, they're just sitting at a different link, so the pictures point at the wrong place.
->
-> Someone taps the thing they came for and hits a dead end, when the page they wanted was right there the whole time.
->
-> Is that something that shifted when the site was rebuilt?
->
-> Haytham
-
-Why it works: this is the UAE follow-up payload rule made concrete. Touch 2 does **not** bump Touch 1's price-mismatch finding — it spends the next unused entry in her Findings Bank (the dead service-tile links), named as its own felt cost with the fix left vague, and asks a fresh single question. "Another one from the same look around" is the whole transition. Every cold touch on this track carries something new (uae-track.md); a bare "just following up" is a wasted send. Contrast this directly with the retired Heba shape at the bottom of the file — that one bumped the *same* finding via time passing, which no longer qualifies as a payload here.
+<sub>129 words, at the ceiling. Credibility: *about a hundred and twenty coaching sites reviewed*, in the sanctioned wording. Times varied from example 1. Note the close does not use a question.</sub>
 
 ---
 
-## UAE 3 — RETIRED SHAPE, kept as the receipt: opener → turn-two → Loom → the price-discovery email (Donna Brown, leadership/life, Inbox 2)
+## 3 · `audience-decoupled` · a coach with a small following and a serious price
 
-⚠️ **Do not pattern-match the turn-two or touch 3 below.** This is the full warm arc that ran the retired shape end to end, and it is the only place the price-discovery email ever appeared in a real thread. It ended `Lost`: her answer to the discovery question was "Thank you Haythem. Im very happy with my team. Best of luck to you," logged as `Refused to name`. That outcome, repeated three times out of three, is what falsified the premise (docs/journal.md, 2026-07-24). **The opener (touch 1) is still exemplary and is why this stays in the file.**
+**Subject:** hello 35
 
-She has no usable public hook (channels dormant since 2023), so the opener runs SMYKM opening B — straight onto the finding.
-
-The finding (bank #1): her "Your Core Blueprint" Stripe checkout offers "The Complete Growth Bundle" (AED 1,997) as an order-bump add-on — but the bundle already contains Your Core Blueprint, so anyone who adds it pays for the foundation course twice, at the moment of highest intent.
-
-**Touch 1 (cold, opens on the finding — no hook) — Subject: "your core blueprint bundle"**
-
-> Hey Donna
+> Hello 35 is a better piece of positioning than most people in this market
+> manage in a year. It knows exactly who it is not for, which is the hard part.
 >
-> Went through your site, the course line is genuinely well built. Real checkout, real pricing.
+> Audience size and what people here actually charge have almost nothing to do
+> with each other. The best per-session number I have come across came off 268
+> followers. The biggest following I have come across sells one twenty-nine
+> dollar thing.
 >
-> One thing on the Core Blueprint checkout though. Right where someone's about to pay 597 AED, there's an add on for the Complete Growth Bundle at 1,997 AED. But that bundle already has the course inside it.
+> I read coaching businesses in this market for a living, 373 of them found in
+> fourteen days.
 >
-> So a buyer who adds it on pays for the same thing twice, at the exact moment she's handing over her card.
+> Which means the growing is not the thing standing between you and a full week.
+> Something else is, and it is smaller than it looks.
 >
-> Is that meant to be there, or did it get added as a cross sell before anyone caught the overlap?
+> I could call Monday around five, or Tuesday first thing.
 >
 > Haytham
 
-**She replied** (~10:01 Dubai) — thanked him, clarified the bundle already includes the course, said she'd revisit the checkout to reduce the confusion. Sequence flips to Warm.
-
-**Touch 2 (turn-two, warm — second finding + the Loom offer) ⚠️ RETIRED ENDING, see UAE 4 — Subject: "Re: your core blueprint bundle"**
-
-> Hey Donna
->
-> Good to know, thanks for checking so fast.
->
-> One more thing while I had the page open. The bundle badge says Save 35%, comparing 2,797 AED to 1,997 AED. The real difference works out closer to 29%. Small gap, but it's the kind of number someone doing the math before they buy will catch.
->
-> I do the small stuff on the back end for coaches like you, the pages and pricing details that quietly chip at trust while you're focused on the actual coaching. Want me to record a quick walkthrough of what I'd tighten up?
->
-> Haytham
-
-**She replied** — happy to see it, and asked how he'd come across her page.
-
-**Touch 3 (warm, Loom delivery + the price-discovery question) — Subject: "Re: your core blueprint bundle"**
-
-> Hey Donna
->
-> To answer your question, I was looking around at coaches in Dubai and yours was one of the few with a real checkout instead of just a contact form, so I stopped to look properly.
->
-> Here it is: [Loom link]
->
-> It covers the two from my emails, plus one more I found while I was in there.
->
-> Once you've watched it, I'm curious, if someone took the whole site top to bottom, everything sorted and off your plate, what would you expect that to run?
->
-> Haytham
-
-Why it works, stage by stage:
-- **The opener runs on the finding alone (opening B).** No hook existed, so there's no forced hook — the admiration is real ("genuinely well built") and the finding is exact and dated to the moment of payment. A missing hook is a resolved state, not a reason to stall.
-- **The turn-two answers her honestly, then carries a second finding + the free Loom offer. RETIRED.** The honesty and the reveal of what he does ("the small stuff on the back end … the pages and pricing details," never the word "funnel") are still right. The ending is not: a free walkthrough is high effort for her and low dream outcome, and she never took it. Today this same reply ends in the paid Leak Fix or the calendar — see UAE 4.
-- **Touch 3 is the price-discovery email in the wild, and it is why the step is gone.** It delivers the Loom, then asks "if someone took the whole site top to bottom … what would you expect that to run?" with no number of his own anywhere. She answered by leaving. That reply, logged verbatim, is one of the 3 answers the whole study ever produced — all `Refused to name`, none a number. The refusal read as a price signal and was actually a trust signal. **Today: name the number, and check `Asked For Price` if she asks first.**
+<sub>124 words. This is the strongest pattern on a small-audience lead because it converts an apparent weakness into a non-issue before she has to defend it.</sub>
 
 ---
 
-## UAE 4 — RETIRED SHAPE: the paid 48-Hour Leak Fix turn-two (composite, Inbox 2)
+## 4 · `rented-audience` · a coach living on Instagram
 
-The shape that replaced UAE 3's Loom ending. Composite rather than a sent receipt — the leak fix went live 2026-07-24 and no thread has run it yet, so this is the reference draft, not a proven one. Everything about it is checkable against `uae-track.md` and `gate.md`.
+**Subject:** your Sunday carousels
 
-Situation: cold Touch 1 carried bank #1 (her booking page's "Book a call" button posts to a form that never sends a confirmation email, so enquiries land nowhere she checks). She replied two days later: "oh no, really? thanks for flagging. how did you find that?"
-
-**Touch 2 (turn-two, warm — answer, then the paid tiny yes) — Subject: "Re: your booking page" (same thread)**
-
-> Hey Sarah
+> The Sunday carousels are doing more work than most paid programs I read. They
+> are teaching, not advertising, and you can tell the difference immediately.
 >
-> I was going through coaches in Dubai and yours was one of the few with a real booking flow rather than a contact form, so I ran it properly and booked myself in to see what happened. Nothing came back, which is how I knew.
+> Most coaches here have no way to reach the people who looked and did not book.
+> They are all on the other side of something nobody owns, and every launch
+> starts from nothing again.
 >
-> Rather than talk about it, want me to just fix it? Access on your side, live in 48 hours, and you only pay if it's working. 500 AED.
+> I go through coaching businesses in this market full time, a hundred and
+> twenty or so properly read this year.
 >
-> If it's easier, here's my calendar and I'll walk you through what I'd do first: https://calendly.com/haythamm/discovery
+> So the person who was ready in March, and just was not ready that week, is
+> gone. Not lost to a competitor. Just gone.
+>
+> Tuesday around three works, or Thursday late morning.
 >
 > Haytham
 
-Why it works:
-- **It answers her actual question first, in one breath, with a real detail.** "I booked myself in to see what happened" is a fact she can verify, and it is the reason the finding is credible rather than a guess.
-- **It ends in a paid tiny yes, with a single-tap alternative.** Two doors, both concrete, both forward. No discovery question, no menu, no soft exit — the only two legal turn-two endings.
-- **The risk reversal rides with the number in the same breath.** "You only pay if it's working" is the whole objection answered before it arrives, which is what makes 500 AED an easy yes rather than a decision.
-- **The price is the offer, not a range and not a call-to-find-out.** 500 AED for the specific banked finding, fixed and live. She is buying her problem going away, not a video about her problem.
-- **The calendar link carries an explicit `https://`** (a bare domain gets auto-linked into a `google.com/url` redirect that reads as spam, and the draft lint blocks it).
-- **What it does NOT do:** re-explain the finding she already acknowledged, quote the Sprint, mention 2,575 AED, teach the fix, or offer a free walkthrough. If she buys, the row moves to `Leak Fix Sold` and she has earned the Sprint number without ever being asked what she'd pay.
+<sub>112 words. Felt cost, never a missing mechanism: the words "email capture" do not appear. The March line is the whole email.</sub>
 
 ---
 
-## The throughline
+## 5 · `platform-tenant` · a coach whose only commercial path is a marketplace
 
-Every one of these, both tracks: admired first and meant it, pointed at an exact thing on an exact page, made the cost visual, asked one real question, signed Haytham, left an open door. None could be sent to a different coach with the name swapped. That last test is the one that matters most. On the UAE track, add two: no price in the opener, and every cold follow-up carries something new.
+**Subject:** the eight week group
+
+> The eight week group reads like something that has been run more than once.
+> The structure has the small corrections in it that only come from having done
+> it.
+>
+> A lot of the coaching businesses I go through here only really exist inside
+> somebody else's marketplace. The booking, the profile and the customer all
+> belong to the platform. It works right up until the platform decides who gets
+> shown that week.
+>
+> I read this market for a living. 373 businesses found in fourteen days, most
+> of them gone through properly.
+>
+> So a slow month is not really a slow month. It is a week where somebody else
+> got shown.
+>
+> I can call Sunday around four, or Wednesday morning, whichever is less
+> disruptive.
+>
+> Haytham
+
+<sub>128 words. Careful: "the platform decides who gets shown" is market-level. It never asserts that her listing specifically was down-ranked.</sub>
+
+---
+
+## 6 · no hook found · beat 1 falls away
+
+When the walk returns no hook, the email is four beats and gets **shorter**, not
+padded. Do not manufacture admiration. A fabricated hook is worse than none.
+
+**Subject:** coaching in Dubai, quietly
+
+> The coaches I go through here are working about eleven and a half hours a week
+> across twelve or so clients. Good practices, most of them. Just not full ones.
+>
+> I read coaching businesses in this market for a living. I found 373 of them in
+> fourteen days.
+>
+> Which means the constraint is almost never the work. It is that the week has
+> gaps in it and nothing is scheduled to fill them.
+>
+> I can call Wednesday around four, or Friday morning if that is easier.
+>
+> Haytham
+
+<sub>84 words. Under the 90 floor on purpose: with no hook there is nothing to be long about. Flag this shape to the gate as a hookless row.</sub>
+
+---
+
+# Cold Touch 2
+
+Same thread, same subject. Carries exactly ONE new thing. Declare it to the
+gate with `--carries`.
+
+---
+
+## 7 · Touch 2 carrying a **second cold read** (`--carries second-cold-read`)
+
+Different pattern from touch 1's. Example 1 used `half-empty-week`, so this uses
+`agency-burn`.
+
+**Subject:** the reset day you run *(unchanged)*
+
+> One more thing on this and then I will leave it.
+>
+> Nearly everyone selling marketing to coaches in this market charges between
+> seven and twenty-two thousand dirhams a month, and charges it whether anything
+> lands or not. The thing I read most often is not that it was too expensive. It
+> is that nothing arrived.
+>
+> Which is why I am not asking you to take a chance on a stranger. I would
+> rather show you what I would do and let you decide after.
+>
+> Monday around four, or Tuesday late morning.
+>
+> Haytham
+
+<sub>96 words. No finding, no fix offer, no Loom, no link. The second cold read is doing the payload work and the close is the same shape with new times.</sub>
+
+---
+
+## 8 · Touch 2 carrying the **call ask** (`--carries call-ask`)
+
+Use when touch 1 already spent the strongest pattern and there is no natural
+second one.
+
+**Subject:** your Sunday carousels *(unchanged)*
+
+> Following up on this once.
+>
+> The short version of why I wrote: I go through coaching businesses in this
+> market full time and I have already pulled together twenty or so people in
+> Dubai who look like the ones you would actually want. Handing them over is a
+> fifteen minute thing and it is easier said than typed.
+>
+> I can call Thursday around four, or Sunday morning.
+>
+> Haytham
+
+<sub>73 words. Short on purpose. Note what this does: it gives the call a **deliverable**. "Get on a call so I can tell you about a problem" has produced 0 bookings out of 9 replies. "Get on a call and I hand you twenty names" is a different ask. No link, no calendar URL, one CTA.</sub>
+
+---
+
+## 9 · Touch 3, the **disambiguating question** (`--carries disambiguating-question`)
+
+Direct binary. No soft exit. There is no touch 4.
+
+**Subject:** the eight week group *(unchanged)*
+
+> Last one from me on this.
+>
+> Is filling the calendar something you are actively working on right now, or is
+> this a next-quarter thing?
+>
+> Either answer is useful. If it is next quarter I will put a note in and come
+> back then instead of sitting in your inbox.
+>
+> Haytham
+
+<sub>52 words. Legal exception: touch 3 disambiguating is the one cold shape that closes on a question rather than two times, because its whole job is to sort the list. Do not reuse this shape at touch 1.</sub>
+
+---
+
+# Warm threads
+
+---
+
+## 10 · Turn-two — she replied warmly, no question asked
+
+The only legal ending is a call ask with two named times. No new finding, no
+second cold read, no menu, no calendar link beside the times.
+
+> Thanks for coming back, and no rush on any of this.
+>
+> The useful version of this is not me writing more of it at you. I have gone
+> through a few hundred coaching businesses here and I keep a running list of
+> the people in this market who look like buyers rather than browsers. For you
+> that is about twenty names.
+>
+> Fifteen minutes, I walk you through who they are and what I would send them,
+> and if none of it is useful you can tell me so plainly.
+>
+> Tuesday around four, or Wednesday first thing. Either works.
+>
+> Haytham
+
+<sub>Match her length. If she wrote five words, this is three lines, not this. "A few hundred" is a legal soft form of the sanctioned 373.</sub>
+
+---
+
+## 11 · She asked "how much?" — answer with the number
+
+`Asked For Price` is checked, `crm-gate offer` printed PASS. **Never flip the
+question back.** The flip produced two of the three `Refused to name` answers.
+
+> Straight answer, since you asked.
+>
+> It is 1,500 dirhams to set up, which covers the sending domain, the warming,
+> the list built backwards from your own best clients, and the writing. After
+> that it is 600 dirhams for each qualified call that actually happens.
+>
+> Two things I will say without you having to ask. You are only billed for calls
+> where a real, qualified person shows up. Cancellations and no-shows are my
+> cost, not yours. And if you do not have five qualified calls in your first
+> thirty days of sending, the setup comes back and you keep everything I built,
+> the domain, the inboxes, the list and the copy.
+>
+> I run four of these at a time. Want me to start on yours?
+>
+> Haytham
+
+<sub>Number first, both guarantees named and unprompted, one scarcity line, one CTA. No scheduling ask riding alongside the price, that would be two CTAs.</sub>
+
+---
+
+## 12 · The full money email — the named stack
+
+Only after `crm-gate offer` prints PASS.
+
+> Here is the whole thing in one place, so you are not deciding on a feeling.
+>
+> **The First Five, thirty days to a booked calendar.** I build your buyer list
+> backwards from the clients you already have and like. I set up a separate
+> sending domain and warm it, so nothing touches yours. I write every message by
+> hand. Everyone who books is told what you charge before the call exists, so
+> you are not spending your week on people who were never going to pay it.
+>
+> 1,500 dirhams to set up. Then 600 dirhams for every qualified call that
+> actually happens. No retainer, no contract, and nothing to cancel.
+>
+> **The Empty Chair Guarantee.** You pay for seats that get filled. If she does
+> not show, you do not pay.
+>
+> **Five or Free.** Five qualified calls in your first thirty days of sending,
+> or the setup comes back and you keep the domain, the warmed inboxes, the list
+> and the copy.
+>
+> All I need is about twenty minutes at the start. After that you do not hear
+> from me until there is something on your calendar.
+>
+> I run four of these at a time. Say go and I will start on yours this week.
+>
+> Haytham
+
+<sub>Named stack, not a flat fee. Both guarantees stated boldly and unprompted, before any objection. Exactly one scarcity line, exactly one CTA, and it stops after the ask. No second reassurance.</sub>
+
+---
+
+# The things that get these rejected
+
+Every one of these has actually happened in this repo.
+
+| Mistake | Why it fails |
+|---|---|
+| Beat 2 written as "you don't have…" | It is a finding again, with all the risk back. Cold reads are always about the market. |
+| A calendar link sitting next to the two times | Two named times plus "or here's my calendar" is a menu. The no-menu rule is written four times. |
+| The close reworded back into a question | 4 of 4 old UAE openers closed on a question. 0 calls. A question CTA selects for replies that are answers, and an answer is a dead end that looks like success. |
+| Reusing a close verbatim | The shape is fixed, the times and the phrasing are not. It is a tell the second time it ships. |
+| A number that is not on the credibility list | "Verified numbers only" is not a style rule. It is what keeps the whole thing honest under scrutiny. |
+| The identity beat missing | Lucia and Lee both replied with their own pricing. They were not confused about the message. They were confused about who was writing. |
+| Any em-dash | Not one. Anywhere. |
 
 ---
 
@@ -516,4 +625,4 @@ By touch 3, a reader in her position has received a full mini-audit for nothing 
 
 Touch 1 flagged one finding: placeholder testimonial cards on her live homepage before a webinar launch. Touch 2 bumped the same finding using time passing as the new angle ("the webinar's come and gone but the placeholder cards are probably still sitting there"). Touch 3 bumped it again, shorter, as a natural question. No new findings, still under the parenting free-value cap.
 
-**The rule this produced (parenting), and where it now stops:** a parenting cold follow-up's job was to stay present without spending anything new, so bumping the *same* finding through what's changed was the correct, disciplined move. **On the UAE track this is no longer enough** — a same-finding time-passing bump reads as a bare bump and a spam signal, and the send gate (`crm-gate send --carries`) enforces a real new payload on Touch 2/3 (checked against the row's Findings Bank). If touch 2 or 3 would only exist by restating touch 1, on the UAE track that is a sign to either spend the next banked finding (Carol UAE 2), offer the paid Leak Fix (UAE 4), or ask the disambiguating question — never to bump.
+**The rule this produced (parenting), and where it now stops:** a parenting cold follow-up's job was to stay present without spending anything new, so bumping the *same* finding through what's changed was the correct, disciplined move. **On the UAE track this is no longer enough** — a same-finding time-passing bump reads as a bare bump and a spam signal, and the send gate (`crm-gate send --carries`) enforces a real new payload on Touch 2/3 (checked against the row's Findings Bank). If touch 2 or 3 would only exist by restating touch 1, on the UAE track that is a sign to either carry a SECOND cold read (example 7), carry the call ask (example 8), or ask the disambiguating question (example 9) — never to bump. Findings are never spent in an email at all any more; they are call bait.
