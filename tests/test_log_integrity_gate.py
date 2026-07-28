@@ -96,6 +96,77 @@ def test_touch_blocks_ignores_bounce_and_duplicate():
     assert crm_gate.touch_blocks(_LOG_DUPLICATE_NOT_COUNTED) == [1, 2]
 
 
+# Real-shape regression (found 2026-07-28): a lead with legacy Touch #1/#2
+# headers, then a Touch #3 logged via the new `TOUCH:` sentinel grammar
+# (`touch-log render`, docs/uae-track/log-grammar.md, added 2026-07-27) —
+# `_TOUCH_BLOCK` alone never recognized the sentinel line, so `touch_blocks`
+# returned [1, 2] regardless of the (perfectly valid) Touch #3 block, and
+# `crm-gate log` FALSE-FAILed every lead reconciled with the new grammar.
+_LOG_MIXED_LEGACY_THEN_V2 = """## Email Thread Log
+[2026-07-20] — Touch #1 — Subject: "x" — Sent
+Reply: No reply
+Next: Touch 2 due 2026-07-23
+2026-07-25 — Touch #2 — Subject: "x" — Sent
+Reply: No reply
+Next: Touch 3 (disambiguating question) if she stays quiet.
+TOUCH: n=3 dir=out date=2026-07-28 inbox="Inbox 1" seq=cold carries=disambiguating-question subject="x" thread=abc123 gate=PASS
+````
+Hey Lead
+Should I stop following up, or is this still on your radar?
+````
+## Price Discovery
+"""
+
+_LOG_V2_ONLY = """## Email Thread Log
+TOUCH: n=1 dir=out date=2026-07-20 inbox="Inbox 1" seq=cold carries=opener subject="x" thread=abc123 gate=PASS
+````
+Hey Lead
+opener body
+````
+TOUCH: n=2 dir=out date=2026-07-25 inbox="Inbox 1" seq=cold carries=call-ask subject="x" thread=abc123 gate=PASS
+````
+Hey Lead
+touch 2 body
+````
+## Price Discovery
+"""
+
+_LOG_V2_BOUNCE_NOT_COUNTED = """## Email Thread Log
+TOUCH: n=1 dir=out date=2026-07-19 inbox="Inbox 1" seq=cold carries=opener subject="x" thread=abc123 gate=PASS bounce=true
+````
+bounced attempt
+````
+TOUCH: n=1 dir=out date=2026-07-20 inbox="Inbox 1" seq=cold carries=opener subject="x" thread=abc123 gate=PASS
+````
+retry, actually sent
+````
+## Price Discovery
+"""
+
+
+def test_touch_blocks_recognizes_v2_sentinel_grammar():
+    # The exact bug shape: legacy #1/#2, v2 #3 — must count all three.
+    assert crm_gate.touch_blocks(_LOG_MIXED_LEGACY_THEN_V2) == [1, 2, 3]
+    assert crm_gate.touch_blocks(_LOG_V2_ONLY) == [1, 2]
+
+
+def test_touch_blocks_v2_bounce_not_counted():
+    assert crm_gate.touch_blocks(_LOG_V2_BOUNCE_NOT_COUNTED) == [1]
+
+
+def test_pass_on_mixed_legacy_then_v2_log():
+    ok, problems, notes = crm_gate.check_log_integrity(
+        {"Touch #": 3}, _LOG_MIXED_LEGACY_THEN_V2
+    )
+    assert ok, problems
+    assert "1, 2, 3" in notes[0]
+
+
+def test_pass_on_v2_only_log():
+    ok, problems, notes = crm_gate.check_log_integrity({"Touch #": 2}, _LOG_V2_ONLY)
+    assert ok, problems
+
+
 def test_pass_when_log_matches_touch_count():
     ok, problems, notes = crm_gate.check_log_integrity({"Touch #": 2}, _LOG_COMPLETE)
     assert ok, problems

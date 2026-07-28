@@ -170,6 +170,33 @@ def test_legacy_parses_sadia_khan():
     assert parsed["touches"][0]["format"] == "legacy"
 
 
+def test_legacy_bare_header_then_v2_sentinel_both_recognized():
+    # Real shape found 2026-07-28 (Rita Sanna): a legacy Touch #1 header with
+    # NO "Reply:"/"Next:" tail (just the header line itself), immediately
+    # followed by a v2 `TOUCH:` sentinel for Touch #2. The legacy body-scan
+    # used to keep consuming lines until it hit another legacy header/heading/
+    # reply — a sentinel line matched none of those, so it silently swallowed
+    # the whole v2 block (fence and all) into Touch #1's body, and Touch #2
+    # never got parsed as its own record.
+    body = (
+        '## Email Thread Log\n'
+        '[2026-07-25] — Touch #1 — Subject: "x" — Sent via Inbox 1 to lead@example.com. Thread abc123.\n'
+        'TOUCH: n=2 dir=out date=2026-07-28 inbox="Inbox 1" seq=cold carries=call-ask '
+        'subject="x" thread=abc123 gate=PASS\n'
+        '````\n'
+        'Hey Lead\n'
+        'call ask body\n'
+        '````\n'
+        '## Price Discovery\n'
+    )
+    parsed = tl.parse_body(body)
+    out = [t for t in parsed["touches"] if t["dir"] == "out"]
+    assert [t["n"] for t in out] == [1, 2]
+    assert out[0]["format"] == "legacy"
+    assert out[1]["format"] == "v2"
+    assert out[1]["body"] and "call ask body" in out[1]["body"]
+
+
 def test_legacy_parses_avneet_kohli_multi_touch_with_replies():
     parsed = tl.parse_body(_raw("avneet-kohli"))
     out = [t for t in parsed["touches"] if t["dir"] == "out"]

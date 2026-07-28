@@ -658,11 +658,32 @@ def check_refresh_finding(
 
 
 def touch_blocks(page_body: str) -> list[int]:
-    """Every real touch number logged in the Email Thread Log, in document
-    order, duplicates included. A bounced attempt or a logged duplicate send
-    doesn't match `_TOUCH_BLOCK` and is correctly excluded — see its comment.
+    """Every real touch number logged in the Email Thread Log, duplicates
+    included. A bounced attempt or a logged duplicate send doesn't match
+    `_TOUCH_BLOCK` and is correctly excluded — see its comment.
+
+    Recognizes BOTH the legacy `[date] — Touch #N — Subject: "..." — Sent`
+    header (via `_TOUCH_BLOCK`, unchanged) and the v2 `TOUCH: n=N dir=out
+    ...` sentinel grammar added 2026-07-27 (docs/uae-track/log-grammar.md),
+    via `audit.touchlog.parse_body` — the same parser `log-lint` already
+    trusts, so a row logged in either format (or a mix, the normal case
+    mid-migration) is counted correctly. Without this, every lead logged
+    with the new grammar (the one `touch-log render` produces, now the
+    sanctioned way to write a line) silently FAILed this gate — the log was
+    fine, the regex just never learned the new shape.
+
+    Import is local to dodge a circular import: `touchlog` imports
+    `parse_findings_bank` from this module.
     """
-    return [int(n) for n in _TOUCH_BLOCK.findall(page_body)]
+    from audit import touchlog
+
+    legacy = [int(n) for n in _TOUCH_BLOCK.findall(page_body)]
+    v2_out = [
+        t["n"]
+        for t in touchlog.parse_body(page_body)["touches"]
+        if t.get("format") == "v2" and t.get("dir") == "out" and not t.get("bounce")
+    ]
+    return legacy + v2_out
 
 
 def check_log_integrity(row: dict, page_body: str) -> tuple[bool, list[str], list[str]]:

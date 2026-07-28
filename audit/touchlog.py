@@ -483,7 +483,11 @@ def parse_body(text: str) -> dict:
             body_lines: list[str] = []
             reply_idx = None
             while j < n:
-                if _LEGACY_HEADER.match(lines[j]) or _LEGACY_HEADING.match(lines[j]):
+                if (
+                    _LEGACY_HEADER.match(lines[j])
+                    or _LEGACY_HEADING.match(lines[j])
+                    or _SENTINEL_RE.match(lines[j].strip())
+                ):
                     break
                 if _LEGACY_REPLY.match(lines[j]):
                     reply_idx = j
@@ -504,6 +508,7 @@ def parse_body(text: str) -> dict:
                 while k < n and not (
                     _LEGACY_NEXT.match(lines[k]) or _LEGACY_HEADER.match(lines[k])
                     or _LEGACY_HEADING.match(lines[k])
+                    or _SENTINEL_RE.match(lines[k].strip())
                 ):
                     reply_lines.append(lines[k])
                     k += 1
