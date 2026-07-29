@@ -231,16 +231,16 @@ one.)
 **a) Due the turn-two** — Status = Reply Received, thread warm, no call ask
 offered yet. For each: draft the turn-two reply (email type (d) in
 `haytham-email-draft`; the script and rules in `references/uae-track.md`).
-It answers what she actually said, then ends in **the paid 48-Hour Leak
-Fix (500 AED, live in 48 hours, paid only once it's working) or the
-calendar link** — a paid tiny yes or a single tap, never a question,
-never a menu, never a soft exit. Create the Gmail DRAFT as a reply in the
-existing thread, subject unchanged, **in the lead's assigned inbox**
+It answers what she actually said, then ends in **a call ask naming two
+specific times** — a one-word yes, never a question, never a menu, never
+a soft exit, and never the retired 48-Hour Leak Fix or a bare calendar
+link. Create the Gmail DRAFT as a reply in the existing thread, subject
+unchanged, **in the lead's assigned inbox**
 (Inbox 1 → Gmail MCP `create_draft` with `replyToMessageId`; Inbox 2 →
 `python main.py gmail-gethaytham draft <to> <subject> <body> --thread-id
 <t> --in-reply-to <msgid>`). A turn-two is a send and counts against that
 inbox's budget. **The call ask is NOT gated by `crm-gate offer`** — it is
-the rung that earns the Sprint number.
+the rung that earns the right to a First Five number.
 
 **b) Earned a number, money email unlocked** — Status in `Call Booked` /
 `Leak Fix Sold` / `Leak Fix Delivered` / `Offer Sent` / `Won`, OR
@@ -283,9 +283,10 @@ touches). Post-offer silence gets the disambiguating questions from
 uae-track.md, never a re-send of the offer and never a weak closer.
 
 **Cold Touch 2/3 must carry something new, and the gate checks it.**
-Before drafting, pick the carrier honestly: `second-finding` only if the
-the follow-up carries a SECOND COLD READ (a different pattern from the
-opener's — the gate verifies the id, not the bank);
+Before drafting, pick the carrier honestly: `second-cold-read` only if the
+follow-up carries a SECOND COLD READ (a different pattern from the
+opener's, declared with `--cold-read <id>` — never a finding, findings are
+reserved call bait);
 otherwise `call-ask` (natural Touch 2) or `disambiguating-question`
 (natural Touch 3 closer). Dump the fresh row to JSON and run
 `python main.py crm-gate send <row.json> --sends-today <THAT INBOX's total

@@ -37,6 +37,80 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-29 — uae-tick: 7 due follow-ups drafted (both inboxes), stale Leak Fix language purged from uae-tick SKILL.md
+
+Scheduled daily tick, fresh session on `uae-track`. `notion-query-data-sources`
+silently caps SQL `SELECT` results at 100 rows with no `has_more` warning in
+that mode — a first pull (WHERE Status NOT IN terminal states) returned
+exactly 100 rows and looked complete, but a GROUP BY COUNT on the same filter
+came back 120. Re-ran with `LIMIT 200 OFFSET 100` to get the missing 20,
+which is how Lee Harris, Sam Fouladgar, Timothy Fare-Matthews, and Tracy
+Harmoush turned up as due-today follow-ups that the first pass had silently
+dropped. **Lesson: always cross-check a SQL-mode row count against a GROUP BY
+COUNT(*) before trusting a query "looks complete," view-mode pagination
+(`has_more`) doesn't apply to SQL mode.**
+
+**7 due follow-ups drafted, all `crm-gate send` PASS, all held as Gmail
+drafts (none sent):**
+- Inbox 1: Lee Harris (Touch 5, warm, call-ask — pivots off the now-retired
+  Leak Fix offered at Touch 4, finally names two specific times instead of
+  the vague "whenever works" that stalled Touch 2-4).
+- Inbox 2: Rima Zanoun + Salma El Shurafa (Touch 3, cold, disambiguating
+  question — bank spent, sequence completes, no reply yet on either);
+  William Brown (Touch 6, warm, call-ask — same vague-ask-to-named-times
+  pivot as Lee); Sam Fouladgar, Timothy Fare-Matthews, Tracy Harmoush
+  (Touch 2, cold, call-ask — first follow-up on each, kept finding-free
+  since it's their second email ever and findings are never emailed).
+  Inbox 2 landed at exactly 25/25 for the day after these 6 — no headroom
+  left, but nothing had to roll since the due list matched the remaining
+  slots exactly.
+
+**Code/doc fix:** `.claude/skills/uae-tick/SKILL.md` section 2a still told
+the turn-two queue to close on "the paid 48-Hour Leak Fix... or the
+calendar link" — retired 2026-07-27, `crm_gate.py` only keeps it as a
+deprecated alias for `call-ask`. Rewrote to the current call-ask-with-two-
+times model. Also fixed a `second-finding` → `second-cold-read` mislabel
+(with a duplicated "the the") in the Touch 2/3 carrier-picking paragraph —
+the actual `CARRIER_CHOICES` list was already correct in code, only the
+skill's prose had drifted. No functional bug (the CLI still accepted the
+deprecated alias), but a tick reading this prose fresh could draft a dead
+offer with a straight face.
+
+**Reply sweep:** clean. Both inbox sweeps since the last tick (07-28) are
+dominated by clearly unrelated inbox noise (HR-policy-reminder-shaped spam,
+smartlead onboarding mail); none of the ~50 sender addresses match a UAE CRM
+lead. One bounce (`lee@dubailifecoach.com`) doesn't match any CRM row
+either — not ours to act on.
+
+**Ceilings:** Inbox 1 25/day (ramp step 2, day 8 — RAMP REMINDER, eligible
+for 30 if deliverability held, Haytham's call), Inbox 2 25/day (ramp step
+2, day 5, next step eligible 07-31). Both inboxes were already at 19/25
+before this tick ran (real Gmail sends from earlier today, all logged
+correctly per the automated hygiene sweep — zero flags across all 120
+non-terminal rows).
+
+**Send queue (Touch 1 openers): empty.** Only one `Audit Ready` row exists
+(Silvia Vladimirova, carried over from 07-28, still needs
+`haytham-hook-finder` before a draft can exist) and one `Qualifying` row
+(Nedal Mohamadeiah). Top-of-funnel is still thin.
+
+**Hygiene:** clean sweep across all 120 non-terminal rows — no Touch#0 on
+Outreach Sent, no cold Touch >=4, no Sunday-landing Next Action, no
+future-dated Last Contacted, no bad Audit Ready rows, no un-turned-two
+stale Reply Received. Avneet Kohli and Rita Baki both sit at exactly 2 days
+since Asked For Price (not yet the >2-day flag threshold) — both already
+correctly resolved/waiting, not stale. Scoreboard not due (last was 07-27).
+
+### Open follow-ups
+- [ ] Silvia Vladimirova (textalent.io) still needs `haytham-hook-finder` —
+  carried over 2 ticks now.
+- [ ] Run `source-leads`/`qualify-leads` — top-of-funnel still just 1
+  Audit Ready + 1 Qualifying.
+- [ ] Watch for replies on the 7 freshly-drafted follow-ups once Haytham
+  sends them, especially Lee's and William's first-ever named-times call
+  asks (both threads had only gotten vague "whenever works" asks before
+  today).
+
 ## 2026-07-28 — The First Five v2: repriced to 2,000/900, re-niched to AED 5,000+, The Named Fifty added as the attraction offer
 
 Haytham brought three documents from his Claude project — an offer study run
