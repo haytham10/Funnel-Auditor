@@ -37,6 +37,61 @@ into one short dated summary here and move the full verbatim detail to
 2026-07-18/07-19 build-out is there as the first example; see the condensed
 version below dated the same.
 
+## 2026-07-30 — uae-tick: 32 follow-ups drafted, 6 unlogged sends recovered, freshness gate now blocking warm touch 4+
+
+Scheduled daily tick, fresh session on `uae-track`. Large due-list day: 34
+follow-ups due (9 Inbox 1, 25 Inbox 2) plus 2 stale-flagged warm leads.
+Delegated the 27 formulaic cold Touch 2/3 drafts to 4 parallel background
+agents (one per inbox slice); handled the warm/high-value threads and all
+CRM reconciliation directly.
+
+**Reconciliation gap found and fixed:** 6 sends from 2026-07-29 (William
+Brown Touch 6, Rima Zanoun + Salma El Shurafa Touch 3, Sam Fouladgar +
+Timothy Fare-Matthews + Tracy Harmoush Touch 2) had actually gone out in
+Gmail but were never logged to Notion — Touch #, Last Contacted, and the
+Email Thread Log all still showed the pre-send state. Recovered all 6 from
+Gmail's real sent content (never fabricated), appended proper log blocks,
+updated properties, ran `crm-gate log` (PASS on all 6). Rima + Salma's cold
+sequence completed with no reply → moved to Dormant, revival bump
+2026-08-13. **This is the same drift class as the 2026-07-26 24-lead
+incident** (`crm-gate log` didn't exist yet as a per-write gate at the time
+these went out) — worth checking whether the step 0.5 Gmail-state
+reconciliation should extend beyond just Scheduled/Draft Ready rows, since
+warm/cold follow-up sends never pass through either status and so never
+get its Gmail-reality check.
+
+**New systemic finding: the finding-freshness gate (3-day ceiling) now
+blocks nearly every warm touch 4+.** The 2026-07-26 walk batch verified a
+huge cohort of findings on one calendar day; today (07-30) is day 4, one
+day past the ceiling. Confirmed FAIL on 4 separate leads today (William
+Brown, Lucia Csobonyei, Avneet Kohli, Lee Harris) — all for the identical
+reason, all from that same batch. The gate fires even when the touch's
+carrier (call-ask, disambiguating-question) never actually restates the
+finding, because `gate_send` checks `current_finding(row)` for any touch
+past `COLD_SEQUENCE_TOUCHES` regardless of what the draft says. Held all 4
+rather than draft around the FAIL. Fix is `refresh-finding` per lead, but
+this will keep recurring for the rest of the cohort as they cross into
+touch 4+ — worth deciding whether to batch-refresh the cohort or adjust
+the gate to skip the freshness check for carriers that don't cite a
+finding.
+
+**Other:** `notion-query-data-sources` hit its usage cap partway through
+(page-level fetch/update kept working, per the known workaround) — the
+Sunday-collision hygiene sweep and the weekly scoreboard were skipped this
+run. `log-lint` (distinct from `crm-gate log`) still fails on Rima's and
+Salma's legacy Touch #2 line — a `(reply-in-thread)` annotation inserted
+into the bracket-format subject breaks its regex; pre-dates this tick, not
+fixed (would mean rewriting 9-day-old sent history for a linter quirk).
+
+### Open follow-ups
+- [ ] Run `refresh-finding` on the 2026-07-26 walk cohort's warm leads
+      before their next touch, or teach `crm-gate send` to skip the
+      freshness check when the declared carrier doesn't cite a finding.
+- [ ] Dr. Daphne Soares + Libby Salord McLean (Inbox 2, Touch 1→2) rolled
+      to tomorrow — Inbox 2 headroom was 23 against 25 due.
+- [ ] Sam Fouladgar / Timothy Fare-Matthews / Tracy Harmoush Touch 3
+      (disambiguating-question) falls due ~2026-08-03.
+
 ## 2026-07-29 — uae-tick: 7 due follow-ups drafted (both inboxes), stale Leak Fix language purged from uae-tick SKILL.md
 
 Scheduled daily tick, fresh session on `uae-track`. `notion-query-data-sources`
