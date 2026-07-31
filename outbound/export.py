@@ -252,6 +252,35 @@ def check_address(draft) -> tuple[list[str], list[str]]:
                 f"site is {site_domain} — check it is really theirs"]
 
 
+def check_crm_enums(draft) -> list[str]:
+    """Values that a single-select field in Airtable would reject.
+
+    Caught here rather than at the CRM write, which happens AFTER the email is
+    already in the upload file — at which point the row is missing from the CRM
+    and the lead ships anyway, with nothing recording that it did. A worker
+    returning `hook_type: "about_page"` against a field whose options are
+    WORK/LIFE/METRIC is the realistic case; the enum lives in one place so a
+    taxonomy change is one edit.
+
+    Warnings, not failures: a bad enum is a bookkeeping problem and the email
+    itself may be perfect, so it must not drop a lead.
+    """
+    from audit.airtable import HOOK_TYPES, SELLS_TO
+
+    problems = []
+    hook_type = (draft.hook_type or "").strip()
+    if hook_type and hook_type not in HOOK_TYPES:
+        problems.append(
+            f"{draft.name or draft.slug}: hook_type {hook_type!r} is not one of "
+            f"{'/'.join(HOOK_TYPES)} — Airtable will reject the CRM row")
+    sells_to = (draft.sells_to or "").strip()
+    if sells_to and sells_to not in SELLS_TO:
+        problems.append(
+            f"{draft.name or draft.slug}: sells_to {sells_to!r} is not one of "
+            f"{'/'.join(SELLS_TO)} — Airtable will reject the CRM row")
+    return problems
+
+
 def write_batch(drafts: list[Draft], lint_results: dict, *,
                 out_dir: str | Path = "out", batch: str = "",
                 anchor_shares: dict | None = None,
@@ -286,6 +315,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
         result = lint_results.get(draft.email)
         fatal, address_warnings = check_address(draft)
         warnings.extend(address_warnings)
+        warnings.extend(check_crm_enums(draft))
         if fatal:
             rejected.append((draft, fatal))
         elif draft.email in drift:

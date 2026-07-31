@@ -32,6 +32,23 @@ TIMEOUT = 20
 # that silently reads the wrong table is worse than a missing key.
 BASE_ID = "appejF07kunksqt4D"
 COPY_ASSETS_TABLE = "Copy Assets"
+# The other two tables the machine writes. Named here rather than hardcoded in a
+# skill, so a rename is one edit and the ids stay next to the base they belong to.
+LEADS_TABLE = "Leads"
+BATCHES_TABLE = "Batches"
+
+# Single-select fields reject a value outside their option list, and the write
+# fails at the CRM step — after the email is already in the upload file. These
+# mirror the live base so a bad value is caught before it gets that far.
+# Verified against the base schema 2026-07-31.
+HOOK_TYPES = ("WORK", "LIFE", "METRIC")
+HOOK_VERIFIED = ("verified", "proposed", "refuted", "inconclusive", "none")
+EMAIL_STATUSES = ("pass", "enriched", "warn", "fail", "none")
+LEAD_STATUSES = ("Sourced", "Researching", "Qualified", "Drafted", "Exported",
+                 "Held", "Disqualified")
+FAILED_FLOORS = ("Not UAE-based", "Not a coach", "Inactive 30d")
+SELLS_TO = ("corporates", "individuals")
+SOLO = ("yes", "no", "unclear")
 
 
 class AirtableError(RuntimeError):

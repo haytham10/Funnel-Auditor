@@ -352,11 +352,21 @@ class _StubAirtable:
         return self.records
 
 
+# A sentinel, because `None` is a real value here: if `audit.airtable` has not
+# been imported yet when the first stub test runs, `sys.modules.get` returns
+# None, and a `_restore` that skips on None leaves the STUB installed for every
+# later test in the session. That is what happened — test_copy_sync runs before
+# test_export alphabetically, so twenty-four export tests failed with
+# "'_StubAirtable' object has no attribute ...", and only in the full suite.
+# An order-dependent suite is worse than a failing one: it passes when you check.
+_ABSENT = object()
+
+
 def _with_stub(monkey_env, stub):
     """Install the stub and clear the cache and the CSV pin."""
     import audit
     anchors.reset_cache()
-    original = sys.modules.get("audit.airtable")
+    original = sys.modules.get("audit.airtable", _ABSENT)
     sys.modules["audit.airtable"] = stub
     audit.airtable = stub
     monkey_env.pop("OUTBOUND_COPY_SOURCE", None)
@@ -366,7 +376,11 @@ def _with_stub(monkey_env, stub):
 def _restore(original, previous_source):
     import audit
     import os
-    if original is not None:
+    if original is _ABSENT:
+        sys.modules.pop("audit.airtable", None)
+        if getattr(audit, "airtable", None) is not None:
+            del audit.airtable
+    else:
         sys.modules["audit.airtable"] = original
         audit.airtable = original
     if previous_source is not None:

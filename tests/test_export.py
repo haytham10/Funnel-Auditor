@@ -403,6 +403,36 @@ def test_a_missing_or_malformed_address_is_fatal():
             assert out["rejected"] == 1, repr(bad)
 
 
+def test_a_hook_type_airtable_would_reject_is_flagged():
+    """Caught here rather than at the CRM write, which happens AFTER the email
+    is in the upload file — at which point the row is missing from the CRM and
+    the lead ships anyway with nothing recording that it did."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        d.hook_type = "about_page"
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp)
+        assert out["written"] == 1, "a CRM enum is bookkeeping, not a reason to drop"
+        assert "WORK/LIFE/METRIC" in out["report"]
+
+
+def test_a_valid_hook_type_is_silent():
+    with tempfile.TemporaryDirectory() as tmp:
+        for good in ("WORK", "LIFE", "METRIC", ""):
+            d = draft()
+            d.hook_type = good
+            out = export.write_batch([d], lint_all([d]), out_dir=tmp)
+            assert "Airtable will reject" not in out["report"], repr(good)
+
+
+def test_the_crm_enums_match_the_live_base():
+    """These mirror the base schema. If someone edits an option in Airtable and
+    not here, the write fails at the CRM step with the email already sent."""
+    from audit import airtable
+    assert airtable.HOOK_TYPES == ("WORK", "LIFE", "METRIC")
+    assert airtable.SELLS_TO == ("corporates", "individuals")
+    assert "Held" in airtable.LEAD_STATUSES
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
