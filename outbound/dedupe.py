@@ -21,8 +21,13 @@ married name, a business name that doesn't resemble a person name, or an
 address that only matches once you know it. Both passes are needed; neither is
 sufficient.
 
-Matching is deliberately loose on names and exact on domains and addresses.
-A false positive costs one lead we skip. A false negative costs a relationship.
+Matching is exact on domains and addresses, and two-tiered on names. The strict
+key is the tokens in reading order, after un-inverting a comma. A looser key
+sorts them, which catches an inversion nobody marked with a comma but also
+collides "Ahmed Mohammed Ali" with "Ali Mohammed Ahmed" — different people, in a
+market where given names double as surnames. So a loose-only match stops the run
+against a WARM contact and merely reports against a cold one: a false kill is
+permanent and invisible, a second cold email months later is not.
 """
 
 from __future__ import annotations
@@ -45,21 +50,48 @@ _TITLES = {"dr", "mr", "mrs", "ms", "miss", "prof", "professor", "coach",
            "sir", "eng", "phd", "mba", "pcc", "acc", "mcc", "icf"}
 
 
-def name_key(name: str) -> str:
-    """A comparable form of a person's name.
+def _name_tokens(name: str) -> list[str]:
+    """Accent-stripped, title-stripped, lowercased tokens, in reading order.
 
-    Strips accents, titles, suffixes and punctuation, lowercases, and sorts the
-    remaining tokens so "Sarah Al-Mansouri" and "Al Mansouri, Sarah" collapse
-    to the same key. Particles are kept because dropping them merges genuinely
-    different people (de Vries and Vries are not the same surname).
+    A comma means the source inverted the name — "Al Mansouri, Sarah" — so the
+    halves are swapped back before tokenising. Digits are kept: they are rare in
+    a real name, and dropping them merges any two names that differ only by a
+    number ("Person 0" and "Person 1") into one key.
     """
     text = unicodedata.normalize("NFKD", name or "")
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    if "," in text:
+        surname, _, given = text.partition(",")
+        text = f"{given} {surname}"
     text = re.sub(r"[^\w\s]", " ", text.lower())
-    # Digits are kept. They are rare in a real name, and dropping them merges
-    # any two names that differ only by a number into one key.
-    tokens = [t for t in text.split() if t and t not in _TITLES]
-    return " ".join(sorted(tokens))
+    return [t for t in text.split() if t and t not in _TITLES]
+
+
+def name_key(name: str) -> str:
+    """The strict key: tokens in reading order, after un-inverting a comma.
+
+    Order is preserved on purpose. The previous version sorted the tokens, which
+    made "Ahmed Mohammed Ali", "Ali Mohammed Ahmed" and "Mohammed Ahmed Ali" one
+    key — three different people in a market where given names double as
+    surnames, and a silent permanent kill for two of them. The only real case
+    sorting bought was the inverted export, which the comma swap above handles
+    without the collision.
+
+    Particles are kept because dropping them merges genuinely different people
+    (de Vries and Vries are not the same surname).
+    """
+    return " ".join(_name_tokens(name))
+
+
+def loose_name_key(name: str) -> str:
+    """The advisory key: the same tokens, sorted.
+
+    Catches an inversion with no comma to signal it ("Al Mansouri Sarah"), and
+    also collides distinct people, so a match here is NOT a kill on its own —
+    see `check_early`. It stops the run only against a warm contact, where
+    landing a cold opener on a live thread is the worse of the two errors.
+    """
+    return " ".join(sorted(_name_tokens(name)))
 
 
 def email_key(address: str) -> str:
@@ -106,6 +138,7 @@ class ContactWall:
 
     def __init__(self, contacts: list[KnownContact] | None = None):
         self.by_name: dict[str, KnownContact] = {}
+        self.by_loose_name: dict[str, KnownContact] = {}
         self.by_email: dict[str, KnownContact] = {}
         self.by_domain: dict[str, KnownContact] = {}
         for contact in contacts or []:
@@ -114,6 +147,7 @@ class ContactWall:
     def add(self, contact: KnownContact) -> None:
         if contact.name:
             self.by_name.setdefault(name_key(contact.name), contact)
+            self.by_loose_name.setdefault(loose_name_key(contact.name), contact)
         if contact.email:
             self.by_email.setdefault(email_key(contact.email), contact)
         if contact.domain:
@@ -219,7 +253,7 @@ def _is_warm(status: str) -> bool:
 @dataclass
 class DupeHit:
     lead_name: str
-    matched_on: str          # name | domain | email
+    matched_on: str          # name | name (reordered) | domain | email
     contact: KnownContact
 
     @property
@@ -233,14 +267,50 @@ class DupeHit:
                 f"({where})")
 
 
-def check_early(lead, wall: ContactWall) -> DupeHit | None:
-    """Pass 1. Name and domain only. Runs BEFORE any paid call."""
-    key = name_key(getattr(lead, "name", "") or "")
+@dataclass
+class NameEcho:
+    """A loose-key-only name collision against a COLD contact.
+
+    Not a hit. "Ahmed Mohammed Ali" and "Ali Mohammed Ahmed" sort to the same
+    tokens and are usually two people, so this lead proceeds — but it is
+    reported, because the other reading is a re-inverted export of someone we
+    already wrote to, and a second cold email months apart is worth seeing
+    before it goes out.
+    """
+    lead_name: str
+    contact: KnownContact
+
+    def line(self) -> str:
+        return (f"{self.lead_name}: same name tokens in a different order as "
+                f"{self.contact.name} (already contacted, cold) — proceeding, "
+                f"check it is not the same person")
+
+
+def check_early(lead, wall: ContactWall) -> DupeHit | NameEcho | None:
+    """Pass 1. Name and domain only. Runs BEFORE any paid call.
+
+    Three outcomes, not two. An exact name or domain match is a hit. A
+    loose-key-only match — same tokens, different order — is a hit **only
+    against a warm contact**, and otherwise a `NameEcho` that reports and
+    proceeds. The asymmetry is deliberate: killing a real lead is permanent and
+    invisible, while a cold opener on a live thread destroys a conversation, so
+    the uncertain case resolves toward whichever error is recoverable.
+    """
+    name = getattr(lead, "name", "") or ""
+    key = name_key(name)
     if key and key in wall.by_name:
         return DupeHit(lead.name, "name", wall.by_name[key])
+
     domain = domain_key(getattr(lead, "site_url", "") or "")
     if domain and domain in wall.by_domain:
         return DupeHit(lead.name, "domain", wall.by_domain[domain])
+
+    loose = loose_name_key(name)
+    if loose and loose in wall.by_loose_name:
+        contact = wall.by_loose_name[loose]
+        if contact.warm:
+            return DupeHit(lead.name, "name (reordered)", contact)
+        return NameEcho(lead.name, contact)
     return None
 
 
@@ -264,10 +334,13 @@ def partition(leads: list, wall: ContactWall, *, stage: str = "early") -> dict:
     seen_name: dict[str, str] = {}
     seen_email: dict[str, str] = {}
 
-    clear, dupes, internal = [], [], []
+    clear, dupes, internal, echoes = [], [], [], []
     for lead in leads:
         hit = check(lead, wall)
-        if hit:
+        if isinstance(hit, NameEcho):
+            # Reported, not dropped. Falls through into the normal path.
+            echoes.append(hit)
+        elif hit:
             dupes.append(hit)
             continue
 
@@ -290,16 +363,19 @@ def partition(leads: list, wall: ContactWall, *, stage: str = "early") -> dict:
         "clear": clear,
         "dupes": dupes,
         "internal": internal,
+        "echoes": echoes,
         "warm_hits": [d for d in dupes if d.warm],
     }
 
 
 def report(result: dict, *, stage: str = "early") -> list[str]:
     """The quotable output. Warm hits are listed individually and first."""
+    echoes = result.get("echoes") or []
     lines = [
         f"DEDUPE {stage}: {len(result['clear'])} clear, "
         f"{len(result['dupes'])} already contacted, "
-        f"{len(result['internal'])} duplicated inside the batch"
+        f"{len(result['internal'])} duplicated inside the batch, "
+        f"{len(echoes)} name echoes to eyeball"
     ]
     for hit in result["warm_hits"]:
         lines.append(f"  STOP  {hit.line()}")
@@ -308,4 +384,6 @@ def report(result: dict, *, stage: str = "early") -> list[str]:
             lines.append(f"  skip  {hit.line()}")
     for note in result["internal"]:
         lines.append(f"  skip  {note}")
+    for echo in echoes:
+        lines.append(f"  look  {echo.line()}")
     return lines

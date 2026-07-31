@@ -1,7 +1,13 @@
 """
-Content extraction from crawled pages: visible text, headings, prices,
-contact emails, stale/past dates near launch-implying copy, and offer
-availability (coming soon / sold out / fully booked / placeholder text).
+Content extraction from a fetched page: visible text, headings, prices,
+contact emails, and dates.
+
+_Trimmed 2026-07-31. `extract_availability` went with the audit — it existed to
+make an un-buyable offer machine-visible, which was a finding, and findings are
+not what this machine sells. `extract_dates` stayed and gained a caller:
+`outbound.qualify.latest_activity_date` uses it to settle the active-in-30-days
+floor mechanically, rather than asking a worker whether a page feels current.
+Its `stale_candidate` flag is a leftover of the audit and nothing reads it._
 """
 
 import re
@@ -233,51 +239,15 @@ def extract_dates(text: str, today: date | None = None, page_url: str = "") -> l
                 "year_assumed": year_assumed,
                 "blog_byline": blog_byline,
                 "context": ctx,
+                # The tight window the copyright and byline tests actually ran
+                # against. `context` is ±80 chars, so a caller re-testing for a
+                # "©" in it condemns every date on a page with a footer — which
+                # is every page. Callers that need "is THIS date a copyright
+                # line" want `near`, not `context`.
+                "near": near.replace("\n", " ").strip(),
                 "stale_candidate": stale,
             })
 
     # Stale candidates first, then most recent
     results.sort(key=lambda d: (not d["stale_candidate"], abs(d["days_past"])))
     return results[:30]
-
-
-# ---------------------------------------------------------------------------
-# Offer availability (the empty-shelf pattern)
-# ---------------------------------------------------------------------------
-# The strongest finding in a July 2026 batch — a flagship course marked
-# "temporarily unavailable while it gets a refresh," with six more courses
-# at "coming soon" — was invisible to every existing check. Same batch:
-# a "Fully Booked — no slots available" popup and a terms page shipped with
-# a literal "[Insert Email]" placeholder. This extraction exists so an
-# offer that cannot currently be bought is machine-visible.
-
-_AVAILABILITY_PATTERNS: list[tuple[str, re.Pattern]] = [
-    ("coming_soon", re.compile(r"\bcoming soon\b", re.I)),
-    ("unavailable", re.compile(
-        r"\b(?:temporarily |currently )?unavailable\b|\bcheck back soon\b", re.I)),
-    ("sold_out", re.compile(r"\bsold out\b|\bno longer available\b", re.I)),
-    ("fully_booked", re.compile(
-        r"\bfully booked\b|\bno slots? available\b|\bat (?:full )?capacity\b"
-        r"|\bnot (?:currently )?(?:accepting|taking) (?:new )?(?:clients|bookings)\b", re.I)),
-    ("closed", re.compile(
-        r"\b(?:enrollment|enrolment|doors|cart|registration) (?:is |are )?closed\b", re.I)),
-    ("waitlist_only", re.compile(r"\bjoin the wait\s?list\b|\bwaitlist\b", re.I)),
-    ("placeholder", re.compile(r"\[(?:insert|add|your|todo)[^\]\n]{0,40}\]", re.I)),
-]
-
-
-def extract_availability(text: str) -> list[dict]:
-    """Availability blockers with context. `waitlist_only` is only meaningful
-    when it's the ONLY path to an offer — the evidence layer judges that;
-    here every hit is reported with its surroundings."""
-    found: list[dict] = []
-    seen: set[str] = set()
-    for kind, pattern in _AVAILABILITY_PATTERNS:
-        for m in pattern.finditer(text):
-            ctx = text[max(0, m.start() - 100): m.end() + 100].replace("\n", " ").strip()
-            key = kind + "|" + ctx[:50]
-            if key in seen:
-                continue
-            seen.add(key)
-            found.append({"kind": kind, "match": m.group().strip(), "context": ctx})
-    return found[:15]

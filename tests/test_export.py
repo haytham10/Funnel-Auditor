@@ -53,7 +53,9 @@ def draft(slug="sarah", name="Sarah Khan", subject="your Hashimoto post",
 
 
 def lint_all(drafts):
-    return {d.slug: lint.check_email(name=d.name, subject=d.subject, body=d.body,
+    # Keyed by email, matching `write_batch`. Keying by slug is the collision
+    # bug: two coaches both called "Sarah Ahmed" share one slug.
+    return {d.email: lint.check_email(name=d.name, subject=d.subject, body=d.body,
                                      beats=d.beats, allowed_numbers=ALLOWED,
                                      facts=FACTS)
             for d in drafts}
@@ -325,6 +327,42 @@ def test_revoicing_the_assigned_line_is_still_allowed():
         out = export.write_batch([d], lint_all([d]), out_dir=tmp,
                                  dealt=dealt, bank=bank)
         assert out["written"] == 1, Path(tmp, "rejected.txt").read_text()
+
+
+def test_two_coaches_with_the_same_name_do_not_share_one_verdict():
+    """`slug` comes from the NAME, so two different women both called "Sarah
+    Ahmed" collapse to one key and whichever draft is processed last overwrites
+    the other's lint verdict — in either direction. Here the broken one is
+    second, so slug keying would hand the clean verdict to the failing email
+    and write it into leads.csv."""
+    with tempfile.TemporaryDirectory() as tmp:
+        clean = draft(slug="sarah", name="Sarah Ahmed")
+        broken = draft(slug="sarah", name="Sarah Ahmed")
+        broken.email = "sarah@othersite.ae"          # a different person
+        broken.beats = dict(broken.beats)
+        broken.beats["identity"] = ("My job is finding your next client. A "
+                                    "coach here closed AED 91,500 from "
+                                    "prospects I put in front of them.")
+        broken.body = export.assemble_body(broken.beats, greeting_name="Sarah")
+
+        assert clean.slug == broken.slug, "the collision this test is about"
+        assert clean.email != broken.email
+
+        out = export.write_batch([clean, broken], lint_all([clean, broken]),
+                                 out_dir=tmp)
+        rows = list(csv.DictReader(open(Path(tmp) / "leads.csv", encoding="utf-8")))
+        assert [r["email"] for r in rows] == ["sarah@site.ae"]
+        assert out["written"] == 1 and out["rejected"] == 1
+
+
+def test_a_draft_with_no_lint_entry_is_refused_not_written():
+    """The other half of the same rule: an unlinted draft must never ship on
+    the assumption that a missing entry means nothing was wrong."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        out = export.write_batch([d], {}, out_dir=tmp)
+        assert out["written"] == 0
+        assert "never linted" in Path(tmp, "rejected.txt").read_text()
 
 
 if __name__ == "__main__":

@@ -88,6 +88,10 @@ CLAIM_TOKENS: dict[str, list[tuple[str, re.Pattern]]] = {
 }
 
 _NUMBER_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*(?:k\b|%)?", re.I)
+# "21st", "3rd", "2nd" — a date reference, not a quantity claimed about a
+# client. A hook legitimately citing the date of a post would otherwise fail
+# traceability for a number nobody is asserting anything with.
+_ORDINAL_RE = re.compile(r"\b\d+(?:st|nd|rd|th)\b", re.I)
 _WORD_NUMBERS = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
     "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
@@ -134,6 +138,7 @@ def numbers_in(text: str) -> list[tuple[str, float]]:
     only sees one of them is not a checker.
     """
     found: list[tuple[str, float]] = []
+    text = _ORDINAL_RE.sub(" ", text or "")
     for match in _NUMBER_RE.finditer(text):
         raw = match.group(0).strip()
         cleaned = raw.replace(",", "").rstrip("%").strip()

@@ -57,6 +57,38 @@ def test_a_uae_verdict_carries_its_evidence():
     assert verdict.evidence == "abu dhabi"
 
 
+def test_uae_shorthand_in_a_based_in_line_passes():
+    """"Based in DXB" returned a hard NO, because the parser recognised the
+    "based in" shape and then failed to recognise the place. That is the exact
+    false kill the design forbids, on a lead who told us she is here."""
+    for text in ("Based in DXB.", "Based in AUH, working across the Emirates.",
+                 "based in RAK"):
+        assert q.check_uae(text=text).value == q.YES, text
+
+
+def test_a_uae_neighbourhood_passes():
+    """Eleven real UAE localities returned a hard NO, because the rule killed
+    on any place it did not recognise. "Based in Al Barsha" is a Dubai coach
+    telling us exactly where she is."""
+    for place in ("Al Barsha", "Deira", "Mirdif", "Motor City", "Al Quoz",
+                  "Emirates Hills", "The Greens", "Arabian Ranches",
+                  "Reem Island", "Al Nahda", "Bur Dubai"):
+        assert q.check_uae(text=f"Based in {place}.").value == q.YES, place
+
+
+def test_an_unrecognised_place_is_unclear_not_no():
+    """The burden sits on the kill. Not recognising a place is a fact about our
+    list, not about the lead — and a false kill is permanent and invisible."""
+    for place in ("BLR", "Zzyzx", "Blugton"):
+        assert q.check_uae(text=f"Based in {place}.").value == q.UNCLEAR, place
+
+
+def test_a_recognised_foreign_place_still_fails():
+    for place in ("Manchester", "London", "New York", "Mumbai", "Riyadh",
+                  "Doha", "Singapore", "the United Kingdom", "India"):
+        assert q.check_uae(text=f"Based in {place}.").value == q.NO, place
+
+
 # ---------------------------------------------------------------- coach floor
 
 
@@ -93,6 +125,53 @@ def test_no_dated_activity_is_unclear_not_no():
 
 def test_a_future_date_is_unclear():
     assert q.check_active(last_seen=TODAY + timedelta(days=5), today=TODAY).value == q.UNCLEAR
+
+
+# ------------------------------------- the mechanical bridge from page to date
+
+
+def _active(text, url=""):
+    seen, why = q.latest_activity_date(text, page_url=url, today=TODAY)
+    return q.check_active(last_seen=seen, today=TODAY, source=why).value
+
+
+def test_a_recent_dated_post_settles_the_floor_without_an_agent():
+    fresh = (TODAY - timedelta(days=6)).isoformat()
+    assert _active(f"Latest article {fresh}. Three ways to price a package.") == q.YES
+
+
+def test_an_old_dated_post_fails_the_floor():
+    stale = (TODAY - timedelta(days=200)).isoformat()
+    assert _active(f"Latest article {stale}.") == q.NO
+
+
+def test_a_footer_copyright_year_is_not_activity():
+    """"© 2026" is the footer's opinion of the current year, not evidence that
+    anyone did anything."""
+    assert _active(f"© {TODAY.year} Coach Co. All rights reserved.") == q.UNCLEAR
+
+
+def test_a_footer_copyright_does_not_suppress_a_real_date_on_the_same_page():
+    """The copyright test reads a tight window, not the ±80-char context. On
+    the wide window every date on any page with a footer was discarded, which
+    is every page."""
+    fresh = (TODAY - timedelta(days=6)).isoformat()
+    page = f"Latest article {fresh}. " + "filler " * 20 + f"© {TODAY.year} Coach Co."
+    assert _active(page) == q.YES
+
+
+def test_a_date_with_no_year_written_on_it_is_unclear():
+    """`extract_dates` assumes the current year for those, which would read a
+    "March 14" from three years ago as this March and pass a dead site."""
+    assert _active("Join us March 14 for the workshop.") == q.UNCLEAR
+
+
+def test_an_undated_page_is_unclear_not_no():
+    assert _active("I help leaders find their edge. Book a call.") == q.UNCLEAR
+
+
+def test_a_malformed_page_is_unclear_not_a_crash():
+    assert _active("\x00�" * 50) == q.UNCLEAR
 
 
 # ------------------------------------------------------------------- capture

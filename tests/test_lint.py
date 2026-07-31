@@ -83,6 +83,27 @@ def test_number_relabelled_onto_a_named_segment_fails():
     assert any("120,000" in f for f in result.failures)
 
 
+def test_an_ordinal_is_a_date_not_a_claim():
+    """"the 21st of June" tripped traceability, because 21 is not in anyone's
+    fact table. An ordinal is never a result — it is a day, a place in a queue
+    or a floor number, and none of those are claims about client outcomes."""
+    beats = good_beats()
+    beats["hook"] = ("Caught your talk on the 21st of June about pricing "
+                     "packages, and the 3rd point landed.")
+    result = run(beats)
+    assert result.passed, result.failures
+
+
+def test_a_cardinal_number_is_still_caught_next_to_an_ordinal():
+    """The ordinal strip must not blind the check to real digits around it."""
+    beats = good_beats()
+    beats["identity"] = ("My job is finding your next client. On the 21st I "
+                         "put AED 91,500 in front of a coach here.")
+    result = run(beats)
+    assert not result.passed
+    assert any("91,500" in f for f in result.failures)
+
+
 def test_spelled_out_number_is_checked_too():
     """"eleven" is not a meeting count, a client count or a period anywhere in
     the fact table. Spelled out or in digits, it is the same invention."""

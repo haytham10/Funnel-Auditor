@@ -160,6 +160,41 @@ def _check_weights(lines: list[dict], beat: str) -> list[str]:
     return problems
 
 
+# The hook is the only beat nobody writes in advance, so it is the only one
+# that gets squeezed when the four drawn lines are long. Twelve words is a
+# short hook but a real one ("Saw your talk on why senior people stall").
+MIN_HOOK_WORDS = 12
+
+
+def _check_hook_room(lines: list[dict]) -> list[str]:
+    """The heaviest set of drawn lines must still leave room for a hook.
+
+    A lengthened line is invisible on its own row and only bites in
+    combination: four anchors that total 84 words leave 11 for the hook against
+    a 95-word ceiling, so the email is rejected for length and the reason
+    points at the draft rather than at the line that caused it. Checked on the
+    worst case rather than the average, because the draw picks the combination
+    and nobody gets to avoid it.
+    """
+    from outbound import lint
+
+    longest = {}
+    for beat in ("identity", "offer", "cta", "ps"):
+        beat_lines = [l for l in lines if l["beat"] == beat]
+        if not beat_lines:
+            return []                        # a missing beat is already reported
+        longest[beat] = max(beat_lines, key=lambda l: len(l["line"].split()))
+
+    total = sum(len(l["line"].split()) for l in longest.values())
+    room = lint.WORD_MAX - total
+    if room >= MIN_HOOK_WORDS:
+        return []
+    worst = " + ".join(f"{l['id']} ({len(l['line'].split())}w)"
+                       for l in longest.values())
+    return [f"the longest line in each beat totals {total} words, leaving only "
+            f"{room} for the hook (need {MIN_HOOK_WORDS}): {worst}"]
+
+
 def validate(lines: list[dict], facts=None) -> list[str]:
     """Everything that must hold before a line is allowed to draw."""
     from audit.draft_lint import EM_DASH
@@ -190,6 +225,24 @@ def validate(lines: list[dict], facts=None) -> list[str]:
         for message in lint.check_attribution(text, facts):
             problems.append(f"{line_id}: {message}")
 
+        # An offer/cta/ps line must carry its own beat's claim tokens. Those
+        # beats are re-voiced lightly or not at all, so a line missing a claim
+        # is a line that can never ship: `check_claims` will reject every email
+        # it is dealt to, and the drafting model would have to INVENT the
+        # missing promise to get past it. Found live — `cta-02` made no "why
+        # these ten" claim at all and `b4-04` never said "names", so between
+        # them they silently condemned a share of every batch.
+        #
+        # Identity is excluded on purpose: its bridge rule is the model's job by
+        # design, and 22 of 31 identity lines open on a bare stat that the model
+        # is expected to turn toward the reader.
+        if beat in lint.CLAIM_TOKENS and beat != "identity":
+            for label, pattern in lint.CLAIM_TOKENS[beat]:
+                if not pattern.search(text):
+                    problems.append(
+                        f"{line_id}: makes no {label!r} claim, so every email "
+                        f"dealt this line fails the lint")
+
         if beat == "identity":
             coach_type = line["meta"].get("coach_type", "")
             sells_to = line["meta"].get("sells_to", "")
@@ -206,6 +259,8 @@ def validate(lines: list[dict], facts=None) -> list[str]:
         beat_lines = [l for l in lines if l["beat"] == beat]
         if beat_lines:
             problems.extend(_check_weights(beat_lines, beat))
+
+    problems.extend(_check_hook_room(lines))
 
     identity = [l for l in lines if l["beat"] == "identity"]
     if identity and not [l for l in identity if l["meta"].get("coach_type") == "Any"]:

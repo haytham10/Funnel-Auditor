@@ -1,3 +1,79 @@
+## 2026-07-31 (last pass) — the hardening run, and the gate that was rejecting its own copy
+
+Haytham: "do a final run over every part... make sure the system is ready,
+bulletproof, and each part is synced." Two audit agents plus a full end-to-end
+run on a synthetic five-lead list. The end-to-end run is what found the worst
+one, which no static read would have.
+
+**The machine was dealing lines its own linter rejected.** `cta-02` promised the
+10 names and a same-day clock but never said *why those ten* — so `check_claims`
+rejected every email it was dealt to, and `b4-04` never used the word "names",
+failing the same check. Between them they silently condemned a share of every
+batch, and the rejection line pointed at the draft rather than at the line that
+caused it. `copy-sync` validated numbers, attribution, em-dashes, weights and
+segments, but never asked whether a line carried its own beat's claim tokens.
+It does now, and it fails closed. Identity is exempt on purpose: 22 of its 31
+lines open on a bare stat, and turning that toward the reader is the drafting
+model's job by design.
+
+Repaired both lines in Airtable (the runtime source of truth — editing the CSVs
+alone would have been overwritten by the next sync, and the live ladder was
+still dealing the broken text), then ran `copy-sync --live` so Airtable, the
+snapshot and the committed CSVs agree again.
+
+Fixing `cta-02` made it 7 words longer, which exposed the next thing: the hook is
+the only beat nobody writes in advance, so it absorbs every other beat's growth.
+Added `_check_hook_room` — the longest line in each beat must still leave 12
+words under the 95-word ceiling. Checked on the worst case, because the draw
+picks the combination and nobody gets to avoid it. The live bank passes with 12
+to spare, which is tight enough to be worth knowing.
+
+**The false-kill surface in `check_uae` was much bigger than the DXB case.** The
+rule was "X is not in UAE_CITIES", which is a statement about our list, not about
+the lead. Measured it against 29 real UAE localities: eleven returned a hard NO,
+including Al Barsha, Deira, Mirdif, Motor City and Emirates Hills. Every one of
+those is a Dubai coach telling us exactly where she is. The burden now sits on
+the kill: a NO needs a match in `FOREIGN_PLACES`, and an unrecognised place is
+`unclear`, which costs one research call. Added the districts to `UAE_MARKERS`
+too, so they pass rather than merely survive.
+
+**`name_key` sorted its tokens**, so "Ahmed Mohammed Ali", "Ali Mohammed Ahmed"
+and "Mohammed Ahmed Ali" were one key — three different men in a market where
+given names double as surnames, and a permanent invisible kill for two of them.
+The only case sorting bought was the inverted export, which is now handled by
+un-inverting the comma. The sorted key survives as `loose_name_key` with
+asymmetric consequences: it stops the run against a **warm** contact, and merely
+reports a `NameEcho` against a cold one. That asymmetry is the whole design in
+one function — a cold opener on a live thread destroys a conversation, a second
+cold email months later wastes a send.
+
+**Dead code that turned out not to be dead.** `extract_dates` had no caller;
+rather than delete it, wired it into `qualify.latest_activity_date`, which
+settles the active-in-30-days floor from page text instead of asking a worker
+whether a page feels current. Two bugs found while doing it: the copyright filter
+read the ±80-char context window, so a footer `©` discarded every date on the
+page (which is every page — `extract_dates` now also returns the tight `near`
+window it actually tested), and a year-less date would read a three-year-old
+"March 14" as this March. `extract_availability` really was dead and went with
+the audit — it made an un-buyable offer machine-visible, which was a *finding*,
+and findings are not what this machine sells.
+
+**`_rejoin_particles` was defined and never called.** Rewrote it as
+`_joined_surname`, which ADDS candidates rather than replacing the surname: an
+Al Fahim may use `alfahim@` or `fahim@`, and picking one silently loses the
+other. Single-letter particles only rejoin when an apostrophe follows them in
+the raw name, so "Jane L Smith" keeps `jane.smith@` instead of guessing
+`lsmith@`.
+
+Also: `write_batch`'s lint dict is keyed by email everywhere now (the test helper
+was still on slug, which is the collision the fix was about); `draft_lint` and
+`urls` had docstrings naming deleted modules as their consumers; and
+`tests/test_cli_failures.py` is new — nothing pinned the exit codes the skills
+quote, and exit 2 ("the check could not run") is the one that must never be
+mistaken for exit 0.
+
+326 tests green. End-to-end run writes 3 of 3 with the anchors held.
+
 ## 2026-07-31 (later still) — Copy Assets stopped being an inert table
 
 Haytham: "the copy assets just sit there as a table, it shouldn't be a

@@ -31,6 +31,10 @@ YES, NO, UNCLEAR = "yes", "no", "unclear"
 
 ACTIVITY_WINDOW_DAYS = 30
 
+# A footer's copyright year is the site's opinion of today, not evidence that
+# anyone did anything. `latest_activity_date` drops any date sitting next to it.
+_COPYRIGHT_NEAR = re.compile(r"(?:©|&copy;|copyright|all rights reserved)", re.I)
+
 UAE_CITIES = (
     "dubai", "abu dhabi", "abudhabi", "sharjah", "ajman", "fujairah",
     "ras al khaimah", "ras al-khaimah", "umm al quwain", "al ain",
@@ -39,12 +43,72 @@ UAE_MARKERS = (
     "united arab emirates", "u.a.e", "uae", ".ae", "jumeirah", "marina",
     "downtown dubai", "difc", "jlt", "business bay", "silicon oasis",
     "media city", "internet city", "khalifa city", "yas island",
+    # Neighbourhoods a real bio writes instead of the emirate. Every one of
+    # these returned a hard NO from the "based in X" rule below, because the
+    # rule killed on any place it did not recognise. "Based in Al Barsha" is a
+    # Dubai coach telling us exactly where she is.
+    "al barsha", "al quoz", "al nahda", "al wasl", "al safa", "al furjan",
+    "deira", "bur dubai", "mirdif", "motor city", "sports city",
+    "arabian ranches", "emirates hills", "dubai hills", "the greens",
+    "the springs", "the meadows", "palm jumeirah", "jvc", "jbr", "jlt",
+    "reem island", "saadiyat", "al reem", "masdar", "corniche",
+    "tecom", "barsha heights", "discovery gardens", "city walk",
+)
+
+# Shorthand a real bio uses instead of a city name. Airport codes and emirate
+# abbreviations were returning a hard NO on genuinely UAE-based coaches,
+# because the "based in X" rule below fired whenever X was not literally in
+# UAE_CITIES. That is the one failure this whole design exists to avoid.
+UAE_SHORTHAND = (
+    "dxb", "auh", "shj", "rak", "uaq", "fjr", "awz", "ad", "ae",
 )
 # Places that mention the UAE without being in it. "Serving clients across the
 # GCC" from a London address is the exact failure this catches.
 UAE_NEGATIVE = (
     "serving the uae", "clients across the gcc", "remote across the middle east",
     "we work with clients in dubai",
+)
+
+# The ONLY thing that earns a hard NO from a "based in X" line. The rule used to
+# be "X is not a UAE city", which killed "Based in Al Barsha", "Based in Deira"
+# and nine other real UAE localities outright — a permanent, invisible loss on
+# leads who had just told us where they were. Recognising a foreign place is a
+# positive claim; failing to recognise a place is not. Anything absent from both
+# lists is `unclear`, which costs one research call.
+FOREIGN_PLACES = (
+    # countries and regions
+    "united kingdom", "uk", "england", "scotland", "wales", "ireland",
+    "united states", "usa", "us", "america", "canada", "australia",
+    "new zealand", "india", "pakistan", "bangladesh", "sri lanka",
+    "south africa", "nigeria", "kenya", "egypt", "morocco", "lebanon",
+    "jordan", "syria", "iraq", "iran", "turkey", "turkiye", "germany",
+    "france", "spain", "portugal", "italy", "greece", "netherlands",
+    "holland", "belgium", "switzerland", "austria", "sweden", "norway",
+    "denmark", "finland", "poland", "romania", "russia", "ukraine",
+    "china", "japan", "korea", "singapore", "malaysia", "indonesia",
+    "thailand", "vietnam", "philippines", "brazil", "argentina", "mexico",
+    "chile", "colombia", "saudi arabia", "ksa", "qatar", "kuwait",
+    "bahrain", "oman", "israel", "cyprus", "malta",
+    # cities coaches actually list
+    "london", "manchester", "birmingham", "leeds", "glasgow", "edinburgh",
+    "bristol", "liverpool", "dublin", "new york", "brooklyn", "los angeles",
+    "san francisco", "chicago", "boston", "seattle", "austin", "denver",
+    "miami", "atlanta", "houston", "dallas", "toronto", "vancouver",
+    "montreal", "sydney", "melbourne", "brisbane", "perth", "auckland",
+    "mumbai", "delhi", "new delhi", "bangalore", "bengaluru", "hyderabad",
+    "chennai", "pune", "kolkata", "karachi", "lahore", "islamabad",
+    "colombo", "dhaka", "cairo", "alexandria", "casablanca", "beirut",
+    "amman", "istanbul", "ankara", "tehran", "riyadh", "jeddah", "dammam",
+    "doha", "kuwait city", "manama", "muscat", "paris", "lyon", "marseille",
+    "berlin", "munich", "hamburg", "frankfurt", "madrid", "barcelona",
+    "lisbon", "porto", "rome", "milan", "athens", "amsterdam", "rotterdam",
+    "brussels", "zurich", "geneva", "vienna", "stockholm", "oslo",
+    "copenhagen", "helsinki", "warsaw", "prague", "budapest", "bucharest",
+    "moscow", "kyiv", "kiev", "beijing", "shanghai", "hong kong", "tokyo",
+    "osaka", "seoul", "bangkok", "jakarta", "kuala lumpur", "manila",
+    "sao paulo", "rio de janeiro", "buenos aires", "mexico city", "bogota",
+    "santiago", "lagos", "abuja", "nairobi", "accra", "johannesburg",
+    "cape town", "durban", "tel aviv", "jerusalem", "nicosia", "valletta",
 )
 
 COACH_MARKERS = (
@@ -171,16 +235,36 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
         if marker in haystack:
             return Verdict(YES, source or "text", marker)
 
-    # A clearly stated other country is the only thing that earns a NO. Matched
+    # A RECOGNISED other place is the only thing that earns a NO. Matched
     # case-insensitively: "Based in Manchester" at the start of a sentence is
     # the common form, and a lowercase-only pattern silently misses all of them.
+    #
+    # The burden sits on the kill, not on the pass. The old rule was "X is not
+    # in UAE_CITIES", which is a statement about our list rather than about the
+    # lead, and it hard-killed eleven real UAE localities including Al Barsha,
+    # Deira and Mirdif. Now an unrecognised place is `unclear` — one research
+    # call — because a false kill is permanent and nobody ever sees it.
     other = re.search(
-        r"\b(?:based|located|living|headquartered)\s+in\s+"
+        r"\b(?:based|located|living|headquartered)\s+in\s+(?:the\s+)?"
         r"([A-Za-z]+(?:[ -][A-Za-z]+)?)",
         text or "", re.I,
     )
-    if other and not any(m in other.group(1).lower() for m in UAE_CITIES):
-        return Verdict(NO, source or "text", other.group(0))
+    if other:
+        where = other.group(1).strip()
+        lowered = where.lower()
+        if any(m in lowered for m in UAE_CITIES):
+            return Verdict(YES, source or "text", other.group(0))
+        if lowered in UAE_SHORTHAND:
+            return Verdict(YES, source or "text", f"{other.group(0)} (UAE shorthand)")
+        if lowered in FOREIGN_PLACES:
+            return Verdict(NO, source or "text", other.group(0))
+        # "Based in Manchester, UK" — the regex takes two words, so check the
+        # leading word too before giving up on a place we do know.
+        first_word = lowered.split()[0] if lowered.split() else ""
+        if first_word in FOREIGN_PLACES:
+            return Verdict(NO, source or "text", other.group(0))
+        return Verdict(UNCLEAR, source or "text",
+                       f"{other.group(0)} — place not recognised either way")
 
     return Verdict(UNCLEAR, source or "text")
 
@@ -212,6 +296,44 @@ def check_active(*, last_seen: date | None = None, today: date | None = None,
     if age <= ACTIVITY_WINDOW_DAYS:
         return Verdict(YES, source or "date", f"{last_seen} ({age}d ago)")
     return Verdict(NO, source or "date", f"{last_seen} ({age}d ago)")
+
+
+def latest_activity_date(text: str, *, page_url: str = "",
+                         today: date | None = None) -> tuple[date | None, str]:
+    """The most recent real date on a fetched page, and where it came from.
+
+    `check_active` wants a date; a worker reading a page has text. This is the
+    bridge, and it is mechanical on purpose — "when did she last post" is a
+    question a regex can settle, and a settled question is one fewer thing a
+    worker can be talked into by a page that merely feels busy.
+
+    Copyright lines and future dates are excluded: "© 2026" is the footer's
+    opinion of the current year, not evidence anyone did anything. A date with
+    no year written on it is excluded too — `extract_dates` assumes the current
+    year for those, which would read a "March 14" from three years ago as this
+    March and pass a dead site through the floor.
+
+    Returns `(None, reason)` when nothing usable was found, which `check_active`
+    turns into `unclear` rather than a kill.
+    """
+    from audit.extract import extract_dates
+
+    today = today or date.today()
+    try:
+        hits = extract_dates(text or "", today=today, page_url=page_url)
+    except Exception as exc:                      # a malformed page is not a kill
+        return None, f"date scan failed ({type(exc).__name__})"
+
+    usable = [h for h in hits
+              if not h.get("year_assumed")
+              and h.get("days_past", -1) >= 0
+              and not _COPYRIGHT_NEAR.search(h.get("near", ""))]
+    if not usable:
+        return None, "no dated activity found"
+
+    best = min(usable, key=lambda h: h["days_past"])
+    parsed = date.fromisoformat(best["parsed"])
+    return parsed, f"{page_url or 'page text'}: {best['raw']!r}"
 
 
 # ------------------------------------------------------------------- capture

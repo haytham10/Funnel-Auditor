@@ -194,6 +194,69 @@ def test_there_is_no_gap_or_overlap_left_to_get_wrong():
     assert copy_sync.validate(lines) == []
 
 
+# ------------------------------------------------------ unshippable copy lines
+
+
+def test_a_cta_line_that_makes_no_why_these_ten_claim_is_rejected():
+    """Found live: `cta-02` promised the 10 and a clock but never said why
+    those 10. `check_claims` then rejected every email dealt that line, and
+    nothing upstream knew — the line sat in Airtable silently condemning a
+    share of every batch. offer/cta/ps are re-voiced lightly or not at all, so
+    a claim missing from the line is a claim the model would have to invent."""
+    records = good_set() + [record(
+        "cta-z", "cta",
+        "Give me 15 minutes this week and the 10 are in your inbox that day.",
+        weight=10)]
+    lines, _ = copy_sync.normalize_records(records)
+    problems = copy_sync.validate(lines)
+    assert any("cta-z" in p and "why these ten" in p for p in problems), problems
+
+
+def test_an_offer_line_that_never_says_names_is_rejected():
+    records = good_set() + [record(
+        "b4-z", "offer",
+        "I went and found 10 already. People here who'd be worth the meeting.",
+        weight=10)]
+    lines, _ = copy_sync.normalize_records(records)
+    assert any("b4-z" in p and "ten names" in p for p in copy_sync.validate(lines))
+
+
+def test_an_identity_line_opening_on_a_bare_stat_is_still_allowed():
+    """Identity is exempt. Its bridge is the drafting model's job by design —
+    22 of 31 identity lines open on a bare stat the model turns toward the
+    reader, and failing them here would empty the bank."""
+    records = good_set() + [record(
+        "id-z", "identity",
+        "9 meetings in 6 weeks for the last health coach I worked with in Dubai.",
+        coach_type="Health", sells_to="any", weight=10)]
+    lines, _ = copy_sync.normalize_records(records)
+    assert not any("id-z" in p for p in copy_sync.validate(lines))
+
+
+def test_a_line_long_enough_to_crowd_out_the_hook_is_rejected():
+    """A lengthened line is invisible on its own row and only bites in
+    combination. Four anchors totalling 84 words leave 11 for the hook against
+    a 95-word ceiling, and the rejection then points at the draft rather than
+    at the line that caused it."""
+    records = good_set()
+    for rec in records:
+        if rec["fields"].get("Beat") == "cta":
+            rec["fields"]["Line"] = " ".join(["word"] * 60)
+    lines, _ = copy_sync.normalize_records(records)
+    problems = copy_sync.validate(lines)
+    assert any("leaving only" in p and "for the hook" in p for p in problems), problems
+
+
+def test_the_live_bank_leaves_room_for_a_hook():
+    """The worst case, not the average — the draw picks the combination and
+    nobody gets to avoid it."""
+    bank = anchors.CopyBank.from_csv()
+    lines = [{"id": l.id, "beat": beat, "line": l.line, "meta": l.meta}
+             for beat in ("identity", "offer", "cta", "ps")
+             for l in getattr(bank, beat)]
+    assert copy_sync._check_hook_room(lines) == []
+
+
 # ---------------------------------------------------------- the generic fallback
 
 

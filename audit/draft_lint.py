@@ -1,16 +1,18 @@
 """
 Shared draft-body lint — the code-enforced copy rules that must hold on
-EVERY outbound draft, whichever inbox/transport creates it.
+EVERY email body, whoever wrote it.
 
-Two transports create Gmail drafts:
-  - Inbox 1 (auto-mate.one) via the Gmail MCP `create_draft` — guarded by
-    the PreToolUse hook `.claude/hooks/gmail_draft_link_guard.py`.
-  - Inbox 2 (gethaytham.com) via `audit/gmail_gethaytham.create_draft` —
-    the MCP hook never sees this path.
+_Reworded 2026-07-31. This described two Gmail transports and a PreToolUse hook
+that guarded one of them. The machine no longer sends: it writes a Smartlead
+upload file, and `audit/gmail_gethaytham.py` and the link guard were deleted
+with the rest of the sending layer. The rules survived the transport, which is
+the point of them living here rather than in a caller._
 
-Both import `scan()` from here so the rule is defined ONCE and can't drift
-between the two paths. `scan()` returns a list of human-readable problems;
-empty means the body is clean.
+`outbound/lint.py` imports `bare_links` and `EM_DASH` from here, and
+`outbound/copy_sync.py` imports `EM_DASH` to reject a hand-written line in
+Airtable before it can reach a draft. Defining each rule ONCE is what stops the
+linter and the copy gate from drifting apart. `scan()` returns a list of
+human-readable problems; empty means the body is clean.
 
 Rules enforced:
   1. No BARE domain or email in the body. Gmail auto-links `name.tld` or

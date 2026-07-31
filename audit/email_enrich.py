@@ -51,6 +51,38 @@ FREE_PROVIDERS = {
 }
 
 
+# Surname particles. The multi-letter ones are unambiguous. The single-letter
+# ones are only ever a particle when an apostrophe follows them in the raw name
+# — otherwise "Jane L Smith" is a middle initial, and treating it as a particle
+# would guess `lsmith@` for a woman whose address is `jane.smith@`.
+_PARTICLES = {"mc", "mac", "de", "del", "della", "di", "da", "van", "von",
+              "der", "bin", "ibn", "al", "el", "abu", "abd", "st"}
+_APOSTROPHE_PARTICLES = {"o", "d", "l"}
+
+
+def _joined_surname(tokens: list[str], raw: str) -> str:
+    """"Jane O'Brien" -> "obrien"; "Mohammed Al Fahim" -> "alfahim"; "" when the
+    surname has no particle in front of it.
+
+    `name_tokens` splits on any non-letter and `candidate_locals` uses only the
+    first and last token, so the particle was dropped and every guess was built
+    against "brien" alone. `obrien@` and `jane.obrien@` — the addresses a real
+    O'Brien actually uses — were never generated.
+
+    This RETURNS AN EXTRA surname rather than replacing `tokens[-1]`. Both forms
+    are live in this market: an Al Fahim may use `alfahim@` or `fahim@`, and
+    picking one would silently lose the other.
+    """
+    if len(tokens) < 3:
+        return ""
+    particle, last = tokens[-2].lower(), tokens[-1]
+    if particle in _PARTICLES:
+        return particle + last
+    if particle in _APOSTROPHE_PARTICLES and f"{particle}'" in (raw or "").lower():
+        return particle + last
+    return ""
+
+
 def candidate_locals(full_name: str) -> list[str]:
     """Ranked, deduped local-parts for a name — most-likely first.
 
@@ -79,6 +111,17 @@ def candidate_locals(full_name: str) -> list[str]:
         f"{fi}.{last}",        # j.doe
         last,                  # doe
     ]
+
+    # A particled surname gets the same shapes against the joined form, ranked
+    # under the plain ones rather than replacing them.
+    joined = _joined_surname(tokens, full_name)
+    if joined:
+        ranked += [
+            f"{first}.{joined}",   # jane.obrien
+            f"{first}{joined}",    # janeobrien
+            f"{fi}{joined}",       # jobrien
+            joined,                # obrien
+        ]
 
     seen: set[str] = set()
     out: list[str] = []

@@ -90,11 +90,21 @@ def cmd_dedupe(args) -> None:
 
     leads = _load_leads(args.leads)
     if args.contacts:
-        # An explicit file, for walling against a one-off CRM export.
-        raw = Path(args.contacts).read_text(encoding="utf-8")
-        wall = (dedupe.ContactWall.from_records(json.loads(raw))
-                if args.contacts.endswith(".json")
-                else dedupe.ContactWall.from_csv(args.contacts))
+        # An explicit file, for walling against a one-off CRM export. An
+        # unreadable one must exit 2 with a message, exactly like a missing
+        # default wall — a traceback here would read as "the run failed"
+        # rather than "the wall could not be checked", and the hard rule is
+        # that a missing wall never means "nobody has been contacted".
+        try:
+            raw = Path(args.contacts).read_text(encoding="utf-8")
+            wall = (dedupe.ContactWall.from_records(json.loads(raw))
+                    if args.contacts.endswith(".json")
+                    else dedupe.ContactWall.from_csv(args.contacts))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"DEDUPE: FAIL — cannot read the wall at {args.contacts}: "
+                  f"{type(exc).__name__}. Refusing to pass a batch it cannot "
+                  f"check.")
+            sys.exit(2)
     else:
         wall = dedupe.ContactWall.from_csv()
 
@@ -120,6 +130,27 @@ def cmd_dedupe(args) -> None:
 # -------------------------------------------------------------------- qualify
 
 
+def _load_object(path: str, label: str) -> dict:
+    """One JSON object from a file or stdin, or a clean failure.
+
+    A worker that returns a list instead of an object used to produce an
+    `AttributeError` traceback, which reads as a crash rather than as the
+    schema violation it actually is.
+    """
+    try:
+        raw = sys.stdin.read() if path == "-" else \
+            Path(path).read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}: {exc}")
+        sys.exit(2)
+    if not isinstance(data, dict):
+        print(f"{label}: FAIL — expected one JSON object, got "
+              f"{type(data).__name__}. One lead per call.")
+        sys.exit(2)
+    return data
+
+
 def cmd_qualify(args) -> None:
     """The three floors over one lead's gathered text. `unclear` passes.
 
@@ -130,8 +161,7 @@ def cmd_qualify(args) -> None:
     from datetime import date
     from outbound import qualify as q
 
-    data = json.loads(Path(args.input).read_text(encoding="utf-8")) \
-        if args.input != "-" else json.loads(sys.stdin.read())
+    data = _load_object(args.input, "QUALIFY")
 
     last = data.get("last_activity")
     result = q.qualify(
@@ -158,8 +188,7 @@ def cmd_research(args) -> None:
     """
     from outbound import research as r
 
-    data = json.loads(Path(args.input).read_text(encoding="utf-8")) \
-        if args.input != "-" else json.loads(sys.stdin.read())
+    data = _load_object(args.input, "RESEARCH")
     obj = r.Research.from_dict(data)
     print(r.report(obj))
     sys.exit(0 if not r.validate(obj) else 1)
@@ -498,7 +527,7 @@ def cmd_export(args) -> None:
         allowed = row.get("allowed_numbers")
         if allowed is None:
             allowed = anchors.all_numbers(facts)
-        results[draft.slug] = lint.check_email(
+        results[draft.email] = lint.check_email(
             name=draft.name, subject=draft.subject, body=draft.body,
             beats=beats, allowed_numbers=set(allowed), facts=facts)
         drafts.append(draft)

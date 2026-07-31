@@ -166,7 +166,12 @@ def classify_site(raw: str) -> SiteVerdict:
             return SiteVerdict("platform", url=url, platform=label,
                                reason=f"{label} profile, route to social research")
 
-    if domain in PARKED_HOSTS or any(p in host for p in PARKED_HOSTS):
+    # Registrable domain only, never a substring of the host. `"dan.com" in
+    # host` matched jordan.com and sudan.com, and `"sav.com"` matched
+    # coachsav.com — real coach domains, dropped as for-sale before any
+    # research ran. Same silent-loss failure the platform routing above exists
+    # to prevent, reintroduced against a different host list.
+    if domain in PARKED_HOSTS:
         return SiteVerdict("parked", url=url, reason="domain for sale")
 
     if domain in JUNK_HOSTS or host in JUNK_HOSTS:
@@ -197,6 +202,7 @@ class Lead:
     company: str = ""
     headline: str = ""
     phone: str = ""
+    other_urls: list[str] = field(default_factory=list)
     source: str = ""
     slug: str = ""
     notes: list[str] = field(default_factory=list)
@@ -206,8 +212,11 @@ class Lead:
         return registrable_domain(self.site_url) if self.site_url else ""
 
     def social_urls(self) -> list[str]:
-        return [u for u in (self.linkedin_url, self.instagram_url,
-                            self.facebook_url, self.youtube_url) if u]
+        """Every public profile worth researching, including the ones with no
+        dedicated field — TikTok, Twitter, and the link-in-bio hosts."""
+        named = (self.linkedin_url, self.instagram_url,
+                 self.facebook_url, self.youtube_url)
+        return [u for u in named if u] + list(self.other_urls)
 
     def has_research_target(self) -> bool:
         """Enough to research at all? A live site OR any social profile."""
@@ -261,6 +270,12 @@ def map_row(row: dict, *, source: str = "") -> Lead:
 
     # A platform URL from the website column fills its own social field, but
     # only when that field is still empty — an explicit LinkedIn column wins.
+    # Platforms with no dedicated field (TikTok, Twitter, every link-in-bio
+    # host) land in `other_urls` rather than being dropped: six of the ten
+    # PLATFORM_HOSTS had no `target` here, so `classify_site` correctly called
+    # them research targets and `map_row` then threw them away, leaving the
+    # lead counted as "nothing to work". That is the 24-discarded-rows bug
+    # again, one host list over.
     for verdict in extra_platforms:
         target = {
             "instagram": "instagram_url", "linkedin": "linkedin_url",
@@ -268,6 +283,8 @@ def map_row(row: dict, *, source: str = "") -> Lead:
         }.get(verdict.platform)
         if target and not getattr(lead, target):
             setattr(lead, target, verdict.url)
+        elif not target and verdict.url not in lead.other_urls:
+            lead.other_urls.append(verdict.url)
 
     _split_name(lead)
     lead.slug = slugify(lead.name or lead.domain or "lead")

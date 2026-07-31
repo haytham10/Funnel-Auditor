@@ -51,6 +51,15 @@ def test_a_parked_domain_is_parked():
     assert normalize.classify_site("http://hugedomains.com/x").verdict == "parked"
 
 
+def test_a_real_domain_that_merely_contains_a_parker_name_survives():
+    """`"dan.com" in host` matched jordan.com and sudan.com; `"sav.com"`
+    matched coachsav.com. Real coach domains, dropped as for-sale before any
+    research ran — the same silent loss the platform routing exists to stop."""
+    for url in ("https://jordan.com", "https://sudan.com",
+                "https://coachsav.com", "https://mydan.com"):
+        assert normalize.classify_site(url).verdict == "own_site", url
+
+
 def test_infrastructure_urls_are_junk():
     for url in ("https://accounts.google.com/signin",
                 "https://outlook.live.com/mail",
@@ -90,6 +99,20 @@ def test_a_platform_url_in_the_site_column_fills_the_social_field():
     assert lead.site_url == ""
     assert lead.instagram_url == "https://instagram.com/sarahcoach"
     assert lead.has_research_target()
+
+
+def test_a_platform_with_no_dedicated_field_lands_in_other_urls():
+    """Six of the ten PLATFORM_HOSTS had no field to route into, so
+    `classify_site` correctly called them research targets and `map_row` then
+    threw them away — leaving the lead counted as having nothing to work."""
+    for url in ("https://tiktok.com/@sarahcoach",
+                "https://x.com/sarahcoach",
+                "https://linktr.ee/sarahcoach",
+                "https://stan.store/sarahcoach"):
+        lead = normalize.map_row({"Name": "Sarah", "Website": url})
+        assert lead.other_urls == [url], url
+        assert lead.social_urls() == [url]
+        assert lead.has_research_target()
 
 
 def test_an_explicit_social_column_wins_over_the_site_column():
@@ -146,6 +169,51 @@ def test_titles_and_accents_are_stripped():
 
 def test_different_people_keep_different_keys():
     assert dedupe.name_key("Sarah Khan") != dedupe.name_key("Sara Khan")
+
+
+def test_the_same_tokens_in_a_different_order_are_different_people():
+    """The strict key preserves order. Sorting it merged "Ahmed Mohammed Ali"
+    with "Ali Mohammed Ahmed" — three different men in a market where given
+    names double as surnames, and a permanent invisible kill for two of them."""
+    keys = {dedupe.name_key(n) for n in
+            ("Ahmed Mohammed Ali", "Ali Mohammed Ahmed", "Mohammed Ahmed Ali")}
+    assert len(keys) == 3
+
+
+def test_the_loose_key_still_sees_through_an_inversion():
+    assert (dedupe.loose_name_key("Ahmed Mohammed Ali")
+            == dedupe.loose_name_key("Ali Mohammed Ahmed"))
+
+
+def test_a_reordered_cold_contact_is_an_echo_not_a_kill():
+    """The uncertain case resolves toward the recoverable error: a second cold
+    email months apart wastes a send, a false kill loses the lead forever."""
+    wall = dedupe.ContactWall.from_records(
+        [{"Contact Name": "Ahmed Mohammed Ali", "Status": "Outreach Sent"}])
+    lead = normalize.map_row({"Name": "Ali Mohammed Ahmed"})
+    result = dedupe.check_early(lead, wall)
+    assert isinstance(result, dedupe.NameEcho)
+    assert "check it is not the same person" in result.line()
+
+
+def test_a_reordered_warm_contact_does_stop_the_run():
+    """The other direction. A cold opener on a live thread destroys something
+    rather than wasting something, so the uncertain case stops here."""
+    wall = dedupe.ContactWall.from_records(
+        [{"Contact Name": "Rita Baki", "Status": "Reply Received"}])
+    hit = dedupe.check_early(normalize.map_row({"Name": "Baki Rita"}), wall)
+    assert isinstance(hit, dedupe.DupeHit)
+    assert hit.warm and hit.matched_on == "name (reordered)"
+
+
+def test_an_echo_still_ships_and_is_reported():
+    wall = dedupe.ContactWall.from_records(
+        [{"Contact Name": "Ahmed Mohammed Ali", "Status": "Outreach Sent"}])
+    result = dedupe.partition([normalize.map_row({"Name": "Ali Mohammed Ahmed"})], wall)
+    assert len(result["clear"]) == 1
+    assert len(result["dupes"]) == 0
+    assert len(result["echoes"]) == 1
+    assert any("look" in line for line in dedupe.report(result))
 
 
 def test_gmail_dots_and_tags_are_the_same_mailbox():

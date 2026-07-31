@@ -184,7 +184,7 @@ def check_dealt(drafts: list[Draft], dealt: dict,
     the right id, which leaves the usage counts and the CRM row describing an
     email nobody received.
     """
-    problems: dict[str, list[str]] = {}
+    problems: dict[str, list[str]] = {}   # keyed by email — see write_batch
     others: dict[str, dict[str, str]] = {}
     if bank is not None:
         for beat in ("identity", "offer", "cta", "ps"):
@@ -194,14 +194,14 @@ def check_dealt(drafts: list[Draft], dealt: dict,
     for draft in drafts:
         assigned = dealt.get(draft.email)
         if assigned is None:
-            problems.setdefault(draft.slug, []).append(
+            problems.setdefault(draft.email, []).append(
                 "not in the batch deal — where did this lead come from?")
             continue
         for beat in ("identity", "offer", "cta", "ps"):
             want = (assigned.get(beat) or {}).get("id", "")
             got = draft.anchor_ids.get(beat, "")
             if want and got and want != got:
-                problems.setdefault(draft.slug, []).append(
+                problems.setdefault(draft.email, []).append(
                     f"{beat} line is {got}, but the deal assigned {want} — "
                     f"the drafter drew its own instead of using the batch's")
                 continue
@@ -209,7 +209,7 @@ def check_dealt(drafts: list[Draft], dealt: dict,
             written = _normalised((draft.beats or {}).get(beat, ""))
             match = others.get(beat, {}).get(written)
             if match and want and match != want:
-                problems.setdefault(draft.slug, []).append(
+                problems.setdefault(draft.email, []).append(
                     f"{beat} reports {want} but the text is {match} verbatim — "
                     f"the reported line and the written line disagree")
     return problems
@@ -221,6 +221,10 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
                 batch_result=None, dealt: dict | None = None,
                 bank=None) -> dict:
     """Write leads.csv and preview.txt for the drafts that passed.
+
+    `lint_results` is keyed by **email**, not slug — see the comment below, and
+    key it that way in every caller. A draft with no entry is refused rather
+    than written unchecked.
 
     A lead whose lint failed is not written, and is listed in the report with
     its reasons. A failing batch-level check blocks the whole file, because
@@ -235,11 +239,16 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
     # produced nothing", which must reject every draft, not skip the check.
     drift = check_dealt(drafts, dealt, bank) if dealt is not None else {}
 
+    # Keyed by email, never by slug. `slug` comes from the NAME, so two
+    # different coaches called "Sarah Ahmed" collapse to one key and whichever
+    # draft is processed last overwrites the other's lint verdict — in either
+    # direction. A broken email inheriting a clean verdict reaches leads.csv.
+    # Email is unique by the time drafts exist: dedupe guarantees it.
     passed, rejected = [], []
     for draft in drafts:
-        result = lint_results.get(draft.slug)
-        if draft.slug in drift:
-            rejected.append((draft, drift[draft.slug]))
+        result = lint_results.get(draft.email)
+        if draft.email in drift:
+            rejected.append((draft, drift[draft.email]))
         elif result is None:
             rejected.append((draft, ["never linted — refusing to write it"]))
         elif not result.passed:
