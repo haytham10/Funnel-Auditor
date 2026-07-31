@@ -13,15 +13,24 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     wall-add    append a shipped batch to the wall, after it is uploaded
     qualify     the three floors, run over a research JSON
     research    validate one worker's returned research object
+    fetch       the free-first site read, plus one batched Apify plan
     anchors     which hand-written lines a lead draws, and what it may cite
     deal        the same, for a whole batch, with the weights held exactly
+    facts       the client-result table every number in an email traces to
     copy-usage  report a shipped batch's line usage back to Airtable
     copy-sync   pull the lines out of Airtable, rejecting any that fail the lint
     lint        the checks that make model-written copy safe
     export      leads.csv + preview.txt, refusing to write a failing email
-    email-*     address shape, deliverability, and the no-address fallback
+    email-check      address shape: syntax, MX, role and typo flags
+    email-verify     deliverability confirm before a send
+    email-enrich     the no-address fallback on the lead's own domain
     apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
     classify-footprint   merge pre-fetched search hits into sourcing candidates
+    doc-check   the docs against the code they describe
+
+This list is itself checked by `doc-check`. It had lost `fetch` and `facts` by
+the time that check was written, three feet above the parser that has always
+had them.
 """
 
 import argparse
@@ -978,6 +987,37 @@ def cmd_classify_footprint(args) -> None:
     print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
 
 
+# ------------------------------------------------------------------- doc-check
+
+
+def cmd_doc_check(args) -> None:
+    """The docs against the code they describe.
+
+    Every gate here is quoted verbatim by a skill, which only works while the
+    quoted command still exists. And every file in `docs/spec/` promises
+    something stronger: that it states a decision and its reason and never
+    holds a value something else owns.
+
+    Both promises rot invisibly, because nothing reads a doc. The previous
+    project's doc set died of exactly that and cost a commit titled "Sweep the
+    last stale prices and rename the guarantee everywhere". This is that sweep,
+    run by a machine, on every test run.
+    """
+    from outbound import doc_check
+
+    try:
+        result = doc_check.check_docs(parser=build_parser())
+    except doc_check.DocCheckError as exc:
+        # Exit 2, never 0. A docs tree that could not be read must never report
+        # as clean, for the same reason an unreadable wall must never read as
+        # "nobody has been contacted".
+        print(f"DOC-CHECK: FAIL — cannot read the docs: {exc}. "
+              f"Refusing to report a docs tree it could not check.")
+        sys.exit(2)
+    print(result.report())
+    sys.exit(0 if result.ok else 1)
+
+
 # ------------------------------------------------------------------------ CLI
 
 
@@ -1170,6 +1210,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--geo", default="Dubai")
     p.add_argument("--role", default="coach")
     p.set_defaults(func=cmd_classify_footprint)
+
+    p = sub.add_parser("doc-check",
+                       help="the docs against the code they describe")
+    p.set_defaults(func=cmd_doc_check)
 
     return parser
 

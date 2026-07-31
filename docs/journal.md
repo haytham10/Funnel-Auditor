@@ -1,3 +1,104 @@
+## 2026-07-31 (the spec layer) — defining docs, and a gate that keeps them true
+
+Haytham wanted defining docs for the operation the way uae-track had them, "but
+better and more robust this time, something that can't be affected by daily
+changes", and supplied his Hormozi-built offer doc as the input.
+
+**Went and read the old set first.** It is in git at `89bf58b^`: five numbered
+files under docs/uae-track/. Four of the five rotted and one did not, and the
+split is diagnosable rather than a matter of care. 01-crm-operating-spec held
+Notion record ids and per-inbox send counts, so every CRM change was also a doc
+edit. The offer existed as *two* files, 02-the-offer-first-five and
+02-the-offer-gso-v2, so it forked instead of changing. 03-targeting had price
+floors in prose, which is why commit `4fcc9d3` in this history is called "Sweep
+the last stale prices and rename the guarantee everywhere". 04-the-outreach-method
+grew RETIRED-dated sections inside a live doc. 05-the-named-fifty aged fine, and
+the reason is that it stated a decision and its reason and held no value anything
+else owned.
+
+**So that is the rule the new set is built on**, and it is enforced rather than
+requested: *a defining doc states a decision and its reason; it never holds a
+value that something else owns.* Where a value lives in code, a CSV or Airtable,
+the doc names the authority. `docs/spec/03-offer.md` is the one exception and is
+declared the sole price authority, because a price is a decision and has nowhere
+better to live.
+
+**Eight files in `docs/spec/`** — 00-index (the contract and the post-mortem
+above), 01-operation, 02-icp, 03-offer, 04-email, 05-pipeline, 06-state,
+07-decisions. hook-rules.md and agent-orchestration.md stayed where they are and
+are named as companion specs; they were already right.
+
+**`python main.py doc-check` is the enforcement.** Nine drift classes: unknown
+command, dead path, state in spec, unknown copy id, missing header, unowned
+authority, stale allow, undocumented command, value drift. Exit 1 on drift, exit
+2 if it cannot read the docs.
+
+The ninth came out of the final read-through and is worth the note. 04-email
+declares that it owns the word budget and states "67 to 95 words", and
+`outbound/lint.py` holds the same two numbers. That is the right way round — the
+doc decides, the code implements — but it means the number exists twice, which
+is the exact situation the rest of the layer forbids. `check_word_budget` pins
+them together, and deleting the sentence counts as drift too, so that is not a
+way out. Deliberately one hardcoded pairing rather than a mechanism: a framework
+for a single case is not honest until there is a second one.
+
+### What the design got from running it by hand before writing it
+
+Swept the real corpus first instead of reasoning about false positives, and it
+changed four decisions:
+
+- **Path resolution has to walk from the citing file up to the repo root.**
+  `.claude/skills/outbound-draft/references/voice.md` cites
+  `references/critical-failures.md`, which resolves against the *skill* root.
+  Both simpler rules flag it, and a gate that fails on a clean checkout gets
+  switched off in a week.
+- **`rstrip`, never `strip`.** `strip(".")` turns `.claude/skills/` into
+  `claude/skills/` and guarantees a false positive on a directory that is there.
+- **`docs/journal.md` is excluded, and the exclusion is printed.** It names four
+  deleted files today and is right to — its own convention says "a record, not a
+  pointer, and it stays". Checking a log against today's code is a category
+  error and the noise would train people to ignore the gate.
+- **Commands are read from fenced blocks, paths are not.** Every command in the
+  skills lives in a fence; fences are also full of `work/*.json` scratch paths
+  and worked-example filler.
+
+### Two bits of live drift it found immediately
+
+- **`main.py`'s own docstring inventory had lost `fetch` and `facts`** — a
+  hand-kept list three feet above the parser that has always had them. Fixed,
+  and the check now covers that list too.
+- **`outbound/__init__.py` said "Nine stages" over a list of eight.** Fixed.
+
+And one on its very first run: 00-index cited the deleted uae-track filenames in
+backticks, which is a claim that they exist. That produced a convention worth
+keeping — **a backticked path is a claim the file exists; a dead file's name goes
+in plain text**, because naming it is a record rather than a pointer.
+
+### Where it is wired, and where it deliberately is not
+
+- **The test suite, yes.** `test_the_repo_itself_passes` is what makes it a
+  standing gate rather than a command someone remembers.
+- **`outbound-batch`, no.** A doc typo must never be able to halt a real 50-lead
+  run, because a gate that can do that is one people learn to route around.
+- **The SessionStart hook, no.** Both hooks fail *open* by design; a fail-closed
+  gate on a fail-open surface is either noise or a lie about its own contract.
+
+46 new tests. Full suite **452 passed**. Two container notes for whoever hits
+them next: `pytest`, `beautifulsoup4` and the rest of requirements.txt are not
+preinstalled, and before `pip install -r requirements.txt`
+`test_qualify_settles_activity_from_the_page` fails on a missing `bs4` with
+nothing to do with any change. And editing a module and reverting it inside the
+same second leaves a stale `__pycache__` that mtime invalidation misses, which
+looks exactly like a check ignoring a fix.
+
+### Open follow-ups
+- [ ] The offer's build order is a set of gates, and none of them is met yet:
+      The First Five has never been sold. Everything on the NOT BUILT shelf in
+      `docs/spec/03-offer.md` stays there until it is.
+- [ ] `docs/spec/07-decisions.md` has 18 entries and each carries a reversal
+      condition. None has ever been tested, so they are guesses about what would
+      matter.
+
 ## 2026-07-31 (the journal) — cut back to the pivot
 
 Haytham: the journal still carries junk from the old track going back to 07-16,

@@ -333,6 +333,43 @@ def test_the_same_assembler_serves_lint_and_export():
     assert check.stdout.strip() == "True", check.stdout + check.stderr
 
 
+# ------------------------------------------------------------------ doc-check
+
+
+def test_doc_check_passes_on_the_real_repo():
+    result = run("doc-check")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "DOC-CHECK: PASS" in result.stdout
+
+
+def test_doc_check_exits_2_when_it_cannot_read_the_docs():
+    """A missing docs tree must never read as "no drift", for exactly the
+    reason a missing wall must never read as "nobody has been contacted"."""
+    import shutil
+    with tempfile.TemporaryDirectory() as tmp:
+        for name in ("main.py", "outbound", "audit", "copy", "CLAUDE.md",
+                     ".gitignore"):
+            src = ROOT / name
+            dst = Path(tmp) / name
+            (shutil.copytree if src.is_dir() else shutil.copy2)(src, dst)
+        (Path(tmp) / "docs").mkdir()
+        result = subprocess.run([sys.executable, "main.py", "doc-check"],
+                                cwd=tmp, capture_output=True, text=True)
+        assert result.returncode == 2, result.stdout + result.stderr
+        assert "Traceback" not in result.stdout + result.stderr
+        assert "cannot read" in result.stdout
+
+
+def test_piping_doc_check_into_head_does_not_traceback():
+    """doc-check prints one line per finding plus a summary, so it is the
+    command most likely to be piped into head or grep."""
+    proc = subprocess.run(
+        f"{sys.executable} main.py doc-check 2>&1 | head -1",
+        cwd=ROOT, shell=True, capture_output=True, text=True)
+    assert "Traceback" not in proc.stdout + proc.stderr
+    assert "BrokenPipe" not in proc.stdout + proc.stderr
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
