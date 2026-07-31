@@ -346,6 +346,7 @@ def cmd_anchors(args) -> None:
             "ps": {"id": anchor.ps.id, "line": anchor.ps.line},
             "segment": anchor.segment,
             "allowed_numbers": sorted(anchor.allowed_numbers),
+            "hook_room": anchor.hook_room(),
         }, indent=2))
         return
 
@@ -559,6 +560,11 @@ def cmd_deal(args) -> None:
             "ps": {"id": a.ps.id, "line": a.ps.line},
             "segment": a.segment,
             "allowed_numbers": sorted(a.allowed_numbers),
+            # What the hook actually has to work with, given these four lines.
+            # Handed over rather than left to be discovered by rejection: a
+            # drafter that knows it has 14 words writes a 14-word hook, and one
+            # that does not writes 20 and gets refused for length.
+            "hook_room": a.hook_room(),
         }
         for email, a in dealt.items()
     }
@@ -588,6 +594,24 @@ def cmd_deal(args) -> None:
     if swapped:
         print(f"  WARN  {swapped} lead(s) still echo after reallocation — "
               f"the lint will reject them")
+
+    # A beat that had to move so the hook had somewhere to live. Reported for
+    # the same reason the echo swap is: the repair is correct and the weight
+    # drift it causes is real, so it is said out loud rather than absorbed.
+    from outbound.lint import MIN_HOOK_WORDS
+
+    rooms = {email: a.hook_room() for email, a in dealt.items()}
+    moved = sum(1 for a in dealt.values() if a.length_repaired)
+    if moved:
+        print(f"  LENGTH {moved} lead(s) drew a combination with no room for a "
+              f"hook; ps/cta reallocated, so those shares drift by that much")
+    short = sorted(e for e, r in rooms.items() if r < MIN_HOOK_WORDS)
+    if short:
+        print(f"  WARN  {len(short)} lead(s) still leave under {MIN_HOOK_WORDS} "
+              f"words for a hook and no legal swap existed ({', '.join(short[:3])}) "
+              f"— shorten a line in that beat or the lint will reject them")
+    if rooms:
+        print(f"  hook room  {min(rooms.values())} to {max(rooms.values())} words")
     for beat, per_line in shares.items():
         top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
         top_share = next(iter(per_line.values()), 0)

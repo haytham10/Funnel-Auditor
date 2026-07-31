@@ -615,6 +615,16 @@ class Anchor:
     ps: Line
     segment: str = ""
     allowed_numbers: set = field(default_factory=set)
+    # True when the deal had to move a beat to leave room for the hook. Carried
+    # so `deal` can report the weight drift it caused rather than absorb it.
+    length_repaired: bool = False
+
+    def hook_room(self) -> int:
+        """Words this lead's hook actually has, given the lines it drew."""
+        from outbound.lint import hook_room
+
+        return hook_room({"identity": self.identity.line, "offer": self.offer.line,
+                          "cta": self.cta.line, "ps": self.ps.line})
 
     def as_prompt_block(self) -> str:
         """What the drafting model actually sees."""
@@ -625,6 +635,14 @@ class Anchor:
             f"  offer    [{self.offer.id}]: {self.offer.line}",
             f"  cta      [{self.cta.id}]: {self.cta.line}",
             f"  ps       [{self.ps.id}]: {self.ps.line}",
+            "",
+            f"HOOK ROOM: {self.hook_room()} words. That is what is left of the "
+            "95-word ceiling",
+            "after these four lines, the greeting and the sign-off. It is a real "
+            "budget, not",
+            "a target — a hook that fits in fewer is better, and going over gets "
+            "the email",
+            "refused for length.",
         ])
 
 
@@ -662,20 +680,33 @@ def all_numbers(facts: FactTable) -> set[int]:
 
 def draw(email: str, *, coach_type: str = "", sells_to: str = "",
          bank: CopyBank | None = None, facts: FactTable | None = None) -> Anchor:
-    """The whole draw for one lead. Deterministic given the same address."""
+    """The whole draw for one lead. Deterministic given the same address.
+
+    Runs the same length repair the batch deal does. A per-lead hash is just as
+    capable of landing on a combination with no room for a hook — likelier, in
+    fact, since it has no batch to spread against — and `outbound-draft` is
+    exactly where nobody would think to look for the cause.
+    """
     bank = bank or CopyBank.load()
     facts = facts or load_facts()
     identity = draw_identity(bank.identity, email,
                              coach_type=coach_type, sells_to=sells_to)
     drawn_segment = identity.meta.get("coach_type", "")
     segment = coach_type if drawn_segment == coach_type else ""
+
+    fixed = {"offer": {email: draw_weighted(bank.offer, email, "offer")},
+             "cta": {email: draw_weighted(bank.cta, email, "cta")},
+             "ps": {email: draw_weighted(bank.ps, email, "ps")}}
+    repaired = _resolve_length(fixed, {email: identity}, [email], bank)
+
     return Anchor(
         identity=identity,
-        offer=draw_weighted(bank.offer, email, "offer"),
-        cta=draw_weighted(bank.cta, email, "cta"),
-        ps=draw_weighted(bank.ps, email, "ps"),
+        offer=fixed["offer"][email],
+        cta=fixed["cta"][email],
+        ps=fixed["ps"][email],
         segment=segment,
         allowed_numbers=all_numbers(facts),
+        length_repaired=bool(repaired),
     )
 
 
@@ -814,6 +845,9 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
         segments[lead["email"]] = coach_type if drawn == coach_type else ""
 
     _resolve_echoes(fixed, [l["email"] for l in leads], bank)
+    # After the echo pass, so a length swap cannot reintroduce a collision the
+    # echo pass just cleared.
+    repaired = _resolve_length(fixed, identity, [l["email"] for l in leads], bank)
 
     widened = all_numbers(facts)
     return {
@@ -824,6 +858,7 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
             ps=fixed["ps"][lead["email"]],
             segment=segments[lead["email"]],
             allowed_numbers=widened,
+            length_repaired=lead["email"] in repaired,
         )
         for lead in leads
     }
@@ -861,7 +896,7 @@ def rebalance_ps(drafted: list[dict], *, bank: "CopyBank | None" = None,
     counts: dict[str, int] = {l.id: 0 for l in bank.ps}
     chosen: dict[str, str] = {}
 
-    from outbound.lint import WORD_MAX
+    from outbound.lint import WORD_MAX, word_count
 
     def fits(beats: dict, line: str) -> bool:
         """The swap must not push the email over the word ceiling.
@@ -869,10 +904,15 @@ def rebalance_ps(drafted: list[dict], *, bank: "CopyBank | None" = None,
         A ps is 11 to 26 words, so exchanging one for another moves the total by
         up to 15 — enough to tip an email that was sitting at the cap. Two did,
         and were rejected for length by a change nobody wrote.
+
+        Counted with `lint.word_count`, not `str.split()`. This ran on a real
+        drafted body, where a separated figure is likeliest to appear, and
+        `split()` scores "AED 91,500" one word lighter than the check that
+        decides whether the email ships.
         """
         from outbound.export import assemble_body
         body = assemble_body({**beats, "ps": line}, greeting_name="Name")
-        return len(body.split()) <= WORD_MAX
+        return word_count(body) <= WORD_MAX
 
     # Most-constrained first. Processing in address order let unconstrained
     # leads take the scarce lines, so the leads that could only accept two of
@@ -990,6 +1030,102 @@ def _resolve_echoes(fixed: dict[str, dict[str, Line]], emails: list[str],
         counts[ps.id] -= 1
         counts[pick.id] = counts.get(pick.id, 0) + 1
         fixed["ps"][email] = pick
+
+
+def _resolve_length(fixed: dict[str, dict[str, Line]], identity: dict[str, Line],
+                    emails: list[str], bank: "CopyBank") -> set[str]:
+    """Swap a beat when the dealt combination leaves no room for a hook.
+
+    The hook is the only beat written per lead, so it is the only one that pays
+    when the four drawn lines run long. The old defence was to require that the
+    longest line in every beat could coexist, which made a length problem into a
+    copy problem: the fix on offer was to trim a sentence somebody wrote by hand
+    until it fit, for a combination no lead had to be given.
+
+    This is the other end of it, and it is the rule `_resolve_echoes` already
+    follows: **a combination the linter will reject is a combination the deal
+    should never have issued.** The lines stay exactly as written. They just do
+    not go out together.
+
+    Order of what moves, cheapest first:
+
+    - **ps.** Shortest beat, told to the drafter as "verbatim or near", takes no
+      part in the seam between the hook and the identity beat. On the live bank
+      this is always enough: the heaviest identity, offer and cta together leave
+      13 words once the shortest ps is in place.
+    - **cta, with the ps.** Both beats have four lines and a 10-word spread. Only
+      reached if no ps alone gets there.
+    - **Never identity, and never offer.** Identity is drawn from a pool matched
+      to the lead's segment, and moving it trades the thing the 70/30 ratio
+      exists to buy for words. Offer carries the beat the whole email is for.
+
+    Swaps still have to satisfy the echo rule, so this cannot repair length by
+    reintroducing the collision `_resolve_echoes` just cleared. Runs after it,
+    for that reason.
+
+    Returns the emails whose beats moved. Silent when a swap is available and
+    reported by `deal` when it is not: a lead left short is not corrected here,
+    it is handed to the linter, which refuses the email. Fail-closed.
+    """
+    from outbound.lint import check_echo, hook_room, MIN_HOOK_WORDS
+
+    counts: dict[str, dict[str, int]] = {}
+    for beat in ("cta", "ps"):
+        counts[beat] = {}
+        for line in fixed[beat].values():
+            counts[beat][line.id] = counts[beat].get(line.id, 0) + 1
+
+    repaired: set[str] = set()
+
+    for email in sorted(emails):
+        drawn = identity.get(email)
+        offer, cta, ps = (fixed["offer"].get(email), fixed["cta"].get(email),
+                          fixed["ps"].get(email))
+        if not (drawn and offer and cta and ps):
+            continue
+        beats = {"identity": drawn.line, "offer": offer.line,
+                 "cta": cta.line, "ps": ps.line}
+        if hook_room(beats) >= MIN_HOOK_WORDS:
+            continue
+
+        def legal(trial: dict) -> bool:
+            return (not check_echo(trial)
+                    and hook_room(trial) >= MIN_HOOK_WORDS)
+
+        # Least-used replacement first, so the displaced share stays spread
+        # instead of piling onto whichever line happens to be shortest. Ties
+        # break on the lead's own hash, and the pass runs in sorted email
+        # order, so a given batch always deals the same way.
+        moved = False
+        candidates = [c for c in bank.ps
+                      if c.id != ps.id and legal({**beats, "ps": c.line})]
+        if candidates:
+            pick = min(candidates,
+                       key=lambda c: (counts["ps"].get(c.id, 0), seed(email, c.id)))
+            counts["ps"][ps.id] = counts["ps"].get(ps.id, 1) - 1
+            counts["ps"][pick.id] = counts["ps"].get(pick.id, 0) + 1
+            fixed["ps"][email] = pick
+            moved = True
+        else:
+            pairs = [(c, p) for c in bank.cta for p in bank.ps
+                     if legal({**beats, "cta": c.line, "ps": p.line})]
+            if pairs:
+                pick_cta, pick_ps = min(
+                    pairs, key=lambda cp: (counts["cta"].get(cp[0].id, 0),
+                                           counts["ps"].get(cp[1].id, 0),
+                                           seed(email, cp[0].id + cp[1].id)))
+                counts["cta"][cta.id] = counts["cta"].get(cta.id, 1) - 1
+                counts["cta"][pick_cta.id] = counts["cta"].get(pick_cta.id, 0) + 1
+                counts["ps"][ps.id] = counts["ps"].get(ps.id, 1) - 1
+                counts["ps"][pick_ps.id] = counts["ps"].get(pick_ps.id, 0) + 1
+                fixed["cta"][email] = pick_cta
+                fixed["ps"][email] = pick_ps
+                moved = True
+
+        if moved:
+            repaired.add(email)
+
+    return repaired
 
 
 def batch_shares(anchors: list[Anchor]) -> dict[str, dict[str, float]]:

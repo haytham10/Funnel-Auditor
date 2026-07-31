@@ -233,28 +233,68 @@ def test_an_identity_line_opening_on_a_bare_stat_is_still_allowed():
     assert not any("id-z" in p for p in copy_sync.validate(lines))
 
 
-def test_a_line_long_enough_to_crowd_out_the_hook_is_rejected():
-    """A lengthened line is invisible on its own row and only bites in
-    combination. Four anchors totalling 84 words leave 11 for the hook against
-    a 95-word ceiling, and the rejection then points at the draft rather than
-    at the line that caused it."""
+def test_a_line_that_can_never_be_dealt_is_rejected():
+    """Dead copy: a line so long that even paired with the shortest line in
+    every other beat it leaves no hook. It sits in the table looking live, draws
+    a weight, and never reaches a reader."""
     records = good_set()
     for rec in records:
         if rec["fields"].get("Beat") == "cta":
             rec["fields"]["Line"] = " ".join(["word"] * 60)
     lines, _ = copy_sync.normalize_records(records)
     problems = copy_sync.validate(lines)
-    assert any("leaving only" in p and "for the hook" in p for p in problems), problems
+    assert any("can never be dealt" in p for p in problems), problems
 
 
-def test_the_live_bank_leaves_room_for_a_hook():
-    """The worst case, not the average — the draw picks the combination and
-    nobody gets to avoid it."""
+def test_long_lines_that_merely_collide_are_allowed():
+    """The check that replaced the worst-case rule, and the reason it did.
+
+    A long identity line and a long cta that cannot coexist are not a copy
+    problem — the allocator simply never deals them together. Rejecting the
+    bank here made the only available fix "trim a hand-written sentence until
+    it fits", for a combination no lead had to be given.
+    """
+    records = good_set()
+    long_cta = ("Give me 15 minutes this week and the 10 names are sitting in "
+                "your inbox before the call is over, plus the reason every one "
+                "of the other 40 did not make it.")
+    short_cta = "Give me 15 minutes and the 10 are yours, plus why not the other 40."
+    seen = 0
+    for rec in records:
+        if rec["fields"].get("Beat") == "cta":
+            rec["fields"]["Line"] = long_cta if seen == 0 else short_cta
+            seen += 1
+    lines, _ = copy_sync.normalize_records(records)
+    # The long cta and the longest identity line together leave no hook, and
+    # that is fine: each is dealable with a shorter partner.
+    assert copy_sync._check_hook_room(lines) == []
+
+
+def test_the_live_bank_can_deal_every_line():
+    """Every line reaches a reader in some combination. Not the worst case —
+    the allocator avoids that one."""
     bank = anchors.CopyBank.from_csv()
     lines = [{"id": l.id, "beat": beat, "line": l.line, "meta": l.meta}
              for beat in ("identity", "offer", "cta", "ps")
              for l in getattr(bank, beat)]
     assert copy_sync._check_hook_room(lines) == []
+
+
+def test_hook_room_counts_the_greeting_and_the_sign_off():
+    """The three words the old sum missed, which were exactly the margin.
+
+    Summing four lines read the live bank as leaving 13 words for a hook when
+    the body the linter counts leaves 10 — under the 12-word floor the check
+    exists to hold.
+    """
+    from outbound import lint
+
+    bank = anchors.CopyBank.from_csv()
+    longest = {beat: max(getattr(bank, beat), key=lambda l: lint.word_count(l.line))
+               for beat in ("identity", "offer", "cta", "ps")}
+    beats = {beat: line.line for beat, line in longest.items()}
+    summed = lint.WORD_MAX - sum(lint.word_count(l) for l in beats.values())
+    assert lint.hook_room(beats) == summed - 3
 
 
 # ---------------------------------------------------------- the generic fallback

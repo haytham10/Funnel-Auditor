@@ -179,39 +179,64 @@ def _check_weights(lines: list[dict], beat: str) -> list[str]:
     return problems
 
 
-# The hook is the only beat nobody writes in advance, so it is the only one
-# that gets squeezed when the four drawn lines are long. Twelve words is a
-# short hook but a real one ("Saw your talk on why senior people stall").
-MIN_HOOK_WORDS = 12
+from outbound.lint import MIN_HOOK_WORDS  # noqa: E402  (one home for the floor)
+
+BEATS = ("identity", "offer", "cta", "ps")
 
 
 def _check_hook_room(lines: list[dict]) -> list[str]:
-    """The heaviest set of drawn lines must still leave room for a hook.
+    """Every line must be dealable in SOME combination that leaves a hook room.
 
-    A lengthened line is invisible on its own row and only bites in
-    combination: four anchors that total 84 words leave 11 for the hook against
-    a 95-word ceiling, so the email is rejected for length and the reason
-    points at the draft rather than at the line that caused it. Checked on the
-    worst case rather than the average, because the draw picks the combination
-    and nobody gets to avoid it.
+    This used to test the worst case — the longest line in each beat, summed —
+    and reject the whole bank when those four collided. That was the wrong
+    question, and it made length a copy problem: the only way to satisfy it was
+    to trim a good sentence until it read like a robot wrote it, to fix a
+    collision the allocator had no reason to ever hand anybody.
+
+    The allocator now refuses to deal a combination with no room for a hook
+    (`anchors._resolve_length`), the same way it already refuses to deal a
+    combination that repeats a phrase. So the worst case is not a thing that
+    ships, and the bank does not need to be short enough to survive it.
+
+    What is still worth failing on is a line that can never be dealt at all:
+    one long enough that even paired with the shortest line in every other beat
+    it leaves no hook. That is dead copy — it sits in the table looking live,
+    draws a weight, and silently never reaches a reader. Same failure `ps-01`
+    had under the echo rule, found the same way.
+
+    Feasibility per line does not prove the allocator can satisfy a whole batch
+    at once; nothing here claims it does. `deal` reports what it actually had
+    to move, and an email that still comes out long is refused by the linter.
+    Fail-closed in both directions.
     """
     from outbound import lint
 
-    longest = {}
-    for beat in ("identity", "offer", "cta", "ps"):
+    shortest = {}
+    for beat in BEATS:
         beat_lines = [l for l in lines if l["beat"] == beat]
         if not beat_lines:
             return []                        # a missing beat is already reported
-        longest[beat] = max(beat_lines, key=lambda l: len(l["line"].split()))
+        shortest[beat] = min(beat_lines, key=lambda l: lint.word_count(l["line"]))
 
-    total = sum(len(l["line"].split()) for l in longest.values())
-    room = lint.WORD_MAX - total
-    if room >= MIN_HOOK_WORDS:
-        return []
-    worst = " + ".join(f"{l['id']} ({len(l['line'].split())}w)"
-                       for l in longest.values())
-    return [f"the longest line in each beat totals {total} words, leaving only "
-            f"{room} for the hook (need {MIN_HOOK_WORDS}): {worst}"]
+    problems = []
+    for line in sorted(lines, key=lambda l: (l["beat"], l["id"])):
+        if line["beat"] not in BEATS:
+            continue
+        # The most room this line can possibly get: the shortest line in each
+        # of the other three beats.
+        best = {b: (line["line"] if b == line["beat"] else shortest[b]["line"])
+                for b in BEATS}
+        room = lint.hook_room(best)
+        if room >= MIN_HOOK_WORDS:
+            continue
+        partners = " + ".join(f"{shortest[b]['id']} ({lint.word_count(shortest[b]['line'])}w)"
+                              for b in BEATS if b != line["beat"])
+        problems.append(
+            f"{line['beat']} line {line['id']} ({lint.word_count(line['line'])}w) "
+            f"can never be dealt: even with the shortest line in every other "
+            f"beat ({partners}) it leaves {room} word{'' if room == 1 else 's'} "
+            f"for the hook, and a hook needs {MIN_HOOK_WORDS}")
+    return problems
 
 
 def validate(lines: list[dict], facts=None) -> list[str]:

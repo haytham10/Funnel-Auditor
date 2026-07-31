@@ -418,6 +418,101 @@ def test_the_live_bank_has_no_undealable_offer_ps_pair():
     assert anchors.echo_pairs(anchors.CopyBank.from_csv()) == []
 
 
+# ------------------------------------------------------- room for the hook
+
+
+def test_the_deal_never_issues_a_combination_with_no_room_for_a_hook():
+    """The rule that replaced trimming the copy.
+
+    Six of the live bank's 2,112 combinations leave under 12 words for a hook.
+    The old defence rejected the whole bank until somebody shortened a
+    hand-written sentence; this one just declines to deal those six.
+    """
+    from outbound import lint
+
+    bank = anchors.CopyBank.from_csv()
+    segs = ["Life", "Career", "Business", "Executive", "Health", "Fitness", ""]
+    for n in (8, 25, 60, 200):
+        leads = [{"email": f"c{i}@x.ae", "coach_type": segs[i % len(segs)],
+                  "sells_to": "individuals" if i % 3 else "corporates"}
+                 for i in range(n)]
+        dealt = anchors.deal_batch(leads, bank=bank)
+        short = {e: a.hook_room() for e, a in dealt.items()
+                 if a.hook_room() < lint.MIN_HOOK_WORDS}
+        assert not short, f"n={n}: {short}"
+
+
+def test_the_length_repair_moves_the_ps_and_says_so():
+    """The ps moves first: shortest beat, "verbatim or near", and it takes no
+    part in the seam between the hook and the identity beat."""
+    from outbound import lint
+
+    bank = anchors.CopyBank.from_csv()
+    longest = {beat: max(getattr(bank, beat), key=lambda l: lint.word_count(l.line))
+               for beat in ("identity", "offer", "cta", "ps")}
+    fixed = {beat: {"a@x.ae": longest[beat]} for beat in ("offer", "cta", "ps")}
+    identity = {"a@x.ae": longest["identity"]}
+
+    before = lint.hook_room({b: l.line for b, l in longest.items()})
+    assert before < lint.MIN_HOOK_WORDS, "the fixture stopped being the tight case"
+
+    repaired = anchors._resolve_length(fixed, identity, ["a@x.ae"], bank)
+    assert repaired == {"a@x.ae"}
+    assert fixed["ps"]["a@x.ae"].id != longest["ps"].id
+    assert fixed["cta"]["a@x.ae"].id == longest["cta"].id, "the cta should not move"
+
+    after = lint.hook_room({"identity": identity["a@x.ae"].line,
+                            "offer": fixed["offer"]["a@x.ae"].line,
+                            "cta": fixed["cta"]["a@x.ae"].line,
+                            "ps": fixed["ps"]["a@x.ae"].line})
+    assert after >= lint.MIN_HOOK_WORDS
+
+
+def test_a_length_repair_never_introduces_an_echo():
+    """It runs after the echo pass, so it must not undo it."""
+    from outbound.lint import check_echo
+
+    bank = anchors.CopyBank.from_csv()
+    segs = ["Life", "Career", "Business", "Executive", "Health", ""]
+    leads = [{"email": f"c{i}@x.ae", "coach_type": segs[i % len(segs)],
+              "sells_to": "individuals"} for i in range(60)]
+    for anchor in anchors.deal_batch(leads, bank=bank).values():
+        assert not check_echo({"offer": anchor.offer.line, "cta": anchor.cta.line,
+                               "ps": anchor.ps.line})
+
+
+def test_no_legal_swap_leaves_the_lead_alone_and_fails_closed():
+    """With nothing short enough in the bank the combination is left as dealt,
+    and the linter refuses the email. The repair never invents a way out."""
+    from outbound import lint
+
+    long_ps = "ps: " + " ".join(["word"] * 40)
+    bank = anchors.CopyBank(
+        identity=[anchors.Line(id="id-t", line=" ".join(["word"] * 40))],
+        offer=[anchors.Line(id="b4-t", line=" ".join(["word"] * 30))],
+        cta=[anchors.Line(id="cta-t", line=" ".join(["word"] * 30))],
+        ps=[anchors.Line(id="ps-t", line=long_ps)],
+    )
+    fixed = {beat: {"a@x.ae": getattr(bank, beat)[0]} for beat in ("offer", "cta", "ps")}
+    identity = {"a@x.ae": bank.identity[0]}
+    assert anchors._resolve_length(fixed, identity, ["a@x.ae"], bank) == set()
+    assert fixed["ps"]["a@x.ae"].id == "ps-t"
+    assert lint.hook_room({"identity": bank.identity[0].line,
+                           "offer": bank.offer[0].line,
+                           "cta": bank.cta[0].line,
+                           "ps": long_ps}) < lint.MIN_HOOK_WORDS
+
+
+def test_one_counter_everywhere():
+    """A separated figure is two words to the linter and one to `str.split()`.
+    The guards used `split()` and the check that rejects an email used the
+    other, so a guard could pass a combination the linter then refused."""
+    from outbound import lint
+
+    assert lint.word_count("We closed AED 91,500 in 60 days.") == 8
+    assert len("We closed AED 91,500 in 60 days.".split()) == 7
+
+
 # ------------------------------------------------- rebalancing after a hold
 
 
