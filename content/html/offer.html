@@ -1,0 +1,528 @@
+<title>What I do, and what I sell</title>
+
+<style>
+  /* ============================================================
+     Typeface: a clean system sans throughout. Personality comes
+     from weight contrast and tight display tracking, not from a
+     decorative face — this page has to be legible to a stranger
+     on any device, and a webfont cannot load here anyway.
+
+     One accent, a deep green, used only on money and on the
+     numbered rail. Status is a typographic mark (filled / half /
+     hollow square), so it never competes with the accent.
+     ============================================================ */
+  :root {
+    --paper:    #FBFBF9;
+    --card:     #FFFFFF;
+    --tint:     #F1F3F1;
+    --rule:     #E1E4E1;
+    --rule-2:   #EDEFED;
+    --ink:      #14181A;
+    --ink-2:    #4C5457;
+    --ink-3:    #7E878A;
+
+    --accent:   #0F5F4A;
+    --accent-2: #17805F;
+    --accent-bg:#E6F1EC;
+
+    --flag:     #8A5712;
+    --flag-bg:  #F8EFDF;
+
+    --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:    #101312;
+      --card:     #171B1A;
+      --tint:     #1E2322;
+      --rule:     #2E3533;
+      --rule-2:   #242A29;
+      --ink:      #EBEEEC;
+      --ink-2:    #A7B0AD;
+      --ink-3:    #79837F;
+
+      --accent:   #5CC9A3;
+      --accent-2: #86DCBC;
+      --accent-bg:#113026;
+
+      --flag:     #DBAC55;
+      --flag-bg:  #2B2211;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper:#FBFBF9; --card:#FFFFFF; --tint:#F1F3F1; --rule:#E1E4E1; --rule-2:#EDEFED;
+    --ink:#14181A; --ink-2:#4C5457; --ink-3:#7E878A;
+    --accent:#0F5F4A; --accent-2:#17805F; --accent-bg:#E6F1EC;
+    --flag:#8A5712; --flag-bg:#F8EFDF;
+  }
+  :root[data-theme="dark"] {
+    --paper:#101312; --card:#171B1A; --tint:#1E2322; --rule:#2E3533; --rule-2:#242A29;
+    --ink:#EBEEEC; --ink-2:#A7B0AD; --ink-3:#79837F;
+    --accent:#5CC9A3; --accent-2:#86DCBC; --accent-bg:#113026;
+    --flag:#DBAC55; --flag-bg:#2B2211;
+  }
+
+  .sheet {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    padding-bottom: 5rem;
+  }
+  .sheet *, .sheet *::before, .sheet *::after { box-sizing: border-box; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(2.15rem, 6vw, 3.3rem); font-weight: 800; letter-spacing: -.038em; line-height: 1.04; }
+  h2 { font-size: clamp(1.4rem, 3.2vw, 1.85rem); font-weight: 800; letter-spacing: -.028em; line-height: 1.16; }
+  h3 { font-size: 1.09rem; font-weight: 700; letter-spacing: -.012em; line-height: 1.35; }
+  p  { margin: 0; }
+  a  { color: var(--accent); }
+  b, strong { font-weight: 700; color: var(--ink); }
+
+  .label {
+    font-size: .68rem; font-weight: 700; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .fig { font-variant-numeric: tabular-nums; }
+  .small { font-size: .93rem; line-height: 1.6; color: var(--ink-2); }
+  .tiny  { font-size: .8rem; line-height: 1.55; color: var(--ink-3); }
+  code { font-family: var(--mono); font-size: .86em; }
+
+  /* ---------------- masthead ---------------- */
+  .head { border-bottom: 2px solid var(--ink); padding: 3.4rem 0 2rem; }
+  .head .wrap { display: grid; gap: 1.15rem; }
+  .head .kicker { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .head .who { font-size: 1.05rem; font-weight: 700; color: var(--accent); letter-spacing: -.01em; }
+  .head .stand { font-size: 1.14rem; color: var(--ink-2); max-width: 56ch; }
+
+  /* ---------------- the 20-second version ---------------- */
+  .glance { margin-top: 2.4rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); overflow: hidden; }
+  .glance > .gh { padding: .72rem 1.15rem; background: var(--tint); border-bottom: 1px solid var(--rule); }
+  .grow { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: .3rem 1.1rem; padding: .85rem 1.15rem; border-bottom: 1px solid var(--rule-2); }
+  .grow:last-child { border-bottom: 0; }
+  .grow > .q { font-size: .79rem; font-weight: 700; letter-spacing: .02em; color: var(--ink-3); padding-top: .22rem; text-transform: uppercase; }
+  .grow > .a { font-size: 1rem; min-width: 0; }
+
+  /* ---------------- sections ---------------- */
+  .sec { padding-top: 3.5rem; }
+  .sechead { display: grid; gap: .5rem; padding-bottom: .95rem; margin-bottom: 1.4rem; border-bottom: 1px solid var(--rule); }
+  .sechead > .r { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+
+  .mark { display: inline-flex; align-items: center; gap: .42rem; font-size: .67rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-2); }
+  .mark::before { content: ""; width: .6rem; height: .6rem; border: 1.5px solid var(--ink-2); flex: none; }
+  .mark.now::before  { background: var(--ink-2); }
+  .mark.half::before { background: linear-gradient(to right, var(--ink-2) 0 50%, transparent 50%); }
+  .mark.none::before { background: transparent; }
+
+  /* ---------------- panels ---------------- */
+  .panel { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 1.5rem 1.6rem; display: grid; gap: 1.05rem; }
+  .panel.lead { border-top: 3px solid var(--accent); }
+
+  .price { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+  .price > .big { font-size: 2.6rem; font-weight: 800; letter-spacing: -.045em; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .price > .unit { font-size: .95rem; font-weight: 600; color: var(--ink-2); }
+
+  .plain { font-size: 1.04rem; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-bg); padding: .95rem 1.15rem; border-radius: 0 4px 4px 0; font-size: 1rem; }
+  .callout.warn { border-left-color: var(--flag); background: var(--flag-bg); }
+  .callout > .label { display: block; margin-bottom: .3rem; color: var(--ink-2); }
+
+  .quote { font-size: 1.06rem; font-weight: 500; color: var(--ink); border-left: 3px solid var(--rule); padding-left: 1.05rem; }
+
+  /* ---------------- tables ---------------- */
+  .tw { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; min-width: 460px; font-size: .91rem; }
+  th, td { text-align: left; padding: .62rem .9rem; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  thead th { font-size: .65rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); background: var(--tint); border-bottom: 1px solid var(--rule); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sum td { border-top: 1px solid var(--rule); background: var(--tint); font-weight: 700; }
+  tr.sum.final td.n { color: var(--accent); font-size: 1.02rem; }
+
+  /* ---------------- numbered steps ----------------
+     Every grid child here is an explicit element. An earlier
+     version let bare text be a grid child, which put one word
+     in every row. */
+  ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: .75rem; }
+  ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 1.65rem minmax(0, 1fr); gap: .85rem; align-items: start; }
+  ol.steps > li::before {
+    content: counter(s);
+    font-size: .76rem; font-weight: 800; color: var(--accent);
+    border: 1.5px solid var(--accent); border-radius: 50%;
+    width: 1.65rem; height: 1.65rem; display: grid; place-items: center;
+    margin-top: .12rem; font-variant-numeric: tabular-nums;
+  }
+  ol.steps > li > .t { font-size: .99rem; min-width: 0; }
+
+  ul.plainlist { margin: 0; padding-left: 1.15rem; display: grid; gap: .4rem; font-size: .99rem; }
+  ul.plainlist > li > .t { display: inline; }
+
+  /* ---------------- the ladder ---------------- */
+  .ladder { border: 1px solid var(--rule); border-radius: 4px; background: var(--card); overflow: hidden; }
+  .rung { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; gap: .3rem 1.1rem; padding: .9rem 1.15rem; border-bottom: 1px solid var(--rule-2); align-items: baseline; }
+  .rung:last-child { border-bottom: 0; }
+  .rung > .when { font-size: .73rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+  .rung > .what { font-size: .98rem; min-width: 0; }
+  .rung > .amt { font-weight: 800; color: var(--accent); white-space: nowrap; justify-self: end; font-variant-numeric: tabular-nums; }
+  .rung.free > .amt { color: var(--ink-3); font-weight: 700; }
+
+  /* ---------------- figures ---------------- */
+  .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); border: 1px solid var(--rule); border-radius: 4px; background: var(--card); overflow: hidden; }
+  .figs > div { padding: 1.05rem 1.15rem; border-right: 1px solid var(--rule-2); }
+  .figs > div:last-child { border-right: 0; }
+  .figs > div > b { display: block; font-size: 1.8rem; font-weight: 800; letter-spacing: -.04em; line-height: 1.1; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .figs > div > span { display: block; font-size: .79rem; line-height: 1.45; color: var(--ink-2); margin-top: .25rem; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(288px, 1fr)); gap: 1rem; }
+
+  .foot { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 620px) {
+    .grow { grid-template-columns: minmax(0, 1fr); }
+    .grow > .q { padding-top: 0; }
+    .rung { grid-template-columns: minmax(0, 1fr); }
+    .rung > .amt { justify-self: start; }
+  }
+
+  @media print {
+    .sheet { background: #fff; color: #000; font-size: 10.5pt; padding: 0; }
+    .wrap { max-width: none; padding: 0; }
+    .sec { padding-top: 1.2rem; }
+    .panel, .glance, .ladder, .figs, .tw, .sec { break-inside: avoid; }
+    .head { padding-top: 0; }
+    h1 { font-size: 23pt; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="sheet">
+
+  <!-- ================= MASTHEAD ================= -->
+  <header class="head">
+    <div class="wrap">
+      <div class="kicker">
+        <span class="label">What I do, and what I sell</span>
+        <span class="label">Dubai · July 2026</span>
+      </div>
+      <p class="who">I'm Haytham.</p>
+      <h1>I get coaches their next client.</h1>
+      <p class="stand">A coach in Dubai has one problem that outranks all the others:
+        <b>where does the next client come from?</b> Most of them post on Instagram and hope.
+        I find the right people, I write to each of them personally, and I hand the coach
+        booked calls with the ones who answer.</p>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <!-- ================= AT A GLANCE ================= -->
+    <div class="glance">
+      <div class="gh"><span class="label">If you read nothing else</span></div>
+
+      <div class="grow">
+        <span class="q">Who I sell to</span>
+        <span class="a">Solo coaches based in the UAE — business, leadership, life, health.
+          Not agencies, not big firms. <b>One person whose income depends on filling their own calendar.</b></span>
+      </div>
+
+      <div class="grow">
+        <span class="q">What I give away</span>
+        <span class="a"><b>Ten names.</b> Ten real people who'd make a good client for that coach,
+          already researched, handed over on a fifteen-minute call. Free, and no price is ever
+          mentioned before it.</span>
+      </div>
+
+      <div class="grow">
+        <span class="q">What I sell</span>
+        <span class="a"><b>Five booked calls in thirty days, for <span class="fig">$1,500</span>.</b>
+          I do the whole thing — find the people, write the emails, send them from my own accounts,
+          and turn the replies into appointments on the coach's calendar.</span>
+      </div>
+
+      <div class="grow">
+        <span class="q">Why a coach says yes</span>
+        <span class="a">One new client is worth about <b class="fig">$3,000</b> to them. So five calls
+          only have to produce <b>one</b> for it to pay for itself twice over.</span>
+      </div>
+
+      <div class="grow">
+        <span class="q">Why they trust me</span>
+        <span class="a">I prove it before I ask for anything. The ten free names are real, checkable
+          in two minutes, and handed over before money comes up at all.</span>
+      </div>
+
+      <div class="grow">
+        <span class="q">Where it stands</span>
+        <span class="a">The free half has been running for months. <b>The paid half has never been sold
+          to anyone.</b> The last section on this page is the unflattering detail.</span>
+      </div>
+    </div>
+
+    <!-- ================= FREE ================= -->
+    <section class="sec">
+      <div class="sechead">
+        <div class="r"><span class="label">Step one</span><span class="mark now">Running now</span></div>
+        <h2>The ten names — free</h2>
+      </div>
+
+      <div class="panel lead">
+        <div class="price">
+          <span class="big">$0</span>
+          <span class="unit">this is the entire content of every email I send</span>
+        </div>
+
+        <p class="plain">A coach gets an email from me that mentions something specific and recent they
+          actually did — a post they wrote, a podcast they went on. Then it offers one thing:
+          <b>ten people who fit the kind of client you want, already pulled, yours on a fifteen-minute
+          call. I'll tell you why those ten and not the other forty.</b></p>
+
+        <p class="plain">That's all of it. No price, no pitch, no attachment. The email is under a
+          hundred words and I sign it with my first name.</p>
+
+        <div class="callout">
+          <span class="label">Why I give away the valuable part</span>
+          Because a promise costs nothing to make and nothing to ignore. A coach can check ten real
+          names in two minutes, and once they have, I'm no longer a stranger selling something.
+          <b>The free thing is the door, not the product.</b>
+        </div>
+
+        <div class="callout warn">
+          <span class="label">The obligation that creates for me</span>
+          The ten have to actually exist, on the call or within a day of it — not researched afterwards.
+          It is <b>the first thing the coach can check, and it comes due before I have sold anything.</b>
+          Breaking that promise would cost me more than never making it.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAID ================= -->
+    <section class="sec">
+      <div class="sechead">
+        <div class="r"><span class="label">Step two</span><span class="mark half">Built · never sold</span></div>
+        <h2>The First Five — $1,500</h2>
+        <p class="small">I offer this on the same call, but only <em>after</em> I've handed over the ten
+          names in full. That order isn't negotiable: deliver what was promised, then talk about money.</p>
+      </div>
+
+      <div class="panel lead">
+        <div class="price">
+          <span class="big fig">$1,500</span>
+          <span class="unit">once · thirty days · five booked calls</span>
+        </div>
+
+        <p class="plain">I run the coach's outreach from end to end using my own email accounts, and hand
+          back <b>five qualified calls with people who fit their ideal client</b>, booked on their
+          calendar. They do nothing except show up.</p>
+
+        <div class="quote">Five calls, and a coach who closes one in three makes $3,000 on the first one.
+          The other four are free.</div>
+
+        <h3>What's actually included</h3>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>Part</th><th>In plain terms</th><th class="n">Worth</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>The list</td><td>200–300 vetted prospects, checked against people the coach already knows, working email addresses only</td><td class="n">$600</td></tr>
+              <tr><td>The hooks</td><td>One real, researched observation per person — the thing that makes it not spam</td><td class="n">$900</td></tr>
+              <tr><td>The setup</td><td>2 domains and 3 email accounts, warmed up, sending in the coach's name so <b>their own inbox reputation is never at risk</b></td><td class="n">$400</td></tr>
+              <tr><td>The sending</td><td>Thirty days of managed sending, about 25 a day per account, replies going straight to them</td><td class="n">$800</td></tr>
+              <tr><td>The booking</td><td>I work the replies until there's an actual appointment on their calendar</td><td class="n">$700</td></tr>
+              <tr class="sum"><td colspan="2">If they bought the pieces separately</td><td class="n">$3,400</td></tr>
+              <tr class="sum final"><td colspan="2">What I charge</td><td class="n">$1,500</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>My guarantee</h3>
+        <div class="callout">
+          <b>Five booked calls in thirty days, or I keep sending free until you have them. If you have
+          zero after thirty days, the $1,500 comes back and you keep every name, every hook and every
+          email account I built.</b>
+        </div>
+        <p class="small">Two halves doing two different jobs. If the coach ends up with one, two, three
+          or four calls, I keep working for free. Only <b>zero</b> triggers a refund. Splitting it that
+          way means neither half has to carry the whole objection on its own.</p>
+
+        <h3>Three conditions, and I say them up front</h3>
+        <ul class="plainlist">
+          <li><span class="t">They reply to interested people <b>within a day</b>.</span></li>
+          <li><span class="t">They keep a calendar link live with real availability on it.</span></li>
+          <li><span class="t">They don't change who they're targeting halfway through. One change mid-sprint restarts the clock.</span></li>
+        </ul>
+        <p class="small">These aren't fine print protecting me. They're the three things that, if the
+          coach doesn't do them, make the guarantee impossible for me to keep no matter how good the
+          work is.</p>
+
+        <h3>Why I don't just sell more of these</h3>
+        <p class="plain"><b>Six clients at a time. Two new starts a month.</b> Sprints begin on the 1st
+          and the 15th — miss one and you wait two weeks. That's a real limit, not a sales tactic: this
+          work is hours, and I only have so many. I never discount to create urgency, because a discount
+          that manufactures a deadline just teaches the buyer my price was soft.</p>
+      </div>
+    </section>
+
+    <!-- ================= LADDER ================= -->
+    <section class="sec">
+      <div class="sechead">
+        <div class="r"><span class="label">Step three</span><span class="mark none">Designed · not built</span></div>
+        <h2>What happens after the first sale</h2>
+        <p class="small">All of this is written down and none of it exists yet. Each one stays locked
+          until the thing before it has actually happened — otherwise I'd sell the cheap version to
+          everyone and never find out whether the real one works.</p>
+      </div>
+
+      <div class="ladder">
+        <div class="rung free">
+          <span class="when">The email</span>
+          <span class="what"><b>Ten names</b>, given away, to earn a fifteen-minute call</span>
+          <span class="amt">free</span>
+        </div>
+        <div class="rung">
+          <span class="when">On that call</span>
+          <span class="what"><b>The First Five</b> — five booked calls in thirty days</span>
+          <span class="amt fig">$1,500</span>
+        </div>
+        <div class="rung">
+          <span class="when">If they say yes</span>
+          <span class="what"><b>The Ninety</b> — three months instead of one, because five calls tells
+            you whether this works but doesn't fill your year. The $1,500 already paid counts toward it.</span>
+          <span class="amt fig">$6,500 / 90 days</span>
+        </div>
+        <div class="rung">
+          <span class="when">If they say no</span>
+          <span class="what">First a <b>payment plan</b> — half now, half when the third call is booked.
+            Then <b>The List</b>: fifty researched prospects with their emails written, which they send
+            themselves. Then <b>The Build</b>: I hand over the whole setup for them to run.</span>
+          <span class="amt fig">$497 · $997</span>
+        </div>
+        <div class="rung">
+          <span class="when">Once it has worked</span>
+          <span class="what"><b>The Desk</b> — ongoing, month to month, a standing pipeline instead of a
+            sprint. I only offer it to someone who has already been through a thirty-day sprint with me.</span>
+          <span class="amt fig">$2,000 / mo</span>
+        </div>
+      </div>
+
+      <p class="small" style="margin-top:.95rem"><b>The rule under all of it:</b> I never drop the price
+        on the same thing. I change how they pay, or I change what they get.</p>
+    </section>
+
+    <!-- ================= MONEY ================= -->
+    <section class="sec">
+      <div class="sechead">
+        <div class="r"><span class="label">The economics</span></div>
+        <h2>Why the money works</h2>
+      </div>
+
+      <div class="figs">
+        <div><b class="fig">~$170</b><span>What it costs me to find one client and serve them for thirty days</span></div>
+        <div><b class="fig">$1,500</b><span>What I collect from that client inside the same thirty days</span></div>
+        <div><b class="fig">~8.8×</b><span>Money in against money out, in the first month</span></div>
+      </div>
+
+      <div class="panel" style="margin-top:1rem">
+        <p class="plain">Any business that grows without borrowing has to get paid faster than it spends.
+          This one gets paid roughly nine times faster — which looks like the headline and isn't.</p>
+        <div class="callout">
+          <span class="label">The honest reading</span>
+          Clearing that bar so easily tells me <b>money was never the thing holding this back. Hours
+          were.</b> So the right move isn't to sell more of it cheaper. It's to hold the six-client
+          limit and raise the price once the guarantee has been paid out on at least once and survived.
+        </div>
+        <p class="small">At full capacity with the three-month version taken up, that's roughly
+          <b class="fig">$15,000 a month</b> against about <b class="fig">$720</b> of costs — from six
+          clients, not six hundred.</p>
+      </div>
+    </section>
+
+    <!-- ================= ORDER ================= -->
+    <section class="sec">
+      <div class="sechead">
+        <div class="r"><span class="label">Sequence</span></div>
+        <h2>The order I build it in</h2>
+        <p class="small">Not a timeline. Each step is unlocked by a <em>fact becoming true</em>, not by a
+          date arriving.</p>
+      </div>
+
+      <div class="panel">
+        <ol class="steps">
+          <li><span class="t"><b>Sell The First Five three times at the full $1,500.</b> Nothing else is
+            on the table — no monthly, no discount, no cheaper version. Three sales is my dataset.</span></li>
+          <li><span class="t"><b>Actually deliver five calls, once.</b> <em>This is the single gate.</em>
+            Until one sprint has produced five booked calls, my guarantee is a liability and everything
+            after it has nothing behind it.</span></li>
+          <li><span class="t"><b>Then add the cheaper options</b> for people who say no. Both are
+            deliverable today, and both stay off the table until the main thing has a track record.</span></li>
+          <li><span class="t"><b>Then add the three-month version</b> — once delivery is reliable, not
+            merely possible.</span></li>
+          <li><span class="t"><b>Then the ongoing monthly, last</b>, and only to someone who has already
+            been through a sprint with me.</span></li>
+          <li><span class="t"><b>Then raise the price.</b> $1,500 is a launch number, not a final one.</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ================= HONEST ================= -->
+    <section class="sec">
+      <div class="sechead">
+        <div class="r"><span class="label">Straight answers</span></div>
+        <h2>Where this honestly stands</h2>
+        <p class="small">Anyone reading this deserves the unflattering half, so here it is.</p>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>Nothing on the paid side has been sold</h3>
+          <p class="small">Every price above is reasoned from what a coach's client is worth to them. Not
+            one of them has been validated by an actual transaction yet.</p>
+        </div>
+        <div class="panel">
+          <h3>My guarantee has never been tested</h3>
+          <p class="small">What it costs me to honour is unknown until I pay out on it once. That's
+            exactly why raising the price waits until after that happens.</p>
+        </div>
+        <div class="panel">
+          <h3>The free offer hasn't produced a call yet</h3>
+          <p class="small">The previous version of this business emailed 589 coaches. People replied at a
+            healthy rate — but <b>nine real conversations produced zero calls.</b> I was giving away a
+            free <em>diagnosis</em>, and four of those nine read it, fixed the problem themselves, and left.</p>
+        </div>
+        <div class="panel">
+          <h3>That's exactly why the ten names exist</h3>
+          <p class="small">You can't take ten real people and go do it yourself — the only way to get them
+            is to be on the call with me. And the paid offer exists because a call that goes well needs
+            something on the other side of it. <b>Both are corrections to a failure I measured, not
+            guesses.</b></p>
+        </div>
+      </div>
+
+      <div class="callout warn" style="margin-top:1rem">
+        <span class="label">One more thing worth knowing</span>
+        I built software that produces the free half. It researches each coach, finds the hook, checks
+        the hook is real by fetching the source a second time, and <b>refuses to put an email in the file
+        if any number in it can't be traced to a real client result.</b> It never sends anything — I
+        upload the file myself. That's how I can make the ten-names promise at volume without it turning
+        into spam.
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p class="tiny">Every figure on this page comes from <code>docs/spec/03-offer.md</code> in my
+        Outbound&nbsp;Machine repository, which is the only place in the operation where a price is
+        allowed to live. If anything else disagrees with a number here, that other thing is wrong.
+        Written 2026-07-31.</p>
+    </footer>
+
+  </div>
+</div>

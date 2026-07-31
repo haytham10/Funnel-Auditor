@@ -1,0 +1,1224 @@
+<title>The Outbound Machine — system map</title>
+
+<style>
+  /* ============================================================
+     TOKENS
+     Ground and neutrals carry a faint cyan bias, toward the accent.
+     Semantic colours (pass/fail/blocked/cost) are separate from the
+     accent on purpose: the accent is structure, they are state.
+     ============================================================ */
+  :root {
+    --ground:      #F6F6F3;
+    --panel:       #FFFFFF;
+    --panel-2:     #EFF1F0;
+    --rule:        #D6DBDA;
+    --rule-soft:   #E4E8E7;
+    --text:        #161D20;
+    --text-2:      #4A5559;
+    --text-3:      #78868B;
+
+    --accent:      #0F7285;
+    --accent-soft: #E0EEF1;
+    --accent-line: #9CC6CF;
+
+    --pass:        #2E7D46;
+    --pass-bg:     #E3F0E7;
+    --fail:        #BE3A2B;
+    --fail-bg:     #F8E4E1;
+    --block:       #8E6410;
+    --block-bg:    #F6EBD7;
+    --cost:        #96317B;
+    --cost-bg:     #F7E4F1;
+
+    --shadow: 0 1px 2px rgba(22,29,32,.05), 0 8px 24px -12px rgba(22,29,32,.14);
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Fira Code", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    --gutter: 132px;
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0E1215;
+      --panel:       #151B1F;
+      --panel-2:     #1B2328;
+      --rule:        #2A343A;
+      --rule-soft:   #212A2F;
+      --text:        #E4EAEC;
+      --text-2:      #9FAEB4;
+      --text-3:      #6E7F86;
+
+      --accent:      #5FB2C4;
+      --accent-soft: #12313A;
+      --accent-line: #2F6270;
+
+      --pass:        #63B478;
+      --pass-bg:     #14291C;
+      --fail:        #E37367;
+      --fail-bg:     #2E1815;
+      --block:       #DCA847;
+      --block-bg:    #2C2210;
+      --cost:        #D18BBC;
+      --cost-bg:     #2C1526;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground:#F6F6F3; --panel:#FFFFFF; --panel-2:#EFF1F0; --rule:#D6DBDA; --rule-soft:#E4E8E7;
+    --text:#161D20; --text-2:#4A5559; --text-3:#78868B;
+    --accent:#0F7285; --accent-soft:#E0EEF1; --accent-line:#9CC6CF;
+    --pass:#2E7D46; --pass-bg:#E3F0E7; --fail:#BE3A2B; --fail-bg:#F8E4E1;
+    --block:#8E6410; --block-bg:#F6EBD7; --cost:#96317B; --cost-bg:#F7E4F1;
+    --shadow: 0 1px 2px rgba(22,29,32,.05), 0 8px 24px -12px rgba(22,29,32,.14);
+  }
+  :root[data-theme="dark"] {
+    --ground:#0E1215; --panel:#151B1F; --panel-2:#1B2328; --rule:#2A343A; --rule-soft:#212A2F;
+    --text:#E4EAEC; --text-2:#9FAEB4; --text-3:#6E7F86;
+    --accent:#5FB2C4; --accent-soft:#12313A; --accent-line:#2F6270;
+    --pass:#63B478; --pass-bg:#14291C; --fail:#E37367; --fail-bg:#2E1815;
+    --block:#DCA847; --block-bg:#2C2210; --cost:#D18BBC; --cost-bg:#2C1526;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+
+  /* ============================================================
+     BASE
+     ============================================================ */
+  .page {
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 6rem;
+  }
+  .page * { box-sizing: border-box; }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  h1, h2, h3, h4 { font-family: var(--mono); text-wrap: balance; margin: 0; font-weight: 700; }
+  h1 { font-size: clamp(2rem, 5.2vw, 3.15rem); letter-spacing: -.045em; line-height: 1.02; }
+  h2 { font-size: clamp(1.25rem, 2.6vw, 1.65rem); letter-spacing: -.035em; }
+  h3 { font-size: 1.02rem; letter-spacing: -.02em; }
+  h4 { font-size: .82rem; letter-spacing: .02em; }
+  p  { margin: 0; max-width: var(--measure); }
+  a  { color: var(--accent); }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: .68rem; font-weight: 700;
+    letter-spacing: .19em; text-transform: uppercase; color: var(--text-3);
+  }
+  .lede { color: var(--text-2); font-size: 1.06rem; }
+  .note { color: var(--text-2); font-size: .9rem; }
+  .tiny { color: var(--text-3); font-size: .78rem; }
+  code, .m { font-family: var(--mono); font-size: .875em; font-variant-ligatures: none; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ============================================================
+     MASTHEAD
+     ============================================================ */
+  .masthead { border-bottom: 1px solid var(--rule); background: var(--panel); }
+  .masthead .wrap { padding-top: 3.6rem; padding-bottom: 2.4rem; }
+  .mast-grid { display: grid; gap: 1.6rem; }
+  .mast-top { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+  .flowline {
+    display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+    font-family: var(--mono); font-size: .84rem; margin-top: .4rem;
+  }
+  .flowline .n { color: var(--text); font-weight: 700; }
+  .flowline .arr { color: var(--accent); font-weight: 700; }
+  .flowline .stop { color: var(--fail); font-weight: 700; }
+
+  .keyfacts {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; margin-top: .6rem;
+  }
+  .kf { padding: .85rem 1rem; border-right: 1px solid var(--rule-soft); background: var(--ground); }
+  .kf:last-child { border-right: 0; }
+  .kf b { display: block; font-family: var(--mono); font-size: 1.42rem; font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+  .kf span { display: block; font-family: var(--mono); font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); margin-top: .2rem; }
+
+  /* ============================================================
+     NAV
+     ============================================================ */
+  .nav {
+    position: sticky; top: 0; z-index: 40;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav .wrap { display: flex; align-items: center; gap: .35rem; padding-top: .5rem; padding-bottom: .5rem; overflow-x: auto; }
+  .nav a {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-2); text-decoration: none; padding: .35rem .55rem; border-radius: 3px; white-space: nowrap;
+  }
+  .nav a:hover { background: var(--accent-soft); color: var(--accent); }
+  .nav a:focus-visible, .page a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .nav .spacer { flex: 1 1 auto; }
+  .toggle {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase;
+    background: transparent; border: 1px solid var(--rule); color: var(--text-2);
+    padding: .34rem .6rem; border-radius: 3px; cursor: pointer; white-space: nowrap;
+  }
+  .toggle[aria-pressed="true"] { border-color: var(--fail); color: var(--fail); background: var(--fail-bg); }
+
+  /* ============================================================
+     SECTIONS
+     ============================================================ */
+  .sec { padding-top: 4rem; }
+  .sec-head { display: grid; gap: .5rem; margin-bottom: 1.6rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
+  .sec-head .row { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+
+  /* ============================================================
+     CHIPS
+     ============================================================ */
+  .chip {
+    display: inline-flex; align-items: center; gap: .32rem;
+    font-family: var(--mono); font-size: .67rem; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    padding: .16rem .42rem; border-radius: 2px; border: 1px solid transparent; white-space: nowrap;
+  }
+  .chip.free  { color: var(--text-3); border-color: var(--rule); }
+  .chip.paid  { color: var(--cost); background: var(--cost-bg); border-color: color-mix(in srgb, var(--cost) 34%, transparent); }
+  .chip.agent { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-line); }
+  .chip.gate  { color: var(--fail); background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 32%, transparent); }
+  .chip.ok    { color: var(--pass); background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 32%, transparent); }
+  .chip.warn  { color: var(--block); background: var(--block-bg); border-color: color-mix(in srgb, var(--block) 34%, transparent); }
+
+  /* the refusal-highlight toggle: one class on the root, tokens do the rest */
+  .refusals-on .chip.gate { box-shadow: 0 0 0 2px color-mix(in srgb, var(--fail) 28%, transparent); }
+  .refusals-on .stage.has-gate .card { border-left-color: var(--fail); }
+  .refusals-on .stage.has-gate .node { background: var(--fail); border-color: var(--fail); }
+
+  /* ============================================================
+     THE SPINE
+     ============================================================ */
+  .spine { position: relative; padding-left: var(--gutter); }
+  .spine::before {
+    content: ""; position: absolute; left: calc(var(--gutter) - 46px); top: 12px; bottom: 12px;
+    width: 2px; background: var(--rule);
+  }
+  /* the paid stretch of the machine, marked on the rail itself */
+  .spine .paid-band {
+    position: absolute; left: calc(var(--gutter) - 47px); width: 4px; border-radius: 2px;
+    background: color-mix(in srgb, var(--cost) 62%, transparent);
+  }
+
+  .stage { position: relative; margin-bottom: 1rem; }
+  .stage .node {
+    position: absolute; left: calc(-46px - 5px); top: 22px;
+    width: 12px; height: 12px; background: var(--accent); border: 2px solid var(--ground);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .stage .step {
+    position: absolute; left: calc(var(--gutter) * -1); top: 16px; width: calc(var(--gutter) - 62px);
+    text-align: right; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-3); line-height: 1.35;
+  }
+  .stage .step b { display: block; color: var(--text); font-size: 1.05rem; letter-spacing: -.02em; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--accent-line);
+    border-radius: 3px; box-shadow: var(--shadow);
+  }
+  .card > summary, .card > .card-head {
+    list-style: none; cursor: pointer; padding: 1rem 1.1rem;
+    display: grid; gap: .5rem;
+  }
+  .card > .card-head { cursor: default; }
+  .card > summary::-webkit-details-marker { display: none; }
+  .card summary .title { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .card summary .title h3 { flex: 0 1 auto; }
+  .card summary .title .more {
+    margin-left: auto; font-family: var(--mono); font-size: .66rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-3);
+  }
+  details[open] > summary .more::after { content: " ▲"; }
+  details:not([open]) > summary .more::after { content: " ▼"; }
+  .card .chips { display: flex; gap: .35rem; flex-wrap: wrap; }
+  .card .body { padding: 0 1.1rem 1.1rem; display: grid; gap: .9rem; }
+  .card .sub { border-top: 1px solid var(--rule-soft); padding-top: .9rem; display: grid; gap: .5rem; }
+
+  .cmd {
+    font-family: var(--mono); font-size: .8rem; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--rule-soft); border-radius: 2px; padding: .5rem .65rem;
+    overflow-x: auto; white-space: pre; display: block;
+  }
+  .cmd .flag { color: var(--accent); }
+
+  .io { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .6rem; }
+  .io div { display: grid; gap: .15rem; }
+  .io dt, .io .k {
+    font-family: var(--mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3);
+  }
+  .io .v { font-size: .88rem; color: var(--text-2); }
+  .io .v code { color: var(--text); }
+
+  .why { font-size: .88rem; color: var(--text-2); border-left: 2px solid var(--rule); padding-left: .8rem; max-width: var(--measure); }
+  .why b { color: var(--text); font-weight: 600; }
+
+  /* ============================================================
+     TABLES
+     ============================================================ */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: .88rem; }
+  th, td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--mono); font-size: .63rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--text-3); background: var(--panel-2); border-bottom: 1px solid var(--rule); font-weight: 700;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--panel-2); }
+  td code { color: var(--text); }
+  td .m { white-space: nowrap; }
+
+  /* ============================================================
+     GENERIC GRIDS / TREE / BEATS
+     ============================================================ */
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
+
+  .box { background: var(--panel); border: 1px solid var(--rule); border-radius: 3px; padding: 1rem 1.1rem; display: grid; gap: .55rem; }
+  .box.accent { border-left: 3px solid var(--accent); }
+  .box.stop   { border-left: 3px solid var(--fail); }
+  .box h3 { font-size: .95rem; }
+  .box p, .box li { font-size: .88rem; color: var(--text-2); }
+  .box ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .3rem; }
+
+  .tree { display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 3px; background: var(--panel); overflow: hidden; }
+  .tree .row {
+    display: grid; grid-template-columns: minmax(180px, 250px) 1fr auto; gap: .8rem;
+    padding: .55rem .9rem; border-bottom: 1px solid var(--rule-soft); align-items: baseline;
+  }
+  .tree .row:last-child { border-bottom: 0; }
+  .tree .row:hover { background: var(--panel-2); }
+  .tree .row.head { background: var(--panel-2); border-bottom: 1px solid var(--rule); }
+  .tree .row.head span { font-family: var(--mono); font-size: .63rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); font-weight: 700; }
+  .tree .p { font-family: var(--mono); font-size: .8rem; color: var(--text); font-weight: 600; word-break: break-word; }
+  .tree .p .dim { color: var(--text-3); font-weight: 400; }
+  .tree .d { font-size: .85rem; color: var(--text-2); }
+  .tree .t { justify-self: end; }
+
+  .beats { display: grid; gap: .5rem; counter-reset: beat; }
+  .beat {
+    display: grid; grid-template-columns: 2.2rem 1fr; gap: .9rem; align-items: start;
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 3px; padding: .8rem 1rem;
+  }
+  .beat .i {
+    font-family: var(--mono); font-weight: 700; font-size: 1.05rem; color: var(--accent);
+    border-right: 1px solid var(--rule-soft); padding-right: .5rem; text-align: center;
+  }
+  .beat .c { display: grid; gap: .25rem; }
+  .beat .obj { font-family: var(--mono); font-size: .72rem; color: var(--text-3); font-style: italic; }
+  .beat .src { font-family: var(--mono); font-size: .68rem; color: var(--text-3); letter-spacing: .04em; }
+
+  .exits { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .6rem; }
+  .exit { border: 1px solid var(--rule); border-radius: 3px; padding: .8rem .9rem; background: var(--panel); display: grid; gap: .25rem; }
+  .exit b { font-family: var(--mono); font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .exit .l { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; }
+  .exit .x { font-size: .84rem; color: var(--text-2); }
+  .exit.e0 { border-left: 3px solid var(--pass); }  .exit.e0 b, .exit.e0 .l { color: var(--pass); }
+  .exit.e1 { border-left: 3px solid var(--fail); }  .exit.e1 b, .exit.e1 .l { color: var(--fail); }
+  .exit.e2 { border-left: 3px solid var(--block); } .exit.e2 b, .exit.e2 .l { color: var(--block); }
+  .exit.e3 { border-left: 3px solid var(--cost); }  .exit.e3 b, .exit.e3 .l { color: var(--cost); }
+
+  .chassis { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+  .pair { border: 1px solid var(--rule); border-radius: 3px; background: var(--panel); overflow: hidden; }
+  .pair .ph { padding: .6rem .9rem; background: var(--panel-2); border-bottom: 1px solid var(--rule); }
+  .pair .ph h3 { font-size: .88rem; }
+  .pair .pb { padding: .8rem .9rem; display: grid; gap: .6rem; }
+  .pair .agent-row { display: grid; gap: .2rem; }
+  .pair .agent-row .nm { font-family: var(--mono); font-size: .8rem; font-weight: 700; color: var(--accent); }
+  .pair .agent-row .rl { font-size: .82rem; color: var(--text-2); }
+  .pair .claim { font-size: .82rem; color: var(--text-2); border-top: 1px solid var(--rule-soft); padding-top: .55rem; }
+  .pair .claim .k { font-family: var(--mono); font-size: .62rem; letter-spacing: .13em; text-transform: uppercase; color: var(--text-3); display: block; }
+
+  .rules { display: grid; gap: .45rem; }
+  .rule-item {
+    display: grid; grid-template-columns: 1.1rem 1fr; gap: .7rem; align-items: start;
+    font-size: .92rem; color: var(--text-2);
+  }
+  .rule-item .x { color: var(--fail); font-family: var(--mono); font-weight: 700; line-height: 1.5; }
+  .rule-item b { color: var(--text); font-weight: 600; }
+
+  .foot { margin-top: 4rem; padding-top: 1.4rem; border-top: 1px solid var(--rule); }
+
+  @media (max-width: 720px) {
+    :root { --gutter: 0px; }
+    .spine { padding-left: 22px; }
+    .spine::before { left: 4px; }
+    .spine .paid-band { left: 3px; }
+    .stage .node { left: -23px; }
+    .stage .step { position: static; width: auto; text-align: left; margin-bottom: .3rem; }
+    .stage .step b { display: inline; font-size: .68rem; letter-spacing: .1em; color: var(--text-3); }
+    .tree .row { grid-template-columns: 1fr; gap: .2rem; }
+    .tree .t { justify-self: start; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="page" id="top">
+
+  <!-- ===================== MASTHEAD ===================== -->
+  <header class="masthead">
+    <div class="wrap mast-grid">
+      <div class="mast-top">
+        <span class="eyebrow">haytham10 / Outbound-Machine &nbsp;·&nbsp; system map</span>
+        <span class="eyebrow">rebuilt 2026-07-31</span>
+      </div>
+
+      <div>
+        <h1>The machine<br>ends at a file.</h1>
+        <div class="flowline">
+          <span class="n">raw CSV of UAE coaches</span>
+          <span class="arr">→</span>
+          <span class="n">out/leads.csv</span>
+          <span class="arr">→</span>
+          <span class="n">I upload it by hand</span>
+          <span class="arr">→</span>
+          <span class="n">Smartlead sends</span>
+        </div>
+      </div>
+
+      <p class="lede">One row per lead, carrying an email written for that person and mechanically
+        checked before it was allowed into the file. Nothing here sends. Smartlead owns the inboxes,
+        the warmup, the sequence steps and the replies.</p>
+
+      <div class="keyfacts">
+        <div class="kf"><b class="num">8</b><span>pipeline stages</span></div>
+        <div class="kf"><b class="num">20</b><span>CLI commands</span></div>
+        <div class="kf"><b class="num">5</b><span>agents</span></div>
+        <div class="kf"><b class="num">11</b><span>fail-closed gates</span></div>
+        <div class="kf"><b class="num">45</b><span>hand-written lines</span></div>
+        <div class="kf"><b class="num">8</b><span>client results</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== NAV ===================== -->
+  <nav class="nav" aria-label="Sections">
+    <div class="wrap">
+      <a href="#map">Where things are</a>
+      <a href="#run">The run</a>
+      <a href="#gates">Gates</a>
+      <a href="#email">The email</a>
+      <a href="#agents">Agents</a>
+      <a href="#authority">Who owns what</a>
+      <a href="#outside">Outside the repo</a>
+      <a href="#unknown">Unknown</a>
+      <span class="spacer"></span>
+      <button class="toggle" id="refusalToggle" type="button" aria-pressed="false">Mark refusal points</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ===================== 1. THE MAP ===================== -->
+    <section class="sec" id="map">
+      <div class="sec-head">
+        <div class="row"><span class="eyebrow">01</span><h2>Where everything is</h2></div>
+        <p class="note">Ten places. Each one owns something, and the split is deliberate: what
+          gets edited often lives where editing is easy, what must not drift lives where a change
+          is a commit.</p>
+      </div>
+
+      <div class="tree" role="table" aria-label="Repository map">
+        <div class="row head" role="row"><span role="columnheader">Path</span><span role="columnheader">What lives there</span><span role="columnheader">Kind</span></div>
+
+        <div class="row"><span class="p">main.py</span><span class="d">The whole CLI. 20 top-level commands plus 10 <code>apify</code> subcommands. Every gate the skills quote is a subcommand here.</span><span class="t"><span class="chip free">1,338 lines</span></span></div>
+
+        <div class="row"><span class="p">outbound/<span class="dim"> ×10</span></span><span class="d">The eight stages — <code>normalize</code>, <code>dedupe</code>, <code>fetch</code>, <code>qualify</code>, <code>research</code>, <code>anchors</code>, <code>lint</code>, <code>export</code> — plus <code>copy_sync</code> and <code>doc_check</code>, which are commands but not stages.</span><span class="t"><span class="chip accent">code</span></span></div>
+
+        <div class="row"><span class="p">audit/<span class="dim"> ×9</span></span><span class="d">What survived the funnel-auditor pivot: <code>email_check</code>, <code>email_verifier</code>, <code>email_enrich</code>, <code>apify</code> (cost-gated), <code>airtable</code>, <code>extract</code>, <code>urls</code>, <code>draft_lint</code>, <code>footprint</code>.</span><span class="t"><span class="chip accent">code</span></span></div>
+
+        <div class="row"><span class="p">copy/identity.csv<span class="dim"> · offer · cta · ps</span></span><span class="d"><b>A cache of Airtable's Copy Assets table, not the authority.</b> 33 identity lines + 4 offer + 4 close + 4 ps. Regenerated by <code>copy-sync</code>; never a line somebody chose here.</span><span class="t"><span class="chip warn">cache</span></span></div>
+
+        <div class="row"><span class="p">copy/results.csv</span><span class="d">The exception, repo-only on purpose. Eight real client results, one per segment. <b>The fact table every number in every email traces back to.</b> Lines are voice; results are audited evidence.</span><span class="t"><span class="chip ok">authority</span></span></div>
+
+        <div class="row"><span class="p">data/contacted-before.csv</span><span class="d">The dedupe wall. 104 rows. In the repo rather than the CRM because it is read on every run and a network hop is a strange dependency for the cheapest, most consequential check here. Appending is a commit, so the wall has a history for free.</span><span class="t"><span class="chip ok">authority</span></span></div>
+
+        <div class="row"><span class="p">docs/spec/<span class="dim"> 00–07</span></span><span class="d">The defining layer: index, operation, ICP, offer, email, pipeline contracts, state ownership, decision log. One rule — a defining doc states a decision and never holds a value something else owns.</span><span class="t"><span class="chip accent">docs</span></span></div>
+
+        <div class="row"><span class="p">docs/<span class="dim">START-HERE · hook-rules · agent-orchestration · journal</span></span><span class="d">The orientation page, beat 1 in full, the worker/verifier pattern, and cross-session memory — the container is ephemeral, so <code>journal.md</code> is how a session knows what happened before it.</span><span class="t"><span class="chip accent">docs</span></span></div>
+
+        <div class="row"><span class="p">.claude/</span><span class="d">2 skills (<code>outbound-batch</code>, <code>outbound-draft</code>), 5 agents, 3 hooks. <b>The repo's copy is authoritative</b> — never a remembered or globally-installed one.</span><span class="t"><span class="chip agent">agents</span></span></div>
+
+        <div class="row"><span class="p">tests/<span class="dim"> ×17</span></span><span class="d">Pins the exit-code contract, the cost gate, the weights, the linter, and the docs themselves. Runs in CI on every push and PR alongside a named <code>doc-check</code> step.</span><span class="t"><span class="chip ok">ci</span></span></div>
+
+        <div class="row"><span class="p">out/ <span class="dim">·</span> work/</span><span class="d">Gitignored, deliberately ephemeral. One run's artifacts. <b>The upload file is not the record of what shipped</b> — the record is the wall plus the journal, written after the upload.</span><span class="t"><span class="chip free">scratch</span></span></div>
+      </div>
+    </section>
+
+    <!-- ===================== 2. THE RUN ===================== -->
+    <section class="sec" id="run">
+      <div class="sec-head">
+        <div class="row">
+          <span class="eyebrow">02</span><h2>The run, end to end</h2>
+          <span class="chip agent">skill: outbound-batch</span>
+        </div>
+        <p class="note">Every stage below is expandable. The rail is neutral where the machine
+          spends nothing and marked where money can enter — which is one stretch, and it is fenced
+          by a cost gate at both ends of it.</p>
+      </div>
+
+      <div class="spine">
+        <div class="paid-band" style="top:22%; height:26%;" aria-hidden="true"></div>
+
+        <!-- 00 INTAKE -->
+        <div class="stage">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>01</b>intake</div>
+          <details class="card" open>
+            <summary>
+              <div class="title"><h3>Raw list → Leads</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip free">free · offline</span>
+                <span class="chip gate">exit 2 if unreadable</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py intake &lt;list.csv&gt; <span class="flag">--out</span> work/leads.json</code>
+              <div class="io">
+                <div><span class="k">Guarantees</span><span class="v">Junk and parked domains <b>classified, not silently dropped</b>. Platform URLs routed to their social columns. Unmapped headers reported.</span></div>
+                <div><span class="k">Four verdicts</span><span class="v"><code>own_site</code> · <code>platform</code> · <code>parked</code> · <code>junk</code></span></div>
+              </div>
+              <p class="why"><b>The <code>platform</code> verdict is the one the old pipeline got wrong.</b>
+                A LinkedIn URL in the website column is not a dead end, it is the best research target on
+                the row. On the last real list, 24 of 137 "websites" were not websites, and 199 of 336 rows
+                had a dead or missing site — so a hard site gate was throwing away most of the market.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- 01 DEDUPE EARLY -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>02</b>dedupe<br>early</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>The wall, before anything is spent</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip free">free</span>
+                <span class="chip gate">exit 1 — warm hit stops the run</span>
+                <span class="chip gate">exit 2 — unreadable or empty</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py dedupe work/leads.json <span class="flag">--out</span> work/clear.json</code>
+              <div class="io">
+                <div><span class="k">Matches on</span><span class="v">Name and domain. Exact on domains; two-tiered on names — strict key in reading order, loose key sorted.</span></div>
+                <div><span class="k">Reads</span><span class="v"><code>data/contacted-before.csv</code>, in the repo. No fetch, no argument.</span></div>
+              </div>
+              <p class="why"><b>This ordering is the bug the old pipeline shipped.</b> Dedupe ran last, so an
+                already-excluded lead paid for all eight Apify calls and was then thrown away. A text match
+                costs nothing and belongs first. On the last real batch it caught 7 people who would have
+                received a cold template on an existing thread, two of them live warm conversations.</p>
+              <p class="why"><b>An empty wall exits 2, not 0.</b> A missing file is indistinguishable from a
+                broken one, and guessing costs a live conversation. A loose-only name match stops the run
+                against a <b>warm</b> contact and merely reports against a cold one — a false kill is
+                permanent and invisible, a second cold email months later is not.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- BUDGET -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>03</b>budget</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Check the Apify budget once</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip paid">the only paid layer</span>
+                <span class="chip gate">exit 3 above the ceiling</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py apify limits</code>
+              <p class="why"><b>Once per batch, not once per worker.</b> The answer is passed into every
+                worker prompt. Once per worker is how a quota gets rediscovered fifty times. If it is near
+                cap, workers are told to prefer <code>unclear</code> over a paid call.</p>
+              <div class="io">
+                <div><span class="k">Ceiling</span><span class="v">$0.10 per run, owned by <code>audit/apify.py</code>. Above it the call blocks with <code>APPROVAL REQUIRED</code> and exit 3 rather than spending.</span></div>
+                <div><span class="k">Subcommands</span><span class="v"><code>limits</code> <code>actors</code> <code>ig</code> <code>ig-post</code> <code>li-posts</code> <code>li-profile</code> <code>youtube</code> <code>verify-email</code> <code>search</code> <code>footprint</code></span></div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- 02 FETCH -->
+        <div class="stage">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>04</b>fetch</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>The ladder: free first</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip free">tier 0 · 1</span>
+                <span class="chip paid">tier 2 · batched</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py fetch work/clear.json <span class="flag">--out</span> work/sites.json <span class="flag">--with-text</span></code>
+              <div class="io">
+                <div><span class="k">tier 0</span><span class="v">local <code>requests</code> + BeautifulSoup — free</span></div>
+                <div><span class="k">tier 1</span><span class="v">the agent's own WebSearch / WebFetch — free, model-side</span></div>
+                <div><span class="k">tier 2</span><span class="v"><b>one</b> batched Apify <code>cheerio</code> run — paid, shared</span></div>
+              </div>
+              <p class="why"><b>Container boot dominates the bill, not pages.</b> A 2-page run and a 200-page
+                run cost nearly the same to start, so tier 2 never fires per lead — it fires once per batch,
+                over every URL tier 0 failed on. Fifty separate two-page runs is the worst possible way to
+                use a compute-billed actor.</p>
+              <p class="why"><b>Two traps this module is shaped around.</b> Called without setting
+                <code>crawlerType</code>, the actor defaults to full headless Firefox — one test run spent 81
+                seconds on 2 pages and 45% of that lead's entire bill. And depth-2 crawling missed
+                <code>/about.html</code> on a real lead, so candidate URLs are enumerated directly rather
+                than discovered.</p>
+              <p class="why">Firecrawl is gone as of 2026-07-31. <b>The tier-0 read rate is unmeasured</b> —
+                the first real batch measures it, and every cost estimate downstream depends on it.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- 03 RESEARCH -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>05</b>research</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Workers → typed objects → schema</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip agent">research-worker ×n</span>
+                <span class="chip gate">schema, not a verifier</span>
+                <span class="chip gate">exit 1 on a clear no</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py research work/research-&lt;slice&gt;.json
+python main.py qualify &lt;lead.json&gt;</code>
+              <div class="io">
+                <div><span class="k">Fan-out</span><span class="v">One worker per slice of ~10 leads, at most 5 at a time. <b>Workers write nothing</b> — they return typed objects.</span></div>
+                <div><span class="k">The three floors</span><span class="v">UAE-based (based here, not merely serving here) · actually a coach · active in the last 30 days</span></div>
+                <div><span class="k">Captured, never gated on</span><span class="v"><code>coach_type</code> <code>sells_to</code> <code>audience_size</code> <code>top_program_price_aed</code> <code>solo</code></span></div>
+              </div>
+              <p class="why"><b><code>unclear</code> passes. Only a clear <code>no</code> drops a row.</b>
+                A false kill is permanent and invisible; a false pass costs one research call. Every verdict
+                carries the source that settled it, so a <code>no</code> can be argued with instead of taken
+                on trust.</p>
+              <p class="why"><b>A verdict without a source is not a verdict.</b> The schema rejects any hard
+                yes/no naming nothing — that combination means the answer was reasoned rather than fetched.
+                This is the one stage with no verifier agent, on purpose: a schema check is cheaper than an
+                agent and strictly harder to talk around.</p>
+              <p class="why"><b>Two floors were removed and both were wrong differently.</b> Audience size
+                decoupled from the offer the moment we started selling their next client rather than leverage
+                on their list. And a price floor reads <code>unclear</code> on ~94% of the market — a coin
+                flip with extra fetches attached. <code>coach_type</code> still matters because it picks the
+                identity line, and <b>LinkedIn wins when the site disagrees</b>.</p>
+              <div class="sub">
+                <h4 class="eyebrow">then, now that addresses exist</h4>
+                <code class="cmd">python main.py dedupe work/researched.json <span class="flag">--stage</span> late</code>
+                <p class="why">Pass 2 runs on email. Pass 1 cannot catch a married name, a business name that
+                  doesn't resemble a person name, or an address that only matches once you know it. Both
+                  passes are needed; neither is sufficient.</p>
+              </div>
+              <div class="sub">
+                <h4 class="eyebrow">the address itself</h4>
+                <code class="cmd">python main.py email-check   <span class="flag"># free: syntax, MX, role/typo flags</span>
+python main.py email-verify  <span class="flag"># paid deliverability confirm</span>
+python main.py email-enrich  <span class="flag"># no-address fallback, own branded domain</span></code>
+                <p class="why">The fallback converges on exactly one address, <b>never auto-passes a
+                  catch-all domain</b>, and refuses free provider domains. Verification defaults to
+                  Apify/MillionVerifier and auto-falls back to ZeroBounce when Apify is near cap.</p>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- 04 HOOK -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>06</b>hook</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Proposed, then re-fetched cold</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip agent">hook-worker</span>
+                <span class="chip agent">hook-verifier</span>
+                <span class="chip gate">defaults to refuted</span>
+              </div>
+            </summary>
+            <div class="body">
+              <div class="io">
+                <div><span class="k">Worker proposes</span><span class="v">The exact quote, the URL and the date. It never writes the hook anywhere.</span></div>
+                <div><span class="k">Verifier confirms</span><span class="v">Re-fetches the citation in a context that <b>never saw the search</b>, and confirms the quote, the date and the authorship actually hold.</span></div>
+                <div><span class="k">Three verdicts</span><span class="v"><span class="chip ok">verified</span> <span class="chip gate">refuted</span> <span class="chip warn">inconclusive</span></span></div>
+              </div>
+              <p class="why"><b>Never invent a hook. It is a citation or it is nothing.</b> No hook found is a
+                good answer — the lead holds and gets no row. INCONCLUSIVE (page gone, login wall, content
+                changed) holds the lead where it is rather than killing it, and a refutation needs a citable
+                contradiction, never a feeling.</p>
+              <p class="why"><b>Do not summarise the worker's reasoning into the verifier's prompt.</b> That
+                destroys the entire mechanism while looking helpful. Hooks are pipelined: one can be verified
+                while others are still being found.</p>
+              <p class="why"><b>Quality tripwire.</b> If the verifier refutes two or more of the first wave,
+                stop and surface it before spending the rest of the queue. Two refusals in a row is a problem
+                with the instructions, not with those two leads.</p>
+              <p class="why"><b>The verified hook's date is the activity evidence — write it back.</b> The
+                30-day floor runs at research against a site read, and a coach's own website almost never
+                carries a date: measured across nine real sites and ~220,000 characters, zero usable ones. So
+                every lead came back <code>unclear</code> and the floor did nothing. LinkedIn is where the
+                signal is, and this stage is what fetches it.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- 05 COPY + DEAL -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>07</b>deal</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Which hand-written lines this batch gets</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip gate">copy-check: pass / fail / blocked</span>
+                <span class="chip gate">deal exits 1 on a rejected live edit</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py copy-check
+python main.py deal work/draftable.json <span class="flag">--out</span> work/anchors.json</code>
+              <p class="why"><b>Airtable's Copy Assets table owns every line.</b> <code>copy/*.csv</code> is a
+                cache of it, not a second opinion. <code>copy-check</code> asserts both halves: the live lines
+                pass the linter, and the committed cache still matches them. It only looks — it is the reader
+                to <code>copy-sync</code>'s writer, so it is safe at the top of a batch and again after a fix.</p>
+              <p class="why"><b>A batch is dealt, not rolled.</b> Per-lead hashing is unbiased only in the
+                limit: measured on the live lines, a 50-lead batch gave one offer line 8% against a declared
+                20% and pushed another over the repetition cap. It converged near n=200, and batches are not
+                that big. Dealing gets the worst miss to about a point. <code>anchors</code> keeps the
+                per-lead draw for single-lead work.</p>
+              <p class="why"><b>The repetition cap outranks the 70/30 exact-match ratio.</b> When a segment
+                has too few identity lines to spread its share, the excess spills to generic rather than
+                putting one sentence in front of 70% of a batch. <code>deal</code> then prints a
+                <code>THIN</code> line naming the segment and how many more lines it needs. <b>That is the
+                fix; the spill is the workaround.</b></p>
+              <p class="why">Every rung below the live one records <b>why</b> it was taken, printed as a
+                <code>COPY:</code> line. All three failures — a dead key, an unreachable base, and an edit
+                that fails the linter — used to be swallowed into the same silent fall-through, so a batch
+                could ship on month-old copy while the operator believed the table was in charge.
+                <code>--allow-cached-copy</code> is the one deliberate override.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- 06 DRAFT -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>08</b>draft</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Written against the anchors, then read cold</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip agent">draft-worker</span>
+                <span class="chip agent">draft-verifier</span>
+                <span class="chip gate">send / rewrite / reject</span>
+              </div>
+            </summary>
+            <div class="body">
+              <div class="io">
+                <div><span class="k">Worker gets</span><span class="v">The verified hook, the research object, and <b>that lead's four dealt lines, inline in the prompt</b>. It runs the linter on its own output before returning.</span></div>
+                <div><span class="k">Verifier judges</span><span class="v">The one thing no linter can check: whether beat 1 connects to beat 2, and whether it still sounds like me. It never edits the draft.</span></div>
+              </div>
+              <p class="why"><b>The model may re-voice an anchor so the beats connect. It may not change what
+                the anchor claims.</b> That single sentence is the whole arrangement — it buys real freedom
+                for the drafter while keeping every claim traceable to a line a person wrote and checked.</p>
+              <p class="why"><b>The worker must not draw its own lines.</b> It would get the single-lead draw
+                rather than the dealt one, which breaks the balancing and leaves the CRM record disagreeing
+                with the email that shipped.</p>
+              <div class="io">
+                <div><span class="k"><span class="chip ok">send</span></span><span class="v">into the export set</span></div>
+                <div><span class="k"><span class="chip warn">rewrite</span></span><span class="v">back to the drafter <b>once</b>, with the note. Then it passes or it holds.</span></div>
+                <div><span class="k"><span class="chip gate">reject</span></span><span class="v">holds. No row.</span></div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- 07 LINT -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>09</b>lint</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Everything that can be mechanical</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip gate">fails closed</span>
+                <span class="chip gate">exit 1 on any draft or batch failure</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py lint &lt;drafts.json&gt;</code>
+              <div class="io">
+                <div><span class="k">Traceability</span><span class="v">Every number must be true of a real client result in <code>copy/results.csv</code> — and a number next to a named segment must belong to that segment. <b>Invention and relabelling are two different failures</b>, and either is the tell that the whole email is fabricated, hook included.</span></div>
+                <div><span class="k">Claim preservation</span><span class="v">The offer beat must still offer ten names. The close must still ask for fifteen minutes <b>and</b> keep its second half. A close that loses its reason becomes a question, and that is how reply-to-call went 0-for-9.</span></div>
+                <div><span class="k">Voice</span><span class="v">No em-dashes. No operator jargon. No weak closers. Signs off <code>Haytham</code>. Second person before the first digit. No gendered pronoun in an identity line.</span></div>
+                <div><span class="k">Batch-level</span><span class="v">67–95 words · no fixed line above 35% of the batch · bridge phrases capped at 10% · share checks from 8 leads up. Invisible one email at a time, which is why they run across the file.</span></div>
+              </div>
+              <p class="why"><b>Jargon is matched on word boundaries, with explicit suffixes.</b> A raw
+                substring test dropped real emails and gave a false reason: the hook quotes the lead's own
+                words, so "optimism" tripped <code>optimi</code>, "auditioning" tripped <code>audit</code>,
+                and "Detroit" tripped <code>ROI</code>. Each rejected a whole email naming a word that was
+                never in it — unfixable by the drafter, because the complaint is not true.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- 08 EXPORT -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>10</b>export</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Five files, and the one you have to read</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip gate">a failed lint is absent, not flagged</span>
+                <span class="chip gate">--anchors checks id and text</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py export work/drafts.json <span class="flag">--anchors</span> work/anchors.json \
+  <span class="flag">--out</span> out/ <span class="flag">--batch</span> &lt;YYYY-MM-DD&gt; [<span class="flag">--rebalance-ps</span>]</code>
+              <div class="io">
+                <div><span class="k">out/leads.csv</span><span class="v">Exactly eight columns. Smartlead stitches nothing — what you read in the preview is byte-for-byte what leaves.</span></div>
+                <div><span class="k">out/preview.txt</span><span class="v"><b>The gate.</b> Every email in full, in order.</span></div>
+                <div><span class="k">out/rejected.txt</span><span class="v">Every lead that did not make the file, with its reasons.</span></div>
+                <div><span class="k">out/wall-additions.csv</span><span class="v">Held back deliberately until after the upload.</span></div>
+                <div><span class="k">out/line-usage.csv</span><span class="v">Same — what shipped, for Copy Assets.</span></div>
+              </div>
+              <code class="cmd">email, first_name, last_name, website, linkedin_profile, location, subject, body</code>
+              <p class="why"><b>It is <code>linkedin_profile</code>, not <code>linkedin_url</code>.</b> The
+                wrong spelling still imports successfully and silently lands as an extra custom variable,
+                which is the worst kind of wrong. Six columns are Smartlead's native fields; <code>subject</code>
+                and <code>body</code> arrive as custom fields used as template variables in a campaign step.</p>
+              <p class="why"><b>Export against the same deal file the drafts were written from.</b> Re-running
+                <code>deal</code> after drafting produces a different allocation, and <code>--anchors</code>
+                then compares each draft against lines it was never given — the rejection reads "the drafter
+                drew its own", which is the opposite of what happened.</p>
+              <p class="why"><b><code>--rebalance-ps</code> whenever any lead held.</b> Holds are guaranteed,
+                and every hold unbalances a deal made for the larger batch: dropping 3 of 11 on the first real
+                run put two ps lines at 38% against a 35% cap and correctly blocked the whole file. The ps is
+                the one beat that can move safely — library copy, near-verbatim, alone at the end, no part in
+                the seam. Re-dealing from scratch would move identity lines and force re-drafting emails that
+                already passed a cold read.</p>
+              <p class="why">All five outputs are cleared first, so <b>a blocked batch cannot leave a stale
+                uploadable file behind</b>.</p>
+            </div>
+          </details>
+        </div>
+
+        <!-- 09 AFTER -->
+        <div class="stage has-gate">
+          <div class="node" aria-hidden="true"></div>
+          <div class="step"><b>11</b>after<br>upload</div>
+          <details class="card">
+            <summary>
+              <div class="title"><h3>Only once it has actually been sent</h3><span class="more">detail</span></div>
+              <div class="chips">
+                <span class="chip warn">wall-add is idempotent</span>
+                <span class="chip gate">copy-usage is not — run once</span>
+              </div>
+            </summary>
+            <div class="body">
+              <code class="cmd">python main.py wall-add out/wall-additions.csv
+python main.py copy-usage out/line-usage.csv
+git commit data/contacted-before.csv</code>
+              <p class="why"><b>Nothing was sent at export time.</b> Walling a lead who never received
+                anything would silently exclude them from every future batch. <code>copy-usage</code> adds to
+                a running total and nothing can tell a re-run from a genuine second batch using the same
+                lines, so it runs exactly once — <code>--dry-run</code> first if unsure.</p>
+              <p class="why">The batch is also written to Airtable: one <b>Batches</b> row and one
+                <b>Leads</b> row per lead <b>including the ones that held</b>, with their blockers. A lead
+                that vanished with no record is worse than a kill you can read.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="box stop" style="margin-top:1.4rem">
+        <h3>The one instruction no code replaces</h3>
+        <p><b>Read <code>out/preview.txt</code> before uploading. Ten emails, in full.</b> The linter catches
+          invented numbers, lost claims, jargon and repetition. It cannot catch a hook that lands wrong on a
+          specific person, or a paragraph that passes every rule and still reads like a robot. That has
+          always been the gate and it still is.</p>
+      </div>
+    </section>
+
+    <!-- ===================== 3. GATES ===================== -->
+    <section class="sec" id="gates">
+      <div class="sec-head">
+        <div class="row"><span class="eyebrow">03</span><h2>The gates, and what a code means</h2></div>
+        <p class="note">Universal across every command and pinned by <code>tests/test_cli_failures.py</code>.
+          Skills quote the literal output line rather than paraphrasing it, which only works if the codes
+          mean the same thing everywhere.</p>
+      </div>
+
+      <div class="exits">
+        <div class="exit e0"><b class="num">0</b><span class="l">pass</span><span class="x">The check ran and passed.</span></div>
+        <div class="exit e1"><b class="num">1</b><span class="l">fail</span><span class="x">The check ran and something failed.</span></div>
+        <div class="exit e2"><b class="num">2</b><span class="l">could not run</span><span class="x"><b>The one that matters.</b> A check that cannot run is a failure, never a pass.</span></div>
+        <div class="exit e3"><b class="num">3</b><span class="l">needs approval</span><span class="x">A paid call above the cost ceiling. It blocks rather than spending.</span></div>
+      </div>
+
+      <p class="why" style="margin:1rem 0 1.4rem">A missing wall file must never read as "nobody has been
+        contacted". A missing docs tree must never read as "no drift". <b>Every gate fails closed.</b></p>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Gate</th><th>What it refuses</th><th>Codes</th><th>When</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>dedupe</code></td><td>A cold opener landing on a live conversation. Also refuses an empty or unreadable wall.</td><td><span class="m"><span class="chip gate">1</span> <span class="chip warn">2</span></span></td><td>Before any paid call, then again on email</td></tr>
+            <tr><td><code>qualify</code></td><td>A clear <code>no</code> on any of the three floors. <code>unclear</code> passes.</td><td><span class="m"><span class="chip gate">1</span> <span class="chip warn">2</span></span></td><td>Per lead, after research</td></tr>
+            <tr><td><code>research</code></td><td>A verdict outside the enum, and a hard yes/no with no source named.</td><td><span class="m"><span class="chip gate">1</span></span></td><td>Every worker object</td></tr>
+            <tr><td><code>lint</code></td><td>An invented number, a relabelled one, a dropped claim, jargon, a weak closer, a repeated line above cap.</td><td><span class="m"><span class="chip gate">1</span></span></td><td>Per draft and across the batch</td></tr>
+            <tr><td><code>export --anchors</code></td><td>A draft whose lines disagree with the deal — checked on the reported id <b>and</b> the written text.</td><td><span class="m"><span class="chip gate">1</span></span></td><td>At the file</td></tr>
+            <tr><td><code>copy-check</code></td><td>A live line that fails the linter, or a cache that no longer matches the table.</td><td><span class="m"><span class="chip gate">1</span> <span class="chip warn">2</span></span></td><td>Top of a batch, and after a fix</td></tr>
+            <tr><td><code>copy-sync</code></td><td>Any Airtable line that fails the linter. <b>Writes nothing when anything fails.</b></td><td><span class="m"><span class="chip gate">1</span></span></td><td>After editing lines in Airtable</td></tr>
+            <tr><td><code>deal</code></td><td>A rejected live edit with no override; an unreadable table without <code>--allow-cached-copy</code>.</td><td><span class="m"><span class="chip gate">1</span></span></td><td>The moment lines become a batch's lines</td></tr>
+            <tr><td><code>email-check</code> / <code>-verify</code> / <code>-enrich</code></td><td>A bad shape, an undeliverable address, a catch-all auto-pass, a free provider domain.</td><td><span class="m"><span class="chip gate">1</span></span></td><td>Once an address exists</td></tr>
+            <tr><td><code>apify</code> (any)</td><td>A run above the cost ceiling, and an unreadable estimate.</td><td><span class="m"><span class="chip paid">3</span></span></td><td>Every paid call</td></tr>
+            <tr><td><code>doc-check</code></td><td>A doc naming a command, path or copy-line that doesn't exist; a price in any spec file but <code>03-offer.md</code>; a CRM select option that drifted.</td><td><span class="m"><span class="chip gate">1</span> <span class="chip warn">2</span></span></td><td>With the test suite and in CI — never with a batch</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="tiny" style="margin-top:.6rem"><code>doc-check</code> runs with the suite rather than with a
+        batch on purpose: a docs typo must never be able to halt a real send file.</p>
+    </section>
+
+    <!-- ===================== 4. THE EMAIL ===================== -->
+    <section class="sec" id="email">
+      <div class="sec-head">
+        <div class="row"><span class="eyebrow">04</span><h2>What one email is</h2>
+          <span class="chip free">67–95 words</span><span class="chip free">plain text</span>
+          <span class="chip gate">no links · no price</span></div>
+        <p class="note">Each beat answers the objection the reader raises at that exact moment. Reorder them
+          and a beat answers a question the reader has not asked yet, which reads as a non sequitur even when
+          every sentence is individually fine.</p>
+      </div>
+
+      <div class="beats">
+        <div class="beat"><div class="i">1</div><div class="c">
+          <h3>Hook</h3>
+          <div class="obj">is this a spammer?</div>
+          <p class="note">One or two sentences about something specific and recent they did, cited, plus a
+            clause saying what you took from it. <b>The only beat written from scratch</b>, and the only one
+            an independent agent re-fetches.</p>
+          <div class="src">written per lead · owned by docs/hook-rules.md</div>
+        </div></div>
+
+        <div class="beat"><div class="i">2</div><div class="c">
+          <h3>Identity</h3>
+          <div class="obj">who is this and why should I care?</div>
+          <p class="note">A matched reference group, a real number, a timeframe. <b>It must turn to the reader
+            before its first digit.</b> An identity beat that opens on my numbers is a CV; the same
+            numbers after "your next client is the job" are evidence.</p>
+          <div class="src">anchor · 33 lines · matched on coach_type AND sells_to</div>
+        </div></div>
+
+        <div class="beat"><div class="i">3</div><div class="c">
+          <h3>Offer</h3>
+          <div class="obj">what can you do for me?</div>
+          <p class="note">Ten names, already pulled. <b>Not a promise to pull them.</b></p>
+          <div class="src">anchor · 4 lines</div>
+        </div></div>
+
+        <div class="beat"><div class="i">4</div><div class="c">
+          <h3>Close</h3>
+          <div class="obj">what happens next?</div>
+          <p class="note">Fifteen minutes, a clock on the deliverable, and why these ten and not the other
+            forty. <b>The close must keep its second half.</b> A close that loses the reason only a
+            conversation can answer becomes a question, and a question selects for replies that are
+            <i>answers</i> — a dead end that looks like success.</p>
+          <div class="src">anchor · 4 lines</div>
+        </div></div>
+
+        <div class="beat"><div class="i">5</div><div class="c">
+          <h3>ps</h3>
+          <div class="obj">what does saying no cost me?</div>
+          <p class="note">A costless no. Not a throwaway — it is the beat that makes not replying cheap,
+            which is what makes replying honest.</p>
+          <div class="src">anchor · 4 lines · the only beat --rebalance-ps may move</div>
+        </div></div>
+      </div>
+
+      <div class="grid2" style="margin-top:1.2rem">
+        <div class="box accent">
+          <h3>The bridge</h3>
+          <p>The single most common failure, and the one that cannot be repaired downstream.
+            <b>The hook must have a writer in it.</b></p>
+          <p style="border-left:2px solid var(--rule); padding-left:.8rem"><i>"You wrote that you couldn't
+            contain the excitement of uncovering a solution for yourself."</i> — hands them back their own
+            sentence and stops.</p>
+          <p style="border-left:2px solid var(--accent); padding-left:.8rem"><i>"…That is a strange thing to
+            read from someone who sells the solving."</i> — has a person in it, and beat 2 now has somewhere
+            to start from.</p>
+          <p>A hook with no writer produces an identity beat that reads as a non sequitur <b>whatever that
+            beat says</b>, which is why no amount of rewriting beat 2 fixes it.</p>
+        </div>
+        <div class="box stop">
+          <h3>What is sold</h3>
+          <p><b>Ten names.</b> Real people who fit their buyer profile, already pulled, handed over on a
+            fifteen-minute call along with why those ten and not the other forty. That is the entire ask.</p>
+          <p><b>No price appears in any email.</b> The paid offer lives on the call. Nothing in the machine
+            quotes a number, and <code>doc-check</code> enforces that <code>docs/spec/03-offer.md</code> is
+            the only defining doc allowed to carry one.</p>
+          <p>The previous system sold a <i>finding</i> — and a finding in an inbox is a free fix. 4 of 9
+            engaged leads read it, fixed it themselves and left. 589 leads, 0 calls, at a reply rate of 7–9%
+            against a 1–5% benchmark.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 5. AGENTS ===================== -->
+    <section class="sec" id="agents">
+      <div class="sec-head">
+        <div class="row"><span class="eyebrow">05</span><h2>The worker / verifier chassis</h2></div>
+        <p class="note"><b>The agent that makes a consequential claim never gets to certify it.</b> A second
+          agent, which never saw how the claim was reached, re-derives it from the evidence alone and defaults
+          to rejecting it. The fix is structural, not motivational: a third of self-certified findings used to
+          fail under scrutiny while carrying a verified flag.</p>
+      </div>
+
+      <div class="chassis">
+        <div class="pair">
+          <div class="ph"><h3>Research</h3></div>
+          <div class="pb">
+            <div class="agent-row"><span class="nm">research-worker</span><span class="rl">Researches a slice of ~10 leads into typed objects. Spends the cheapest tool that settles each datum.</span></div>
+            <div class="agent-row"><span class="nm" style="color:var(--text-3)">no verifier — on purpose</span><span class="rl">A schema check is cheaper than an agent and strictly harder to talk around.</span></div>
+            <div class="claim"><span class="k">the check</span><code>python main.py research</code> rejects a verdict outside the enum and any hard yes/no with no source.</div>
+          </div>
+        </div>
+
+        <div class="pair">
+          <div class="ph"><h3>Hook</h3></div>
+          <div class="pb">
+            <div class="agent-row"><span class="nm">hook-worker</span><span class="rl">Proposes with the exact quote, URL and date. Never writes the hook anywhere.</span></div>
+            <div class="agent-row"><span class="nm">hook-verifier</span><span class="rl">Re-fetches the citation in a context that never saw the search. Defaults to refuted.</span></div>
+            <div class="claim"><span class="k">the one claim re-checked</span>The quote is really at the cited URL.</div>
+          </div>
+        </div>
+
+        <div class="pair">
+          <div class="ph"><h3>Draft</h3></div>
+          <div class="pb">
+            <div class="agent-row"><span class="nm">draft-worker</span><span class="rl">Writes one email from the hook, the research object and the four dealt lines. Lints its own output.</span></div>
+            <div class="agent-row"><span class="nm">draft-verifier</span><span class="rl">Reads the finished email as its recipient would. Never edits it.</span></div>
+            <div class="claim"><span class="k">the one claim re-checked</span>Beat 1 connects to beat 2, and it still sounds like me.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:1.2rem">
+        <div class="box">
+          <h3>The rules that make it work</h3>
+          <ul>
+            <li><b>The verifier never sees the worker's reasoning.</b> Summarising the search into its prompt destroys the mechanism while looking helpful.</li>
+            <li><b>Three verdicts, not two.</b> Inconclusive holds the lead. A false kill is permanent and invisible.</li>
+            <li><b>Only the verifier promotes.</b> The worker proposes; the flag is written by the thing that checked it.</li>
+            <li><b>Cross-check the store, not the report.</b> A claimed success over an unwritten row is Blocked, not Done.</li>
+            <li><b>Prefer a mechanical check to an agent, always.</b> The linter, the research schema, the wall and <code>export --anchors</code> each replaced something a person or an agent was supposed to remember.</li>
+            <li><b>Least privilege.</b> No worker gets a send-capable tool. No worker spawns sub-workers.</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h3>Who orchestrates</h3>
+          <p>The skill is the orchestrator, running in the main loop. It does three things and no per-lead
+            work: fetch a batch, fan out, write the result. The exception is a stalled worker, taken over
+            directly rather than nudged twice.</p>
+          <div class="agent-row" style="display:grid;gap:.2rem;margin-top:.3rem">
+            <span class="nm" style="font-family:var(--mono);font-size:.8rem;font-weight:700;color:var(--accent)">outbound-batch</span>
+            <span class="rl" style="font-size:.85rem;color:var(--text-2)">A whole list, end to end, into a file.</span>
+          </div>
+          <div class="agent-row" style="display:grid;gap:.2rem">
+            <span class="nm" style="font-family:var(--mono);font-size:.8rem;font-weight:700;color:var(--accent)">outbound-draft</span>
+            <span class="rl" style="font-size:.85rem;color:var(--text-2)">One email, and the repair path. Carries the voice references.</span>
+          </div>
+          <p class="tiny">The repo's <code>.claude/skills/</code> is authoritative — a SessionStart hook
+            fingerprints every on-disk SKILL.md, and if a remembered copy disagrees, the file on disk wins.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 6. AUTHORITY ===================== -->
+    <section class="sec" id="authority">
+      <div class="sec-head">
+        <div class="row"><span class="eyebrow">06</span><h2>Who owns which value</h2></div>
+        <p class="note">The rule that makes the doc layer durable: <b>no defining doc copies a value from this
+          table — it names the row.</b> A doc saying "the Apify ceiling is $X" is wrong the moment the
+          constant moves, and wrong invisibly, because nothing reads a doc.</p>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Value</th><th>Authority</th><th>Written by</th><th>Read by</th></tr></thead>
+          <tbody>
+            <tr><td>Every price, the guarantee, the offer stack</td><td><code>docs/spec/03-offer.md</code></td><td>a decision, logged in <code>07-decisions.md</code></td><td>the call</td></tr>
+            <tr><td>The hand-written lines</td><td>Airtable <b>Copy Assets</b><span class="tiny"><br><code>copy/*.csv</code> is a cache, never a second opinion</span></td><td><code>copy-sync</code>, asserted by <code>copy-check</code></td><td><code>outbound/anchors.py</code></td></tr>
+            <tr><td>The client-result numbers</td><td><code>copy/results.csv</code></td><td>by hand, from <code>docs/identity-intake-raw.txt</code></td><td><code>outbound/lint.py</code>, <code>facts</code></td></tr>
+            <tr><td>Who has already been contacted</td><td><code>data/contacted-before.csv</code></td><td><code>wall-add</code>, after the upload</td><td><code>dedupe</code></td></tr>
+            <tr><td>Where each lead is right now</td><td>Airtable <b>Leads</b></td><td>the batch run</td><td>the skills</td></tr>
+            <tr><td>What shipped in a batch</td><td>Airtable <b>Batches</b></td><td>the batch run</td><td>reporting</td></tr>
+            <tr><td>The three floors, as evaluated</td><td><code>outbound/qualify.py</code></td><td>code</td><td><code>qualify</code></td></tr>
+            <tr><td>The research contract</td><td><code>outbound/research.py</code></td><td>code</td><td>every worker</td></tr>
+            <tr><td>The Apify cost ceiling</td><td><code>audit/apify.py</code></td><td>code</td><td>every paid call</td></tr>
+            <tr><td>The CRM base and table ids</td><td><code>CLAUDE.md</code></td><td>by hand, rarely</td><td><code>audit/airtable.py</code></td></tr>
+            <tr><td>The CRM's select options</td><td>Airtable, in the field config <span class="chip warn">the one authority this repo does not own</span></td><td>by hand, in the UI</td><td>three modules mirror it; <code>doc-check --live</code> compares</td></tr>
+            <tr><td>What happened, and why</td><td><code>docs/journal.md</code></td><td>at the end of a session</td><td>the SessionStart hook</td></tr>
+            <tr><td>The run's output</td><td><code>out/</code></td><td><code>export</code></td><td>a person, before uploading</td></tr>
+            <tr><td>API keys</td><td>the environment</td><td>never the repo</td><td>the modules that need them</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid2" style="margin-top:1.2rem">
+        <div class="box">
+          <h3>Why the lines are in Airtable and the results are not</h3>
+          <p>They look like the same kind of thing and they are not. <b>The lines are voice</b> — tweaked,
+            reworded and retired, often several in a sitting, and Airtable is a much better place to do that
+            than a CSV. <code>copy-sync</code> is what makes it safe.</p>
+          <p><b>The results are evidence.</b> Eight hand-filled intake forms, and the thing every number in
+            every email traces back to. They should not be casually editable, so they are not in a tool that
+            makes editing easy.</p>
+        </div>
+        <div class="box">
+          <h3>Why one row needs a live check</h3>
+          <p>Every other authority is in this repo, so the rule is enough: a change is a commit that shows up
+            in a diff. The CRM's select options are edited in a browser by someone not thinking about this
+            repo, they have no diff, and three modules mirror them — <b>a mirror of a schema nobody here owns
+            goes stale silently</b>, and pointing at the authority does not fix it, because the pointer cannot
+            tell you it moved.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 7. OUTSIDE ===================== -->
+    <section class="sec" id="outside">
+      <div class="sec-head">
+        <div class="row"><span class="eyebrow">07</span><h2>Outside the repo</h2></div>
+        <p class="note">Four services, and the two places a check runs without being asked.</p>
+      </div>
+
+      <div class="grid3">
+        <div class="box accent">
+          <h3>Airtable <span class="chip agent">crm + copy</span></h3>
+          <p>Base <code>appejF07kunksqt4D</code>. <b>Leads</b>, <b>Batches</b>, <b>Copy Assets</b>. Owns every
+            hand-written line and where each lead is right now.</p>
+          <p class="tiny">Reading from Python needs <code>AIRTABLE_API_KEY</code>. <code>anchors.py</code> tries
+            live, then the last synced snapshot, then the CSVs — and caches for the process, because a 200-lead
+            batch made 200 identical requests and would trip the rate limit.</p>
+          <p class="tiny">The old funnel-audit base is archive only, never written to.</p>
+        </div>
+
+        <div class="box accent">
+          <h3>Apify <span class="chip paid">the only paid layer</span></h3>
+          <p>No-login third-party fetch for what is genuinely login-walled. Needs <code>APIFY_TOKEN</code>.
+            Cost-gated at $0.10 per run, exit 3 above it.</p>
+          <p class="tiny">Check the budget once per batch. Batch every URL into one run — container boot
+            dominates the bill, not pages.</p>
+        </div>
+
+        <div class="box accent">
+          <h3>Email verification</h3>
+          <p>Apify / MillionVerifier by default, auto-falling back to ZeroBounce
+            (<code>ZEROBOUNCE_API_KEY</code>) when Apify is near cap.</p>
+          <p class="tiny">Force with <code>EMAIL_VERIFY_PROVIDER=zerobounce</code>.</p>
+        </div>
+
+        <div class="box accent">
+          <h3>Smartlead <span class="chip free">owns sending</span></h3>
+          <p>Inboxes, warmup, the ramp, the sequence steps and the replies. <b>No API key here.</b> Handover is
+            a CSV I upload by hand.</p>
+          <p class="tiny">Follow-ups — touches two and three — are Smartlead sequence steps, and nobody has
+            decided whether they should be personalised per lead.</p>
+        </div>
+
+        <div class="box stop">
+          <h3>The push hook</h3>
+          <p><code>.claude/hooks/schema_drift.py</code> fires on every Bash call, returns immediately unless
+            the command contains <code>git push</code>, then compares the select mirrors against the live base.</p>
+          <p class="tiny"><b>Drift blocks the push; a failure to reach Airtable warns and allows it.</b>
+            Opposite defaults, because a stale mirror endangers a batch rather than a merge, and an outage must
+            not hold every unrelated push hostage. It exists because CI has no key and this is where one lives.</p>
+        </div>
+
+        <div class="box stop">
+          <h3>CI</h3>
+          <p><code>doc-check</code> and the full suite on every push and pull request.</p>
+          <p class="tiny"><code>doc-check</code> gets its own named step even though the suite covers it, so a
+            docs drift reports as a failing step printing its own line rather than a pytest traceback somebody
+            has to read. It runs without <code>--live</code> — CI holds no CRM credential, and nobody has
+            decided whether it should.</p>
+        </div>
+      </div>
+
+      <div class="box stop" style="margin-top:1.2rem">
+        <h3>The two rules only a person can keep</h3>
+        <div class="rules">
+          <div class="rule-item"><span class="x">✕</span><span><b>Never send an email.</b> The machine ends at a file. Sending is Smartlead, and I am the one who triggers it.</span></div>
+          <div class="rule-item"><span class="x">✕</span><span><b>Never log in to, act as, or automate anything through my own accounts</b> on any platform. Read-only, no-login tools only. This is an identity rule, not a platform ban: public data through a no-login third party is fine, on LinkedIn and Instagram the same as anywhere.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 8. UNKNOWN ===================== -->
+    <section class="sec" id="unknown">
+      <div class="sec-head">
+        <div class="row"><span class="eyebrow">08</span><h2>What is actually unknown</h2></div>
+        <p class="note">The open bets, kept visible on purpose. These are what matter now.</p>
+      </div>
+
+      <div class="grid2">
+        <div class="box"><h3>Reply to call has never been above zero</h3><p>The ten-names offer is a real deliverable rather than a question, which is the fix — but it is a bet, not a result.</p></div>
+        <div class="box"><h3>The tier-0 fetch rate is unmeasured</h3><p>Nobody has published what share of coach sites a plain HTTP fetch can read. The first real batch measures it, and every cost estimate downstream depends on it.</p></div>
+        <div class="box"><h3>The real Apify bill has never been reconciled</h3><p>The last paper estimate was wrong by most of an order of magnitude.</p></div>
+        <div class="box"><h3>The ten must actually exist on the call</h3><p>The close now carries a clock. Breaking that promise costs more than never making it — it is the first thing they can check, and it happens before anything is sold.</p></div>
+        <div class="box"><h3>Airtable Leads and the wall can disagree</h3><p>Nothing reconciles them, and nothing has needed to yet. The first time a batch is half-uploaded, something will.</p></div>
+        <div class="box"><h3>copy/results.csv is eight rows from one sitting</h3><p>Every identity line in every email rests on them. Nobody has re-verified them since.</p></div>
+        <div class="box"><h3>Follow-ups are not built</h3><p>Touches two and three are Smartlead sequence steps, and nobody has decided whether they should be personalised per lead.</p></div>
+        <div class="box"><h3>Sourcing is phase two</h3><p>Today the machine starts from a list somebody drops on it. <code>classify-footprint</code> exists and is fetch-agnostic by design.</p></div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p class="tiny">Built from the repository at <code>6f327cf</code> — <code>docs/spec/</code>,
+        <code>docs/START-HERE.md</code>, <code>docs/agent-orchestration.md</code>, the module docstrings, the
+        CLI parser and <code>.claude/</code>. Every figure on this page is read from the code or the CSVs, not
+        restated from a doc. <a href="#top">Back to top</a>.</p>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('refusalToggle');
+    var page = document.querySelector('.page');
+    btn.addEventListener('click', function () {
+      var on = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', String(!on));
+      page.classList.toggle('refusals-on', !on);
+      btn.textContent = !on ? 'Refusal points shown' : 'Mark refusal points';
+    });
+  })();
+</script>
