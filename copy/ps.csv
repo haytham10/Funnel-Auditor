@@ -1,0 +1,5 @@
+id,line,weight_pct,roll_1_100,word_count
+ps-01,ps: not a list. If the timing's wrong that's a fine answer.,30,1-30,12
+ps-02,"ps: no pitch deck behind this, and nothing to unsubscribe from.",25,31-55,11
+ps-03,ps: a no here costs you nothing and costs me nothing.,25,56-80,11
+ps-04,"ps: if this isn't your thing, no hard feelings at all.",20,81-100,11

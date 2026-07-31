@@ -1,0 +1,9 @@
+segment,city,sells_to,client_price_aed,meetings,period,first_meeting_days,clients,aed_closed,close_period,sourced,sent,still_working
+Leadership,Dubai,individuals,12000,8,30 days,7,3,36000,60 days,200,300,no
+Business,Dubai,corporates,24000,12,60 days,10,5,120000,90 days,300,401,no
+Life,Abu Dhabi,individuals,6000,8,5 weeks,4,3,18000,30 days,150,180,no
+Career,Dubai,individuals,11000,12,45 days,12,7,77000,90 days,320,390,no
+Mindset,Dubai,individuals,7000,5,30 days,7,1,7000,30 days,120,150,yes
+Health,Dubai,individuals,13000,9,6 weeks,9,6,78000,60 days,190,220,no
+Fitness,Dubai,individuals,12000,7,30 days,7,3,36000,45 days,250,280,yes
+Executive,Dubai,corporates,22000,6,45 days,8,2,44000,2 months,150,170,yes

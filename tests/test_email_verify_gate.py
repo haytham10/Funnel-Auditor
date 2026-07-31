@@ -1,34 +1,25 @@
-"""Tests for the deliverability layer added 2026-07-16:
+"""email_check.classify_verification: a verifier result -> PASS / WARN / FAIL.
 
-  1. email_check.classify_verification — MillionVerifier result → PASS/WARN/FAIL,
-     failing SAFE (never PASS on an ambiguous or missing result).
-  2. crm_gate.check_send — now requires `Email Verified` checked, closing the
-     old `"@" in email` hole that let two bounce-prone addresses through.
+Fails SAFE. An ambiguous or missing result is never a PASS, because the cost
+of a wrong PASS is a real bounce against a sending domain and the cost of a
+wrong WARN is one address looked at by hand.
+
+The send-gate half of this file left with crm_gate when sending moved to
+Smartlead. What remains is the classifier, which is provider-agnostic and
+still the thing standing between a scraped string and an upload file.
 
 Run: python -m pytest tests/test_email_verify_gate.py -q
-     (or plain `python tests/test_email_verify_gate.py` for the no-pytest path)
+     (or plain `python tests/test_email_verify_gate.py`)
 """
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from audit import email_check
-from audit.crm_gate import check_send
-
-# These tests exercise the email-verified gate, not the noon-Dubai send-day
-# cutoff or the Sunday send-pause — pin a pre-noon Dubai moment on a Monday
-# so a touch-1 opener is attributed to today (its usual path), and that day
-# is never the paused one, regardless of the wall clock when the suite runs.
-# (2026-07-18 used to sit here — a Saturday, which happened not to break
-# anything since a before-noon touch 1 never rolls, but it was one calendar
-# shift away from landing on a Sunday and failing for the wrong reason.)
-_MORNING = datetime(2026, 7, 20, 9, 0, tzinfo=timezone(timedelta(hours=4)))
 
 
-# --- classify_verification -------------------------------------------------
 
 def test_verify_ok_is_pass():
     v, _ = email_check.classify_verification({"email": "a@b.com", "result": "ok"})
@@ -88,82 +79,16 @@ def test_print_verify_exit_codes():
 
 # --- crm_gate send: Email Verified enforcement -----------------------------
 
-def _sendable_row(**over):
-    """A row that would PASS the send gate if Email Verified is set."""
-    row = {
-        "Contact Name": "Jane Coach",
-        "Finding Verified": "__YES__",
-        "Email": "jane@janedoe.com",
-        "Email Verified": "__YES__",
-    }
-    row.update(over)
-    return row
-
-
-def test_send_blocks_when_email_verified_unchecked():
-    ok, problems, _ = check_send(_sendable_row(**{"Email Verified": "__NO__"}),
-                                 sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="half-empty-week")
-    assert not ok
-    assert any("Email Verified is unchecked" in p for p in problems)
-
-
-def test_send_blocks_when_email_verified_missing_fails_closed():
-    row = _sendable_row()
-    del row["Email Verified"]
-    ok, problems, _ = check_send(row, sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="half-empty-week")
-    assert not ok
-    assert any("Email Verified is unchecked" in p for p in problems)
-
-
-def test_send_passes_with_verified_email_and_headroom():
-    ok, problems, _ = check_send(_sendable_row(),
-                                 sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="half-empty-week")
-    assert ok, problems
-
-
-def test_send_still_requires_finding_verified():
-    ok, problems, _ = check_send(_sendable_row(**{"Finding Verified": "__NO__"}),
-                                 sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="half-empty-week")
-    assert not ok
-    assert any("Finding Verified" in p for p in problems)
-
-
-def test_send_no_address_reports_address_not_verified_flag():
-    # With no '@', the address problem fires (not the verified-flag one) —
-    # they shouldn't double-report on the same missing field.
-    ok, problems, _ = check_send(_sendable_row(**{"Email": "", "Email Verified": "__NO__"}),
-                                 sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="half-empty-week")
-    assert not ok
-    assert any("no usable address" in p for p in problems)
-    assert not any("Email Verified is unchecked" in p for p in problems)
-
-
-def test_send_accepts_plain_yes_shape():
-    # Notion checkboxes can arrive as bool true or "Yes" as well as "__YES__".
-    ok, _, _ = check_send(_sendable_row(**{"Email Verified": True}),
-                          sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="half-empty-week")
-    assert ok
-    ok2, _, _ = check_send(_sendable_row(**{"Email Verified": "Yes"}),
-                           sends_today=0, touch=1, followups_due=0, now=_MORNING,
-                                 cold_read="half-empty-week")
-    assert ok2
-
 
 if __name__ == "__main__":
-    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
-    failed = 0
-    for fn in fns:
-        try:
-            fn()
-            print(f"ok   {fn.__name__}")
-        except AssertionError as e:
-            failed += 1
-            print(f"FAIL {fn.__name__}: {e}")
-    print(f"\n{len(fns) - failed}/{len(fns)} passed")
-    sys.exit(1 if failed else 0)
+    failures = 0
+    for name, fn in sorted(list(globals().items())):
+        if name.startswith("test_") and callable(fn):
+            try:
+                fn()
+                print(f"  ok    {name}")
+            except AssertionError as exc:
+                failures += 1
+                print(f"  FAIL  {name}: {exc}")
+    print(f"\n{failures} failure(s)")
+    sys.exit(1 if failures else 0)

@@ -1,0 +1,307 @@
+"""The three floors. UAE-based, actually a coach, active in the last 30 days.
+
+Deliberately smaller than the gate it replaces. The old Gate 0 had five floors
+including a 1,500 audience minimum and an AED 5,000 program price, and both of
+them are now wrong for a different reason each:
+
+- **The audience floor is decoupled from the offer.** We are selling a coach
+  her next client. That has nothing to do with how many followers she has, so
+  audience size stopped predicting anything the day the offer changed.
+- **The price floor cannot be measured.** Six coach sites in about a hundred
+  publish a number. A floor that reads `unclear` on 94% of the market is not a
+  gate, it is a coin flip with extra fetches attached.
+
+Both are still *captured* — they are useful for choosing an identity line and
+for cohort analysis later — but neither kills a lead.
+
+**`unclear` passes.** Only a clear `no` drops a row. This asymmetry is the
+whole design: a false kill is permanent and invisible, a false pass costs one
+research call. The verdicts are therefore three-valued everywhere, and every
+one of them carries the source that settled it, so a `no` can be argued with
+instead of taken on trust.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+
+YES, NO, UNCLEAR = "yes", "no", "unclear"
+
+ACTIVITY_WINDOW_DAYS = 30
+
+UAE_CITIES = (
+    "dubai", "abu dhabi", "abudhabi", "sharjah", "ajman", "fujairah",
+    "ras al khaimah", "ras al-khaimah", "umm al quwain", "al ain",
+)
+UAE_MARKERS = (
+    "united arab emirates", "u.a.e", "uae", ".ae", "jumeirah", "marina",
+    "downtown dubai", "difc", "jlt", "business bay", "silicon oasis",
+    "media city", "internet city", "khalifa city", "yas island",
+)
+# Places that mention the UAE without being in it. "Serving clients across the
+# GCC" from a London address is the exact failure this catches.
+UAE_NEGATIVE = (
+    "serving the uae", "clients across the gcc", "remote across the middle east",
+    "we work with clients in dubai",
+)
+
+COACH_MARKERS = (
+    "coach", "coaching", "mentor", "mentoring", "consultant to founders",
+    "therapist", "practitioner", "facilitator",
+)
+# A coaching *company* with staff is not the solo operator this is written for,
+# but per the ICP decision that is captured, not gated.
+COACH_TYPES = (
+    "Business", "Leadership", "Life", "Mindset", "Career",
+    "Health", "Fitness", "Executive", "Other",
+)
+
+_TYPE_PATTERNS: list[tuple[str, re.Pattern]] = [
+    ("Executive", re.compile(r"\bexecutive coach|c-suite|senior leader", re.I)),
+    ("Leadership", re.compile(r"\bleadership|team lead|manager development", re.I)),
+    ("Business", re.compile(r"\bbusiness coach|founder coach|entrepreneur coach|scale", re.I)),
+    ("Career", re.compile(r"\bcareer coach|job search|interview|cv\b|resume", re.I)),
+    ("Health", re.compile(r"\bhealth coach|nutrition|wellness|hormone|gut\b", re.I)),
+    ("Fitness", re.compile(r"\bfitness|personal train|strength|physique", re.I)),
+    ("Mindset", re.compile(r"\bmindset|confidence|limiting belief|self.?worth", re.I)),
+    ("Life", re.compile(r"\blife coach|transformation|purpose|fulfil", re.I)),
+]
+
+_CORPORATE_MARKERS = re.compile(
+    r"\b(corporate|organisation|organization|team|l&d|leadership team|"
+    r"employees|workshop for|in.?house|b2b|enterprise)\b", re.I
+)
+_INDIVIDUAL_MARKERS = re.compile(
+    r"\b(1:1|one.to.one|individual|personal|private client|women who|"
+    r"professionals who|my clients)\b", re.I
+)
+
+
+@dataclass
+class Verdict:
+    """One floor's answer, and what settled it.
+
+    `source` is not decoration. A `no` with no source is a guess wearing a
+    verdict's clothes, and the verifier's job is to reject exactly that.
+    """
+    value: str = UNCLEAR
+    source: str = ""
+    evidence: str = ""
+
+    def __bool__(self) -> bool:
+        return self.value != NO
+
+    def line(self, label: str) -> str:
+        detail = f" [{self.source}]" if self.source else ""
+        quote = f' "{self.evidence[:80]}"' if self.evidence else ""
+        return f"{label}: {self.value.upper()}{detail}{quote}"
+
+
+@dataclass
+class Qualification:
+    uae_based: Verdict = field(default_factory=Verdict)
+    is_coach: Verdict = field(default_factory=Verdict)
+    active_recent: Verdict = field(default_factory=Verdict)
+    # Captured, never gated.
+    coach_type: str = ""
+    coach_type_source: str = ""
+    sells_to: str = ""
+    sells_to_source: str = ""
+    audience_size: int | None = None
+    top_program_price_aed: int | None = None
+    solo: str = UNCLEAR
+
+    @property
+    def passed(self) -> bool:
+        return all(v.value != NO for v in
+                   (self.uae_based, self.is_coach, self.active_recent))
+
+    @property
+    def failed_floors(self) -> list[str]:
+        return [name for name, v in (
+            ("UAE-based", self.uae_based),
+            ("is a coach", self.is_coach),
+            ("active in 30 days", self.active_recent),
+        ) if v.value == NO]
+
+    def report(self, name: str) -> str:
+        head = "PASS" if self.passed else f"FAIL ({', '.join(self.failed_floors)})"
+        lines = [
+            f"QUALIFY {name}: {head}",
+            "  " + self.uae_based.line("UAE-based"),
+            "  " + self.is_coach.line("is a coach"),
+            "  " + self.active_recent.line("active in 30 days"),
+            f"  captured: type={self.coach_type or '?'} "
+            f"sells_to={self.sells_to or '?'} "
+            f"audience={self.audience_size if self.audience_size is not None else '?'} "
+            f"price_aed={self.top_program_price_aed if self.top_program_price_aed is not None else '?'} "
+            f"solo={self.solo}",
+        ]
+        return "\n".join(lines)
+
+
+# ------------------------------------------------------------------- the floors
+
+
+def check_uae(*, city: str = "", text: str = "", domain: str = "",
+              source: str = "") -> Verdict:
+    """Based in the UAE, not merely serving it.
+
+    The distinction is load-bearing: a coach in London selling to Dubai has a
+    different market, a different price ceiling, and no reason to recognise the
+    reference group in the identity beat.
+    """
+    haystack = " ".join([city, text, domain]).lower()
+    if not haystack.strip():
+        return Verdict(UNCLEAR, source or "no data")
+
+    for phrase in UAE_NEGATIVE:
+        if phrase in haystack:
+            return Verdict(UNCLEAR, source or "text",
+                           f"claims reach, not residence: {phrase}")
+
+    for marker in UAE_CITIES:
+        if re.search(rf"\b{re.escape(marker)}\b", haystack):
+            return Verdict(YES, source or "text", marker)
+    if domain.lower().endswith(".ae"):
+        return Verdict(YES, source or "domain", domain)
+    for marker in UAE_MARKERS:
+        if marker in haystack:
+            return Verdict(YES, source or "text", marker)
+
+    # A clearly stated other country is the only thing that earns a NO. Matched
+    # case-insensitively: "Based in Manchester" at the start of a sentence is
+    # the common form, and a lowercase-only pattern silently misses all of them.
+    other = re.search(
+        r"\b(?:based|located|living|headquartered)\s+in\s+"
+        r"([A-Za-z]+(?:[ -][A-Za-z]+)?)",
+        text or "", re.I,
+    )
+    if other and not any(m in other.group(1).lower() for m in UAE_CITIES):
+        return Verdict(NO, source or "text", other.group(0))
+
+    return Verdict(UNCLEAR, source or "text")
+
+
+def check_coach(*, headline: str = "", text: str = "", source: str = "") -> Verdict:
+    """Actually sells coaching, rather than merely using the word."""
+    haystack = " ".join([headline, text]).lower()
+    if not haystack.strip():
+        return Verdict(UNCLEAR, source or "no data")
+    for marker in COACH_MARKERS:
+        if marker in haystack:
+            return Verdict(YES, source or "text", marker)
+    return Verdict(UNCLEAR, source or "text")
+
+
+def check_active(*, last_seen: date | None = None, today: date | None = None,
+                 source: str = "") -> Verdict:
+    """Posted, published or shipped something inside the window.
+
+    No date found is `unclear`, never `no`. Absence of a visible post is
+    absence of evidence — plenty of working coaches do not post.
+    """
+    if last_seen is None:
+        return Verdict(UNCLEAR, source or "no dated activity found")
+    today = today or date.today()
+    age = (today - last_seen).days
+    if age < 0:
+        return Verdict(UNCLEAR, source or "date", f"future date {last_seen}")
+    if age <= ACTIVITY_WINDOW_DAYS:
+        return Verdict(YES, source or "date", f"{last_seen} ({age}d ago)")
+    return Verdict(NO, source or "date", f"{last_seen} ({age}d ago)")
+
+
+# ------------------------------------------------------------------- capture
+
+
+def classify_coach_type(*, linkedin_text: str = "", site_text: str = "") -> tuple[str, str]:
+    """Which segment's identity line this lead should draw.
+
+    **LinkedIn wins when the two disagree.** A real case: a coach whose site
+    read as Life/Mindset ("Life Design Method") had a LinkedIn headline that
+    said "Leadership & Performance Coach" aimed at corporate teams. Two offers
+    to two audiences under one name. LinkedIn is the paid-facing profile and is
+    usually the more explicit about what she actually sells.
+    """
+    def first_match(text: str) -> str:
+        for label, pattern in _TYPE_PATTERNS:
+            if pattern.search(text or ""):
+                return label
+        return ""
+
+    from_linkedin = first_match(linkedin_text)
+    if from_linkedin:
+        site_says = first_match(site_text)
+        if site_says and site_says != from_linkedin:
+            return from_linkedin, f"linkedin (site said {site_says})"
+        return from_linkedin, "linkedin"
+
+    from_site = first_match(site_text)
+    if from_site:
+        return from_site, "site"
+    return "", ""
+
+
+def classify_sells_to(*, linkedin_text: str = "", site_text: str = "") -> tuple[str, str]:
+    """corporates | individuals | "" — collected, never inferred from a hook.
+
+    The old pipeline guessed this from hook keywords and coach type, and its own
+    doc called it the sharpest divide on the list and expected the guess to be
+    wrong on edge cases. So this reads the lead's own words and returns empty
+    rather than guessing: an unknown `sells_to` draws a generic identity line,
+    which is weaker than an exact match and much stronger than a wrong one.
+    """
+    for label, text in (("linkedin", linkedin_text), ("site", site_text)):
+        corporate = bool(_CORPORATE_MARKERS.search(text or ""))
+        individual = bool(_INDIVIDUAL_MARKERS.search(text or ""))
+        if corporate and individual:
+            # This source says both, so it says nothing. Fall through to the
+            # next source rather than letting one half of a contradiction win.
+            continue
+        if corporate:
+            return "corporates", label
+        if individual:
+            return "individuals", label
+
+    return "", ""
+
+
+def latest_date(dates: list[date | None]) -> date | None:
+    real = [d for d in dates if d]
+    return max(real) if real else None
+
+
+def qualify(*, city: str = "", domain: str = "", headline: str = "",
+            site_text: str = "", linkedin_text: str = "",
+            last_activity: date | None = None, today: date | None = None,
+            audience_size: int | None = None,
+            top_program_price_aed: int | None = None,
+            solo: str = UNCLEAR) -> Qualification:
+    """Run all three floors and capture the rest. Never fetches anything."""
+    combined = "\n".join([site_text, linkedin_text, headline])
+    coach_type, type_source = classify_coach_type(
+        linkedin_text=linkedin_text, site_text=site_text)
+    sells_to, sells_source = classify_sells_to(
+        linkedin_text=linkedin_text, site_text=site_text)
+
+    return Qualification(
+        uae_based=check_uae(city=city, text=combined, domain=domain),
+        is_coach=check_coach(headline=headline, text=combined),
+        active_recent=check_active(last_seen=last_activity, today=today),
+        coach_type=coach_type,
+        coach_type_source=type_source,
+        sells_to=sells_to,
+        sells_to_source=sells_source,
+        audience_size=audience_size,
+        top_program_price_aed=top_program_price_aed,
+        solo=solo,
+    )
+
+
+def window(today: date | None = None) -> tuple[date, date]:
+    """The activity window, for a worker that needs to state it out loud."""
+    today = today or date.today()
+    return today - timedelta(days=ACTIVITY_WINDOW_DAYS), today

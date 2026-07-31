@@ -1,7 +1,4 @@
-playwright
 beautifulsoup4
-rich
+requests
 python-dateutil
 dnspython
-requests
-pillow
