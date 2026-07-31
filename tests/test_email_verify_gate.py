@@ -77,9 +77,6 @@ def test_print_verify_exit_codes():
     assert email_check.print_verify("a@b.com", {"result": "invalid"}) == 1    # FAIL
 
 
-# --- crm_gate send: Email Verified enforcement -----------------------------
-
-
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(list(globals().items())):

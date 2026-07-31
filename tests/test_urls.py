@@ -47,7 +47,7 @@ def test_registrable_domain_strips_real_www():
 
 def test_registrable_domain_two_level_suffix_preserved():
     assert registrable_domain("shop.example.co.uk") == "example.co.uk"
-    assert registrable_domain("https://courses.her-site.com") == "her-site.com"
+    assert registrable_domain("https://courses.coach-site.com") == "coach-site.com"
 
 
 def test_registrable_domain_bare_two_label():

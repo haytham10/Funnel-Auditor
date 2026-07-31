@@ -13,7 +13,7 @@ it was allowed into the file.
 
 ## 2. What the email offers
 
-**Ten names.** Real people who fit her buyer profile, already pulled, handed
+**Ten names.** Real people who fit their buyer profile, already pulled, handed
 over on a fifteen-minute call along with why those ten and not the other forty.
 
 No price appears in any email. The money conversation happens on the call.
@@ -24,7 +24,7 @@ Each beat answers the objection the reader raises at that exact moment. That is
 why the order is fixed.
 
 1. **Hook** — *is this a spammer?* One or two sentences about something specific
-   and recent she did, cited, plus a clause saying what you took from it.
+   and recent they did, cited, plus a clause saying what you took from it.
 2. **Identity** — *who is this and why should I care?* A matched reference
    group, a real number, a timeframe. **It must turn to the reader before its
    first digit.**
@@ -110,4 +110,4 @@ Be honest about the open bets, because they are what matter now:
   every cost estimate downstream depends on it.
 - **The ten must actually exist on the call.** The close now carries a clock.
   Breaking that promise costs more than never making it — it is the first thing
-  she can check, and it happens before anything is sold.
+  they can check, and it happens before anything is sold.

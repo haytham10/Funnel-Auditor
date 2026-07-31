@@ -1,6 +1,14 @@
 # UAE Coach Market Study — July 2026
  
-_Compiled 2026-07-27 from three sources: the 373-row UAE Lead CRM and 122 full funnel walks (proprietary), external demand research, and a supply-side pricing map. This is the evidence base for the pivot decision recorded in `claude/offer-the-first-five.md`. Figures are labelled measured / modelled / anecdote._
+_Compiled 2026-07-27 from three sources: the 373-row UAE Lead CRM and 122 full funnel walks (proprietary), external demand research, and a supply-side pricing map. Figures are labelled measured / modelled / anecdote._
+
+_Kept 2026-07-31, when the other pre-pivot analysis docs were deleted, because
+its subject is the MARKET rather than the dead offer: the ICP notes in
+`CLAUDE.md` rest on it directly — audience decoupled from price, and a price
+floor that reads `unclear` on most of the market. The funnel walks that fed it
+are gone with the audit; read this as a snapshot of the buyers, not as a
+description of any process that still runs. The pivot decision it was written
+for is now recorded in `docs/START-HERE.md`._
  
 ## Bottom line
  
@@ -36,7 +44,7 @@ Among leads that *passed* the funnel gate, **48 of 122 still show no visible pri
 **An owned audience.** Of 87 walked leads with an audience-ownership verdict, **36 (41%) have no email capture of any kind** — 19 with zero capture, 17 with only a contact or booking form.
  
 - Spyros Bolano — 631K IG, 1M+ cross-platform, zero opt-in anywhere, bare domain returns 404. Walk verdict: "1M+ audience is fully rented."
-- Mohsinaa Ahmad — 483K IG selling a AED 19,999 program. No sales page, no booking tool, no email capture. DM-keyword gated, keyword changes almost every post, and the bio link her posts direct followers to is empty (confirmed in raw HTML).
+- Mohsinaa Ahmad — 483K IG selling a AED 19,999 program. No sales page, no booking tool, no email capture. DM-keyword gated, keyword changes almost every post, and the bio link their posts direct followers to is empty (confirmed in raw HTML).
 - Marie Hondekyn — 29K IG, $97/mo Skool, **3 paying members**.
 - Poppy Owen — 24,800 IG + podcast, $67/mo Skool, 20 members = **0.08% conversion**.
 - Eric Akoa — 330K IG monetised by one $29 course.

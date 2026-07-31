@@ -19,7 +19,7 @@ thing a regex cannot see.
 
 This is the failure that produced this whole rebuild. Read the hook, then read
 the identity beat, and ask whether the second sentence has any reason to follow
-the first. A hook that hands her back her own words and stops leaves the
+the first. A hook that hands them back their own words and stops leaves the
 identity beat as a non sequitur, no matter how good that beat is on its own. The
 bridge has to feel like a person continuing a thought, not a template advancing
 a slot.
@@ -37,7 +37,7 @@ symmetry, transitions that announce themselves.
 
 Not "is it cited" — the hook-verifier settled that. Whether it lands. A quote
 can be real, correctly attributed and in date, and still read as though someone
-skimmed her feed for anything quotable. Would she recognise herself in it?
+skimmed their feed for anything quotable. Would they recognise themselves in it?
 
 ## Two things to look for specifically
 

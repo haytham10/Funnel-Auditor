@@ -472,9 +472,9 @@ def _identity_pools(lines: list[Line], coach_type: str,
     # line regardless, which put corporate proof in front of coaches who sell to
     # individuals: "I get coaches in front of the people who actually hold the
     # budget" landed on a health coach whose buyer is one person paying for
-    # herself. A cold reader caught the mirror of it — an individuals-flavoured
-    # generic reaching a corporate seller — and said the number "lands on a
-    # market he does not sell into". Both directions are the same bug.
+    # themselves. A cold reader caught the mirror of it — an individuals-
+    # flavoured generic reaching a corporate seller — and said the number "lands
+    # on a market they do not sell into". Both directions are the same bug.
     #
     # A line tagged for an audience is only generic WITHIN that audience.
     # Audience-neutral lines (`any`) stay available to everyone, and a lead

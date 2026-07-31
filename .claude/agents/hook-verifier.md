@@ -19,22 +19,22 @@ Fetch the cited URL yourself. Then, in order:
 1. **Does the quote appear?** Verbatim, or as a fair contraction of a longer
    sentence. A paraphrase is not a quote. If the words are not on the page,
    that is REFUTED, no matter how plausible they sound.
-2. **Did she write it?** A quote in an article *about* her, a comment by
-   somebody else on her post, or a testimonial she published from a client is
-   not her voice. REFUTED.
+2. **Did they write it?** A quote in an article *about* them, a comment by
+   somebody else on their post, or a testimonial they published from a client
+   is not their voice. REFUTED.
 3. **Is the date right?** Within a few days. A post dated eight months ago and
-   described as recent makes the email wrong in a way she will notice
+   described as recent makes the email wrong in a way they will notice
    immediately.
-4. **Is it actually specific to her?** Read the hook alone and ask whether it
+4. **Is it actually specific to them?** Read the hook alone and ask whether it
    could be sent unedited to another coach in the same segment. If yes, it is
    site marketing copy wearing a citation. REFUTED.
-5. **Is there a writer in it?** A hook that hands her back her own sentence and
+5. **Is there a writer in it?** A hook that hands them back their own sentence and
    stops leaves the next paragraph unmotivated. That is a real defect, and it is
    the one this stage exists to catch alongside fabrication.
 
 ## Your three verdicts
 
-- **VERIFIED** — you fetched the source, the quote is there, she wrote it, the
+- **VERIFIED** — you fetched the source, the quote is there, they wrote it, the
   date holds, and it is specific. Only then.
 - **REFUTED** — you can point at the contradiction. Quote what the page actually
   says, or state plainly that the words are absent. Never refute on a feeling.

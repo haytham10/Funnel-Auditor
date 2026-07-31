@@ -9,8 +9,8 @@
   3. PLATFORM_FOOTPRINTS — every platform carries a domain; only the
      community-first one (skool) has no funnel footer marker.
   4. classify_footprint_hits — the fetch-agnostic merge (audit/footprint.py),
-     fed pre-fetched hits directly (as Firecrawl search would supply) rather
-     than through apify.google_search.
+     fed pre-fetched hits directly (as the agent's own WebSearch supplies)
+     rather than through apify.google_search.
 
 apify._host_of / apify._is_footprint_noise / apify.PLATFORM_FOOTPRINTS are
 re-exports of audit.footprint's originals, kept for backward compatibility.
@@ -88,7 +88,7 @@ def test_footprint_search_rejects_unknown_platform():
         raise AssertionError("expected ApifyError for unknown platform")
 
 
-# --- classify_footprint_hits (fetch-agnostic, Firecrawl-fed) ----------------
+# --- classify_footprint_hits (fetch-agnostic, free-search-fed) --------------
 
 def test_classify_rejects_unknown_platform():
     try:

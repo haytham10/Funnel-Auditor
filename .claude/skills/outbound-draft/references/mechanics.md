@@ -9,14 +9,14 @@ What is left is the part that was never about the finding._
 
 ## Confirmed principles
 
-- **Outcome only, never features.** She does not care how you find people. She
-  cares that ten of them are already pulled.
+- **Outcome only, never features.** They do not care how you find people. They
+  care that ten of them are already pulled.
 - **Plain language.** A stranger with zero context should follow every sentence.
   If a line needs specialised knowledge to land, simplify it.
 - **Arrive with something, don't reach for something.** The email's second job,
   after not reading as spam, is to make clear that work has already been done
   and is sitting there. That is what buys the fifteen minutes.
-- **Keep the *how* vague, the *what* exact.** She gets ten names and why those
+- **Keep the *how* vague, the *what* exact.** They get ten names and why those
   ten. How they were found is the call.
 - **Short beats long.** 67 to 95 words, mean around 80. Voice overrides the cap
   when admiring properly needs the room, but it rarely does.
@@ -26,7 +26,7 @@ What is left is the part that was never about the finding._
   any bare `name.tld` into a tracking redirect, which reads as a spam signal in
   a personal email. Refer to a page by description instead: "your about page",
   "the new site". `python main.py lint` blocks a draft that carries one.
-- **One CTA only.** Fifteen minutes. A question about her business is legal only
+- **One CTA only.** Fifteen minutes. A question about their business is legal only
   riding on the ask, never instead of it.
 - **Exact numbers over ranges.** "AED 78,000" beats "high five figures". Every
   number must trace to `copy/results.csv`; see the fact table rule below.
@@ -35,8 +35,8 @@ What is left is the part that was never about the finding._
 
 Earns the open. Everything else is secondary.
 
-The subject references something only this person would recognise — her own
-framework name, a phrase from her content, a specific episode. It should make
+The subject references something only this person would recognise — their own
+framework name, a phrase from their content, a specific episode. It should make
 little sense to anyone else.
 
 - Good: "the 2 choices framework", "your episode on eldest kids", "hello 35"
@@ -48,8 +48,8 @@ answer is a dead end that looks like success.
 
 ## Niche lingo swap (never use operator vocabulary)
 
-- "leads" / "prospects" → whoever she actually serves, in **her** noun. Read
-  her site: founders, professionals, women in leadership, whatever she calls
+- "leads" / "prospects" → whoever they actually serve, in **their** noun. Read
+  their site: founders, professionals, women in leadership, whatever they call
   them.
 - "funnel" → never say it.
 - "sequence" / "campaign" / "outreach" → never say it.
@@ -61,13 +61,13 @@ consultant running a play?
 
 ## Body structure
 
-**Five beats, in this order, and the order is the order her objections arrive
+**Five beats, in this order, and the order is the order their objections arrive
 in.**
 
 ```
-BEAT 1  HOOK      something specific and recent she did, cited, plus what you
+BEAT 1  HOOK      something specific and recent they did, cited, plus what you
                   took from it. This is the admiration.       is this a spammer?
-BEAT 2  IDENTITY  one sentence: who is writing and why he'd
+BEAT 2  IDENTITY  one sentence: who is writing and why they'd
                   know. Proof, never a title.                 why should I care?
 BEAT 3  OFFER     ten names, already pulled.                  what can you do for me?
 BEAT 4  CLOSE     fifteen minutes, a clock, and why these
@@ -82,7 +82,7 @@ someone's business with no statement of who is writing has one obvious reading:
 this person wants to buy from me. Proof-based, never title-based.
 
 **The bridge into beat 2 is the hardest thing in the email.** Between the hook
-and the identity beat she asks something the four-step frame does not name:
+and the identity beat they ask something the four-step frame does not name:
 *why are you telling me this?* The hook just created context, so jumping to a
 credential skips the question the hook raised. **A second-person clause must
 land before the first digit.** Not a ratio — there is no lead for whom a bare
@@ -96,9 +96,9 @@ forty" is a question only a conversation can answer. Reply-to-call went 0 for 9
 when the call held nothing that could not have been typed into an email. The
 clock ("the same day", "before the call ends") is the `Y` in *X in Y time*, and
 it is a real promise: the ten must exist and be handed over within a day, or
-the first thing she can check is the first thing you broke.
+the first thing they can check is the first thing you broke.
 
-Two-line paragraphs. She is reading distracted, on her phone.
+Two-line paragraphs. They are reading distracted, on a phone.
 
 Sign off "Haytham" on its own line. There is no auto-signature; the body carries
 the name.
@@ -131,6 +131,10 @@ included.
 
 **No gendered pronouns in an identity line.** It fires across a whole segment
 and "her" is wrong about half the time. Use "them".
+
+The same goes for these docs, which addressed the reader as "she" throughout
+until 2026-07-31 while this very rule sat in the middle of them. A doc that
+models the default it bans is how the default gets written back into an email.
 
 **Format numbers with separators.** `AED 36,000`, never `AED 36000`, which
 reads as an unfilled merge field.

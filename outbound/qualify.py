@@ -5,7 +5,7 @@ including a 1,500 audience minimum and an AED 5,000 program price, and both of
 them are now wrong for a different reason each:
 
 - **The audience floor is decoupled from the offer.** We are selling a coach
-  her next client. That has nothing to do with how many followers she has, so
+  their next client. That has nothing to do with how many followers they have, so
   audience size stopped predicting anything the day the offer changed.
 - **The price floor cannot be measured.** Six coach sites in about a hundred
   publish a number. A floor that reads `unclear` on 94% of the market is not a
@@ -49,7 +49,7 @@ UAE_MARKERS = (
     # Neighbourhoods a real bio writes instead of the emirate. Every one of
     # these returned a hard NO from the "based in X" rule below, because the
     # rule killed on any place it did not recognise. "Based in Al Barsha" is a
-    # Dubai coach telling us exactly where she is.
+    # Dubai coach telling us exactly where they are.
     "al barsha", "al quoz", "al nahda", "al wasl", "al safa", "al furjan",
     "deira", "bur dubai", "mirdif", "motor city", "sports city",
     "arabian ranches", "emirates hills", "dubai hills", "the greens",
@@ -258,7 +258,7 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
     # way. It used to run last, after a loose scan for UAE words — so "I am a
     # coach based in Toronto. Read my essay at nowhere.aeon.co" returned YES on
     # ".ae", and "Our client Marina came to us from Manchester" returned YES on
-    # "marina". A coach who has written down where she lives outranks a word
+    # "marina". A coach who has written down where they live outranks a word
     # that happened to appear in a URL.
     stated = _stated_residence(text, source)
     if stated is not None:
@@ -374,7 +374,7 @@ def latest_activity_date(text: str, *, page_url: str = "",
     than expecting a site read to produce it — see the outbound-batch skill.
 
     `check_active` wants a date; a worker reading a page has text. This is the
-    bridge, and it is mechanical on purpose — "when did she last post" is a
+    bridge, and it is mechanical on purpose — "when did they last post" is a
     question a regex can settle, and a settled question is one fewer thing a
     worker can be talked into by a page that merely feels busy.
 
@@ -417,7 +417,7 @@ def classify_coach_type(*, linkedin_text: str = "", site_text: str = "") -> tupl
     read as Life/Mindset ("Life Design Method") had a LinkedIn headline that
     said "Leadership & Performance Coach" aimed at corporate teams. Two offers
     to two audiences under one name. LinkedIn is the paid-facing profile and is
-    usually the more explicit about what she actually sells.
+    usually the more explicit about what they actually sell.
 
     Pass `linkedin_text` the headline, not a page dump. The loose fallback below
     only runs against it, and it is only safe because a headline is short and

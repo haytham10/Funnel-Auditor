@@ -14,7 +14,7 @@ Three jobs:
 2. **Junk-domain classification.** 24 of 137 "websites" on the last real list
    were not websites. `classify_site` sorts a URL into one of four verdicts:
 
-       own_site   a real domain that is plausibly hers -> fetch it
+       own_site   a real domain that is plausibly theirs -> fetch it
        platform   instagram.com/x, linkedin.com/in/x, a linktree -> NOT junk,
                   this is a direct pointer into social research
        parked     hugedomains, godaddy for-sale, expired-and-repurposed

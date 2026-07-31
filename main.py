@@ -401,7 +401,7 @@ def cmd_wall_add(args) -> None:
 
     Run this AFTER the upload has actually happened. Export deliberately does
     not do it: nothing has been sent at export time, and walling a lead who
-    never received anything would silently exclude her from every future batch.
+    never received anything would silently exclude them from every future batch.
 
     Idempotent. Re-running it adds nothing, so running it twice after a
     half-remembered upload is safe.

@@ -60,7 +60,7 @@ def test_a_uae_verdict_carries_its_evidence():
 def test_uae_shorthand_in_a_based_in_line_passes():
     """"Based in DXB" returned a hard NO, because the parser recognised the
     "based in" shape and then failed to recognise the place. That is the exact
-    false kill the design forbids, on a lead who told us she is here."""
+    false kill the design forbids, on a lead who told us they are here."""
     for text in ("Based in DXB.", "Based in AUH, working across the Emirates.",
                  "based in RAK"):
         assert q.check_uae(text=text).value == q.YES, text
@@ -69,7 +69,7 @@ def test_uae_shorthand_in_a_based_in_line_passes():
 def test_a_uae_neighbourhood_passes():
     """Eleven real UAE localities returned a hard NO, because the rule killed
     on any place it did not recognise. "Based in Al Barsha" is a Dubai coach
-    telling us exactly where she is."""
+    telling us exactly where they are."""
     for place in ("Al Barsha", "Deira", "Mirdif", "Motor City", "Al Quoz",
                   "Emirates Hills", "The Greens", "Arabian Ranches",
                   "Reem Island", "Al Nahda", "Bur Dubai"):
@@ -178,7 +178,7 @@ def test_a_malformed_page_is_unclear_not_a_crash():
 
 
 def test_linkedin_wins_a_coach_type_conflict():
-    """A real case: her site read Life/Mindset while her LinkedIn headline said
+    """A real case: their site read Life/Mindset while their LinkedIn headline said
     Leadership & Performance Coach for corporate teams. Two offers, one name.
     LinkedIn is the paid-facing profile and is the more explicit of the two."""
     label, source = q.classify_coach_type(

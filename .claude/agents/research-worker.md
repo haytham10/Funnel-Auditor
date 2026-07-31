@@ -58,10 +58,10 @@ the text you gathered; quote its output line back verbatim.
 Two rules here, both learned the hard way:
 
 - **LinkedIn wins a `coach_type` conflict.** A real lead's site read as
-  Life/Mindset while her LinkedIn headline said "Leadership & Performance
+  Life/Mindset while their LinkedIn headline said "Leadership & Performance
   Coach" for corporate teams. Two offers under one name. LinkedIn is the
   paid-facing profile. Note the site's angle in `notes`, do not call it unclear.
-- **`sells_to` is collected, never inferred.** Read her own words on who she
+- **`sells_to` is collected, never inferred.** Read their own words on who they
   works with. If a page claims both individuals and corporates, it says
   nothing — return empty. An empty `sells_to` draws a generic identity line,
   which is weaker than an exact match and much stronger than a wrong one.
@@ -79,7 +79,7 @@ Never guess an audience number. A count you did not see on a page is
 3. `python main.py email-verify <addr>`. PASS sets `email_status: "pass"`.
    WARN (catch-all or unknown) sets `"warn"` and is Haytham's call, not yours.
 4. **No address found**: `python main.py email-enrich "<name>" <their-domain>`.
-   It derives candidates on her own branded domain, verifies them in one batched
+   It derives candidates on their own branded domain, verifies them in one batched
    call, and adopts at most one. A PASS there is `email_status: "enriched"`.
    Never adopt a guessed address it did not confirm.
 

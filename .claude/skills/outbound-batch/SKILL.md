@@ -107,7 +107,7 @@ website almost never carries a date: measured across nine real sites and about
 220,000 characters, zero usable ones, so every lead came back `unclear` and the
 floor did nothing. LinkedIn is where the signal is, and this stage is what
 fetches it. When a hook is VERIFIED with a real date, put that date on the lead
-as `last_activity` before stage 4, so the CRM records when she was last seen
+as `last_activity` before stage 4, so the CRM records when they were last seen
 rather than a shrug. A hook dated outside the window is not a kill — the lead is
 already through the floor — but it is worth a line in the brief, because a coach
 whose newest public thing is five months old is a different prospect from one
@@ -210,7 +210,7 @@ python main.py copy-usage out/line-usage.csv
 ```
 
 **Both only after the upload has actually happened.** Nothing was sent at export
-time, and walling a lead who never received anything would silently exclude her
+time, and walling a lead who never received anything would silently exclude them
 from every future batch.
 
 `wall-add` is idempotent. `copy-usage` is **not** — it adds to a running total,
