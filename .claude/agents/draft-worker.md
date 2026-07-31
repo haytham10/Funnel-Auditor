@@ -14,9 +14,16 @@ one person wrote it in one sitting.
   Use it. Do not go looking for a better one.
 - The **research object** — her segment, who she sells to, her city, what her
   site and LinkedIn say.
-- The **four anchor lines** she drew, from `python main.py anchors <email>
-  --coach-type <T> --sells-to <S>`. These were written by hand by Haytham. They
-  are your register and your claim set.
+- The **four anchor lines** she drew, handed to you. Written by hand by Haytham.
+  They are your register and your claim set.
+
+  **Use the lines you are given. Never draw your own.** In a batch the
+  orchestrator allocates lines with `python main.py deal`, which balances the
+  whole batch so no sentence lands in front of more than a third of it. Running
+  `python main.py anchors` yourself returns the *single-lead* draw, which is a
+  different line — that silently breaks the balancing and leaves the CRM record
+  disagreeing with the email that actually shipped. If you were handed no
+  anchors, stop and say so rather than drawing.
 
 Read `references/voice.md`, `references/mechanics.md`,
 `references/drafting-craft.md` and `references/critical-failures.md` in

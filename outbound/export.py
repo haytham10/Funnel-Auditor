@@ -37,10 +37,15 @@ from pathlib import Path
 
 # The upload file's columns. Exactly these, in this order, and nothing else.
 #
-# `email`, `first_name`, `last_name`, `website` and `location` are Smartlead's
-# own lead fields and map straight through. `linkedin_url`, `subject` and `body`
-# arrive as custom fields, usable in a campaign step as {{linkedin_url}},
-# {{subject}} and {{body}}.
+# `email`, `first_name`, `last_name`, `website`, `location` and
+# `linkedin_profile` are Smartlead's OWN lead fields and map straight through.
+# `subject` and `body` have no native equivalent and arrive as custom fields,
+# usable in a campaign step as {{subject}} and {{body}}.
+#
+# `linkedin_profile`, not `linkedin_url` — checked against Smartlead's API
+# reference. The wrong spelling still imports, which is what makes it worth
+# pinning: it silently lands as a 41st custom variable instead of populating the
+# native LinkedIn column, and nothing in the upload tells you.
 #
 # Nothing analytical is here on purpose. Coach type, hook citation, which anchor
 # lines were drawn, lint output, batch — all of it lives in Airtable, where it
@@ -52,7 +57,7 @@ COLUMNS = [
     "first_name",
     "last_name",
     "website",
-    "linkedin_url",
+    "linkedin_profile",
     "location",
     "subject",
     "body",
@@ -90,7 +95,7 @@ class Draft:
             "first_name": self.first_name,
             "last_name": self.last_name,
             "website": self.website,
-            "linkedin_url": self.linkedin_url,
+            "linkedin_profile": self.linkedin_url,
             "location": self.city,
             "subject": self.subject,
             "body": self.body,
@@ -153,10 +158,39 @@ def preview(drafts: list[Draft], *, width: int = 78) -> str:
     return "\n".join(blocks)
 
 
+def check_dealt(drafts: list[Draft], dealt: dict) -> dict[str, list[str]]:
+    """Did each draft actually use the lines the batch deal assigned it?
+
+    A mechanical check on an instruction that is otherwise only prose. The
+    drafting worker is told to use the lines it is handed; if it runs
+    `main.py anchors` itself instead, it gets the SINGLE-LEAD draw rather than
+    the dealt one. That silently undoes the batch balancing — the whole reason
+    the deal exists — and leaves the CRM record naming a line the reader never
+    saw. Neither is visible by reading the email.
+
+    `dealt` is the JSON `main.py deal --out` writes: email -> {beat: {id, line}}.
+    """
+    problems: dict[str, list[str]] = {}
+    for draft in drafts:
+        assigned = dealt.get(draft.email)
+        if assigned is None:
+            problems.setdefault(draft.slug, []).append(
+                "not in the batch deal — where did this lead come from?")
+            continue
+        for beat in ("identity", "offer", "cta", "ps"):
+            want = (assigned.get(beat) or {}).get("id", "")
+            got = draft.anchor_ids.get(beat, "")
+            if want and got and want != got:
+                problems.setdefault(draft.slug, []).append(
+                    f"{beat} line is {got}, but the deal assigned {want} — "
+                    f"the drafter drew its own instead of using the batch's")
+    return problems
+
+
 def write_batch(drafts: list[Draft], lint_results: dict, *,
                 out_dir: str | Path = "out", batch: str = "",
                 anchor_shares: dict | None = None,
-                batch_result=None) -> dict:
+                batch_result=None, dealt: dict | None = None) -> dict:
     """Write leads.csv and preview.txt for the drafts that passed.
 
     A lead whose lint failed is not written, and is listed in the report with
@@ -168,10 +202,16 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
     out.mkdir(parents=True, exist_ok=True)
     batch = batch or date.today().isoformat()
 
+    # `is not None`, not truthiness: an empty deal file means "the deal
+    # produced nothing", which must reject every draft, not skip the check.
+    drift = check_dealt(drafts, dealt) if dealt is not None else {}
+
     passed, rejected = [], []
     for draft in drafts:
         result = lint_results.get(draft.slug)
-        if result is None:
+        if draft.slug in drift:
+            rejected.append((draft, drift[draft.slug]))
+        elif result is None:
             rejected.append((draft, ["never linted — refusing to write it"]))
         elif not result.passed:
             rejected.append((draft, result.failures))

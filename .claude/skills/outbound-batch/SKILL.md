@@ -125,7 +125,12 @@ line in Airtable this session, run `python main.py copy-sync` first: it
 validates every line against `copy/results.csv` and refuses to write if any
 cites a number no client result supports.
 
-Then fan out `draft-worker` with the hook, the research object and the anchors.
+Then fan out `draft-worker` with the hook, the research object and **that lead's
+four dealt lines, inline in the prompt**. The worker must not draw its own: it
+would get the single-lead line rather than the dealt one, which breaks the
+balancing you just paid for and leaves the CRM record disagreeing with the email
+that shipped.
+
 Each draft goes to `draft-verifier`, which reads it cold.
 
 - **SEND** → into the export set.
@@ -136,17 +141,26 @@ Each draft goes to `draft-verifier`, which reads it cold.
 ## Stage 5 — the file
 
 ```
-python main.py export work/drafts.json --out out/ --batch <YYYY-MM-DD>
+python main.py export work/drafts.json --anchors work/anchors.json \
+  --out out/ --batch <YYYY-MM-DD>
 ```
 
+**Pass `--anchors`.** It rejects any draft whose lines disagree with what the
+deal assigned, which is the mechanical version of the instruction above. A
+drafter that drew its own line produces an email that reads fine and a CRM row
+that names a sentence the reader never saw; nothing else in the run would catch
+it.
+
 It writes only what passed, blocks the whole file on a batch-level failure, and
-lists every rejection with its reason. Three files come out:
+lists every rejection with its reason. Four files come out:
 
 - **`leads.csv`** — exactly eight columns for Smartlead: `email`, `first_name`,
-  `last_name`, `website`, `linkedin_url`, `location`, `subject`, `body`. Nothing
+  `last_name`, `website`, `linkedin_profile`, `location`, `subject`, `body`. Nothing
   analytical; that belongs in Airtable.
 - **`preview.txt`** — the gate. Read it.
-- **`wall-additions.csv`** — held back deliberately. See below.
+- **`rejected.txt`** — every lead that did not make the file, with its reasons.
+- **`wall-additions.csv`** and **`line-usage.csv`** — both held back
+  deliberately. See below.
 
 Then write the batch to Airtable: one **Batches** row, and one **Leads** row per
 lead including the ones that held, with their Blockers. A lead that vanished
@@ -185,8 +199,10 @@ BATCH <date>: <n> written of <m> raw
   address    <n> verified, <n> enriched, <n> none
   hooks      <n> verified, <n> refuted, <n> not found
   drafts     <n> send, <n> rewritten, <n> rejected
+  lines      top line <n>% of the batch (cap 35), <n> THIN segment(s)
   cost       $<x> Apify this run
   → out/leads.csv   READ out/preview.txt BEFORE UPLOADING
+  then       wall-add + copy-usage, once it is actually uploaded
 ```
 
 Then say plainly: **read the preview before uploading.** There is no automated

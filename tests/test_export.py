@@ -162,8 +162,16 @@ def test_the_upload_file_is_exactly_the_agreed_columns():
     that data belongs in Airtable, where it can be grouped and filtered."""
     assert export.COLUMNS == [
         "email", "first_name", "last_name", "website",
-        "linkedin_url", "location", "subject", "body",
+        "linkedin_profile", "location", "subject", "body",
     ]
+
+
+def test_the_linkedin_column_uses_smartleads_own_field_name():
+    """`linkedin_profile`, per Smartlead's API reference. `linkedin_url` still
+    imports, which is exactly why it needs pinning: it lands as a custom
+    variable instead of the native LinkedIn column, and nothing says so."""
+    assert "linkedin_profile" in export.COLUMNS
+    assert "linkedin_url" not in export.COLUMNS
 
 
 def test_no_analytical_column_leaks_into_the_upload_file():
@@ -180,7 +188,7 @@ def test_a_lead_with_no_linkedin_still_writes_a_row():
         out = export.write_batch([d], lint_all([d]), out_dir=tmp)
         assert out["written"] == 1
         rows = list(csv.DictReader(open(Path(tmp) / "leads.csv", encoding="utf-8")))
-        assert rows[0]["linkedin_url"] == ""
+        assert rows[0]["linkedin_profile"] == ""
 
 
 # ----------------------------------------------------------------- the wall
@@ -236,6 +244,53 @@ def test_an_empty_batch_writes_nothing_and_does_not_crash():
     with tempfile.TemporaryDirectory() as tmp:
         out = export.write_batch([], {}, out_dir=tmp)
         assert out["written"] == 0 and not out["blocked"]
+
+
+# ------------------------------------------------------- anchor drift
+
+
+def dealt_for(drafts):
+    return {d.email: {beat: {"id": d.anchor_ids[beat], "line": "x"}
+                      for beat in ("identity", "offer", "cta", "ps")}
+            for d in drafts}
+
+
+def test_a_draft_matching_the_deal_is_written():
+    with tempfile.TemporaryDirectory() as tmp:
+        drafts = [draft()]
+        out = export.write_batch(drafts, lint_all(drafts), out_dir=tmp,
+                                 dealt=dealt_for(drafts))
+        assert out["written"] == 1
+
+
+def test_a_drafter_that_drew_its_own_line_is_rejected():
+    """The failure this catches is invisible in the email: the drafter runs
+    `main.py anchors` instead of using the dealt line, gets the single-lead
+    draw, and silently undoes the batch balancing while the CRM records a line
+    the reader never saw."""
+    with tempfile.TemporaryDirectory() as tmp:
+        drafts = [draft()]
+        dealt = dealt_for(drafts)
+        dealt[drafts[0].email]["offer"]["id"] = "b4-99"
+        out = export.write_batch(drafts, lint_all(drafts), out_dir=tmp, dealt=dealt)
+        assert out["written"] == 0 and out["rejected"] == 1
+        assert "drew its own" in Path(tmp, "rejected.txt").read_text()
+
+
+def test_a_lead_absent_from_the_deal_is_rejected():
+    with tempfile.TemporaryDirectory() as tmp:
+        drafts = [draft()]
+        out = export.write_batch(drafts, lint_all(drafts), out_dir=tmp, dealt={})
+        assert out["written"] == 0
+        assert "not in the batch deal" in Path(tmp, "rejected.txt").read_text()
+
+
+def test_without_a_deal_the_check_is_skipped_not_failed():
+    """`outbound-draft` writes one email with no batch behind it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        drafts = [draft()]
+        out = export.write_batch(drafts, lint_all(drafts), out_dir=tmp)
+        assert out["written"] == 1
 
 
 if __name__ == "__main__":

@@ -2,9 +2,7 @@
 
 These are the most common ways a draft that "passes" the gate on a shallow
 read is still wrong. Each has been corrected before, sometimes more than
-once. Internalize them before every draft — this is what `references/gate.md`
-line "Not sanded to a robotic shine" and "peer register" are checking for
-concretely.
+once. Internalize them before every draft — this is what `python main.py lint` cannot check for you: it catches an invented number or a lost claim, not a sentence that is technically legal and still reads like a machine.
 
 ## Three-beat parallel structures (banned)
 

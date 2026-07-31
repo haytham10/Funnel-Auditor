@@ -203,7 +203,7 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
   `EMAIL_VERIFY_PROVIDER=zerobounce`.
 - **Airtable** is the CRM. Base `appejF07kunksqt4D` ("Outbound Machine"):
   Leads `tbl51dU7ojrxCVfxZ`, Batches `tbl97PsqhdndK14hP`, Copy Assets
-  `tblZnpXiuGy6V1mzl`. The old funnel-audit base `appaBExqyEZykb1Qk` is archive
+  `tblnZBHjn430hAB5w`. The old funnel-audit base `appaBExqyEZykb1Qk` is archive
   only, never written to.
 - **Reading Airtable from Python** needs `AIRTABLE_API_KEY` (`audit/airtable.py`).
   Without it, the MCP is the model's tool only, and a skill pipes records to

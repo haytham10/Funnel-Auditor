@@ -27,7 +27,8 @@ domain three minutes apart"):
 
 Output contract (one line, quoted verbatim by the skills — a PASS here IS an
 `EMAIL VERIFY: PASS` on the adopted address, so it authorizes checking the
-Notion `Email Verified` box exactly like a harvested-then-verified address):
+Airtable `Email Status` to `enriched`, exactly like a harvested-then-verified
+address):
   EMAIL ENRICH: PASS — jane@janedoe.com: guessed first@, verified deliverable
   EMAIL ENRICH: HOLD — janedoe.com: catch-all domain, 6 candidates inconclusive — no auto-send
   EMAIL ENRICH: NONE — janedoe.com: no candidate verified deliverable

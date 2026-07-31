@@ -194,7 +194,7 @@ def print_check(address: str, lead_name: str = "") -> int:
 # quotable PASS/WARN/FAIL line, same trust model as everything else here —
 # a script owns the verdict so it can't be talked past.
 #
-# The rule the skills follow: the Notion `Email Verified` box gets checked
+# The rule the skills follow: the Airtable `Email Status` field is set to `pass`
 # ONLY on a literal `EMAIL VERIFY: PASS`. WARN and FAIL never auto-check it.
 # So the classifier fails SAFE — anything not provably deliverable is WARN,
 # never silently promoted to PASS.

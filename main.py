@@ -516,10 +516,14 @@ def cmd_export(args) -> None:
             shares[beat] = {k: v / len(drafts) for k, v in
                             sorted(counts.items(), key=lambda kv: -kv[1])}
 
+    dealt = None
+    if args.anchors:
+        dealt = json.loads(Path(args.anchors).read_text(encoding="utf-8"))
+
     batch_result = lint.check_batch(for_batch, shares)
     out = export.write_batch(drafts, results, out_dir=args.out,
                              batch=args.batch or "", anchor_shares=shares,
-                             batch_result=batch_result)
+                             batch_result=batch_result, dealt=dealt)
     print(batch_result.report())
     print(out["report"])
     sys.exit(1 if out["blocked"] or out["rejected"] else 0)
@@ -822,6 +826,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("input", help="JSON array of drafts")
     p.add_argument("--out", default="out", help="output directory (default out/)")
     p.add_argument("--batch", help="batch label (default today)")
+    p.add_argument("--anchors", help="the JSON from `deal --out`. When given, any "
+                                     "draft whose lines disagree with what the "
+                                     "deal assigned is rejected")
     p.set_defaults(func=cmd_export)
 
     p = sub.add_parser("email-check", help="free shape check: syntax, MX, role/typo flags")

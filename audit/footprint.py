@@ -6,14 +6,16 @@ A hosted-platform footprint hides under two non-overlapping search shapes
 "Powered by X" footer signature every hosted funnel carries. This module
 owns ONLY the merge/dedupe/noise-filter/tagging logic over hits already
 fetched for both shapes — it never calls a search API itself, so either
-fetch layer can feed it: Apify's google-search-scraper (`apify.footprint_search`,
-the original path) or Firecrawl's `firecrawl_search` (already connected and
-paid for in this environment, and the preferred path — it costs nothing
-beyond what's already running, where every Apify call draws on the small
-monthly cap shared with LinkedIn/Instagram, the one thing with no
-substitute). `main.py classify-footprint` is the Firecrawl-fed CLI entry
-point; a hit only needs a "url" key (title/description ride along if
-present).
+fetch layer can feed it: the agent's own WebSearch (free, and the preferred
+path — it costs nothing beyond what is already running) or Apify's
+google-search-scraper (`apify.footprint_search`, the original path, which draws
+on the small monthly cap shared with LinkedIn and Instagram — the two things
+that have no free substitute). `main.py classify-footprint` is the CLI entry
+point; a hit only needs a "url" key (title/description ride along if present).
+
+_Reworded 2026-07-31. This paragraph named Firecrawl as the free tier. Firecrawl
+is gone; WebSearch took its place, and the argument for preferring free over
+Apify is unchanged._
 
 Moved out of audit/apify.py 2026-07-17 so the merge logic isn't duplicated
 across fetch layers — `apify.py` re-exports PLATFORM_FOOTPRINTS, _host_of,
@@ -85,7 +87,7 @@ def _is_footprint_noise(url: str) -> bool:
 
 def queries_for(platform: str, geo: str = "Dubai", role: str = "coach") -> dict:
     """The two query strings a fetch layer should run for this platform, so
-    Firecrawl (or anything else) knows exactly what to search without
+    the free fetch tier (or anything else) knows exactly what to search without
     duplicating the shape logic. `marker_query` is None for skool."""
     key = platform.lower().strip()
     fp = PLATFORM_FOOTPRINTS.get(key)

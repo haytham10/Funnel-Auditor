@@ -221,7 +221,7 @@ def test_the_live_copy_files_pass_their_own_gate():
                 coach_type=line.meta.get("coach_type", ""),
                 sells_to=line.meta.get("sells_to", ""),
                 shape=line.meta.get("shape", ""),
-                roll=line.meta.get("roll_1_100", "")))
+                weight=line.meta.get("weight", "")))
     lines, _ = copy_sync.normalize_records(records)
     assert copy_sync.validate(lines) == []
 
