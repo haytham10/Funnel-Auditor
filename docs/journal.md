@@ -1,3 +1,52 @@
+## 2026-07-31 (explainers) — two pages for people who have not read any of this
+
+Haytham: "I need to visualize where everything is, and how the machine works
+end-to-end", then "a one pager for the offer, something anyone can understand,
+someone who isn't me can understand". Both now live in **`content/html/`**, a
+new directory whose whole purpose is pages meant to be handed to a stranger.
+
+**`content/html/system-map.html`** — the repo map, the eleven-step run from
+intake to `wall-add`, every fail-closed gate with its exit code, the five beats,
+the three worker/verifier pairs, and the authority table. Everything on it is
+read out of the code or the CSVs rather than restated from a doc, which is the
+only way it stays true: the counts (20 commands, 45 copy lines, 104 wall rows,
+17 test files) came from the parser and the files, not from `CLAUDE.md`.
+
+**`content/html/offer.html`** — the money model with the vocabulary removed.
+No attraction offer, no decoy, no client-financed acquisition, no ICP, no
+BAMFAM. It opens with six questions answered in a box, and it ends with the
+four things that are honestly unsold or untested, because a page that hid
+those would read as a pitch.
+
+**Both are first person.** They describe what Haytham does, so they say "I".
+
+### The thing worth knowing next time
+
+**`content/html/` is outside `doc-check`.** `SCAN_GLOBS` is `docs/**/*.md` and
+`.claude/skills/**/*.md`, plus `CLAUDE.md` and `README.md` by name — so nothing
+under `content/` is scanned at all. That is why `offer.html` may carry prices
+without breaking the rule that `docs/spec/03-offer.md` owns them.
+
+Read the consequence rather than just the fact: **these pages are not gated.**
+A price that moves in `docs/spec/03-offer.md` will not fail anything here, and
+the drift is invisible until somebody hands the page to a person. The page
+names `03-offer.md` as its authority in the footer, which is the doc-layer rule
+applied by hand where the checker cannot reach. If these pages get more numbers
+in them, that is the moment to add `content/**/*.html` to a checker rather than
+to keep trusting the footer.
+
+### A rendering bug worth naming, because the class of it recurs
+
+The first draft of the offer page put one word on every line under "The order
+it gets built". `ol.steps li` was a CSS grid with two declared columns, and its
+children were an inline `<b>` and loose text — so the browser made **every word
+its own grid item**. Grid and flex containers silently wrap bare text in
+anonymous boxes; a container with `grid-template-columns` therefore needs all
+of its children to be real elements. Both pages now do, and a sweep over every
+`grid-template-columns` rule confirmed there is no second instance.
+
+---
+
 ## 2026-07-31 (copy provenance) — Airtable owns the lines, and the fallback says so
 
 Haytham: make Copy Assets the source of truth for copy, not some outdated CSV in
