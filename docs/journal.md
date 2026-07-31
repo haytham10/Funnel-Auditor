@@ -1,3 +1,71 @@
+## 2026-07-31 (copy provenance) — Airtable owns the lines, and the fallback says so
+
+Haytham: make Copy Assets the source of truth for copy, not some outdated CSV in
+the repo. The ladder already preferred Airtable, and the key is set, so the live
+path was working — `CopyBank.load()` returned `source: airtable`, 45 lines, and
+the committed CSVs happened to match it exactly. The problem was that none of
+that was **guaranteed or visible**.
+
+`load()` fell through on three different failures and swallowed all of them into
+the same `except Exception: pass`:
+
+1. **No key.** Ordinary, and the CSVs are the right answer.
+2. **Unreachable base.** Also ordinary. Also the right answer.
+3. **A live edit that fails the linter.** Not ordinary at all. Airtable is
+   reachable, somebody's edit is live there, `validate` refuses it, and the bank
+   silently returns the previous copy — so the edit **looks applied** and the
+   whole batch ships on the old lines. This one is drift, not an outage.
+
+All three printed nothing. A batch could be drafted entirely from month-old copy
+while the operator believed the table was in charge, and the only way to find out
+was to read the emails and notice a sentence they thought they had changed.
+
+**`CopyBank` now carries `reason` and `rejected`.** Every rung below the first
+records why it was taken; `rejected` is non-empty only for case 3, which is what
+makes the two defaults separable. `status_line()` is one quotable line naming the
+source, printed by `deal`, by `anchors` when it isn't live, and by `export
+--rebalance-ps`.
+
+**`python main.py copy-check`** is the gate: live lines pass the linter, and
+`copy/*.csv` still matches them. Exit 1 on either, exit 2 when it could not look.
+It is the reader to `copy-sync`'s writer and writes nothing itself, so it is safe
+at the top of a batch and again after a fix — which is where the batch skill now
+runs it.
+
+**`deal` blocks, with one override and not two.** A rejected live edit exits 1
+with no flag: the fix is one line in Airtable and nothing here can do it. An
+unreadable table exits 1 too, but `--allow-cached-copy` accepts the cache
+deliberately. The cache is not unsafe — nothing reaches it without passing
+`copy_sync.validate` — it is merely possibly stale, so the rule is that using it
+must be a decision somebody made rather than a thing that happened. That is the
+same split `.claude/hooks/schema_drift.py` makes, arrived at from the same place:
+real drift is cheap to fix, an outage must not be able to halt work on its own.
+
+Three things worth not re-deriving:
+
+**A missing `copy/_airtable.json` is not drift.** It is gitignored, so a fresh
+clone never has one, and a keyless run falls to the CSVs — which the file
+comparison just proved match the table. Failing there would fail on every clone
+for nothing.
+
+**The comparison is byte-for-byte, and the first version reported all four beats
+as drifted with zero rows edited.** `write_csvs` emits CRLF, and reading a
+committed file back through Python's universal newlines turns it into LF. Hence
+`render_csv`, which is what the writer now writes, and a read with `newline=""`.
+There is a test pinning the two together, because a check that always says drift
+is a check people learn to ignore.
+
+**No test asserts the committed CSVs against the LIVE table**, deliberately. The
+suite does not reach the network — conftest pins `OUTBOUND_COPY_SOURCE=csv` and
+the reason on record is that a suite going live fails on somebody else's Airtable
+edit, which is not a code regression. `copy-check` is where that assertion
+belongs: a person can act on drift, a red build cannot. For the same reason the
+push hook was left alone — copy drift endangers a batch, not a merge.
+
+`copy/results.csv` stays repo-only and is untouched by any of this. The lines are
+voice and get tweaked; the results are audited evidence and should not be
+casually editable.
+
 ## 2026-07-31 (the push hook) — running the live check where the key actually is
 
 The schema check shipped an hour earlier had a hole Haytham spotted immediately:

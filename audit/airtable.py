@@ -5,13 +5,14 @@ Airtable reaches this repo two ways, and the difference matters:
 - **Through the MCP**, which is the *model's* tool. Python cannot call it. A
   skill fetches records and hands them to `main.py copy-sync` on stdin.
 - **Through this module**, which needs `AIRTABLE_API_KEY` in the environment.
-  No key is set today, so this path is dormant.
+  A Claude Code session has one, so this is the normal path, not a someday path.
 
 Both land in the same place. `outbound/copy_sync.py` validates and writes a
-snapshot; `outbound/anchors.py` reads it. The point of two paths is that adding
-the key later turns the manual sync automatic with no other change — and until
-then, nothing silently half-works: `available()` is False, and the caller falls
-through to the snapshot and then to the CSVs.
+snapshot; `outbound/anchors.py` reads it. The point of two paths is that a run
+without a key still works, and that nothing silently half-works when it happens:
+`available()` is False, the caller falls through to the snapshot and then to the
+CSVs, and it records why — `main.py copy-check` asserts the live path and `deal`
+refuses a whole batch drawn from a cache nobody just checked.
 
 Reads are unrestricted. Writes are deliberately narrow: `update_records` exists
 so a finished batch can report usage back to Copy Assets, which is the only way

@@ -65,7 +65,7 @@ one guarantees, and `doc-check` fails if a command exists that nothing documents
 main.py            the CLI — every command is a decision, printed as a line
 outbound/          the eight stages, plus copy_sync and doc_check
 audit/             what survived the pivot: email checks, Apify, extraction
-copy/              Haytham's hand-written lines, and the client-result facts
+copy/              a cache of Airtable's Copy Assets, plus the client-result facts
 data/              the dedupe wall — who has already been contacted
 docs/spec/         the defining layer (start at 00-index.md)
 docs/              START-HERE, hook rules, agent orchestration, the journal
@@ -92,7 +92,7 @@ and the agent's own search before it spends anything.
 |---|---|
 | `APIFY_TOKEN` | the paid, no-login fetch layer. Cost-gated, blocks above the ceiling |
 | `ZEROBOUNCE_API_KEY` | email verification fallback when Apify is near cap |
-| `AIRTABLE_API_KEY` | reading the CRM and the copy bank from Python |
+| `AIRTABLE_API_KEY` | reading the CRM and the copy bank from Python. Airtable owns every line; without a key the machine draws from the cache in `copy/` and says so |
 | `EMAIL_VERIFY_PROVIDER` | force a verifier instead of the default |
 | `OUTBOUND_COPY_SOURCE=csv` | pin the copy bank to the committed CSVs. The test suite sets this |
 

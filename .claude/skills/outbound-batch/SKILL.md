@@ -115,11 +115,33 @@ who posted yesterday.
 
 ## Stage 4 — draft
 
-For every lead with a VERIFIED hook at once, deal the anchors:
+**Airtable's Copy Assets table owns every line.** `copy/*.csv` is a cache of it,
+not a second opinion. Check that first:
+
+```
+python main.py copy-check
+```
+
+Quote its line. `PASS` means the live table is what this batch will draw from
+and the cache matches it. `FAIL` names either a live line that fails the linter
+— fix it in Airtable, nothing here can — or a cache that drifted, fixed with
+`python main.py copy-sync --live` and a commit of `copy/*.csv`. `BLOCKED`
+(exit 2) means there is no key or no network, so the check could not look.
+
+Then, for every lead with a VERIFIED hook at once, deal the anchors:
 
 ```
 python main.py deal work/draftable.json --out work/anchors.json
 ```
+
+`deal` re-enforces the same thing rather than trusting you ran the check. It
+prints a `COPY:` line naming where the lines came from, exits 1 if the live
+table answered with lines that fail the linter, and exits 1 if the table could
+not be read at all unless you pass `--allow-cached-copy`. Use that flag only
+when Airtable is genuinely unreachable and the batch has to go out anyway; it
+means anything edited since the cache was written is not in these emails.
+**Say which happened in the brief either way.** The bank is cached once per
+process, so a big batch makes one request rather than one per lead.
 
 **Deal, do not loop `anchors`.** That command is the single-lead path for
 `outbound-draft`. Per-lead hashing is unbiased only in the limit: at 50 leads it
@@ -129,13 +151,6 @@ the batch hits the weights as closely as whole leads allow.
 Read the `THIN` lines it prints. They name a segment with too few identity lines
 to hold its share without repeating a sentence, and the fix is writing one more
 line for that segment in Airtable, not anything in code.
-
-The lines come from Airtable when a key is present, the last synced snapshot
-otherwise, and the committed CSVs as a floor — cached once per process, so a
-big batch makes one request rather than one per lead. If Haytham has edited a
-line in Airtable this session, run `python main.py copy-sync` first: it
-validates every line against `copy/results.csv` and refuses to write if any
-cites a number no client result supports.
 
 Then fan out `draft-worker` with the hook, the research object and **that lead's
 four dealt lines, inline in the prompt**. The worker must not draw its own: it
@@ -233,6 +248,7 @@ BATCH <date>: <n> written of <m> raw
   hooks      <n> verified, <n> refuted, <n> not found
   drafts     <n> send, <n> rewritten, <n> rejected
   lines      top line <n>% of the batch (cap 35), <n> THIN segment(s)
+  copy       live from Airtable | cached (say which, always)
   cost       $<x> Apify this run
   → out/leads.csv   READ out/preview.txt BEFORE UPLOADING
   then       wall-add + copy-usage, once it is actually uploaded

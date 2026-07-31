@@ -113,6 +113,12 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 - `python main.py copy-sync` — pulls the hand-written lines out of Airtable and
   **rejects any that fail the linter**, so an edit there cannot break an email.
   Writes nothing when anything fails.
+- `python main.py copy-check` — the reader to `copy-sync`'s writer, run at the
+  top of a batch. Asserts that the live Copy Assets lines pass the linter and
+  that `copy/*.csv` still matches them. Exit 1 on either, exit 2 when it could
+  not read the table. `deal` enforces the same thing at the moment lines become
+  a batch's lines: exit 1 on a live edit that fails the linter with no override,
+  exit 1 on an unreadable table unless `--allow-cached-copy`.
 - `python main.py wall-add` — appends a shipped batch to the wall. Run it AFTER
   uploading, never before: walling a lead who never received anything would
   silently exclude them from every future batch. Idempotent.
@@ -179,12 +185,18 @@ deterministic line draw and the fact table), `lint` (the checks), `export`
 `email_enrich`, `apify` (cost-gated), `extract`, `urls`, `draft_lint`,
 `footprint`.
 
-**`copy/`** — Haytham's hand-written lines. `identity.csv`, `offer.csv`,
-`cta.csv`, `ps.csv`, and `results.csv`, which is the fact table every number in
-every email traces back to. **Edit the lines in Airtable, then run `copy-sync`,
-which validates and regenerates these files.** `results.csv` is repo-only on
-purpose: the lines are voice and get tweaked, the results are audited evidence
-and should not be casually editable.
+**`copy/`** — **a cache of Airtable's Copy Assets table, not the authority on
+anything.** `identity.csv`, `offer.csv`, `cta.csv` and `ps.csv` are regenerated
+by `copy-sync` so the machine still runs when Airtable does not; they are the
+last thing the table said, never a line somebody chose here. **Edit the lines in
+Airtable, then run `copy-sync`, which validates and regenerates these files.**
+`copy-check` is what keeps that true — it fails when a live line does not pass
+the linter, and when these files no longer match the table.
+
+`results.csv` is the exception and is repo-only on purpose: it is the fact table
+every number in every email traces back to, and where the lines are voice that
+gets tweaked, the results are audited evidence that should not be casually
+editable.
 
 Adding a line is three cells — Beat, Line, Weight. `Line ID` generates from the
 text if left blank and `Word Count` is computed, so neither is something to get
@@ -248,6 +260,10 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
   then the CSVs, and **caches for the process** — without that, a 200-lead batch
   made 200 identical requests and would trip Airtable's rate limit.
   `OUTBOUND_COPY_SOURCE=csv` forces the offline path; the test suite sets it.
+  **Every rung below the first records why it was taken** (`CopyBank.reason`,
+  printed by `deal` and `anchors`), because all three interesting failures — a
+  dead key, an unreachable base, and an edit that fails the linter — used to be
+  swallowed into the same silent fall-through to the CSVs.
 - **Smartlead** owns sending. No API key here yet; handover is a CSV Haytham
   uploads by hand.
 - `pip install -r requirements.txt` to run the machine, `requirements-dev.txt`

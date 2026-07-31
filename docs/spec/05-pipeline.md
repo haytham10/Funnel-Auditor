@@ -147,6 +147,22 @@ Pulls the hand-written lines out of Airtable and **rejects any that fail the
 linter**, so an edit there cannot break an email. It is a gate, not a copier:
 when anything fails it writes nothing at all.
 
+### `copy-check`
+**In** nothing. **Out** whether Airtable is what a batch would actually draw
+from. **Guarantees** the live Copy Assets lines pass the linter, and that the
+committed cache under `copy/` still matches them. **Exit 1** on either, **exit
+2** when the table could not be read at all.
+
+The counterpart to `copy-sync` and deliberately not the same command: that one
+writes, this one only looks, so it is safe at the top of a batch and again after
+a fix. **Airtable owns every line; `copy/*.csv` is a cache of it.** Two failures
+put a stale line in a stranger's inbox, and both used to be silent — a live edit
+that fails the linter (the bank falls back, so the edit looks applied and the
+batch ships the previous copy), and a cache nobody regenerated. `deal` enforces
+the same thing at the moment lines become a batch's lines: it exits 1 on a
+rejected live edit with no override, and exits 1 on an unreadable table unless
+`--allow-cached-copy` says to accept the cache on purpose.
+
 ### `wall-add` / `copy-usage`
 After the upload. See the ordering rule above.
 

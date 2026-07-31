@@ -19,6 +19,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     facts       the client-result table every number in an email traces to
     copy-usage  report a shipped batch's line usage back to Airtable
     copy-sync   pull the lines out of Airtable, rejecting any that fail the lint
+    copy-check  assert Airtable is what a batch would draw from, and not a cache
     lint        the checks that make model-written copy safe
     export      leads.csv + preview.txt, refusing to write a failing email
     email-check      address shape: syntax, MX, role and typo flags
@@ -320,11 +321,23 @@ def cmd_anchors(args) -> None:
     Deterministic on `sha256(email)`, so the same lead draws the same lines in
     every process on every machine. The builtin hash() is salted per process,
     which would make "reproducible" quietly false between runs.
+
+    Says where the lines came from, and does not block on it. This is the
+    single-lead and repair path: one email drafted from a day-old cached line is
+    a small, visible cost, where a whole batch of them is the thing `deal`
+    refuses.
     """
     from outbound import anchors
 
+    bank = anchors.CopyBank.load()
     anchor = anchors.draw(args.email, coach_type=args.coach_type,
-                          sells_to=args.sells_to)
+                          sells_to=args.sells_to, bank=bank)
+    if not bank.is_live and not args.json:
+        print(bank.status_line())
+        if bank.rejected:
+            print(f"  WARN  {len(bank.rejected)} live line(s) fail the lint, so "
+                  f"Airtable's current copy is not what this draws from")
+        print()
     if args.json:
         print(json.dumps({
             "identity": {"id": anchor.identity.id, "line": anchor.identity.line},
@@ -343,6 +356,25 @@ def cmd_anchors(args) -> None:
     print("\nAny number in the body outside that set is invented or relabelled.")
 
 
+def cmd_copy_check(args) -> None:
+    """Assert that Airtable is what this machine would actually draw from.
+
+    The counterpart to `copy-sync`, and deliberately not the same command:
+    `copy-sync` writes, this only looks. Run it at the top of a batch, where a
+    wrong answer is still cheap, and again after a fix.
+
+    It fails on the two ways stale copy ships silently — a live edit that fails
+    the lint (so the bank falls back and the edit looks applied), and a cached
+    file that no longer matches the table — and exits 2 when it could not read
+    the table at all, because a check that cannot run is never a pass.
+    """
+    from outbound import copy_sync
+
+    result = copy_sync.check()
+    print(result.report())
+    sys.exit(result.exit_code)
+
+
 def cmd_copy_sync(args) -> None:
     """Pull the hand-written lines out of Airtable, rejecting the bad ones.
 
@@ -351,9 +383,13 @@ def cmd_copy_sync(args) -> None:
     `copy/results.csv`, or that attaches one segment's result to another, is
     rejected here rather than reaching a stranger's inbox two stages later.
 
-    Two ways in. With `AIRTABLE_API_KEY` set, `--live` fetches directly.
-    Without one — which is the case today — a skill fetches the Copy Assets
-    records through the Airtable MCP and pipes them here as JSON.
+    Two ways in. With `AIRTABLE_API_KEY` set, which is the normal case in a
+    Claude Code session, a bare `copy-sync` fetches directly and `--live`
+    asserts the key. Without one, a skill fetches the Copy Assets records
+    through the Airtable MCP and pipes them here as JSON.
+
+    This is the writer. `copy-check` is the reader that asserts the result is
+    still true, and it is the one to run at the top of a batch.
     """
     from outbound import copy_sync
 
@@ -469,6 +505,20 @@ def cmd_deal(args) -> None:
     lines, a 50-lead batch gave one line 8% against a declared 20% and pushed
     another to 38%, over the repetition cap. Dealing the batch hits the weights
     as closely as whole leads allow, so the cap holds by construction.
+
+    This is the point where Airtable's lines become a specific batch's lines, so
+    it is where the bank's provenance gets said out loud and enforced. Neither
+    fallback is allowed to happen quietly:
+
+    - **The live table answered and its lines fail the lint.** Somebody's edit
+      is live in Airtable and unshippable, so the bank falls back and the batch
+      would go out on the previous copy while the edit looks applied. Exit 1,
+      and there is no override — the fix is one line in Airtable.
+    - **The table could not be read at all.** Exit 1 too, but
+      `--allow-cached-copy` accepts the committed lines deliberately. The cache
+      is not unsafe (nothing reaches it without passing `copy_sync.validate`),
+      it is merely possibly stale, and the point is that using it must be a
+      decision somebody made rather than a thing that happened.
     """
     from outbound import anchors
 
@@ -477,7 +527,29 @@ def cmd_deal(args) -> None:
         print(f"DEAL: FAIL — expected a JSON array of leads, got "
               f"{type(leads).__name__}.")
         sys.exit(2)
-    dealt = anchors.deal_batch(leads)
+
+    bank = anchors.CopyBank.load()
+    print(bank.status_line())
+    if bank.rejected:
+        print("DEAL: FAIL — the live Copy Assets table is not shippable, and "
+              "dealing would silently draft this batch from the cached copy "
+              "instead:")
+        for problem in bank.rejected[:10]:
+            print(f"  LINT  {problem}")
+        print("  Fix the line in Airtable and re-run. Nothing here can fix it: "
+              "the table is the authority.")
+        sys.exit(1)
+    if not bank.is_live and not args.allow_cached_copy:
+        print("DEAL: FAIL — the live Copy Assets table could not be read, so "
+              "this batch would draw from a cache that nothing just checked.")
+        print("  Set AIRTABLE_API_KEY and re-run, or pass --allow-cached-copy "
+              "to accept the cached lines deliberately.")
+        sys.exit(1)
+    if not bank.is_live:
+        print("  WARN  dealing from cached copy by request — anything edited in "
+              "Airtable since that cache was written is not in this batch")
+
+    dealt = anchors.deal_batch(leads, bank=bank)
 
     out = {
         email: {
@@ -507,7 +579,7 @@ def cmd_deal(args) -> None:
         1 for a in dealt.values()
         if check_echo({"offer": a.offer.line, "cta": a.cta.line, "ps": a.ps.line})
     )
-    collisions = anchors.echo_pairs(anchors.CopyBank.load())
+    collisions = anchors.echo_pairs(bank)
     if collisions:
         pairs = ", ".join(f"{o}+{p}" for o, p in collisions)
         print(f"  ECHO  {len(collisions)} offer/ps pair(s) cannot be dealt "
@@ -524,7 +596,7 @@ def cmd_deal(args) -> None:
 
     # Which segments cannot fill their 70% share without repeating a sentence.
     # The deal already spilled to generic to stay legal; this says what to write.
-    thin = anchors.thin_segments(anchors.CopyBank.load(), cap=FIXED_LINE_SHARE_CAP)
+    thin = anchors.thin_segments(bank, cap=FIXED_LINE_SHARE_CAP)
     drawn = {l.meta.get("coach_type", "") for l in
              [a.identity for a in dealt.values()]}
     for segment, shortfall in sorted(thin.items()):
@@ -703,7 +775,15 @@ def cmd_export(args) -> None:
         # drafter reproduces near-verbatim, it sits alone at the end, and it
         # takes no part in the seam between the hook and the identity beat. So
         # this is an allocation decision, not a drafting one.
+        # Export runs in its own process, so the bank is loaded again here and
+        # can differ from the one `deal` used if Airtable went down in between.
+        # Said out loud rather than blocked: `--anchors` already rejects any
+        # draft whose lines disagree with the deal, so a divergence fails
+        # closed on its own — it just reads as a mysterious anchor mismatch
+        # without this line.
         bank = anchors.CopyBank.load()
+        if not bank.is_live:
+            print(bank.status_line())
         moves = anchors.rebalance_ps(drafts_raw, bank=bank)
         by_id = {l.id: l.line for l in bank.ps}
         moved = 0
@@ -1078,6 +1158,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("deal", help="anchors for a whole batch, weights held exactly")
     p.add_argument("leads", help="JSON list of {email, coach_type, sells_to}")
     p.add_argument("--out", help="write the per-lead anchors as JSON")
+    p.add_argument("--allow-cached-copy", action="store_true",
+                   help="deal from copy/*.csv or the snapshot when the live "
+                        "Copy Assets table cannot be read. Never silent: the "
+                        "run says so. Does NOT override a live table whose "
+                        "lines fail the lint — that one is fixed in Airtable")
     p.set_defaults(func=cmd_deal)
 
     p = sub.add_parser("facts", help="the client-result fact table every number traces to")
@@ -1101,6 +1186,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", action="store_true",
                    help="validate and report, write nothing")
     p.set_defaults(func=cmd_copy_sync)
+
+    p = sub.add_parser("copy-check",
+                       help="assert the live Copy Assets table is what a batch "
+                            "would draw from, and that copy/ still matches it")
+    p.set_defaults(func=cmd_copy_check)
 
     p = sub.add_parser("wall-add",
                        help="append a shipped batch to data/contacted-before.csv "
