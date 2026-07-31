@@ -214,3 +214,69 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------------ the generic pool's audience
+
+
+def test_an_individuals_seller_is_never_handed_corporate_proof():
+    """The generic pool used to take every `Any` line regardless of audience,
+    so "I get coaches in front of the people who actually hold the budget"
+    could land on a health coach whose buyer is one person paying for herself.
+    The identity beat's whole job is a matching reference group."""
+    bank = anchors.CopyBank.from_csv()
+    for coach_type in ("Health", "Life", "Mindset", "Fitness", "Career"):
+        _, generic = anchors._identity_pools(bank.identity, coach_type, "individuals")
+        assert generic, coach_type
+        for line in generic:
+            assert line.meta.get("sells_to") in ("any", ""), \
+                f"{coach_type}: {line.id} is {line.meta.get('sells_to')}-facing"
+
+
+def test_a_corporate_seller_can_draw_corporate_proof():
+    bank = anchors.CopyBank.from_csv()
+    _, generic = anchors._identity_pools(bank.identity, "Leadership", "corporates")
+    assert any(l.meta.get("sells_to") == "corporates" for l in generic)
+    assert any(l.meta.get("sells_to") in ("any", "") for l in generic)
+
+
+def test_an_unknown_audience_draws_only_neutral_proof():
+    """Guessing the reference group is exactly what an empty `sells_to` exists
+    to avoid, so it must not be guessed here either."""
+    bank = anchors.CopyBank.from_csv()
+    _, generic = anchors._identity_pools(bank.identity, "Life", "")
+    assert generic
+    for line in generic:
+        assert line.meta.get("sells_to") in ("any", ""), line.id
+
+
+def test_no_lead_in_a_mixed_batch_gets_the_other_audiences_proof():
+    """End to end through the real allocator, on a batch carrying both
+    audiences and nine segments."""
+    bank = anchors.CopyBank.from_csv()
+    segments = ["Health", "Leadership", "Executive", "Life", "Career",
+                "Business", "Mindset", "", "Fitness"]
+    audiences = ["individuals", "corporates", ""]
+    by_id = {l.id: l for l in bank.identity}
+    for n in (11, 30, 90):
+        leads = [{"email": f"l{i}@x.ae", "coach_type": segments[i % len(segments)],
+                  "sells_to": audiences[i % 3]} for i in range(n)]
+        dealt = anchors.deal_batch(leads, bank=bank)
+        for lead in leads:
+            drawn = by_id[dealt[lead["email"]].identity.id]
+            flavour = drawn.meta.get("sells_to")
+            if flavour in ("any", ""):
+                continue
+            assert lead["sells_to"] == flavour, (
+                f"n={n}: a {lead['sells_to'] or 'unknown'}-audience lead drew "
+                f"{drawn.id}, which is {flavour}-facing")
+
+
+def test_the_corporate_generic_pool_is_deep_enough_to_hold_its_share():
+    """Two lines cannot cover a pool under a 35% cap; three can."""
+    from outbound import lint
+    bank = anchors.CopyBank.from_csv()
+    _, generic = anchors._identity_pools(bank.identity, "", "corporates")
+    corporate = [l for l in generic if l.meta.get("sells_to") == "corporates"]
+    assert len(corporate) >= int(1 / lint.FIXED_LINE_SHARE_CAP) + 1, \
+        [l.id for l in corporate]

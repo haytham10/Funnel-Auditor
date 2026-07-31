@@ -157,6 +157,14 @@ python main.py export work/drafts.json --anchors work/anchors.json \
   --out out/ --batch <YYYY-MM-DD>
 ```
 
+**Export against the SAME deal file the drafts were written from.** Re-running
+`deal` after drafting produces a different allocation — copy edits, a changed
+pool, a different lead set all move it — and `--anchors` then compares each
+draft against lines it was never given. The rejection reads "the drafter drew
+its own instead of using the batch's", which is the opposite of what happened
+and sends you looking at the wrong stage. Keep `work/anchors.json` for the life
+of the batch, and if you must re-deal, re-draft.
+
 **Pass `--rebalance-ps` whenever any lead held.** Holds are guaranteed — a
 refuted hook, a twice-refused draft — and every hold unbalances a deal that was
 made for the larger batch. Dropping 3 of 11 on the first real run put two ps

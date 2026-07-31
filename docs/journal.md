@@ -1,3 +1,43 @@
+## 2026-07-31 (the corporate generic) — and the mirror bug it uncovered
+
+Haytham: "write the corporate-facing generic identity line." Writing it was the
+small half. Looking at why Rohit needed it found a worse bug pointing the other
+way.
+
+**The generic identity pool ignored `sells_to` entirely.** `_identity_pools`
+took every `coach_type = Any` line regardless of audience, so an
+individuals-facing coach could be handed "I get coaches in front of the people
+who actually hold the budget" — corporate proof to a health coach whose buyer is
+one person paying for herself. That is the majority of this market, so it was
+the more common direction of the same fault a reader caught on Rohit. The
+identity beat's whole job is a matching reference group; a mismatched one is
+worse than a generic one, which is the argument the ICP notes already make about
+`sells_to` being collected rather than inferred.
+
+Fixed: a line tagged for an audience is generic only WITHIN that audience.
+Neutral (`any`) lines stay available to everyone, and a lead whose own
+`sells_to` is unknown draws only from those — guessing the reference group is
+exactly what an empty `sells_to` exists to avoid, so it must not be guessed here
+either. Verified end to end on mixed batches of 11, 30, 90 and 200: no lead
+receives the other audience's proof, no line over cap, no echo.
+
+**`id-corp-3`**, the new line: *"Your work lands in the room. The budget for it
+sits somewhere else. AED 120,000 signed from meetings I set up with the people
+holding it."* Both existing corporate generics are the same shape
+(decision-maker) citing the same Business figures, and nothing corporate-facing
+cited money. The opening two sentences are the corporate seller's actual problem
+stated plainly: the person you impress is not the person who releases the
+budget. Three corporate lines is also the minimum that can hold a pool under a
+35% cap.
+
+**One operational trap, now in the skill.** Re-dealing after drafting made the
+drift check reject two verified emails with "the drafter drew its own instead of
+using the batch's" — which is the opposite of what happened. The deal moved
+under them, because the pool changed. Export against the same deal file the
+drafts were written from; if you must re-deal, re-draft.
+
+399 tests green.
+
 ## 2026-07-31 (the copy rewrite, second pass) — what a third cold read found
 
 Redrafted Rohit against the rewritten `id-any-6`, since his two holds had the

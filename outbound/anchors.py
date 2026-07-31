@@ -467,7 +467,23 @@ def _identity_pools(lines: list[Line], coach_type: str,
     exact_both = pool(lambda t: t == coach_type,
                       lambda s: bool(sells_to) and s == sells_to)
     exact_type = pool(lambda t: t == coach_type, lambda s: s in ("any", ""))
-    generic = pool(lambda t: t == "Any", lambda s: True)
+
+    # The generic pool respects `sells_to` too. It used to take every `Any`
+    # line regardless, which put corporate proof in front of coaches who sell to
+    # individuals: "I get coaches in front of the people who actually hold the
+    # budget" landed on a health coach whose buyer is one person paying for
+    # herself. A cold reader caught the mirror of it — an individuals-flavoured
+    # generic reaching a corporate seller — and said the number "lands on a
+    # market he does not sell into". Both directions are the same bug.
+    #
+    # A line tagged for an audience is only generic WITHIN that audience.
+    # Audience-neutral lines (`any`) stay available to everyone, and a lead
+    # whose own `sells_to` is unknown draws only from those — which is right,
+    # since guessing the reference group is exactly what this avoids.
+    generic = pool(
+        lambda t: t == "Any",
+        lambda s: s in ("any", "") or (bool(sells_to) and s == sells_to),
+    )
 
     # Deduped. A line tagged `sells_to = any` satisfies BOTH exact_both (when
     # the lead's own sells_to is "any") and exact_type, so concatenating put it
