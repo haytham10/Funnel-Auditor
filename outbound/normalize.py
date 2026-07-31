@@ -52,6 +52,15 @@ COLUMN_ALIASES: dict[str, str] = {
     "website": "site_url", "site": "site_url", "url": "site_url",
     "websiteurl": "site_url", "siteurl": "site_url", "web": "site_url",
     "domain": "site_url", "homepage": "site_url",
+    # Sales-tool exports name the site after the company, not the person. The
+    # first real list ran with `companyWebsite` and mapped ZERO of 13 sites:
+    # every lead fell through to social-only research and the whole free
+    # site-read tier was skipped without a single warning.
+    "companywebsite": "site_url", "companyurl": "site_url",
+    "companysite": "site_url", "companydomain": "site_url",
+    "businesswebsite": "site_url", "personalwebsite": "site_url",
+    "weburl": "site_url", "webaddress": "site_url", "websiteaddress": "site_url",
+    "domainname": "site_url", "companyweb": "site_url",
     "linkedin": "linkedin_url", "linkedinurl": "linkedin_url",
     "linkedinprofile": "linkedin_url", "li": "linkedin_url",
     "instagram": "instagram_url", "instagramurl": "instagram_url",
@@ -289,6 +298,22 @@ def map_row(row: dict, *, source: str = "") -> Lead:
     _split_name(lead)
     lead.slug = slugify(lead.name or lead.domain or "lead")
     return lead
+
+
+def unmapped_headers(path: str) -> list[str]:
+    """Columns the alias table does not know, so a list can say what it dropped.
+
+    `map_row` skips any header it cannot map, which is right — exports carry
+    plenty of noise. But it is silent, and silence is how a real list ran with
+    `companyWebsite` and mapped zero of thirteen sites: every lead fell through
+    to social-only research and the entire free site-read tier was skipped with
+    nothing printed. A dropped column that turns out to matter should be one
+    line of output, not an archaeology session.
+    """
+    with open(path, newline="", encoding="utf-8-sig") as handle:
+        headers = next(csv.reader(handle), [])
+    return [h for h in headers
+            if h and h.strip() and not COLUMN_ALIASES.get(_canon_header(h))]
 
 
 def load_csv(path: str, *, source: str = "") -> list[Lead]:

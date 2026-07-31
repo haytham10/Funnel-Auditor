@@ -60,6 +60,14 @@ def cmd_intake(args) -> None:
     print(f"  nothing to work   {shape['no_research_target']}")
     if shape["parked_names"]:
         print("  parked: " + ", ".join(shape["parked_names"]))
+    # Silence here is expensive. The first real list used `companyWebsite`,
+    # which the alias table did not know, so 13 of 13 sites mapped to nothing
+    # and the whole free site-read tier was skipped without a word.
+    unmapped = normalize.unmapped_headers(args.path)
+    if unmapped:
+        print(f"  ignored columns   {', '.join(unmapped)}")
+        print("                    (if one of those is the website or the name, "
+              "add it to COLUMN_ALIASES before running the batch)")
     if args.out:
         Path(args.out).write_text(
             json.dumps([l.to_dict() for l in leads], indent=2, default=str),

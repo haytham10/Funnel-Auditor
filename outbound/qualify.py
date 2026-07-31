@@ -133,6 +133,31 @@ _TYPE_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("Life", re.compile(r"\blife coach|transformation|purpose|fulfil", re.I)),
 ]
 
+# Second pass, applied ONLY to a headline, and only after the strict patterns
+# have found nothing anywhere. A real headline puts words between the segment
+# and the noun — "Career and Work-Life Balance Coach", "Chief Executive Officer
+# Coach", "Training and Development Coaching Leaders" — and the strict patterns
+# above want them adjacent. Three of twelve on the first real list came back
+# with no segment for exactly that reason, and a lead with no segment draws a
+# generic identity line.
+#
+# Restricted to the headline on purpose. A headline is a deliberate
+# self-description; body copy is noise, and a loose pattern let loose on 80,000
+# characters of site text would find every segment on every site. A wrong
+# segment is worse than none: it ships an identity line about the wrong kind of
+# coach, while no segment ships a generic line that is merely weaker.
+_GAP = r"[\w\s&|/,.-]{0,32}"
+_TYPE_PATTERNS_LOOSE: list[tuple[str, re.Pattern]] = [
+    ("Executive", re.compile(rf"\bexecutive\b{_GAP}\bcoach|\bcoach\w*{_GAP}\bexecutives?\b", re.I)),
+    ("Career", re.compile(rf"\bcareer\b{_GAP}\bcoach|\bcoach\w*{_GAP}\bcareers?\b", re.I)),
+    ("Leadership", re.compile(rf"\bleaders?(?:hip)?\b{_GAP}\bcoach|\bcoach\w*{_GAP}\bleaders?\b", re.I)),
+    ("Business", re.compile(rf"\bbusiness\b{_GAP}\bcoach|\bcoach\w*{_GAP}\bbusiness\b", re.I)),
+    ("Health", re.compile(rf"\bhealth\b{_GAP}\bcoach|\bcoach\w*{_GAP}\bhealth\b", re.I)),
+    ("Mindset", re.compile(rf"\bmindset\b{_GAP}\bcoach|\bcoach\w*{_GAP}\bmindset\b", re.I)),
+    ("Fitness", re.compile(rf"\bfitness\b{_GAP}\bcoach|\bcoach\w*{_GAP}\bfitness\b", re.I)),
+    ("Life", re.compile(rf"\blife\b{_GAP}\bcoach|\bcoach\w*{_GAP}\blife\b", re.I)),
+]
+
 _CORPORATE_MARKERS = re.compile(
     r"\b(corporate|organisation|organization|team|l&d|leadership team|"
     r"employees|workshop for|in.?house|b2b|enterprise)\b", re.I
@@ -347,9 +372,13 @@ def classify_coach_type(*, linkedin_text: str = "", site_text: str = "") -> tupl
     said "Leadership & Performance Coach" aimed at corporate teams. Two offers
     to two audiences under one name. LinkedIn is the paid-facing profile and is
     usually the more explicit about what she actually sells.
+
+    Pass `linkedin_text` the headline, not a page dump. The loose fallback below
+    only runs against it, and it is only safe because a headline is short and
+    deliberate.
     """
-    def first_match(text: str) -> str:
-        for label, pattern in _TYPE_PATTERNS:
+    def first_match(text: str, patterns=_TYPE_PATTERNS) -> str:
+        for label, pattern in patterns:
             if pattern.search(text or ""):
                 return label
         return ""
@@ -364,6 +393,15 @@ def classify_coach_type(*, linkedin_text: str = "", site_text: str = "") -> tupl
     from_site = first_match(site_text)
     if from_site:
         return from_site, "site"
+
+    # Last resort: the headline again, allowing words between the segment and
+    # "coach". "Career and Work-Life Balance Coach" is unambiguous to a reader
+    # and invisible to a pattern that wants the two words adjacent — three of
+    # twelve on the first real list. Tried only after everything strict has
+    # failed, so it can never override a confident match.
+    loose = first_match(linkedin_text, _TYPE_PATTERNS_LOOSE)
+    if loose:
+        return loose, "linkedin (loose headline match)"
     return "", ""
 
 

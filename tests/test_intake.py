@@ -9,6 +9,7 @@ wasting something, and it has already happened twice.
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -99,6 +100,29 @@ def test_a_platform_url_in_the_site_column_fills_the_social_field():
     assert lead.site_url == ""
     assert lead.instagram_url == "https://instagram.com/sarahcoach"
     assert lead.has_research_target()
+
+
+def test_a_sales_export_names_the_site_after_the_company():
+    """The first real list used `companyWebsite` and mapped ZERO of 13 sites.
+    Every lead fell through to social-only research and the entire free
+    site-read tier was skipped, with nothing printed to say so."""
+    for header in ("companyWebsite", "Company URL", "company_domain",
+                   "Business Website", "Web URL", "Domain Name"):
+        lead = normalize.map_row({"Full Name": "Sarah", header: "sarahcoaching.ae"})
+        assert lead.site_url, header
+        assert lead.domain == "sarahcoaching.ae", header
+
+
+def test_unmapped_columns_are_reported_not_just_dropped():
+    """Dropping an unknown column is right; dropping it silently is how the
+    website column went missing for a whole batch."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "raw.csv"
+        path.write_text("Full Name,companyHeadCount,bucket\nSarah,25,x\n",
+                        encoding="utf-8")
+        ignored = normalize.unmapped_headers(str(path))
+        assert "companyHeadCount" in ignored and "bucket" in ignored
+        assert "Full Name" not in ignored
 
 
 def test_a_platform_with_no_dedicated_field_lands_in_other_urls():

@@ -207,12 +207,23 @@ def read_site(site_url: str, *, max_pages: int = 5,
 
 def _harvest(read: SiteRead, seed_url: str) -> None:
     """Pull the structured data out of whatever pages came back."""
+    # `extract_emails` returns {"personal": [...], "generic": [...]}, and
+    # `list.extend(dict)` iterates the KEYS — so this used to fill read.emails
+    # with the strings "personal" and "generic" and then crash on `.get`. It
+    # crashed on the first page of the first real site, which is how long the
+    # tier-0 path went without ever being run against one.
+    #
+    # The two buckets are kept apart until the end so a jane@ on page four
+    # still outranks an info@ on page one. Ranking by page order would hand the
+    # batch a mailbox nobody reads.
+    personal: list[dict] = []
+    generic: list[dict] = []
     for page in read.pages:
         if not page.html:
             continue
-        read.emails.extend(
-            extract_emails(page.html, source_url=page.url, seed_url=seed_url)
-        )
+        found = extract_emails(page.html, source_url=page.url, seed_url=seed_url)
+        personal.extend(found.get("personal", []))
+        generic.extend(found.get("generic", []))
         read.headings.extend(extract_headings(page.html))
         read.prices.extend(extract_prices(page.text))
         for platform, pattern in _SOCIAL_RE.items():
@@ -224,7 +235,7 @@ def _harvest(read: SiteRead, seed_url: str) -> None:
 
     seen: set[str] = set()
     deduped = []
-    for entry in read.emails:
+    for entry in personal + generic:
         address = (entry.get("email") or "").lower()
         if address and address not in seen:
             seen.add(address)
