@@ -40,6 +40,17 @@ import unicodedata
 _SYNTAX_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 
+def looks_like_email(address: str) -> bool:
+    """Syntax only — no DNS, no network, no judgement about deliverability.
+
+    Split out from `check_email` so a caller that just needs "is this the shape
+    of an address" does not have to run the full gate or reach into a private
+    regex. `outbound.export.check_address` uses it on the last line before a row
+    becomes a send.
+    """
+    return bool(_SYNTAX_RE.match((address or "").strip()))
+
+
 def name_tokens(name: str, min_len: int = 1) -> list[str]:
     """Lowercase ASCII name tokens, accents folded (José → jose), split on any
     non-letter. `min_len` gates token length: the name-match heuristics use 3
@@ -194,7 +205,7 @@ def print_check(address: str, lead_name: str = "") -> int:
 # quotable PASS/WARN/FAIL line, same trust model as everything else here —
 # a script owns the verdict so it can't be talked past.
 #
-# The rule the skills follow: the Notion `Email Verified` box gets checked
+# The rule the skills follow: the Airtable `Email Status` field is set to `pass`
 # ONLY on a literal `EMAIL VERIFY: PASS`. WARN and FAIL never auto-check it.
 # So the classifier fails SAFE — anything not provably deliverable is WARN,
 # never silently promoted to PASS.

@@ -1,0 +1,188 @@
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      leadership coach
+  city         Dubai
+  sells to     individuals
+  price point  AED 12,000
+DELIVERED
+  meetings     8
+  period       30 days
+  first mtg    7 days
+TURNED INTO
+  clients      3
+  AED closed   AED 36,000
+  period       60 days
+  approximate  no, exact
+HOW IT RAN
+  sourced      200
+  sent         300
+  still on     no
+  notes        —
+
+
+---
+
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      business coach
+  city         Dubai
+  sells to     corporates
+  price point  AED 24,000
+DELIVERED
+  meetings     12
+  period       60 days
+  first mtg    10 days
+TURNED INTO
+  clients      5
+  AED closed   AED 120,000
+  period       90 days
+  approximate  no, exact
+HOW IT RAN
+  sourced      300
+  sent         401
+  still on     no
+  notes        —
+
+
+---
+
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      life coach
+  city         Abu Dhabi
+  sells to     individuals
+  price point  AED 6,000
+DELIVERED
+  meetings     8
+  period       5 weeks
+  first mtg    4 days
+TURNED INTO
+  clients      3
+  AED closed   AED 18,000
+  period       30 days
+  approximate  no, exact
+HOW IT RAN
+  sourced      150
+  sent         180
+  still on     no
+  notes        —
+
+
+---
+
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      career coach
+  city         Dubai
+  sells to     individuals
+  price point  AED 11,000
+DELIVERED
+  meetings     12
+  period       45 days
+  first mtg    12 days
+TURNED INTO
+  clients      7
+  AED closed   AED 77,000
+  period       90 days
+  approximate  no, exact
+HOW IT RAN
+  sourced      320
+  sent         390
+  still on     no
+  notes        —
+
+
+---
+
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      mindset coach
+  city         Dubai
+  sells to     individuals
+  price point  AED 7,000
+DELIVERED
+  meetings     5
+  period       30 days
+  first mtg    7 days
+TURNED INTO
+  clients      1
+  AED closed   AED 7,000
+  period       30 days
+  approximate  no, exact
+HOW IT RAN
+  sourced      120
+  sent         150
+  still on     yes
+  notes        —
+
+
+---
+
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      health coach
+  city         Dubai
+  sells to     individuals
+  price point  AED 13,000
+DELIVERED
+  meetings     9
+  period       6 weeks
+  first mtg    9 days
+TURNED INTO
+  clients      6
+  AED closed   AED 78,000
+  period       60 days
+  approximate  no, exact
+HOW IT RAN
+  sourced      190
+  sent         220
+  still on     no
+  notes        —
+
+
+---
+
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      fitness coach
+  city         Dubai
+  sells to     individuals
+  price point  AED 12,000
+DELIVERED
+  meetings     7
+  period       30 days
+  first mtg    7 days
+TURNED INTO
+  clients      3
+  AED closed   AED 36,000
+  period       45 days
+  approximate  no, exact
+HOW IT RAN
+  sourced      250
+  sent         280
+  still on     yes
+  notes        —
+
+
+---
+
+IDENTITY INTAKE — filled 2026-07-29
+WHO
+  segment      executive coach
+  city         Dubai
+  sells to     corporates
+  price point  AED 22,000
+DELIVERED
+  meetings     6
+  period       45 days
+  first mtg    8 days
+TURNED INTO
+  clients      2
+  AED closed   AED 44,000
+  period       2 months
+  approximate  no, exact
+HOW IT RAN
+  sourced      150
+  sent         170
+  still on     yes
+  notes        —

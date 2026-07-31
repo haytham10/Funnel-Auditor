@@ -3,7 +3,7 @@
 SessionStart hook — load cross-session project memory into a fresh session.
 
 The managed container is ephemeral and starts with no memory of prior
-sessions. Live pipeline STATE survives in Notion and CODE changes survive in
+sessions. Live pipeline STATE survives in Airtable and CODE changes survive in
 git, but the NARRATIVE tying sessions together — ops events, decisions,
 gotchas, open follow-ups — has no home unless it is written down. This hook
 surfaces that narrative automatically at the top of every session:
@@ -104,7 +104,8 @@ def main() -> int:
     sections = [
         "PROJECT MEMORY (cross-session) — you start each session with no memory "
         "of prior ones; this is the recent narrative so you are not starting "
-        "cold. Notion holds live pipeline STATE (query it for where leads are); "
+        "cold. Airtable holds live pipeline STATE (query the Outbound Machine "
+        "base for where leads are); "
         "this is the story of what was done and decided. Full log: "
         "docs/journal.md. When you finish work worth remembering, add an entry "
         "at the top of that file and commit + push it."

@@ -1,7 +1,14 @@
 """
+NOTE (2026-07-31): behaviour unchanged by the pivot, wording updated. This file
+was written when Firecrawl was the free fetcher and named it throughout;
+Firecrawl is gone. "The free tier" below now means `outbound/fetch.py` (local
+HTTP) and the agent's own WebSearch/WebFetch. The rule it encodes is unchanged
+and still right: spend Apify only on what the free tier genuinely cannot read —
+LinkedIn, Instagram, YouTube counts, email verification.
+
 Apify actor integration — the no-login third-party fetch layer.
 
-Firecrawl (the primary fetcher) hard-refuses LinkedIn and does not do
+The free tier hard-refuses LinkedIn and does not do
 authenticated Instagram, so the two login-walled platforms that carry the
 best SMYKM hook evidence have no fetch path on their own. This module is
 that path: read-only public data pulled through vetted Apify actors that
@@ -13,11 +20,10 @@ It also wraps email verification (the `email-check` WARN → verify fallback,
 and the confirm-before-CRM step for a found address) and a Google SERP
 scraper (sourcing + finding episode / About / profile pages).
 
-Everything web-fetchable (podcasts, YouTube, About pages, funnel walks,
-checkout probes) stays on Firecrawl, which is cheaper and already
-connected. This layer is deliberately small: the five Haytham-vetted
-actors below and nothing else. Adding actors is surface area and cost, not
-capability.
+Everything web-fetchable (podcasts, YouTube, About pages, blog posts) stays
+on the free tier, which is cheaper and already connected. This layer is
+deliberately small: the seven Haytham-vetted actors below and nothing
+else. Adding actors is surface area and cost, not capability.
 
 Email verification moved off this layer for a few weeks (2026-07-17, after
 the free plan's small monthly USD cap kept getting hit) and is back on it
@@ -26,9 +32,9 @@ the cap that forced the move no longer applies day-to-day. `_email_verifier`
 in `main.py` defaults to `"apify"` again; `audit/email_verifier.py`
 (ZeroBounce) stays fully wired as the automatic fallback for whenever a
 call would otherwise land on a capped account (`EMAIL_VERIFY_PROVIDER=
-zerobounce` to force it). Google-footprint sourcing stays on Firecrawl
+zerobounce` to force it). Google-footprint sourcing stays on the free tier
 search feeding `audit/footprint.py` (`main.py classify-footprint`) — that
-move was never about the cap, Firecrawl already does the job at no Apify
+move was never about the cap, the free tier already does the job at no Apify
 cost, so there's nothing to restore there; `footprint_search` below
 remains a manual fallback.
 
@@ -42,17 +48,17 @@ reason to look before a run that costs real money.
     ig_post     apify/instagram-post-scraper            recent posts w/ captions (date-filterable, can skip pinned); single-post detail
     li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
     li_profile  apimaestro/linkedin-profile-detail      headline/about/experience; optional email-search mode (finds an address)
-    yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number Firecrawl can't read for YT-native coaches)
+    yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number the free tier can't read for YT-native coaches)
     email       account56/email-verifier                MillionVerifier-backed address verification
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
 
     (yt_channel added 2026-07-19 for the qualifier's audience floor: a coach
     whose only sizeable channel is YouTube (subscriber count is JS/login-walled
-    to Firecrawl) otherwise stalls at "unconfirmed audience." One channel = one
+    to the free tier) otherwise stalls at "unconfirmed audience." One channel = one
     dataset-item at $0.0005, so a single-lead call clears the gate ~200x over.
     It returns the SUBSCRIBER COUNT, not a latest-upload date — YouTube activity
-    recency stays a free Firecrawl scrape of the channel's /videos page, per the
-    Firecrawl-first rule. Handle path via `youtubeHandles`; /channel/UC.. and
+    recency stays a free scrape of the channel's /videos page, per the
+    free-first rule. Handle path via `youtubeHandles`; /channel/UC.. and
     /c/.. URLs via `startUrls`.)
 
     (Instagram split from the single apify/instagram-scraper into the two
@@ -625,10 +631,10 @@ def _yt_run_input(channel: str) -> dict:
 
 def youtube_channel(channel: str, raw: bool = False, approved: bool = False) -> list[dict]:
     """YouTube channel info — the subscriber COUNT (the audience-floor number
-    Firecrawl can't read off a JS/login-walled channel page) for a YT-native
+    the free tier can't read off a JS/login-walled channel page) for a YT-native
     coach. Takes a channel URL or @handle. Returns subscriberCount + basic
     stats; it does NOT return a latest-upload date, so get YouTube activity
-    recency from a Firecrawl scrape of the channel's /videos page instead.
+    recency from a free scrape of the channel's /videos page instead.
     Cost-gated (1 channel = 1 dataset-item, ~$0.0005)."""
     _require_cost_approval(ACTORS["yt_channel"], 1, approved)
     items = run_actor(ACTORS["yt_channel"], _yt_run_input(channel), memory_mbytes=512)
@@ -710,8 +716,8 @@ def footprint_search(platform: str, geo: str = "Dubai", role: str = "coach",
     """Work one platform's Google footprint via BOTH query shapes and merge —
     the Apify-backed path (fetches through `google_search`, which draws on
     the shared monthly USD cap). Prefer `main.py classify-footprint`
-    (Firecrawl-fed, `audit/footprint.py`) instead; this stays as a manual
-    fallback for when Firecrawl search is unavailable.
+    (free-search-fed, `audit/footprint.py`) instead; this stays as a manual
+    fallback for when free search is unavailable.
 
     Runs the subdomain query (`site:<domain> <role> <geo>`) and, when the
     platform has one, the footer-signature query (`"powered by <platform>"

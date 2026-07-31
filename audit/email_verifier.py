@@ -1,10 +1,14 @@
 """
 ZeroBounce email verification — the no-Apify deliverability confirm.
 
-Replaces `apify.verify_emails` (account56/email-verifier, an Apify Store
-actor) as the default verifier used by `main.py email-verify` and
-`email_enrich.enrich`. Same trust model as everything else in this
-codebase: `email_check.classify_verification` owns the PASS/WARN/FAIL
+**Not the default.** `main.py email-verify` defaults `EMAIL_VERIFY_PROVIDER`
+to `apify` (account56/email-verifier); this module is the automatic FALLBACK
+when Apify is near its monthly cap, and the forced path under
+`EMAIL_VERIFY_PROVIDER=zerobounce`. It was the default for a stretch in July
+2026 and the docstring outlived the revert, which sends anyone debugging a
+verification failure to the wrong module and the wrong API key.
+
+Same trust model as everything else in this codebase: `email_check.classify_verification` owns the PASS/WARN/FAIL
 verdict — this module only calls the API and normalizes its response
 shape into what that classifier already reads (email/status/free/role).
 It exists because ZeroBounce's free tier (100 verification credits/month,

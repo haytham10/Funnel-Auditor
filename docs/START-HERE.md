@@ -1,158 +1,113 @@
-# START HERE — the system as it stands
+# START HERE
 
-_Last recalibrated 2026-07-28. If you are lost, read only this page. Everything
-else is detail you can fetch when you need it._
+_Written 2026-07-31, when the funnel auditor and the cold-email system merged.
+If you are lost, read only this page._
 
----
+## 1. What this is
 
-## 1. What you sell, in one sentence
+A raw list of UAE coaches goes in. A Smartlead upload file comes out: one row
+per lead, with an email written for that person and mechanically checked before
+it was allowed into the file.
 
-**You sell booked calls to UAE solo coaches with a program at AED 5,000+.**
-AED 2,000 setup, then AED 900 per qualified call that actually happens, billing
-from call one. No retainer, no contract, no credit-back.
+**It does not send.** Smartlead owns inboxes, warmup, sending and replies.
 
-The way in is **The Named Fifty**: AED 500 for fifty verified UAE contacts in
-72 hours, built backwards from her own best clients. It buys the customer; the
-upsell happens when she opens the list.
+## 2. What the email offers
 
-That is the whole business. Not audits, not funnel fixes, not findings.
+**Ten names.** Real people who fit her buyer profile, already pulled, handed
+over on a fifteen-minute call along with why those ten and not the other forty.
 
-## 2. Why it changed (so you stop re-litigating it)
-
-You ran 589 leads and made 0 AED. The pipeline was not broken — it produced a
-**9% reply rate against a 1-5% benchmark**. What it never produced was a call:
-**reply → call was 0 of 9.**
-
-Two mechanical causes, both now fixed:
-
-1. **A question-shaped CTA cannot produce a booking.** Every opener closed on a
-   two-branch question. A question CTA selects for replies that are *answers*,
-   and an answer is a dead end that looks like success. → **Every close is now a
-   call ask with two specific times.**
-2. **A finding in an email is a free fix.** 4 of 9 engaged leads read the
-   finding, fixed it themselves and left. A third of findings failed under
-   scrutiny while carrying `Finding Verified = YES`. → **The finding never
-   appears in an email.** It is reserved call bait: the reason to get on the
-   call. The email opens on a *cold read* instead — a measured observation about
-   this market that she cannot refute and cannot fix by editing a page.
-
-Nothing ever died on price. Price discovery by email was tested 3 times and
-produced 0 numbers. Both dead ends are closed; don't reopen them.
+No price appears in any email. The money conversation happens on the call.
 
 ## 3. The email, in five beats
 
-Every cold Touch 1, in this order:
+Each beat answers the objection the reader raises at that exact moment. That is
+why the order is fixed.
 
-1. **SMYKM hook** — the one line only she would recognise, from real cited
-   public evidence (LinkedIn, podcast, YouTube, her About page). Never generic
-   marketing copy, never fabricated.
-2. **Cold read** — true of most coaches in this market, by measurement, from the
-   373-row dataset. Never a claim about her.
-3. **Identity beat** — one sentence on who is writing and why he'd know. Without
-   it the email reads as someone wanting to buy from her. Two of nine failures
-   were caused by this sentence being absent.
-4. **The cost** — what the pattern is costing her, vague on the fix.
-5. **The call ask** — two specific times. "Tuesday around 4, or Wednesday
-   morning, whichever is less annoying."
+1. **Hook** — *is this a spammer?* One or two sentences about something specific
+   and recent she did, cited, plus a clause saying what you took from it.
+2. **Identity** — *who is this and why should I care?* A matched reference
+   group, a real number, a timeframe. **It must turn to the reader before its
+   first digit.**
+3. **Offer** — *what can you do for me?* Ten names, already pulled.
+4. **Close** — *what happens next?* Fifteen minutes, a clock on the deliverable,
+   and why these ten and not the other forty.
+5. **ps** — a costless no.
 
-90-130 words. No em-dashes. No links. No operator jargon. Sign off "Haytham".
+67 to 95 words. Plain text, no links, no price. Sign off "Haytham".
 
-## 4. The machine, in one line per stage
+## 4. Why it changed
 
-Each stage is a skill you fire by name. All four share the same chassis: fan out
-workers → an **independent verifier** re-checks the one claim the stage
-self-certifies → the orchestrator writes the CRM.
+The funnel auditor ran 589 leads and made nothing. Its reply rate was good
+(7-9% against a 1-5% benchmark). **Reply to call was 0 of 9.** Two causes: it
+sold a finding, and a finding in an inbox is a free fix — 4 of 9 engaged leads
+read it, fixed it themselves and left. And its CTA was a question, which selects
+for replies that are *answers*, and an answer is a dead end that looks like
+success.
 
-| Stage | Skill | What it produces |
-|---|---|---|
-| Fill the top | `source-leads` | raw names → `Sourced` |
-| Cheap gates | `qualify-leads` | Gate 0 (5 floors, incl. AED 5,000+ program) + Gate 1 → `Qualifying` |
-| Walk the funnel | `batch-audit` | verified finding **banked** → `Audit Ready` (held, no draft) |
-| Hook + draft | `haytham-hook-finder` | verified hook → held Gmail draft → `Draft Ready` |
-| You | — | review the drafts in Gmail, send by hand |
-| Daily loop | `uae-tick` | replies detected, follow-ups drafted, send queue handed over |
+The cold-email system that replaced the offer had the right ingredients and a
+pipeline with no repo, no state, and beats stapled together so the hook never
+connected to the paragraph after it.
 
-The walk still runs, and the finding still matters — it is just spent on the
-call now instead of in the inbox.
+**This machine keeps the auditor's chassis and the cold-email system's copy.**
+The join is that the hand-written lines became the drafting model's anchor, and
+a linter made that safe.
 
-## 5. The six things the code will not let you do
+## 5. The machine, one line per stage
 
-You do not have to hold these in your head; they fail closed.
-
-- **No send** without `Finding Verified` **and** `Email Verified`
-  (`crm-gate send`).
-- **No send over an inbox's daily ceiling**, per inbox, never pooled. 20 → 25 →
-  30, one step per 7+ days, your call only. 30 is the hard cap for one inbox;
-  more volume means more inboxes.
-- **No sends on Sunday**, Dubai calendar day, every inbox, cold and warm.
-- **No priced offer** until the lead has earned a number — an earned `Status` or
-  `Asked For Price` (`crm-gate offer`). A booked call is the rung that earns it.
-  The AED 500 Named Fifty is the one narrower path: `--tier attraction` needs
-  only a live thread, because an attraction offer exists to buy a customer.
-- **No lead below the money floor.** Gate 0 kills a coach whose top live
-  program is under AED 5,000 — the per-call arithmetic cannot work for her, so
-  a reply was never revenue.
-- **No bare bump.** Touches 2 and 3 (day 3, day 9) must each carry something
-  new: the next banked finding, the call ask, or the disambiguating question.
-  Then Dormant.
-
-And two rules only you can keep: **never log in as yourself anywhere**, and
-**never send an email from the machine.** It ends at Gmail drafts.
-
-## 6. Which docs to trust
-
-The reason this got blurry: retired offers left their docs behind, and a retired
-doc that still claims authority keeps winning arguments after it is dead.
-
-**Canonical — current, load-bearing, believe them:**
-
-| File | What it owns |
+| Stage | What it does |
 |---|---|
-| `CLAUDE.md` | the hard rules, the whole map |
-| `docs/uae-track/02-the-offer-first-five.md` | the offer, the price, the guarantees, the downsell ladder |
-| `docs/uae-track/05-the-named-fifty.md` | the AED 500 attraction offer and the money model |
-| `docs/uae-track/01-crm-operating-spec.md` | CRM schema, statuses, lifecycle |
-| `docs/uae-track/03-targeting-and-sourcing.md` | who to look for, where |
-| `docs/uae-track/04-the-outreach-method.md` | the motion, the walk, the sequence |
-| `.claude/skills/haytham-email-draft/references/` | `cold-reads.md`, `mechanics.md`, `uae-track.md` — the actual copy spec |
-| `docs/journal.md` | what happened, newest first |
+| `intake` | raw CSV to Leads, junk stripped, platform URLs routed to social |
+| `dedupe` | name/domain **before any paid call**, email again after research |
+| `fetch` | free local HTTP first, one batched Apify run for the rest |
+| research | `research-worker` per slice, objects schema-validated |
+| hook | `hook-worker` proposes, `hook-verifier` re-fetches the citation |
+| draft | `draft-worker` writes against the anchors, `draft-verifier` reads cold |
+| `lint` | everything mechanical, failing closed |
+| `export` | `leads.csv` (8 columns), `preview.txt`, `wall-additions.csv` |
+| `deal` | the batch's anchor lines, allocated so the weights hold |
+| `wall-add` | after you upload, the batch enters the wall |
+| `copy-usage` | after you upload, Copy Assets learns what shipped |
 
-**Advisory — real evidence, but they are studies, not instructions:**
-`docs/claude-docs/uae-market-study-2026-07.md`,
-`docs/claude-docs/nine-threads-and-phase10-correction.md`,
-`docs/claude-docs/outreach-system-vs-saraev-comparison.md`.
+Fire `outbound-batch` for a whole list, `outbound-draft` for one email.
 
-**Historical — do not work from these:**
-`docs/claude-docs/fix-list-final.md` (consumed, shipped),
-`docs/claude-docs/saraev-translation-a-to-z.md` (partly refuted by its own
-header), `docs/claude-docs/offer-the-first-five.md` (superseded by the repo copy
-at `docs/uae-track/02-the-offer-first-five.md`), `docs/journal-archive.md`.
+## 6. The things the code will not let you do
 
-**Rule of thumb for anything in your Claude project:** if a doc names a price
-that is not 2,000 / 900 / 500, or tells you to put a finding in an email, or
-asks a lead what they'd pay — it is dead. Those three tells catch nearly every
-stale document you have.
+- **No email in the upload file that failed the lint.** Not flagged — absent.
+- **No number that isn't true of a real client result**, and none attached to a
+  segment it doesn't belong to. `copy/results.csv` is the authority.
+- **No hook that a second agent couldn't re-fetch and confirm.** No hook found
+  is a good answer; the lead just holds.
+- **No paid call before the dedupe wall** (`data/contacted-before.csv`), and a
+  warm-thread hit stops the run. A missing wall file fails the run rather than
+  reading as "nobody has been contacted".
+- **No line from Airtable that fails the linter.** `copy-sync` is a gate: edit a
+  line to cite a number no client result supports and the sync refuses it,
+  writing nothing.
+- **No verdict without a source.** A hard yes/no naming nothing was reasoned,
+  not fetched, and the schema rejects it.
 
-## 7. What is actually still unknown
+And two only you can keep: **never log in as yourself anywhere**, and **never
+send from the machine.**
 
-Be honest about the open bet, because it is the only thing that matters now:
+## 7. The one instruction no code replaces
 
-- **No call has ever been booked, for anyone.** The call-ask CTA is one week
-  old. It has never been tested at volume.
-- **Nobody has bought The Named Fifty.** It is one day old and has never been
-  offered to a human. Test the cheap version first: example 8's "twenty names"
-  call ask tests the same premise (does a deliverable in the call fix reply →
-  call) at zero build cost.
-- **Volume is a fifth of the floor.** The Rule of 100 says 100 primary actions
-  a day; you run 15-50 across two inboxes. This is fixed with MORE INBOXES
-  (four to five at 20-25/day), never by sending more per inbox. It is the
-  largest uncapped lever you have and everything else is a percentage
-  improvement on a base five times too small.
-- **The delivery math is unproven.** Five calls in 30 days needs roughly one
-  reply in seven to book. Plausible — the CTA has never once asked — but it is a
-  bet, and Five or Free means you carry it.
+**Read `out/preview.txt` before you upload.** Ten emails, in full.
 
-So the single number to watch is **reply → call.** Everything upstream already
-works. If that number moves off zero, you have a business and a proof asset. If
-it stays at zero after a real sample, the problem is upstream of the CTA and you
-will know where to look next.
+The linter catches invented numbers, lost claims, jargon and repetition. It
+cannot catch a hook that lands wrong on a specific person, or a paragraph that
+passes every rule and still reads like a robot. That has always been the gate
+and it still is.
+
+## 8. What is actually unknown
+
+Be honest about the open bets, because they are what matter now:
+
+- **Reply to call has never been above zero.** The ten-names offer is a real
+  deliverable rather than a question, which is the fix — but it is a bet, not a
+  result.
+- **The tier-0 fetch rate is unmeasured.** Nobody has published what share of
+  coach sites a plain HTTP fetch can read. The first real batch measures it;
+  every cost estimate downstream depends on it.
+- **The ten must actually exist on the call.** The close now carries a clock.
+  Breaking that promise costs more than never making it — it is the first thing
+  she can check, and it happens before anything is sold.

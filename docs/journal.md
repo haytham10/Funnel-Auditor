@@ -1,3 +1,569 @@
+## 2026-07-31 (last copy gap) — Executive/individuals filled
+
+`id-exec-3`: *"The executives worth your time are already paying for help
+somewhere. AED 44,000 of that went to an executive coach I found the meetings
+for."*
+
+An Executive coach selling to individuals had exactly one usable line
+(`id-exec-2`), so the deal had to spill her to generic to stay under the
+repetition cap. `id-exec-1` is corporate-framed — budget holders — and unusable
+for a buyer paying for their own coaching. The new line frames the buyer as a
+senior person already spending on help, which is what individuals-facing means
+for this segment, and cites AED 44,000: a number neither other Executive line
+uses, so two Executive coaches comparing emails see different proof.
+
+**`thin_segments` is now empty.** Every segment/audience pool can hold its share
+without repeating a sentence, for the first time since the bank was written.
+
+400 tests green. The bank is 45 lines: 33 identity, 4 offer, 4 cta, 4 ps.
+
+## 2026-07-31 (the corporate generic) — and the mirror bug it uncovered
+
+Haytham: "write the corporate-facing generic identity line." Writing it was the
+small half. Looking at why Rohit needed it found a worse bug pointing the other
+way.
+
+**The generic identity pool ignored `sells_to` entirely.** `_identity_pools`
+took every `coach_type = Any` line regardless of audience, so an
+individuals-facing coach could be handed "I get coaches in front of the people
+who actually hold the budget" — corporate proof to a health coach whose buyer is
+one person paying for herself. That is the majority of this market, so it was
+the more common direction of the same fault a reader caught on Rohit. The
+identity beat's whole job is a matching reference group; a mismatched one is
+worse than a generic one, which is the argument the ICP notes already make about
+`sells_to` being collected rather than inferred.
+
+Fixed: a line tagged for an audience is generic only WITHIN that audience.
+Neutral (`any`) lines stay available to everyone, and a lead whose own
+`sells_to` is unknown draws only from those — guessing the reference group is
+exactly what an empty `sells_to` exists to avoid, so it must not be guessed here
+either. Verified end to end on mixed batches of 11, 30, 90 and 200: no lead
+receives the other audience's proof, no line over cap, no echo.
+
+**`id-corp-3`**, the new line: *"Your work lands in the room. The budget for it
+sits somewhere else. AED 120,000 signed from meetings I set up with the people
+holding it."* Both existing corporate generics are the same shape
+(decision-maker) citing the same Business figures, and nothing corporate-facing
+cited money. The opening two sentences are the corporate seller's actual problem
+stated plainly: the person you impress is not the person who releases the
+budget. Three corporate lines is also the minimum that can hold a pool under a
+35% cap.
+
+**One operational trap, now in the skill.** Re-dealing after drafting made the
+drift check reject two verified emails with "the drafter drew its own instead of
+using the batch's" — which is the opposite of what happened. The deal moved
+under them, because the pool changed. Export against the same deal file the
+drafts were written from; if you must re-deal, re-draft.
+
+399 tests green.
+
+## 2026-07-31 (the copy rewrite, second pass) — what a third cold read found
+
+Redrafted Rohit against the rewritten `id-any-6`, since his two holds had the
+same cause and that cause no longer existed. The reader refused him a third time
+— but for **different** reasons, and two of them were structural, which is the
+useful part.
+
+**My own rewrite of `id-any-6` was individuals-flavoured.** It ended "30 of the
+people I picked signed with a coach here this year", which describes people
+hiring a coach. That line lives in the GENERIC pool, so a corporate-facing lead
+draws it — and Rohit sells leadership and sales training to organisations. The
+reader: *"the number lands on a market he does not sell into."* Fixed to "turned
+into signed clients", which is neutral about whether the client is a person or an
+organisation. A generic line has to be.
+
+**`ps-04` has now been convicted by three separate readers.** "if this isn't your
+thing, no hard feelings at all" dodged every banned weak-closer phrasing while
+keeping their exact shape: *"hands him a pre-written way out one line after a
+firm fifteen-minute ask, and presumes a relationship where feelings could be
+hurt."* Rewritten to ask her to take the out rather than offer it. All four ps
+lines now ask for a decision instead of apologising for the ask, which is the
+pattern the readers kept circling.
+
+**Rohit holds after three attempts.** That is the right answer and it is worth
+recording why: corporate-facing, spilled to the generic pool, and an abstract
+hook about a drawing. Three different faults on three attempts is not a drafter
+problem, it is a lead the current copy cannot serve well. The `THIN` report has
+been saying the adjacent thing all along.
+
+394 tests green; the 8-lead file exports clean with a 2/2/2/2 ps spread.
+
+## 2026-07-31 (the copy rewrite) — three lines the cold reads convicted
+
+Haytham: "rewrite id-any-6, rewrite ps-01 and ps-03, fix all issues you found."
+All three had been named by independent cold readers, and all three were copy
+faults rather than drafting faults — which is why no amount of redrafting had
+fixed them.
+
+**`id-any-6` had no client result in it.** "I went through about a hundred coach
+sites here before writing to anyone. 6 published a price." It was tagged
+`shape=research`, and that was the problem: every other identity line carries an
+outcome, and this one carried an anecdote. A drafter had nothing to bridge from,
+and it produced BOTH stapled-beat failures in the batch — the only two. Two
+readers said the same thing independently: "the proof beat contains no proof: he
+learns Haytham browsed a hundred websites, not that Haytham produced anything for
+any coach." It also read as a poke at the reader's own unpriced site, and
+"finding who's worth your time is the job" left whose job unclear. The rewrite
+keeps the selection idea, which was the good part, and attaches the real
+aggregate: *"Deciding who is worth your time is most of my job. 30 of the people
+I picked signed with a coach here this year."* Shape is now `selection`.
+
+**`ps-01` denied something two of four offers never raise.** "not a list" only
+makes sense after an offer that mentions one. `b4-01` does — and collided with it
+under `check_echo`, so that pair could never be dealt at all — while `b4-03` and
+`b4-04` never mention a list, leaving the ps answering an objection the reader
+was never given. Now: *"ps: a straight no is a fine answer, and costs you
+nothing."* **All sixteen offer/ps pairs are dealable for the first time**, so
+`deal` no longer prints an ECHO line and `rebalance_ps` has nothing to work
+around. The machinery stays as a net for the next one.
+
+**`ps-03` cancelled the offer's own premise.** "a no here costs you nothing and
+costs me nothing" — a reader put it exactly: *if a no costs him nothing, the ten
+names he pulled by hand were not work.* Dropping that half keeps the costless
+exit for her and stops the email undercutting its own ask.
+
+Both new ps lines are also **firmer**, which was a third thing the readers kept
+flagging: they ask for a decision rather than offering an escape. One called
+`ps-04` "the soft exit the close is supposed to avoid."
+
+**Two drafts of these were too long before one fit.** The firmer phrasings ran
+15–16 words against the old 11–12, and `_check_hook_room` correctly refused the
+set: the longest line in each beat totalled 85, leaving 10 words for a hook
+against a 12-word minimum. Tightened to 12 and 10 words, hook room is back to 14.
+That check earned its place — the failure is invisible on any single row.
+
+**Also fixed: the machine was about to guess at someone's name.** A non-Latin
+surname reaches Smartlead's `last_name` column verbatim — a real lead on this
+batch shipped as Arabic script while his own LinkedIn slug carried the Latin
+spelling. `check_merge_fields` surfaces it rather than transliterating, because
+guessing someone's preferred spelling is the same class of error as inventing
+their address. The first version flagged "José Álvarez", which would have trained
+the reader to ignore the warning; it now decomposes accents and only fires on a
+genuinely different script.
+
+394 tests green. All three copy sources identical; every dealt combination legal
+at n = 8, 11, 25, 60 and 200.
+
+## 2026-07-31 (the diagnostic pass) — 16 findings, worst-first
+
+Haytham: "full diagnose end-to-end, no more loose ends, we need to ship." Two
+adversarial audits plus a systematic sweep of every command against every bad
+input. Everything below was reproduced before it was fixed.
+
+**The four that would have destroyed something.**
+
+*A blank `Warm` column beat the status.* `warm is not None` meant an empty
+checkbox overrode "Reply Received" and marked a live thread cold. A loose name
+match on a cold contact returns a `NameEcho`, which by design proceeds — so the
+one send this machine calls destructive rather than wasteful was reachable
+through an empty cell.
+
+*Shared link-in-bio hosts collapsed distinct people into one wall entry.* The
+live wall already had six rows keyed on `stan.store`, `linktr.ee` and
+`beacons.ai`, two of them warm. It broke both ways: a new coach on
+`linktr.ee/x` matched Lee Harris and was reported "already present", so she was
+emailed and then never walled; and any lead carrying `stan.store` hit a warm row
+and halted the batch. `domain_key` now returns "" for a host that identifies
+nobody — the path is the identity, and the registrable domain throws it away.
+
+*A blank email merged two leads in the deal.* Keyed by address, and
+`Research.email` defaults to "". Three leads in, two anchors out, with a Health
+coach holding a Business identity line and `deal` reporting "2 leads". Blank and
+duplicate addresses are now refused outright.
+
+*`.ae` was substring-matched over the whole page, and the marker scan ran before
+the stated-residence check.* "I am a coach based in Toronto. Read my essay at
+nowhere.aeon.co" returned YES on ".ae"; "Our client Marina came to us from
+Manchester" returned YES on "marina". A non-UAE coach passed the floor and got
+an identity line whose entire premise is the UAE reference group. A written
+statement of residence now outranks an incidental word, markers are word-bounded,
+and the TLD is checked on the domain only.
+
+**Two of the false-rejection bugs were mine, from this same session.** The
+jargon list and my new `_ECHO_PHRASES` both used raw substring tests: "optimism"
+tripped "optimi", "auditorium" and "auditioning" tripped "audit", "Detroit"
+tripped "ROI", and "realistic" tripped "list". Each dropped a whole email and
+named a word that was not in it — unfixable by the drafter, because the
+complaint was false. Both are word-bounded now, with explicit stems.
+
+**A lead lost to a date format.** dateutil parses month-first by default, so a
+UAE/UK "03/07/2026" silently became 7 March, and `check_active` is a floor where
+`no` is the only thing that kills. Separately, `extract_dates` sorted stale
+candidates first and truncated at 30 — and a stale candidate requires
+`days_past > 7`, so a genuinely recent date always sorted after them and fell
+off the end of a long events archive.
+
+**Three gates that could not fire.** The real reply rate (3.2%) was computed and
+then discarded by an `isinstance(n, int)` filter, while `lint._licensed` carried
+rounding logic that existed only to accept it — a true number was unwritable. A
+segment's own `sent` and `sourced` counts were documented as citable and left
+out of the set. And half of `check_subject`'s last check tested `text !=
+text.strip()` on an already-stripped string.
+
+**And the quieter ones.** An unchecked Airtable checkbox arrives ABSENT, not
+`False`, so `is False` never fired and retiring a line did nothing. A blocked
+batch left the previous run's `leads.csv` in the same default `out/` — reporting
+"nothing written" over a file that was still there and still uploadable. `null`
+from a worker crashed the schema gate rather than failing it. `batch_fetch` keyed
+on slug, so two directory rows sharing a company site got one read and the
+survivor's page text was the other person's. Repeated-subject failures printed in
+string-hash order, randomised per process, against a design that says a skill
+quotes the line verbatim.
+
+**Also this pass:** every command now exits 2 rather than tracebacking on a
+missing file, malformed JSON, the wrong JSON shape or an unrecognisable CSV —
+`wall-add` on a mistyped path used to print "0 added, 104 -> 104", which reads
+exactly like "already walled". The echo collision moved from the export gate to
+the deal, where it belongs: one email in sixteen was being rejected for a
+combination no drafter caused. `main.py lint` assembles the body from beats, so
+the PASS line a drafting worker is required to quote is obtainable at all.
+`research` accepts the slice array its own skill tells workers to produce. And
+the test suite was order-dependent — a stub over `audit.airtable` was restored
+only when a previous module existed, so twenty-four export tests failed in the
+full run and passed alone.
+
+385 tests green, order-independent forward and reverse. `tests/test_audit_regressions.py`
+pins all sixteen findings by failure mode.
+
+## 2026-07-31 (the first real batch) — 13 leads, end to end
+
+Haytham dropped a real list and said run all 12. Every number below is measured,
+not estimated, and every bug below was found by running the machine rather than
+reading it.
+
+**The funnel, stage by stage.** 13 rows in. Dedupe caught 1 (Salma El-Shurafa,
+already contacted, cold). Tier 0 read **9 of 12 sites free (75%)**, 5k to 86k
+characters each, and planned 2 batched Apify escalations rather than 12 separate
+ones. All 12 passed the three floors. **11 of 12 hooks found and independently
+verified (92%), zero refuted**, one clean no-hook (Nicola Tate: site is an
+unconnected Wix domain with no Wayback snapshot, newest LinkedIn post 137 days
+old, nothing on podcast or Instagram). 11 drafted, all 11 passed the linter.
+
+**Then the draft-verifier refuted 7 of 11.** That is the headline. The linter
+passed every one of them, and a cold reader who never saw them written sent back
+4 SEND and 7 REWRITE. It caught: three numbers stacked into one proof sentence
+so it reads as a pitch deck; "I got an executive coach here 6 meetings", which
+parses wrong on first read and does it on the credibility line; "on the last
+run", which tells the reader she is in a batch one line before the email claims
+the names were picked for her; a subject promising "the action step in your
+framework" over a body that opens on a different quote entirely; and one genuine
+stapled-beats failure where the drafter pasted the identity anchor in with no
+bridge sentence in front of it. The worker/verifier split is the whole reason
+this machine exists and this is the run that earned it.
+
+**Four bugs, three of which would have shipped.**
+
+1. *The website column never mapped.* The list used `companyWebsite`; the alias
+   table did not know that spelling, so 13 of 13 sites mapped to nothing and the
+   entire free site-read tier was skipped in silence. Added the sales-export
+   spellings, and `intake` now prints the columns it ignored.
+
+2. *Tier 0 crashed on the first page of the first site.* `extract_emails`
+   returns two buckets in a dict and `_harvest` called `list.extend()` on it,
+   which iterates the keys — so `read.emails` filled with the strings "personal"
+   and "generic" and died on `.get`. Unreachable with an empty page list, which
+   is what every existing test had. `tests/test_fetch.py` now feeds real HTML
+   through the real harvest, and the buckets stay apart until the end so a jane@
+   on page four still outranks an info@ on page one.
+
+3. *`coach_type` came back empty for 3 of 12 real headlines* — "Career and
+   Work-Life Balance Coach", "Chief Executive Officer Coach" — because the
+   patterns wanted the segment word adjacent to "coach". Added a loose pass
+   allowing words between them, restricted to the headline and tried only after
+   every strict pattern fails.
+
+4. *Eight of the thirty-one identity lines carried "her" or "him"*, which
+   `check_identity_pronouns` blocks — a quarter of the identity bank could not
+   ship as written, and every drafter dealt one had to notice and silently
+   rewrite it. Same class as yesterday's cta-02: `copy-sync` validated numbers,
+   attribution and claims but never ran the pronoun check. It does now, and the
+   eight lines are fixed in Airtable.
+
+**Two findings that only a reader could produce, one now mechanical.** The cold
+reader caught `b4-01` ("Not a scraped list") dealt alongside `ps-01` ("not a
+list") — the same denial twice in ninety words. Neither line is at fault, so the
+check belongs on the pair: `check_echo` now rejects any email whose offer, cta
+and ps repeat a distinctive phrase. It fires on exactly 1 of the 16 offer/ps
+combinations, and both test fixtures were using that pair, which is how common it
+is. The second finding has no mechanical fix yet: `id-any-6` is a research
+anecdote rather than a client result, and it was the one draft with no bridge —
+it may only be safe on a lead whose hook is already about market opacity.
+
+**A hazard worth naming.** Three draft-workers returned invented email addresses
+in their JSON (`andy@theteamspace.ae` for a `.com` lead, and two others). Nothing
+asked them for an address. The export takes the address from the lead record, so
+nothing shipped wrong, but an orchestrator that trusted the worker's field would
+mail the wrong person. Drafters should not be emitting addresses at all.
+
+Final: 10 of 13 in the upload file, Cheryl held on the echo check, Nicola held on
+no hook, Salma held on the wall. 337 tests green. Apify spend for the whole
+batch stayed inside the $29 cap at 25.6% before the run.
+
+## 2026-07-31 (last pass) — the hardening run, and the gate that was rejecting its own copy
+
+Haytham: "do a final run over every part... make sure the system is ready,
+bulletproof, and each part is synced." Two audit agents plus a full end-to-end
+run on a synthetic five-lead list. The end-to-end run is what found the worst
+one, which no static read would have.
+
+**The machine was dealing lines its own linter rejected.** `cta-02` promised the
+10 names and a same-day clock but never said *why those ten* — so `check_claims`
+rejected every email it was dealt to, and `b4-04` never used the word "names",
+failing the same check. Between them they silently condemned a share of every
+batch, and the rejection line pointed at the draft rather than at the line that
+caused it. `copy-sync` validated numbers, attribution, em-dashes, weights and
+segments, but never asked whether a line carried its own beat's claim tokens.
+It does now, and it fails closed. Identity is exempt on purpose: 22 of its 31
+lines open on a bare stat, and turning that toward the reader is the drafting
+model's job by design.
+
+Repaired both lines in Airtable (the runtime source of truth — editing the CSVs
+alone would have been overwritten by the next sync, and the live ladder was
+still dealing the broken text), then ran `copy-sync --live` so Airtable, the
+snapshot and the committed CSVs agree again.
+
+Fixing `cta-02` made it 7 words longer, which exposed the next thing: the hook is
+the only beat nobody writes in advance, so it absorbs every other beat's growth.
+Added `_check_hook_room` — the longest line in each beat must still leave 12
+words under the 95-word ceiling. Checked on the worst case, because the draw
+picks the combination and nobody gets to avoid it. The live bank passes with 12
+to spare, which is tight enough to be worth knowing.
+
+**The false-kill surface in `check_uae` was much bigger than the DXB case.** The
+rule was "X is not in UAE_CITIES", which is a statement about our list, not about
+the lead. Measured it against 29 real UAE localities: eleven returned a hard NO,
+including Al Barsha, Deira, Mirdif, Motor City and Emirates Hills. Every one of
+those is a Dubai coach telling us exactly where she is. The burden now sits on
+the kill: a NO needs a match in `FOREIGN_PLACES`, and an unrecognised place is
+`unclear`, which costs one research call. Added the districts to `UAE_MARKERS`
+too, so they pass rather than merely survive.
+
+**`name_key` sorted its tokens**, so "Ahmed Mohammed Ali", "Ali Mohammed Ahmed"
+and "Mohammed Ahmed Ali" were one key — three different men in a market where
+given names double as surnames, and a permanent invisible kill for two of them.
+The only case sorting bought was the inverted export, which is now handled by
+un-inverting the comma. The sorted key survives as `loose_name_key` with
+asymmetric consequences: it stops the run against a **warm** contact, and merely
+reports a `NameEcho` against a cold one. That asymmetry is the whole design in
+one function — a cold opener on a live thread destroys a conversation, a second
+cold email months later wastes a send.
+
+**Dead code that turned out not to be dead.** `extract_dates` had no caller;
+rather than delete it, wired it into `qualify.latest_activity_date`, which
+settles the active-in-30-days floor from page text instead of asking a worker
+whether a page feels current. Two bugs found while doing it: the copyright filter
+read the ±80-char context window, so a footer `©` discarded every date on the
+page (which is every page — `extract_dates` now also returns the tight `near`
+window it actually tested), and a year-less date would read a three-year-old
+"March 14" as this March. `extract_availability` really was dead and went with
+the audit — it made an un-buyable offer machine-visible, which was a *finding*,
+and findings are not what this machine sells.
+
+**`_rejoin_particles` was defined and never called.** Rewrote it as
+`_joined_surname`, which ADDS candidates rather than replacing the surname: an
+Al Fahim may use `alfahim@` or `fahim@`, and picking one silently loses the
+other. Single-letter particles only rejoin when an apostrophe follows them in
+the raw name, so "Jane L Smith" keeps `jane.smith@` instead of guessing
+`lsmith@`.
+
+Also: `write_batch`'s lint dict is keyed by email everywhere now (the test helper
+was still on slug, which is the collision the fix was about); `draft_lint` and
+`urls` had docstrings naming deleted modules as their consumers; and
+`tests/test_cli_failures.py` is new — nothing pinned the exit codes the skills
+quote, and exit 2 ("the check could not run") is the one that must never be
+mistaken for exit 0.
+
+326 tests green. End-to-end run writes 3 of 3 with the anchors held.
+
+## 2026-07-31 (later still) — Copy Assets stopped being an inert table
+
+Haytham: "the copy assets just sit there as a table, it shouldn't be a
+bottleneck." Three things were true, and measuring first is what found the
+second and third.
+
+**1. Editing it had arithmetic homework attached.** Adding a fifth offer line
+meant renumbering the other four roll ranges by hand so the spans stayed
+contiguous, with a validator that failed the whole sync on a slip. Replaced with
+a plain `Weight` on any scale, blank meaning equal share. Ranges are derived at
+load, so the gap-and-overlap failure class is gone rather than checked. `Line ID`
+now generates from the text when blank and `Word Count` is computed, so adding a
+line is three cells: Beat, Line, Weight.
+
+**2. The declared weights were fiction at real batch sizes.** Measured before
+touching anything: independent per-lead hashing over the live offer lines gave
+`b4-04` 8% against a declared 20% at n=50, pushed `b4-03` to 38% over the 35%
+cap, and only converged near n=200. Added `deal` — largest-remainder allocation
+over the whole batch. Worst miss at n=50 went 13 points to 1, and the cap is now
+satisfied by construction instead of warned about afterwards. `anchors` keeps the
+per-lead draw for single-lead work where there is no batch to balance.
+
+**3. Nothing ever came back.** Added `copy-usage`, which reports which lines
+actually shipped into `Times Used` / `Last Used` after an upload. The weights are
+guesses today and usage plus reply data is the only thing that can replace a
+guess with a measurement. Additive, deliberately not idempotent, unlike
+`wall-add` — flagged in the output because the asymmetry could bite.
+
+**Three bugs found while doing it, two of them pre-existing:**
+
+- `exact_both + exact_type` put the same identity line in the pool twice
+  whenever `sells_to` was `any`. That silently double-weighted those lines in
+  the old per-lead draw, and made the batch deal issue more seats than there
+  were leads. Deduped.
+- **Alphabetical tie-breaking was systematically biased.** With 3 leads over 9
+  equally-weighted identity lines every remainder ties, and sorting by id handed
+  all three seats to `id-any-1/2/3` — so small segment groups never drew their
+  matched line at all, which is the entire point of the pool. Ties now break on
+  a hash of the id.
+- **Dealing generics per segment clustered across the batch.** Six small segment
+  groups each independently picked the same first generic line and put it in
+  front of 42% of a 12-lead batch. The generic pool is shared, so it is now
+  dealt once across the whole batch after each segment's matched share is taken.
+
+**One content gap surfaced, not papered over.** Executive has exactly one
+identity line usable for an individuals-facing lead, so a straight 70% match
+rate put that sentence in front of 70% of the batch. The cap outranks the ratio,
+so the excess spills to generic — but `deal` now prints a `THIN` line naming the
+segment and the shortfall, because the spill is the workaround and writing
+another line is the fix.
+
+Copy Assets rebuilt (12 fields, seeded from Python rather than by hand) and
+`audit/airtable.py` gained a narrow write path. 280 tests pass. Verified live:
+deal → copy-sync → export → copy-usage → read back → reset.
+
+### Open follow-ups
+- [ ] Write a second Executive identity line for individuals-facing leads.
+      `python main.py deal` prints the shortfall on any batch containing one.
+- [ ] `Times Used` becomes useful only when reply data lands. Per-line reply
+      rate is the number that turns the weights from guesses into measurements,
+      and it needs Smartlead replies flowing back.
+
+## 2026-07-31 (later) — Airtable read wired, wall moved to the repo, Smartlead columns pinned
+
+Four asks, and two real bugs found while doing them.
+
+**The Airtable read is a gate, not a copy.** `outbound/copy_sync.py` pulls Copy
+Assets and validates every line before writing: numbers must trace to
+`copy/results.csv`, no number may sit next to a segment it doesn't belong to,
+and the weighted beats must cover 1-100 with no gap or overlap. Nothing is
+written if anything fails. That last check was already needed and missing — a
+gap in the roll ranges means some leads draw nothing and fall through to a
+positional fallback nobody chose.
+
+`anchors.CopyBank.load()` now tries live Airtable, then the last synced
+snapshot, then the CSVs. `AIRTABLE_API_KEY` turned out to be live in the
+environment after all, so the direct path is running today.
+
+**Bug 1, found by the tests hanging: no cache.** `load()` fetched on every
+call, so five draws made five HTTP requests. A 200-lead batch would have made
+200 and tripped Airtable's 5-req/sec limit. Now cached per process, with
+`OUTBOUND_COPY_SOURCE=csv` to force offline (the test suite sets it via
+conftest, so the suite is network-free and doesn't depend on live data).
+
+**Bug 2, found by round-tripping the real CSVs through a live fetch and
+diffing: order changed the draw.** Airtable returns records in view order and
+`draw_identity` indexes into the list, so the same lead drew a *different* line
+depending on which source the bank loaded from. Deterministic within a source,
+false across them. Fixed with a canonical sort by id everywhere; `copy/identity.csv`
+is reordered in this commit as a result (content byte-identical, verified). A
+test now asserts all three sources agree.
+
+**Contacted Before moved to `data/contacted-before.csv`** — 104 rows, 9 warm —
+and the Airtable table was deleted. Two walls that can disagree is worse than
+either, and the dangerous direction is the repo one going stale while Airtable
+looks current, since the repo one is what runs. It is read on every batch, never
+needs a view, and appending is a commit, so the wall has a history for free.
+`dedupe` now exits 2 on an unreadable wall rather than passing the batch.
+
+**Export writes exactly eight Smartlead columns**: email, first_name, last_name,
+website, linkedin_url, location, subject, body. Nothing analytical — that lives
+in Airtable. It also writes `wall-additions.csv`, deliberately NOT applied:
+nothing is sent at export time, and walling a lead who never received anything
+would silently exclude her from every future batch. `main.py wall-add` closes
+that loop after the upload, idempotently.
+
+**Leads table rebuilt lean**, 34 fields to 28, grouped in the order the machine
+fills them. Two real simplifications: the three floors collapsed into
+`Qualified` (checkbox) + `Failed Floors` (multi-select), which is the query that
+actually matters; and Status went 11 options to 7, with hold reasons living in
+`Blockers` as text rather than as five near-identical statuses. New table ID
+`tbl51dU7ojrxCVfxZ`. Copy Assets seeded with all 43 lines.
+
+250 tests pass. The whole loop verified live end to end: live Airtable read →
+copy-sync → intake → dedupe (stopped on a planted warm lead) → export →
+wall-add → next batch blocks the walled lead.
+
+### Open follow-ups
+- [ ] `results.csv` is repo-only on purpose (lines are voice and get tweaked;
+      results are audited evidence). Revisit if that friction bites.
+- [ ] Move the Airtable base to its own workspace — the MCP can create a base
+      but not a workspace, so it is in "My Workspace".
+- [ ] Follow-ups (touch 2/3) still not built. Smartlead sequence steps; nobody
+      has decided whether they should be per-lead personalised.
+- [ ] First real batch still needs to measure the tier-0 fetch rate and
+      reconcile Apify cost against the dashboard.
+
+## 2026-07-31 — Rebuilt as an outbound machine: audit out, anchored AI drafting in
+
+Merged the funnel auditor with the cold-email system Haytham had been running
+separately. The auditor's offer is dead (589 leads, 0 AED, reply→call 0/9); its
+chassis is not. The cold-email system's offer and copy are good; its pipeline
+was not.
+
+**What the merge actually is:** the hand-written copy lines became the drafting
+model's ANCHOR rather than bricks it concatenates. The model authors the hook
+and owns the seams between beats, and may re-voice an anchor for flow, but may
+not change what the anchor claims. That is only safe because `outbound/lint.py`
+makes every failure mechanical.
+
+**Deleted** (~7,400 lines): crawler, evidence, vision gate, Gate 0 floors,
+crm_gate, dashboard, send_cap, inboxes, touchlog, calendar_state, checks/,
+config.py, the whole Gmail path, docs/leads (370 files), every funnel-audit
+skill and agent. Firecrawl is gone from the environment, so the fetch ladder is
+now local HTTP → WebSearch/WebFetch → one batched Apify run.
+
+**Built:** `outbound/` (normalize, dedupe, fetch, qualify, research, anchors,
+lint, export), `copy/` (the four line files + results.csv, the fact table),
+skills `outbound-batch` and `outbound-draft`, agents research-worker,
+hook-worker, hook-verifier, draft-worker, draft-verifier. 209 tests pass.
+
+**Two things the linter caught that I had wrong**, both worth remembering:
+- The first version rejected `id-corp-1` and `id-any-5` — real hand-written
+  lines that *widen* a Business result to "coaches here". Widening is explicitly
+  sanctioned; the failure is only relabelling (a number next to a segment it
+  doesn't belong to). Split into `check_numbers` (invention) and
+  `check_attribution` (relabelling).
+- Periods needed exact unit equivalents: "60 days" and "2 months" are the same
+  fact, and a checker that only knows one rejects an honest line. Approximations
+  are deliberately NOT licensed — 45 days is not 6 weeks.
+
+**Airtable:** new base `appejF07kunksqt4D` ("Outbound Machine") — Leads,
+Batches, Copy Assets, Contacted Before. Seeded Contacted Before with all 103
+previously-contacted leads from the old CRM, 9 flagged warm (Ben Pringle,
+William Brown, Lucia Csobonyei, Lee Harris, Lisa Hugo, Avneet Kohli, Rita Baki,
+Wafa Bassili, Donna Brown). Old base `appaBExqyEZykb1Qk` is archive only.
+
+**ICP narrowed to three measurable floors:** UAE-based, is a coach, active in
+30 days. Audience and program price are captured, never gated — audience
+decoupled from the offer once we started selling her clients rather than
+leverage on her list, and a price floor reads unclear on ~94% of coach sites.
+
+### Open follow-ups
+- [ ] Smartlead column names, so `export.py` writes them exactly. Currently
+      `email, first_name, last_name, full_name, company, subject, body` + lead
+      fields.
+- [ ] Move the Airtable base to its own workspace (the MCP can create a base but
+      not a workspace, so it landed in "My Workspace").
+- [ ] Copy Assets table is created but empty and NOT yet read by `anchors.py` —
+      `copy/*.csv` is authoritative. Wire the Airtable read, or drop the table.
+- [ ] First real batch: measure the tier-0 fetch rate. Nobody has published what
+      share of coach sites a plain HTTP fetch can read, and every cost estimate
+      downstream depends on it.
+- [ ] Reconcile that batch's real Apify cost against the usage dashboard. The
+      last paper estimate was wrong by 6-7x.
+- [ ] Follow-ups (touch 2/3) are not built. They are Smartlead sequence steps
+      and nobody has decided whether they should be per-lead personalised.
+- [ ] Sourcing is phase 2. Phase 1 is drop-a-list only.
+
 # Project Journal — cross-session memory
 
 The narrative git history and Notion don't capture: **what happened each

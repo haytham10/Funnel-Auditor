@@ -1,627 +1,803 @@
-"""
-Funnel Auditor — CLI entry point.
+"""The outbound machine's CLI. Python owns every check; the model owns the words.
 
-Usage:
-    python main.py walk <url> [--name NAME] [--handle @H] [--followers N] [--out DIR]
-    python main.py crawl <url>          # crawl + summary only, no evidence packet
-    python main.py <url>                # same as walk
+The division of labour that survived the pivot from the funnel-auditor: a skill
+fetches and reasons, and then calls one of these commands to decide. Anything a
+machine can settle deterministically — a number that isn't in the fact table, a
+duplicate name, a floor verdict with no source behind it — is settled here and
+printed as a line the skill quotes verbatim rather than paraphrases.
 
-`walk` produces the full evidence packet (evidence.json + packet.md + page
-text + screenshots) under ./evidence/<slug>/ — the machine half of the
-5-stop funnel walk, ready to hand to the opener-finder skill. It drives a
-real Playwright/Chromium browser and is the fallback fetch path.
+Every gate fails closed. A check that cannot run is a failure, never a pass.
 
-The primary fetch path (Firecrawl, driven by the calling skill rather than
-this CLI) uses four narrower commands instead of `walk`, so the scope,
-priority, and analysis logic stay in one place regardless of which layer
-did the fetching:
-
-    python main.py discover-links <html-file> <url> [--platform NAME]
-    python main.py discover-checkout <html-file> <url>
-    python main.py screenshot-name <url> <suffix>
-    python main.py ingest <manifest.json> [--name] [--handle] [--followers] [--out DIR]
-
-See `.claude/skills/process-lead/SKILL.md` Step 1 for the orchestration
-that calls these, and the module docstrings in `audit/crawler.py` /
-`audit/evidence.py` for what each wraps.
+    intake      raw CSV -> profiled, junk-stripped Leads
+    dedupe      the Contacted-Before wall, both passes
+    wall-add    append a shipped batch to the wall, after it is uploaded
+    qualify     the three floors, run over a research JSON
+    research    validate one worker's returned research object
+    anchors     which hand-written lines a lead draws, and what it may cite
+    deal        the same, for a whole batch, with the weights held exactly
+    copy-usage  report a shipped batch's line usage back to Airtable
+    copy-sync   pull the lines out of Airtable, rejecting any that fail the lint
+    lint        the checks that make model-written copy safe
+    export      leads.csv + preview.txt, refusing to write a failing email
+    email-*     address shape, deliverability, and the no-address fallback
+    apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
+    classify-footprint   merge pre-fetched search hits into sourcing candidates
 """
 
 import argparse
+import csv
 import json
+import os
 import sys
 from pathlib import Path
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich import box
-from rich.text import Text
 
-from config import EVIDENCE_DIR
-from audit.urls import slugify
-from audit import inboxes, vision_gate
-
-# audit.crawler (Playwright/bs4 stack) is imported lazily inside the commands
-# that fetch or parse pages, so the gate commands (crm-gate, send-cap, vision)
-# keep working on machines without the crawl dependencies installed.
-
-console = Console()
+# --------------------------------------------------------------------- intake
 
 
-def print_summary(result: "CrawlResult") -> None:
-    console.print()
-    console.print(
-        Panel.fit(
-            f"[bold cyan]Funnel Auditor[/bold cyan]  •  [dim]{result.seed_url}[/dim]",
-            border_style="cyan",
-        )
-    )
-    console.print(
-        f"[bold]Platform detected:[/bold] [yellow]{result.platform.upper()}[/yellow]\n"
-    )
+def cmd_intake(args) -> None:
+    """Raw list -> Leads, with junk stripped and platform URLs routed.
 
-    # --- Funnel path table ---
-    if result.pages:
-        path_table = Table(
-            "Depth", "Type", "URL", "Title", "Load (ms)", "Desktop SS", "Mobile SS", "Error",
-            box=box.ROUNDED,
-            title="[bold green]Funnel Path[/bold green]",
-            show_lines=True,
-        )
-        for p in result.pages:
-            error_text = Text(p.error[:60] + "…" if len(p.error) > 60 else p.error, style="red") if p.error else Text("—", style="dim")
-            path_table.add_row(
-                str(p.depth),
-                f"[cyan]{p.link_type}[/cyan]",
-                p.url[:60] + ("…" if len(p.url) > 60 else ""),
-                p.title[:40] + ("…" if len(p.title) > 40 else "") if p.title else "[dim]—[/dim]",
-                f"{p.load_time_ms:.0f}" if p.load_time_ms else "[dim]—[/dim]",
-                "✓" if p.screenshot_desktop else "[red]✗[/red]",
-                "✓" if p.screenshot_mobile else "[red]✗[/red]",
-                error_text,
-            )
-        console.print(path_table)
-
-    # --- Funnel links found ---
-    if result.funnel_links:
-        console.print()
-        fl_table = Table(
-            "Category", "Label", "URL",
-            box=box.SIMPLE,
-            title="[bold yellow]Funnel-Relevant Links Found[/bold yellow]",
-        )
-        for lnk in result.funnel_links:
-            fl_table.add_row(
-                f"[green]{lnk['category']}[/green]",
-                lnk["label"][:40] or "[dim]—[/dim]",
-                lnk["url"][:70] + ("…" if len(lnk["url"]) > 70 else ""),
-            )
-        console.print(fl_table)
-
-    # --- Noise links ---
-    if result.noise_links:
-        console.print()
-        nl_table = Table(
-            "Label", "URL",
-            box=box.SIMPLE,
-            title=f"[dim]Noise Links Skipped ({len(result.noise_links)})[/dim]",
-        )
-        for lnk in result.noise_links:
-            nl_table.add_row(
-                lnk["label"][:40] or "[dim]—[/dim]",
-                lnk["url"][:70] + ("…" if len(lnk["url"]) > 70 else ""),
-            )
-        console.print(nl_table)
-
-    console.print()
-    console.print(f"[bold]Pages crawled:[/bold] {len(result.pages)}")
-    console.print()
-
-
-def _normalize_url(url: str) -> str:
-    url = url.strip()
-    return url if url.startswith("http") else "https://" + url
-
-
-def cmd_walk(args: argparse.Namespace) -> None:
-    from audit.crawler import crawl
-    from audit.evidence import build_evidence
-
-    url = _normalize_url(args.url)
-    slug = slugify(args.name or args.handle or url)
-    out_dir = Path(args.out) if args.out else Path(EVIDENCE_DIR) / slug
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    console.print(f"\n[bold cyan]Walking funnel:[/bold cyan] {url}")
-    console.print(f"[dim]Evidence packet → {out_dir}[/dim]\n")
-
-    with console.status("[bold green]Crawling funnel…[/bold green]", spinner="dots"):
-        result = crawl(url, screenshot_dir=str(out_dir / "screenshots"))
-
-    print_summary(result)
-
-    with console.status("[bold green]Building evidence packet…[/bold green]", spinner="dots"):
-        packet_dir = build_evidence(
-            result,
-            out_dir,
-            lead_name=args.name or "",
-            handle=args.handle or "",
-            followers=args.followers,
-        )
-
-    console.print(Panel.fit(
-        f"[bold green]Evidence packet ready[/bold green]\n"
-        f"[bold]{packet_dir / 'packet.md'}[/bold]\n"
-        f"{packet_dir / 'evidence.json'}",
-        border_style="green",
-    ))
-    console.print()
-
-
-def cmd_crawl(args: argparse.Namespace) -> None:
-    from audit.crawler import crawl
-
-    url = _normalize_url(args.url)
-    console.print(f"\n[bold cyan]Starting crawl:[/bold cyan] {url}\n")
-    with console.status("[bold green]Crawling funnel…[/bold green]", spinner="dots"):
-        result = crawl(url)
-    print_summary(result)
-
-
-def cmd_slug(args: argparse.Namespace) -> None:
-    print(slugify(args.value))
-
-
-def cmd_discover_links(args: argparse.Namespace) -> None:
-    """Wraps extract_links() + detect_platform() for a page whose HTML was
-    fetched by something other than this process (Firecrawl, driven by a
-    skill). Prints JSON so the caller can decide what to fetch next —
-    scope/priority rules stay defined here, once, regardless of fetcher."""
-    from audit.crawler import detect_platform, extract_links
-
-    html = Path(args.html_file).read_text()
-    url = _normalize_url(args.url)
-    platform = args.platform or detect_platform(url)
-    funnel_links, noise_links, external_refs = extract_links(html, url, platform)
-    print(json.dumps({
-        "platform": platform,
-        "funnel_links": funnel_links,
-        "noise_links": noise_links,
-        "external_refs": external_refs,
-    }, indent=2))
-
-
-def cmd_discover_checkout(args: argparse.Namespace) -> None:
-    """Wraps extract_checkout_links() — the Stop 4 checkout-hop discovery,
-    same scope rules as discover-links, for a page fetched elsewhere."""
-    from audit.crawler import extract_checkout_links
-
-    html = Path(args.html_file).read_text()
-    url = _normalize_url(args.url)
-    print(json.dumps(extract_checkout_links(html, url), indent=2))
-
-
-def cmd_screenshot_name(args: argparse.Namespace) -> None:
-    """Prints the exact filename crawl() would have used for this URL +
-    suffix (desktop/mobile), so a screenshot fetched by something other
-    than Playwright lands under evidence/<slug>/screenshots/ with a name
-    the packet renderer and vision-gate path matching already expect."""
-    from audit.crawler import _safe_filename
-
-    print(f"{_safe_filename(_normalize_url(args.url))}_{args.suffix}.png")
-
-
-def _page_from_manifest(entry: dict, manifest_dir: Path) -> "CrawledPage":
-    from audit.crawler import CrawledPage
-
-    html = ""
-    html_file = entry.get("html_file")
-    if html_file:
-        html = (manifest_dir / html_file).read_text()
-    return CrawledPage(
-        url=entry["url"],
-        title=entry.get("title", ""),
-        link_type=entry["link_type"],
-        load_time_ms=entry.get("load_time_ms", 0.0),
-        screenshot_desktop=entry.get("screenshot_desktop", ""),
-        screenshot_mobile=entry.get("screenshot_mobile", ""),
-        depth=entry.get("depth", 0),
-        source_url=entry.get("source_url", ""),
-        error=entry.get("error", ""),
-        http_status=entry.get("http_status", 0),
-        external=entry.get("external", False),
-        html=html,
-        cta_clicks=entry.get("cta_clicks", []),
-    )
-
-
-def cmd_ingest(args: argparse.Namespace) -> None:
-    """Reads a manifest JSON describing pages fetched by something other
-    than this process's own crawl() (Firecrawl, driven by a skill),
-    reconstructs a CrawlResult exactly as crawl() would have produced, and
-    runs it through the UNCHANGED build_evidence() — identical output
-    contract to `main.py walk`, regardless of which layer did the fetch."""
-    from audit.crawler import CrawlResult
-    from audit.evidence import build_evidence
-
-    manifest_path = Path(args.manifest)
-    manifest_dir = manifest_path.parent
-    manifest = json.loads(manifest_path.read_text())
-
-    pages = [_page_from_manifest(p, manifest_dir) for p in manifest["pages"]]
-    result = CrawlResult(
-        seed_url=manifest["seed_url"],
-        platform=manifest.get("platform", "direct"),
-        pages=pages,
-        funnel_links=manifest.get("funnel_links", []),
-        noise_links=manifest.get("noise_links", []),
-        external_refs=manifest.get("external_refs", []),
-    )
-
-    slug = slugify(args.name or args.handle or result.seed_url)
-    out_dir = Path(args.out) if args.out else Path(EVIDENCE_DIR) / slug
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    console.print(f"\n[bold cyan]Ingesting pre-fetched pages:[/bold cyan] {result.seed_url}")
-    console.print(f"[dim]Evidence packet → {out_dir}[/dim]\n")
-
-    print_summary(result)
-
-    with console.status("[bold green]Building evidence packet…[/bold green]", spinner="dots"):
-        packet_dir = build_evidence(
-            result,
-            out_dir,
-            lead_name=args.name or "",
-            handle=args.handle or "",
-            followers=args.followers,
-        )
-
-    console.print(Panel.fit(
-        f"[bold green]Evidence packet ready[/bold green]\n"
-        f"[bold]{packet_dir / 'packet.md'}[/bold]\n"
-        f"{packet_dir / 'evidence.json'}",
-        border_style="green",
-    ))
-    console.print()
-
-
-def cmd_vision(args: argparse.Namespace) -> None:
-    evidence_dir = Path(args.evidence_dir)
-    if args.vision_command == "init":
-        vision_gate.init_manifest(evidence_dir)
-        vision_gate.print_check(evidence_dir)
-    elif args.vision_command == "mark":
-        marked, unknown = vision_gate.mark_read(evidence_dir, *args.paths)
-        for m in marked:
-            console.print(f"[green]marked read:[/green] {m}")
-        for u in unknown:
-            console.print(f"[red]not in manifest, NOT counted:[/red] {u} "
-                          f"— run `python main.py vision list {evidence_dir}` to see valid paths")
-        if unknown:
-            sys.exit(1)
-    elif args.vision_command == "check":
-        sys.exit(vision_gate.print_check(evidence_dir))
-    elif args.vision_command == "list":
-        sys.exit(vision_gate.print_list(evidence_dir))
-
-
-def _cold_read_choices():
-    """The sanctioned cold-read pattern ids, read from the gate so the CLI
-    cannot drift from `audit.crm_gate.COLD_READS` the way the carrier lists
-    did before they were deduped.
-
-    The RETIRED ids are included on purpose. If argparse rejected them up
-    front the caller would get a bare "invalid choice", where the gate has a
-    real explanation ready — that a price-display observation does not
-    terminate in an empty chair, and which patterns to redraft on. Accept
-    them here so the gate is the thing that fails, and fails usefully."""
-    from audit.crm_gate import COLD_READS, RETIRED_COLD_READS
-    return COLD_READS + RETIRED_COLD_READS
-
-
-def cmd_crm_gate(args) -> None:
-    from audit import crm_gate
-    if args.gate == "offer":
-        sys.exit(crm_gate.print_offer(args.row_json, tier=args.tier))
-    if args.gate == "log":
-        if not args.page_body:
-            print("CRM GATE (log): FAIL — --page-body is required: path to the lead's "
-                  "page body, fetched FRESH and dumped verbatim, so the gate can re-derive "
-                  "the touch history itself rather than trust a caller's count.")
-            sys.exit(2)
-        sys.exit(crm_gate.print_log_integrity(args.row_json, args.page_body))
-    if args.sends_today is None:
-        print("CRM GATE (send): FAIL — --sends-today is required: TOTAL sends already "
-              "out of the inbox today (all touch types, warm included, both tracks — "
-              "count Gmail's sent mail, cross-check the CRM). This gate validates "
-              "what it's handed, it can't count Gmail itself.")
-        sys.exit(2)
-    if args.touch is None:
-        print("CRM GATE (send): FAIL — --touch is required (1, 2, or 3). Openers and "
-              "follow-ups budget differently: follow-ups due today eat the budget "
-              "first, openers get what's left.")
-        sys.exit(2)
-    if args.touch == 1 and args.followups_due is None:
-        print("CRM GATE (send): FAIL — --followups-due is required for a touch 1 "
-              "opener: count today's still-unsent follow-ups (warm replies owed, "
-              "discovery questions due, cold touch 2/3 due) and hand the number over. "
-              "They eat the budget before any new open does.")
-        sys.exit(2)
-    if args.touch >= 2 and args.carries is None:
-        print("CRM GATE (send): FAIL — --carries is required for any touch >= 2, cold or "
-              "warm (second-cold-read | call-ask | disambiguating-question). A follow-up "
-              "that just bumps is a wasted send and a spam signal; declare what new "
-              "thing this one carries.")
-        sys.exit(2)
-    if args.touch == 1 and args.cold_read is None:
-        from audit.crm_gate import COLD_READS
-        print("CRM GATE (send): FAIL — --cold-read is required for a touch 1 opener: "
-              "which cold-read pattern the draft was built from "
-              f"({' | '.join(COLD_READS)}). See "
-              ".claude/skills/haytham-email-draft/references/cold-reads.md. (Replaced "
-              "--opener-rank on 2026-07-27, when the opener stopped being a finding. "
-              "The discipline is the same one: declare what the draft was built from "
-              "so the gate can refuse anything off the sanctioned list.)")
-        sys.exit(2)
-    sys.exit(crm_gate.print_send(
-        args.row_json, args.sends_today, args.touch, args.followups_due, args.carries,
-        inbox=args.inbox, sends_next_day=args.sends_next_day, cold_read=args.cold_read,
-    ))
-
-
-def cmd_calendar_state(args) -> None:
-    """How full is a lead's public booking calendar? Three unauthenticated
-    GETs against the same endpoint her own booking widget calls — no browser,
-    no login, nothing reserved.
-
-    Exists because The First Five sells booked calls, so the opener had to
-    stop being a funnel-mechanics defect (which the coach fixes herself in
-    five minutes and then leaves) and start being something she cannot fix by
-    editing a page. A calendar with most of the month unbooked is exactly
-    that. See audit/calendar_state.py for why this is a plain HTTP call and
-    not a Playwright pass, and for the transient-400 trap it guards against.
-
-    Prints the state JSON. Exit 1 on any error — an unreadable calendar is
-    never reported as an empty one.
+    Prints the batch profile before anything is spent. A platform URL in the
+    website column is not junk; it becomes a social research target, which is
+    what the old pipeline got wrong when it discarded 24 rows for having a
+    LinkedIn address where a domain was expected.
     """
-    from audit import calendar_state
+    from outbound import normalize
+
     try:
-        state = calendar_state.check(
-            _normalize_url(args.url), window_days=args.days, timezone=args.timezone,
-            reads=args.reads,
-        )
-    except calendar_state.CalendarStateError as exc:
-        print(json.dumps({"url": args.url, "error": str(exc)}, indent=2))
-        sys.exit(1)
-    print(json.dumps(state, indent=2))
+        leads = normalize.load_csv(args.path, source=args.source or args.path)
+    except OSError as exc:
+        print(f"INTAKE: FAIL — cannot read {args.path}: {type(exc).__name__}.")
+        sys.exit(2)
+    shape = normalize.profile(leads)
+
+    if args.json:
+        print(json.dumps({"profile": shape,
+                          "leads": [l.to_dict() for l in leads]},
+                         indent=2, default=str))
+        return
+
+    print(f"INTAKE {args.path}: {shape['total']} rows")
+    print(f"  live site         {shape['with_site']}")
+    print(f"  social only       {shape['social_only']}")
+    print(f"  email on the row  {shape['with_email']}")
+    print(f"  nothing to work   {shape['no_research_target']}")
+    if shape["parked_names"]:
+        print("  parked: " + ", ".join(shape["parked_names"]))
+    # Silence here is expensive. The first real list used `companyWebsite`,
+    # which the alias table did not know, so 13 of 13 sites mapped to nothing
+    # and the whole free site-read tier was skipped without a word.
+    unmapped = normalize.unmapped_headers(args.path)
+    if unmapped:
+        print(f"  ignored columns   {', '.join(unmapped)}")
+        print("                    (if one of those is the website or the name, "
+              "add it to COLUMN_ALIASES before running the batch)")
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([l.to_dict() for l in leads], indent=2, default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.out}")
 
 
-def cmd_refresh_finding(args) -> None:
-    from audit import crm_gate
-    sys.exit(crm_gate.print_refresh_finding(
-        args.row_json, args.rank, url=args.url, page_file=args.page_file,
-        baseline_file=args.baseline_file, save_baseline_to=args.save_baseline_to,
-    ))
+# --------------------------------------------------------------------- dedupe
 
 
-def cmd_send_cap(args) -> None:
-    from audit import send_cap
-    if args.cap_command == "status":
-        sys.exit(send_cap.print_status(inbox=args.inbox, show_all=args.all))
-    if args.cap_command == "log":
-        sys.exit(send_cap.print_log(args.inbox, args.kind, args.detail))
-    sys.exit(send_cap.print_set(args.value, inbox=args.inbox))
+def _load_leads(path: str):
+    from outbound.normalize import Lead
+    data = _load_json(path, "LEADS")
+    if not isinstance(data, list):
+        print(f"LEADS: FAIL — expected a JSON array of leads in {path}, got "
+              f"{type(data).__name__}.")
+        sys.exit(2)
+    known = set(Lead.__dataclass_fields__)
+    return [Lead(**{k: v for k, v in row.items() if k in known}) for row in data]
 
 
-def cmd_inbox(args) -> None:
-    """Inbox registry management — the seam between logical labels
-    (Inbox 1/2/N, used by the CRM, the cap file, and the gate) and the real
-    sending addresses + transports. See audit/inboxes.py."""
-    from audit import inboxes, send_cap
-    if args.inbox_command == "list":
-        caps = send_cap.load_all()
-        rows = []
-        for ib in inboxes.all_inboxes():
-            st = caps.get(ib.label)
-            if st is None:
-                cap_str = "unregistered (fails closed to 20)"
-            elif not st.valid:
-                # A corrupt entry must not display as a clean ceiling.
-                cap_str = f"{st.cap}/day (FAILED CLOSED: {st.problem})"
-            else:
-                cap_str = f"{st.cap}/day"
-            flag = " (primary)" if ib.is_primary else ""
-            rows.append({
-                "label": ib.label,
-                "address": ib.address,
-                "send_via": ib.send_via,
-                "cap": cap_str,
-                "primary": ib.is_primary,
-                "note": ib.note + flag,
-            })
-        print(json.dumps(rows, indent=2))
-        sys.exit(0)
-    if args.inbox_command == "counts":
-        # Today's sent count PER inbox. Direct-API inboxes (gethaytham) are
-        # counted here; MCP-only inboxes (Gmail connector) can't be reached
-        # from Python, so we emit the exact query for the skill/agent to run.
-        # The query uses epoch seconds at Dubai midnight, not a YYYY/MM/DD
-        # string: Gmail resolves `after:<date>` in the ACCOUNT's timezone, so
-        # a date string can be hours off exactly inside the tick's window.
-        from audit import send_cap
-        if args.date:
-            day_label, boundary = args.date, args.date
-        else:
-            day_label = send_cap.today().isoformat()
-            boundary = str(send_cap.dubai_midnight_epoch())
-        query = f"in:sent after:{boundary}"
-        scheduled_query = "in:scheduled"
-        # The live day (`date` / the `count`) still governs follow-ups and warm
-        # replies. A NEW opener queued past noon Dubai can't leave today, so it
-        # is attributed to `send_day` and gated against that day's ceiling using
-        # the inbox's already-SCHEDULED count (`scheduled`), not `count`. See
-        # crm_gate.check_send / `crm-gate send --sends-next-day`.
-        send_day = send_cap.send_day().isoformat()
-        opener_rolls = send_cap.is_after_send_cutoff() and not args.date
-        out = {}
-        for ib in inboxes.all_inboxes():
-            if ib.send_via == "gmail-gethaytham":
-                from audit import gmail_gethaytham as gg
-                entry = {"via": ib.send_via, "query": query, "scheduled_query": scheduled_query}
-                try:
-                    entry["count"] = gg.count_messages(query)
-                except Exception as exc:  # noqa: BLE001 - report, never crash the tick
-                    entry["count"] = None
-                    entry["error"] = str(exc)
-                try:
-                    entry["scheduled"] = gg.count_messages(scheduled_query)
-                except Exception as exc:  # noqa: BLE001 - report, never crash the tick
-                    entry["scheduled"] = None
-                    entry["scheduled_error"] = str(exc)
-                out[ib.label] = entry
-            else:
-                out[ib.label] = {"count": None, "scheduled": None, "via": ib.send_via,
-                                 "query": query, "scheduled_query": scheduled_query,
-                                 "note": "count via Gmail MCP: run query for sent messages "
-                                         "and scheduled_query for in:scheduled due today"}
-        result = {"date": day_label, "send_day": send_day, "inboxes": out}
-        if opener_rolls:
-            result["opener_note"] = (
-                f"past {send_cap.SEND_DAY_CUTOFF_HOUR}:00 Dubai — a NEW opener is attributed to "
-                f"send-day {send_day} (tomorrow). Gate it with `crm-gate send --touch 1 "
-                "--sends-next-day <that inbox's `scheduled` count>`; follow-ups/warm replies "
-                "still count against today's `count`."
-            )
-        print(json.dumps(result, indent=2))
-        sys.exit(0)
-    if args.inbox_command == "reconcile":
-        if not inboxes.is_registered(args.found_in):
-            print(f"INBOX RECONCILE: FAIL — --found-in {args.found_in!r} is not a registered inbox "
-                  f"(known: {', '.join(inboxes.labels())})")
-            sys.exit(2)
-        needs, corrected, reason = inboxes.reconcile_assignment(args.current or None, args.found_in)
-        verb = f"SET Inbox = {corrected}" if needs else "no change"
-        print(f"INBOX RECONCILE: {verb} — {reason}")
-        sys.exit(0)
-    if args.inbox_command == "route":
-        # Decide which inbox a lead's next send leaves from, given its current
-        # assignment (blank for a new lead) and today's per-inbox sent counts.
-        caps = {lbl: st.cap for lbl, st in send_cap.load_all().items()}
-        counts = {}
-        for pair in (args.count or []):
-            label, _, n = pair.partition("=")
-            # A typo'd label would silently count as 0 sends and hand the
-            # router fictional headroom — fail loud instead.
-            if not inboxes.is_registered(label):
-                print(f"INBOX ROUTE: FAIL — --count label {label!r} is not a registered inbox "
-                      f"(known: {', '.join(inboxes.labels())})")
-                sys.exit(2)
-            try:
-                counts[label] = int(n)
-            except ValueError:
-                print(f"INBOX ROUTE: FAIL — bad --count {pair!r}, expected 'Label=N'")
-                sys.exit(2)
-        weights = {}
-        for pair in (args.weight or []):
-            label, _, w = pair.partition("=")
-            if not inboxes.is_registered(label):
-                print(f"INBOX ROUTE: FAIL — --weight label {label!r} is not a registered inbox "
-                      f"(known: {', '.join(inboxes.labels())})")
-                sys.exit(2)
-            try:
-                weights[label] = float(w)
-            except ValueError:
-                print(f"INBOX ROUTE: FAIL — bad --weight {pair!r}, expected 'Label=0.3'")
-                sys.exit(2)
-        current = args.current or None
-        if current is not None and not inboxes.is_registered(current):
-            print(f"INBOX ROUTE: FAIL — current {current!r} is not a registered inbox "
-                  f"(known: {', '.join(inboxes.labels())})")
-            sys.exit(2)
-        policy = args.policy or "headroom"
-        chosen = inboxes.choose_inbox(current, caps, counts, policy=policy, weights=weights or None)
-        ib = inboxes.resolve(chosen)
-        sticky = inboxes.is_registered(current)
-        why = "sticky (keeps its assignment)" if sticky else f"{policy} policy"
-        rooms = ", ".join(
-            f"{lbl} {max(caps.get(lbl, 0) - counts.get(lbl, 0), 0)}" for lbl in inboxes.labels()
-        )
-        print(f"INBOX ROUTE: {chosen} ({ib.address}, via {ib.send_via}) — {why} (headroom: {rooms})")
-        sys.exit(0)
+def cmd_dedupe(args) -> None:
+    """The Contacted-Before wall. Pass 1 on name/domain, pass 2 on email.
 
+    Pass 1 runs BEFORE any paid call. That ordering is the whole point: the old
+    pipeline deduped last, so an already-excluded lead paid for all eight Apify
+    calls before being thrown away. A warm-thread hit exits non-zero, because a
+    cold opener landing on a live conversation is the one failure worth stopping
+    the run for.
+    """
+    from outbound import dedupe
 
-def cmd_dashboard(args) -> None:
-    """The command-center dashboard — see audit/dashboard.py.
-
-    `skeleton` prints the Python-reachable base snapshot (per-inbox ceilings +
-    Inbox 2's real sent-today count) with every Notion-sourced / Gmail-MCP panel
-    seeded as null, PLUS the Gmail-MCP count queries the skill must run. The
-    /dashboard skill fills the panels from Notion + Gmail and pipes the completed
-    snapshot back into `render`, which validates it and writes the HTML page
-    (published as a Claude Artifact). Same trust split as crm-gate: Python owns
-    the deterministic pieces, the skill owns the MCP fetches."""
-    from audit import dashboard
-    if args.dashboard_command == "skeleton":
-        print(json.dumps(dashboard.build_skeleton(), indent=2))
-        sys.exit(0)
-    if args.dashboard_command == "render":
+    leads = _load_leads(args.leads)
+    if args.contacts:
+        # An explicit file, for walling against a one-off CRM export. An
+        # unreadable one must exit 2 with a message, exactly like a missing
+        # default wall — a traceback here would read as "the run failed"
+        # rather than "the wall could not be checked", and the hard rule is
+        # that a missing wall never means "nobody has been contacted".
         try:
-            snapshot = json.loads(Path(args.snapshot_json).read_text())
+            raw = Path(args.contacts).read_text(encoding="utf-8")
+            wall = (dedupe.ContactWall.from_records(json.loads(raw))
+                    if args.contacts.endswith(".json")
+                    else dedupe.ContactWall.from_csv(args.contacts))
         except (OSError, json.JSONDecodeError) as exc:
-            print(f"DASHBOARD RENDER: FAIL — cannot read snapshot {args.snapshot_json!r}: {exc}")
-            sys.exit(1)
+            print(f"DEDUPE: FAIL — cannot read the wall at {args.contacts}: "
+                  f"{type(exc).__name__}. Refusing to pass a batch it cannot "
+                  f"check.")
+            sys.exit(2)
+    else:
+        wall = dedupe.ContactWall.from_csv()
+
+    if not len(wall):
+        print("DEDUPE: FAIL — the wall is empty. Refusing to pass a batch it "
+              "cannot check; a missing file must not read as 'nobody has been "
+              "contacted'.")
+        sys.exit(2)
+
+    result = dedupe.partition(leads, wall, stage=args.stage)
+    print(f"  wall: {len(wall)} contacts, "
+          f"{sum(1 for c in wall.by_name.values() if c.warm)} warm")
+
+    print("\n".join(dedupe.report(result, stage=args.stage)))
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([l.to_dict() for l in result["clear"]], indent=2, default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.out}")
+    sys.exit(1 if result["warm_hits"] else 0)
+
+
+# -------------------------------------------------------------------- qualify
+
+
+def _load_csv(path: str, label: str, expect: tuple[str, ...]) -> list[dict]:
+    """Rows from a CSV, or a clean exit 2 — never "0 rows" on the wrong file.
+
+    Missing file, unreadable file, or a header carrying none of `expect` all
+    exit 2. The last one matters most: `wall-add` on a mistyped path printed
+    "0 added, 104 -> 104", which reads exactly like "this batch was already
+    walled". It is not. Those leads would never enter the wall and would be
+    contacted a second time, which is the failure this whole file exists to
+    prevent, arrived at through a typo.
+    """
+    try:
+        with open(path, newline="", encoding="utf-8-sig") as handle:
+            reader = csv.DictReader(handle)
+            rows = list(reader)
+            headers = [h.strip().lower() for h in (reader.fieldnames or [])]
+    except OSError as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}.")
+        sys.exit(2)
+    if not any(col in headers for col in expect):
+        print(f"{label}: FAIL — {path} has none of the expected columns "
+              f"({', '.join(expect)}); its header is {headers or 'empty'}. "
+              f"Refusing to report 0 rows on what is probably the wrong file.")
+        sys.exit(2)
+    return rows
+
+
+def _load_json(path: str, label: str):
+    """Any JSON value from a file or stdin, or a clean exit 2.
+
+    `_load_object` insists on an object; this one accepts either shape, for the
+    commands that legitimately take an array. Both exist so that a malformed
+    file is a readable gate line rather than a JSONDecodeError traceback, which
+    reads as "the run crashed" when the truth is "that file is not JSON".
+    """
+    try:
+        raw = sys.stdin.read() if path == "-" else \
+            Path(path).read_text(encoding="utf-8")
+        return json.loads(raw)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}: {exc}")
+        sys.exit(2)
+
+
+def _load_object(path: str, label: str) -> dict:
+    """One JSON object from a file or stdin, or a clean failure.
+
+    A worker that returns a list instead of an object used to produce an
+    `AttributeError` traceback, which reads as a crash rather than as the
+    schema violation it actually is.
+    """
+    try:
+        raw = sys.stdin.read() if path == "-" else \
+            Path(path).read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}: {exc}")
+        sys.exit(2)
+    if not isinstance(data, dict):
+        print(f"{label}: FAIL — expected one JSON object, got "
+              f"{type(data).__name__}. One lead per call.")
+        sys.exit(2)
+    return data
+
+
+def cmd_qualify(args) -> None:
+    """The three floors over one lead's gathered text. `unclear` passes.
+
+    Only a clear `no` drops a row, because a false kill is permanent and
+    invisible while a false pass costs one more research call. Audience size and
+    program price are captured and printed, never gated on.
+    """
+    from datetime import date
+    from outbound import qualify as q
+
+    data = _load_object(args.input, "QUALIFY")
+
+    site_text = data.get("site_text", "")
+    last = data.get("last_activity")
+    if last:
         try:
-            html = dashboard.render_html(snapshot, title=args.title)
-        except dashboard.DashboardError as exc:
-            print(f"DASHBOARD RENDER: FAIL — {exc}")
+            last_activity = date.fromisoformat(str(last))
+        except ValueError:
+            print(f"QUALIFY: FAIL — last_activity {last!r} is not an ISO date "
+                  f"(YYYY-MM-DD).")
+            sys.exit(2)
+        activity_source = "worker"
+    else:
+        # No date supplied: derive one from the page text the worker already
+        # fetched, rather than leaving the floor to a judgement call. Without
+        # this the mechanical bridge existed only as a library function and the
+        # CLI never reached it — all twelve leads on the first real batch came
+        # back `unclear` on activity, and that is the floor doing nothing.
+        last_activity, why = q.latest_activity_date(
+            "\n".join([site_text, data.get("linkedin_text", "")]),
+            page_url=data.get("site_url", "") or data.get("domain", ""))
+        activity_source = why
+    result = q.qualify(
+        city=data.get("city", ""),
+        domain=data.get("domain", ""),
+        headline=data.get("headline", ""),
+        site_text=site_text,
+        linkedin_text=data.get("linkedin_text", ""),
+        last_activity=last_activity,
+        audience_size=data.get("audience_size"),
+        top_program_price_aed=data.get("top_program_price_aed"),
+        solo=data.get("solo", "unclear"),
+    )
+    print(result.report(data.get("name", "lead")))
+    if not last:
+        print(f"  activity settled from the page: {activity_source}")
+    sys.exit(0 if result.passed else 1)
+
+
+def cmd_research(args) -> None:
+    """Validate a worker's returned research against the schema.
+
+    Catches the two failures a plausible-sounding worker produces: a verdict
+    outside the enum, and a hard yes/no with nothing named as its source. A
+    verdict that names nothing was reasoned, not fetched.
+
+    Accepts ONE object or an ARRAY of them. `research-worker` handles a slice of
+    about ten leads and returns an array — which this used to reject outright
+    with "expected one JSON object, got list", printed right beside a skill
+    instruction that says a schema violation goes back to the worker once. The
+    documented validation step failed on the documented file, and it failed in
+    a way that reads like the worker returned garbage.
+    """
+    from outbound import research as r
+
+    data = _load_json(args.input, "RESEARCH")
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        print(f"RESEARCH: FAIL — expected an object or an array of them, got "
+              f"{type(data).__name__}.")
+        sys.exit(2)
+    if not data:
+        print("RESEARCH: FAIL — no research objects to validate. An empty slice "
+              "is a worker that returned nothing, not a slice that passed.")
+        sys.exit(2)
+
+    failed = 0
+    for entry in data:
+        if not isinstance(entry, dict):
+            print(f"RESEARCH: FAIL — array holds a {type(entry).__name__}, "
+                  f"expected an object per lead.")
+            sys.exit(2)
+        obj = r.Research.from_dict(entry)
+        print(r.report(obj))
+        failed += 1 if r.validate(obj) else 0
+    if len(data) > 1:
+        print(f"RESEARCH: {len(data) - failed}/{len(data)} valid")
+    sys.exit(1 if failed else 0)
+
+
+# -------------------------------------------------------------------- anchors
+
+
+def cmd_anchors(args) -> None:
+    """Which hand-written lines this lead draws, and every number it may cite.
+
+    Deterministic on `sha256(email)`, so the same lead draws the same lines in
+    every process on every machine. The builtin hash() is salted per process,
+    which would make "reproducible" quietly false between runs.
+    """
+    from outbound import anchors
+
+    anchor = anchors.draw(args.email, coach_type=args.coach_type,
+                          sells_to=args.sells_to)
+    if args.json:
+        print(json.dumps({
+            "identity": {"id": anchor.identity.id, "line": anchor.identity.line},
+            "offer": {"id": anchor.offer.id, "line": anchor.offer.line},
+            "cta": {"id": anchor.cta.id, "line": anchor.cta.line},
+            "ps": {"id": anchor.ps.id, "line": anchor.ps.line},
+            "segment": anchor.segment,
+            "allowed_numbers": sorted(anchor.allowed_numbers),
+        }, indent=2))
+        return
+
+    print(anchor.as_prompt_block())
+    print(f"\nsegment: {anchor.segment or 'generic (no exact match drawn)'}")
+    print("allowed numbers: " +
+          ", ".join(str(n) for n in sorted(anchor.allowed_numbers)))
+    print("\nAny number in the body outside that set is invented or relabelled.")
+
+
+def cmd_copy_sync(args) -> None:
+    """Pull the hand-written lines out of Airtable, rejecting the bad ones.
+
+    Airtable exists so a line can change without touching code. That is only
+    safe because this is a gate: a line whose numbers do not trace to
+    `copy/results.csv`, or that attaches one segment's result to another, is
+    rejected here rather than reaching a stranger's inbox two stages later.
+
+    Two ways in. With `AIRTABLE_API_KEY` set, `--live` fetches directly.
+    Without one — which is the case today — a skill fetches the Copy Assets
+    records through the Airtable MCP and pipes them here as JSON.
+    """
+    from outbound import copy_sync
+
+    from audit import airtable
+
+    # Use the key when there is one. The skill and CLAUDE.md both say "run
+    # `python main.py copy-sync`" after editing a line, and bare `copy-sync`
+    # read stdin — so it blocked on a TTY, or exited 2 with a JSON error, at the
+    # exact moment someone had just edited a line. The likely reading is
+    # "Airtable is down" rather than "I was supposed to pipe records in".
+    # `--live` is now an assertion (fail if no key) rather than the only way in.
+    use_live = args.live or (args.input == "-" and airtable.available())
+    if use_live:
+        if not airtable.available():
+            print("COPY-SYNC: FAIL — --live needs AIRTABLE_API_KEY in the "
+                  "environment. Without it, fetch Copy Assets through the MCP "
+                  "and pipe the records to this command instead.")
+            sys.exit(2)
+        try:
+            records = airtable.copy_assets()
+        except airtable.AirtableError as exc:
+            print(f"COPY-SYNC: FAIL — {exc}")
             sys.exit(1)
-        out = Path(args.out)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(html)
-        print(f"DASHBOARD RENDER: OK — wrote {out} ({len(html):,} bytes). "
-              "Publish it as a Claude Artifact (see the /dashboard skill).")
+        source = "airtable-api"
+    else:
+        if args.input == "-" and (sys.stdin.isatty() or not (raw := sys.stdin.read()).strip()):
+            print("COPY-SYNC: FAIL — no AIRTABLE_API_KEY and nothing piped in. "
+                  "Either set the key and re-run, or fetch the Copy Assets "
+                  "records through the Airtable MCP and pipe them to this "
+                  "command.")
+            sys.exit(2)
+        if args.input == "-":
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                print(f"COPY-SYNC: FAIL — piped input is not JSON: {exc}")
+                sys.exit(2)
+        else:
+            payload = _load_json(args.input, "COPY-SYNC")
+        # Accept a bare list, or the MCP's {"records": [...]} envelope.
+        records = payload.get("records", payload) if isinstance(payload, dict) else payload
+        source = "mcp"
+
+    result = copy_sync.sync(records, source=source, write=not args.dry_run)
+    print(result.report())
+    if result.ok and not args.dry_run:
+        print(f"  wrote {copy_sync.SNAPSHOT}")
+        print("  regenerated copy/*.csv — commit them so the fallback matches")
+    sys.exit(0 if result.ok else 1)
+
+
+def cmd_wall_add(args) -> None:
+    """Append a shipped batch to `data/contacted-before.csv`.
+
+    Run this AFTER the upload has actually happened. Export deliberately does
+    not do it: nothing has been sent at export time, and walling a lead who
+    never received anything would silently exclude her from every future batch.
+
+    Idempotent. Re-running it adds nothing, so running it twice after a
+    half-remembered upload is safe.
+    """
+    from outbound import dedupe, export
+
+    wall = dedupe.ContactWall.from_csv()
+    before = len(wall)
+
+    incoming = _load_csv(args.additions, "WALL-ADD",
+                         ("name", "email", "domain"))
+
+    added = []
+    for row in incoming:
+        contact = dedupe.KnownContact(
+            name=(row.get("name") or "").strip(),
+            email=(row.get("email") or "").strip(),
+            domain=(row.get("domain") or "").strip(),
+            status=(row.get("status") or "Outreach Sent").strip(),
+            warm=dedupe._truthy(row.get("warm")),
+            track=(row.get("track") or "Outbound").strip(),
+        )
+        # Checked against the wall's own keys rather than check_early/check_late:
+        # those read a Lead's `site_url`, which a KnownContact does not have, so
+        # the domain half would silently never match.
+        already = (
+            (contact.name and dedupe.name_key(contact.name) in wall.by_name)
+            or (contact.email and dedupe.email_key(contact.email) in wall.by_email)
+            or (contact.domain and dedupe.domain_key(contact.domain) in wall.by_domain)
+        )
+        if already:
+            continue
+        wall.add(contact)
+        added.append(contact.name)
+
+    if added and not args.dry_run:
+        with open(dedupe.CONTACTED_BEFORE, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=export.WALL_COLUMNS)
+            writer.writeheader()
+            writer.writerows(wall.to_rows())
+
+    print(f"WALL-ADD: {len(added)} added, "
+          f"{len(incoming) - len(added)} already present "
+          f"({before} -> {len(wall)})")
+    for name in added[:10]:
+        print(f"  + {name}")
+    if added and not args.dry_run:
+        print(f"  wrote {dedupe.CONTACTED_BEFORE} — commit it")
+
+
+def cmd_deal(args) -> None:
+    """Anchors for a whole batch, allocated so the declared weights hold.
+
+    The batch path, as against `anchors`, which is one lead. Independent
+    per-lead hashing is unbiased only in the limit: measured over the real offer
+    lines, a 50-lead batch gave one line 8% against a declared 20% and pushed
+    another to 38%, over the repetition cap. Dealing the batch hits the weights
+    as closely as whole leads allow, so the cap holds by construction.
+    """
+    from outbound import anchors
+
+    leads = _load_json(args.leads, "DEAL")
+    if not isinstance(leads, list):
+        print(f"DEAL: FAIL — expected a JSON array of leads, got "
+              f"{type(leads).__name__}.")
+        sys.exit(2)
+    dealt = anchors.deal_batch(leads)
+
+    out = {
+        email: {
+            "identity": {"id": a.identity.id, "line": a.identity.line},
+            "offer": {"id": a.offer.id, "line": a.offer.line},
+            "cta": {"id": a.cta.id, "line": a.cta.line},
+            "ps": {"id": a.ps.id, "line": a.ps.line},
+            "segment": a.segment,
+            "allowed_numbers": sorted(a.allowed_numbers),
+        }
+        for email, a in dealt.items()
+    }
+    if args.out:
+        Path(args.out).write_text(json.dumps(out, indent=2), encoding="utf-8")
+
+    from outbound.lint import FIXED_LINE_SHARE_CAP
+
+    shares = anchors.batch_shares(list(dealt.values()))
+    print(f"DEAL: {len(dealt)} leads")
+
+    # A ps that had to move because its offer already said the same thing. The
+    # swap is correct and the drift it causes is real, so it is reported rather
+    # than absorbed: `ps-01` cannot pair with `b4-01`, so it structurally cannot
+    # reach its declared share whatever the weights say.
+    from outbound.lint import check_echo
+    swapped = sum(
+        1 for a in dealt.values()
+        if check_echo({"offer": a.offer.line, "cta": a.cta.line, "ps": a.ps.line})
+    )
+    collisions = anchors.echo_pairs(anchors.CopyBank.load())
+    if collisions:
+        pairs = ", ".join(f"{o}+{p}" for o, p in collisions)
+        print(f"  ECHO  {len(collisions)} offer/ps pair(s) cannot be dealt "
+              f"together ({pairs}); ps reallocated, so its share runs under "
+              f"its weight by design")
+    if swapped:
+        print(f"  WARN  {swapped} lead(s) still echo after reallocation — "
+              f"the lint will reject them")
+    for beat, per_line in shares.items():
+        top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
+        top_share = next(iter(per_line.values()), 0)
+        flag = "  OVER CAP" if top_share > FIXED_LINE_SHARE_CAP else ""
+        print(f"  {beat:<9} {top}{flag}")
+
+    # Which segments cannot fill their 70% share without repeating a sentence.
+    # The deal already spilled to generic to stay legal; this says what to write.
+    thin = anchors.thin_segments(anchors.CopyBank.load(), cap=FIXED_LINE_SHARE_CAP)
+    drawn = {l.meta.get("coach_type", "") for l in
+             [a.identity for a in dealt.values()]}
+    for segment, shortfall in sorted(thin.items()):
+        if segment.split("/")[0] in drawn or not drawn:
+            print(f"  THIN  {segment}: {shortfall} more identity line(s) would let it "
+                  f"hold its share without repeating")
+    if args.out:
+        print(f"  wrote {args.out}")
+
+
+def cmd_copy_usage(args) -> None:
+    """Report a shipped batch's line usage back to Airtable.
+
+    Run after `wall-add`, for the same reason: it records what actually went
+    out. Without it the weights stay guesses forever, because nothing anywhere
+    records which line was in front of which reader.
+
+    Increments `Times Used` and stamps `Last Used`. Needs AIRTABLE_API_KEY; the
+    counts are in `out/line-usage.csv` either way, so a missing key loses the
+    write, not the data.
+
+    **Additive, and deliberately not idempotent** — unlike `wall-add`, which
+    can be re-run safely. `Times Used` is a running total of emails sent, and
+    there is no way to tell a re-run from a genuine second batch that happened
+    to use the same lines. Run it once per batch. `--dry-run` first if unsure.
+    """
+    from datetime import date
+    from audit import airtable
+
+    usage_rows = _load_csv(args.usage, "COPY-USAGE", ("line_id", "id", "beat"))
+    counts = {r["line_id"]: int(r["count"]) for r in usage_rows
+              if r.get("line_id") and str(r.get("count", "")).strip().isdigit()}
+
+    if not airtable.available():
+        print("COPY-USAGE: SKIPPED — no AIRTABLE_API_KEY. Counts are still in "
+              f"{args.usage}; re-run this when a key is set.")
+        for line_id, count in sorted(counts.items()):
+            print(f"  {line_id}: +{count}")
         sys.exit(0)
+
+    try:
+        records = airtable.list_records(airtable.COPY_ASSETS_TABLE)
+    except airtable.AirtableError as exc:
+        print(f"COPY-USAGE: FAIL — {exc}")
+        sys.exit(1)
+
+    by_id = {r.get("fields", {}).get("Line ID"): r for r in records}
+    today = args.date or date.today().isoformat()
+    updates, missing = [], []
+    for line_id, count in counts.items():
+        record = by_id.get(line_id)
+        if not record:
+            missing.append(line_id)
+            continue
+        previous = record.get("fields", {}).get("Times Used") or 0
+        updates.append({"id": record["id"], "fields": {
+            "Times Used": int(previous) + count, "Last Used": today}})
+
+    if args.dry_run:
+        print(f"COPY-USAGE: dry run, {len(updates)} line(s) would be updated")
+    else:
+        written = airtable.update_records(airtable.COPY_ASSETS_TABLE, updates)
+        print(f"COPY-USAGE: {written} line(s) updated, dated {today}")
+        print("  NOTE  additive, unlike wall-add. Run once per batch — a second "
+              "run adds the same counts again.")
+    for line_id in sorted(missing):
+        print(f"  WARN  {line_id} is not in Copy Assets — run copy-sync?")
+
+
+def cmd_facts(args) -> None:
+    """The fact table, and the aggregate it licenses."""
+    from outbound import anchors
+
+    facts = anchors.load_facts()
+    print(f"FACTS: {len(facts.results)} segments, "
+          f"{facts.total_meetings} meetings, {facts.total_clients} clients, "
+          f"AED {facts.total_aed:,} closed, {facts.total_sent} sends")
+    for name, result in facts.results.items():
+        print(f"  {name:<11} {result.meetings} mtgs / {result.period:<8} "
+              f"{result.clients} clients  AED {result.aed_closed:>7,}  "
+              f"first mtg {result.first_meeting_days}d  "
+              f"{'still working' if result.still_working else ''}")
+    print("  aggregate numbers: " +
+          ", ".join(str(n) for n in sorted(facts.aggregate_numbers())))
+
+
+# ----------------------------------------------------------------------- lint
+
+
+def cmd_lint(args) -> None:
+    """The gate on model-written copy. Per email, then across the batch.
+
+    Traceability is the load-bearing check: every number in a body must resolve
+    to that lead's allowed fact set. The client results are real and they come
+    up on a call, and these coaches compare emails, so an invented digit or a
+    segment's number relabelled onto another segment is the tell that the whole
+    email was fabricated.
+    """
+    from outbound import anchors, lint
+
+    drafts = _load_json(args.input, "LINT")
+    if isinstance(drafts, dict):
+        drafts = [drafts]
+    if not isinstance(drafts, list):
+        print(f"LINT: FAIL — expected a JSON array of drafts, got "
+              f"{type(drafts).__name__}.")
+        sys.exit(2)
+
+    from outbound.export import assemble_body
+
+    facts = anchors.load_facts()
+    failed = 0
+    for draft in drafts:
+        allowed = draft.get("allowed_numbers")
+        if allowed is None:
+            allowed = anchors.all_numbers(facts)
+        beats = draft.get("beats", {})
+        # Assemble from the beats when no body is given, exactly as `export`
+        # does. A drafting worker returns beats — its whole contract is beats —
+        # and this used to answer "body is empty", so the PASS line it is
+        # required to quote was unobtainable. The alternative, telling workers
+        # to assemble their own, is worse: the order is load-bearing, and a
+        # worker that joined it differently would quote a PASS about text that
+        # is not what ships, with word count the check most likely to differ.
+        # One assembler, used by both commands, is the only version that cannot
+        # drift.
+        body = draft.get("body") or ""
+        if not body.strip() and beats:
+            body = assemble_body(
+                beats, greeting_name=draft.get("first_name", "")
+                or (draft.get("name", "").split() or [""])[0])
+        result = lint.check_email(
+            name=draft.get("name", draft.get("slug", "lead")),
+            subject=draft.get("subject", ""),
+            body=body,
+            beats=beats,
+            allowed_numbers=set(allowed),
+            facts=facts,
+        )
+        print(result.report())
+        failed += 0 if result.passed else 1
+
+    if len(drafts) > 1:
+        batch = lint.check_batch(drafts)
+        print(batch.report())
+        failed += 0 if batch.passed else 1
+
+    sys.exit(1 if failed else 0)
+
+
+# --------------------------------------------------------------------- export
+
+
+def cmd_export(args) -> None:
+    """Write leads.csv and preview.txt for the drafts that passed the lint.
+
+    A failing email never reaches the CSV — not flagged in a column, absent.
+    A failing email in an upload file is an email that gets sent by accident.
+    """
+    from outbound import anchors, export, lint
+
+    drafts_raw = _load_json(args.input, "EXPORT")
+    if not isinstance(drafts_raw, list):
+        print(f"EXPORT: FAIL — expected a JSON array of drafts, got "
+              f"{type(drafts_raw).__name__}.")
+        sys.exit(2)
+    if args.rebalance_ps:
+        # Holds are guaranteed by design — a refuted hook, a twice-refused draft
+        # — and every hold unbalances a deal made for the larger batch. Dropping
+        # 3 of 11 on the first real run put two ps lines at 38% against a 35%
+        # cap and the batch check blocked the file, correctly. Re-dealing from
+        # scratch is the wrong answer: it moves identity lines too, forcing a
+        # re-draft of emails that already passed a cold read.
+        #
+        # The ps is the one beat that can move safely. It is library copy the
+        # drafter reproduces near-verbatim, it sits alone at the end, and it
+        # takes no part in the seam between the hook and the identity beat. So
+        # this is an allocation decision, not a drafting one.
+        bank = anchors.CopyBank.load()
+        moves = anchors.rebalance_ps(drafts_raw, bank=bank)
+        by_id = {l.id: l.line for l in bank.ps}
+        moved = 0
+        for row in drafts_raw:
+            new_id = moves.get(row.get("email", ""))
+            if not new_id:
+                continue
+            if row.get("anchor_ids", {}).get("ps") != new_id:
+                moved += 1
+            row.setdefault("anchor_ids", {})["ps"] = new_id
+            row.setdefault("beats", {})["ps"] = by_id[new_id]
+        print(f"REBALANCE: {moved} ps line(s) reallocated across "
+              f"{len(drafts_raw)} shipped lead(s)")
+
+    facts = anchors.load_facts()
+
+    drafts, results, for_batch = [], {}, []
+    for row in drafts_raw:
+        beats = row.get("beats", {})
+        body = row.get("body") or export.assemble_body(
+            beats, greeting_name=row.get("first_name", ""))
+        draft = export.Draft(
+            slug=row.get("slug", ""), name=row.get("name", ""),
+            first_name=row.get("first_name", ""), last_name=row.get("last_name", ""),
+            email=row.get("email", ""), subject=row.get("subject", ""),
+            body=body, beats=beats, anchor_ids=row.get("anchor_ids", {}),
+            coach_type=row.get("coach_type", ""), sells_to=row.get("sells_to", ""),
+            city=row.get("city", ""), company=row.get("company", ""),
+            website=row.get("website", ""), linkedin_url=row.get("linkedin_url", ""),
+            hook_type=row.get("hook_type", ""),
+            hook_source_url=row.get("hook_source_url", ""),
+        )
+        allowed = row.get("allowed_numbers")
+        if allowed is None:
+            allowed = anchors.all_numbers(facts)
+        results[draft.email] = lint.check_email(
+            name=draft.name, subject=draft.subject, body=draft.body,
+            beats=beats, allowed_numbers=set(allowed), facts=facts)
+        drafts.append(draft)
+        for_batch.append({"subject": draft.subject, "body": draft.body,
+                          "beats": beats})
+
+    shares: dict = {}
+    for beat in ("identity", "offer", "cta", "ps"):
+        counts: dict[str, int] = {}
+        for draft in drafts:
+            line_id = draft.anchor_ids.get(beat, "")
+            if line_id:
+                counts[line_id] = counts.get(line_id, 0) + 1
+        if counts:
+            shares[beat] = {k: v / len(drafts) for k, v in
+                            sorted(counts.items(), key=lambda kv: -kv[1])}
+
+    dealt = None
+    if args.anchors:
+        dealt = _load_json(args.anchors, "EXPORT")
+        # A rebalance moved the ps, so the deal file must be told or the drift
+        # check rejects every reallocated lead for using a line it was given.
+        if args.rebalance_ps and isinstance(dealt, dict):
+            for row in drafts_raw:
+                email = row.get("email")
+                new_id = row.get("anchor_ids", {}).get("ps")
+                if email in dealt and new_id:
+                    dealt[email]["ps"] = {"id": new_id,
+                                          "line": row.get("beats", {}).get("ps", "")}
+
+    batch_result = lint.check_batch(for_batch, shares)
+    out = export.write_batch(drafts, results, out_dir=args.out,
+                             batch=args.batch or "", anchor_shares=shares,
+                             batch_result=batch_result, dealt=dealt,
+                             bank=anchors.CopyBank.load() if dealt else None)
+    print(batch_result.report())
+    print(out["report"])
+    sys.exit(1 if out["blocked"] or out["rejected"] else 0)
+
+
+# ------------------------------------------------------------------ addresses
 
 
 def cmd_email_check(args) -> None:
+    """Free shape check: syntax, MX, role/typo/disposable flags. A FAIL here
+    never enters a queue or the CRM."""
     from audit import email_check
     sys.exit(email_check.print_check(args.address, args.name or ""))
 
 
 def _apify_quota_note() -> tuple[bool, str | None]:
-    """Cheap pre-flight cap read (`apify.account_limits()` — no token cost,
-    no actor run). Returns (capped, note). Fails OPEN (capped=False) if the
-    check itself errors (missing token, network) — an unreadable quota
-    should not block a call that might otherwise succeed; the real call
-    surfaces its own error if Apify is actually down."""
+    """Cheap pre-flight cap read — no token cost, no actor run. Fails OPEN: an
+    unreadable quota should not block a call that might otherwise succeed."""
     from audit import apify
     try:
         limits = apify.account_limits()
     except apify.ApifyError:
         return False, None
     if limits.get("near_cap"):
-        pct = limits.get("pct_of_usd_cap")
-        return True, f"Apify at {pct}% of its monthly cap"
+        return True, f"Apify at {limits.get('pct_of_usd_cap')}% of its monthly cap"
     return False, None
 
 
 def _email_verifier(approved: bool = False):
-    """Which verifier `email-verify`/`email-enrich` use. Reads
-    `EMAIL_VERIFY_PROVIDER` (default "apify", restored 2026-07-18 now that
-    the account is on a paid plan; set to "zerobounce" to force the
-    no-Apify path — both providers stay fully wired, this just picks which
-    one is preferred). When "apify" is preferred, this checks the Apify
-    quota FIRST and auto-falls-back to ZeroBounce if Apify is at/near its
-    monthly cap, instead of spending an attempt that would just 402 — no
-    manual intervention needed if a plan ever caps out again. An Apify call
-    is also cost-gated (see audit/apify.py) — `approved` forwards the
-    caller's `--approve-cost` through to `apify.verify_emails`; a call
-    whose estimate is unknown or over threshold raises
-    ApifyCostApprovalRequired rather than running (ordinary single/batched
-    verify calls price out to a fraction of a cent and clear automatically).
-    Returns (verify_fn, error_class, note) — `note` is set only when an
-    auto-fallback happened, so the caller can fold it into the printed
-    gate line rather than silently switching providers."""
+    """Which verifier to use. `EMAIL_VERIFY_PROVIDER` picks (default apify),
+    and a capped Apify quota auto-falls back to ZeroBounce rather than spending
+    an attempt that would just 402."""
     import os
     import functools
     from audit import email_verifier
@@ -638,17 +814,9 @@ def _email_verifier(approved: bool = False):
 
 
 def cmd_email_verify(args) -> None:
-    """Deliverability verification as a quotable gate line — Apify/
-    MillionVerifier by default (restored 2026-07-18, paid plan), or
-    ZeroBounce if `EMAIL_VERIFY_PROVIDER=zerobounce` (auto-falling back to
-    ZeroBounce if Apify is capped regardless — see `_email_verifier`
-    above). This is the confirm step before `Email Verified` is checked
-    and the lead becomes sendable — syntax+MX (email-check) is not enough,
-    one real bounce burns the domain. One address, one attempt; a
-    verifier error is inconclusive (WARN), never a silent pass. An Apify
-    call whose estimated cost is unknown or over the $0.10 approval
-    threshold prints APPROVAL REQUIRED instead (see audit/apify.py) — get
-    Haytham's sign-off, then re-run with `--approve-cost`."""
+    """Deliverability confirm. Syntax and MX are not enough — one real bounce
+    burns the domain. A verifier error is inconclusive (WARN), never a silent
+    pass."""
     from audit import email_check
     from audit.apify import ApifyCostApprovalRequired
     verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
@@ -661,31 +829,21 @@ def cmd_email_verify(args) -> None:
         print(f"EMAIL VERIFY: WARN — {args.address}: verifier unavailable "
               f"({exc}) — inconclusive, could not confirm deliverability")
         sys.exit(0)
-    result = rows[0] if rows else None
-    sys.exit(email_check.print_verify(args.address, result, note=note or ""))
+    sys.exit(email_check.print_verify(args.address, rows[0] if rows else None,
+                                      note=note or ""))
 
 
 def cmd_email_enrich(args) -> None:
-    """Nominative email enrichment — the no-email fallback stage. When the walk
-    harvested no address, derive name-based candidates against the lead's OWN
-    branded domain, verify them in one batched call, and adopt at most one
-    deliverable address (never two guessed spellings, never a catch-all guess,
-    never a free-provider domain). A PASS line here IS an `EMAIL VERIFY: PASS` on
-    the adopted address — authorization to write `Email` and check `Email
-    Verified`. Same `EMAIL_VERIFY_PROVIDER` switch (with auto-fallback on a
-    capped Apify quota) as `email-verify` — see `_email_verifier`. Fails
-    closed: a verifier error is inconclusive (HOLD), never a silent
-    adoption. An Apify call whose estimated cost is unknown or over the
-    $0.10 approval threshold prints APPROVAL REQUIRED instead of HOLD (see
-    audit/apify.py) — get Haytham's sign-off, then re-run with
-    `--approve-cost`."""
+    """The no-address fallback: derive name-based candidates on the lead's OWN
+    branded domain, verify them in one batched call, adopt at most one. Never
+    two guessed spellings, never a catch-all guess, never a free provider."""
     from audit import email_enrich
     from audit.urls import registrable_domain
     from audit.apify import ApifyCostApprovalRequired
     verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
     try:
-        sys.exit(email_enrich.print_enrich(args.name, args.domain, verifier=verify_fn,
-                                           note=note or ""))
+        sys.exit(email_enrich.print_enrich(args.name, args.domain,
+                                           verifier=verify_fn, note=note or ""))
     except ApifyCostApprovalRequired as exc:
         print(f"EMAIL ENRICH: APPROVAL REQUIRED — "
               f"{registrable_domain(args.domain) or args.domain}: {exc}")
@@ -696,307 +854,57 @@ def cmd_email_enrich(args) -> None:
         sys.exit(0)
 
 
-def cmd_log_lint(args) -> None:
-    """`log-lint` — the log-grammar rule set (audit/touchlog.py), run against
-    a fresh row dump + page body. Three input shapes, same fetch-fresh/
-    pipe-verbatim trust model as every other gate here:
+# ------------------------------------------------------------------ the fetch
 
-      log-lint <row.json> [--page-body FILE]   one lead, from files. If
-                                                --page-body is omitted, the
-                                                body is read from row.json's
-                                                "__page_body__" key.
-      log-lint --slug <slug>                   one lead, from the repo
-                                                archive (docs/leads/<slug>/
-                                                raw.md) — no live row, so
-                                                Touch # reconciliation is
-                                                skipped (nothing to
-                                                reconcile against).
-      log-lint --all --manifest <file>         every lead in one pass. This
-                                                module never talks to Notion
-                                                (see audit/touchlog.py's
-                                                module docstring) — the
-                                                calling skill fetches fresh
-                                                for every non-Disqualified
-                                                lead and assembles the
-                                                manifest as a JSON array of
-                                                {"row": {...}, "page_body":
-                                                "..."} objects.
+
+def cmd_fetch(args) -> None:
+    """Tier 0: read sites with free local HTTP, and plan one batched Apify run
+    for whatever that couldn't read.
+
+    Container boot dominates an Apify bill, not pages, so the escalation is
+    always one run for the whole batch — never one per lead.
     """
-    from audit import touchlog
+    from outbound import fetch
 
-    if args.all:
-        if not args.manifest:
-            print("LOG LINT: FAIL — --all requires --manifest <file>: a JSON array of "
-                  '{"row": {...}, "page_body": "..."} objects, one per non-Disqualified lead, '
-                  "assembled by the calling skill from a fresh Notion fetch. This module never "
-                  "talks to Notion directly (same trust model as every other gate here).")
-            sys.exit(2)
-        manifest = json.loads(Path(args.manifest).read_text())
-        exit_code = 0
-        for entry in manifest:
-            row = entry.get("row") or {}
-            name = row.get("Contact Name") or "unnamed lead"
-            problems = touchlog.validate(row, entry.get("page_body", ""))
-            errors = [p for p in problems if p.level == "ERROR"]
-            warns = [p for p in problems if p.level == "WARN"]
-            if errors:
-                exit_code = 1
-                print(f"LOG LINT: FAIL — {name}: " + "; ".join(p.message for p in errors))
-            else:
-                note = f" ({len(warns)} warning(s))" if warns else ""
-                print(f"LOG LINT: PASS — {name}{note}")
-        sys.exit(exit_code)
+    leads = _load_leads(args.leads)
+    result = fetch.batch_fetch(leads, max_pages=args.max_pages)
+    print(result["report"])
 
-    row = None
-    page_body = None
-    name = "unnamed lead"
-
-    if args.slug:
-        archive = Path("docs/leads") / args.slug / "raw.md"
-        if not archive.exists():
-            print(f"LOG LINT: FAIL — no archive found at {archive}")
-            sys.exit(2)
-        page_body = archive.read_text()
-        name = args.slug
-    elif args.row_json:
-        row = json.loads(Path(args.row_json).read_text())
-        name = row.get("Contact Name") or "unnamed lead"
-        if args.page_body:
-            page_body = Path(args.page_body).read_text()
-        else:
-            page_body = row.pop("__page_body__", None)
-        if page_body is None:
-            print('LOG LINT: FAIL — no page body given: pass --page-body <file>, or embed '
-                  'it in row.json under "__page_body__"')
-            sys.exit(2)
-    else:
-        print("LOG LINT: FAIL — nothing to lint: pass <row.json> (optionally --page-body), "
-              "--slug <slug>, or --all --manifest <file>")
-        sys.exit(2)
-
-    problems = touchlog.validate(row, page_body)
-    errors = [p for p in problems if p.level == "ERROR"]
-    warns = [p for p in problems if p.level == "WARN"]
-    if errors:
-        print(f"LOG LINT: FAIL — {name}: " + "; ".join(p.message for p in errors))
-        if warns:
-            print("  warnings: " + "; ".join(p.message for p in warns))
-        sys.exit(1)
-    note = "; ".join(p.message for p in warns)
-    print(f"LOG LINT: PASS — {name}" + (f": {note}" if note else ": no problems"))
-    sys.exit(0)
+    payload = {
+        "tier0_rate": result["tier0_rate"],
+        "escalate_plans": result["escalate_plans"],
+        "sites": {
+            slug: {
+                "ok": read.ok,
+                "pages": [{"url": p.url, "status": p.status, "chars": len(p.text)}
+                          for p in read.pages],
+                "emails": read.emails,
+                "social": read.social,
+                "prices": read.prices[:10],
+                "headings": read.headings[:20],
+                "notes": read.notes,
+                "text": read.text if args.with_text else "",
+            }
+            for slug, read in result["reads"].items()
+        },
+    }
+    if args.out:
+        Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
+                                  encoding="utf-8")
+        print(f"  wrote {args.out}")
+    for plan in result["escalate_plans"]:
+        print(f"  ESCALATE  {plan['why']}")
 
 
-def _gmail_thread_plaintext(thread: dict) -> str | None:
-    """Best-effort plaintext body of the LAST message in a Gmail `format=full`
-    thread payload (as returned by gmail_gethaytham.get_thread) — walks
-    payload/parts for a text/plain part and base64url-decodes it. Returns
-    None if nothing decodable was found, so the caller can fall back to
-    --body-file rather than silently writing a mangled body."""
-    import base64
-
-    messages = thread.get("messages") or []
-    if not messages:
-        return None
-    payload = messages[-1].get("payload") or {}
-
-    def _walk(part) -> str | None:
-        mime = part.get("mimeType", "")
-        data = (part.get("body") or {}).get("data")
-        if mime == "text/plain" and data:
-            try:
-                return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", "replace")
-            except Exception:  # noqa: BLE001 — fall back to --body-file on any decode failure
-                return None
-        for sub in part.get("parts") or []:
-            found = _walk(sub)
-            if found:
-                return found
-        return None
-
-    return _walk(payload)
-
-
-def cmd_touch_log(args) -> None:
-    """`touch-log` — the only sanctioned way to write a `TOUCH:` / `OFFER:` /
-    `SOURCE:` sentinel line (audit/touchlog.py). Self-lints before printing:
-    an invalid block prints NOTHING and exits non-zero, because a half-valid
-    block is worse than none — it looks logged."""
-    from audit import touchlog
-
-    if args.touch_command == "render":
-        body = args.body
-        if args.body_file:
-            body = Path(args.body_file).read_text()
-        elif args.body_from_gmail:
-            from audit import gmail_gethaytham as gg
-            try:
-                thread = gg.get_thread(args.body_from_gmail)
-            except gg.GmailGethaythamError as exc:
-                print(f"TOUCH LOG: FAIL — could not fetch thread {args.body_from_gmail!r}: {exc}")
-                sys.exit(1)
-            body = _gmail_thread_plaintext(thread)
-            if body is None:
-                print(f"TOUCH LOG: FAIL — thread {args.body_from_gmail!r} fetched but no "
-                      "text/plain part could be decoded — pass --body-file instead")
-                sys.exit(1)
-        try:
-            block = touchlog.render_touch(
-                n=args.n, dir=args.dir, date=args.date, inbox=args.inbox, seq=args.seq,
-                carries=args.carries, finding=args.finding, subject=args.subject,
-                thread=args.thread, gate=args.gate, bounce="true" if args.bounce else None,
-                auto="true" if args.auto else None, type=args.type, reply_to=args.reply_to,
-                body=body,
-            )
-        except ValueError as exc:
-            print(f"TOUCH LOG: FAIL — {exc}")
-            sys.exit(1)
-        print(block)
-        sys.exit(0)
-
-    if args.touch_command == "offer":
-        try:
-            line = touchlog.render_offer(
-                type=args.type, amount=args.amount, currency=args.currency, date=args.date,
-                status=args.status, rung=args.rung, objection=args.objection, terms=args.terms,
-            )
-        except ValueError as exc:
-            print(f"TOUCH LOG: FAIL — {exc}")
-            sys.exit(1)
-        print(line)
-        sys.exit(0)
-
-    if args.touch_command == "source":
-        try:
-            line = touchlog.render_source(channel=args.channel, query=args.query, date=args.date)
-        except ValueError as exc:
-            print(f"TOUCH LOG: FAIL — {exc}")
-            sys.exit(1)
-        print(line)
-        sys.exit(0)
-
-
-def cmd_cta_probe(args) -> None:
-    """Single-page Playwright pass: load ONE page and run the JS-button
-    click-discovery on it. Exists for the Firecrawl fetch path, where
-    cta_clicks is always [] — when the packet shows unverified js_only_buttons
-    on an offer page, this resolves just that page instead of re-walking the
-    whole funnel with `main.py walk`. Prints the cta_clicks JSON."""
-    from audit.crawler import (
-        crawl as _unused_guard,  # noqa: F401 — fail fast if the crawl stack is missing
-    )
-    from audit import crawler
-
-    url = _normalize_url(args.url)
-    import os
-    from playwright.sync_api import sync_playwright
-
-    with sync_playwright() as pw:
-        launch_kwargs: dict = {
-            "headless": True,
-            "args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-        }
-        exe = os.environ.get("FUNNEL_AUDITOR_CHROMIUM")
-        if not exe and os.path.exists("/opt/pw-browsers/chromium"):
-            exe = "/opt/pw-browsers/chromium"
-        if exe:
-            launch_kwargs["executable_path"] = exe
-        proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
-        proxied = bool(proxy_url and "127.0.0.1" in proxy_url)
-        if proxied:
-            launch_kwargs["proxy"] = {"server": proxy_url}
-            crawler._ensure_mitm_friendly_tls()
-        browser = pw.chromium.launch(**launch_kwargs)
-        context = browser.new_context(ignore_https_errors=proxied)
-        page = context.new_page()
-        page.set_viewport_size({"width": 1280, "height": 800})
-        try:
-            crawler._goto_with_fallback(page, url)
-        except Exception as exc:
-            print(json.dumps({"url": url, "error": str(exc)[:200], "cta_clicks": []}, indent=2))
-            browser.close()
-            sys.exit(1)
-        crawler._wait_for_embeds(page)
-        clicks = crawler._discover_cta_destinations(page, url, args.type)
-        browser.close()
-    print(json.dumps({"url": url, "link_type": args.type, "cta_clicks": clicks}, indent=2))
-
-
-def cmd_promote_evidence(args) -> None:
-    """Resize/strip/compress one working screenshot from `evidence/<slug>/`
-    and commit it to the permanent `docs/leads/<slug>/evidence/` folder —
-    see audit/evidence_promotion.py for why this exists (no screenshot has
-    ever survived a cloud container reclaim before this) and the append-only
-    contract (refuses to overwrite without --force)."""
-    from audit import evidence_promotion
-    sys.exit(evidence_promotion.print_promote(
-        args.slug, args.kind, args.source, rank=args.rank, force=args.force,
-    ))
-
-
-def cmd_gmail_gethaytham(args) -> None:
-    """Direct Gmail API path for haytham@gethaytham.com — see
-    audit/gmail_gethaytham.py's module docstring for why this exists
-    instead of a second Claude connector (Google's Gmail MCP endpoint only
-    binds one account and auto-mate.one already claimed it). Prints JSON to
-    stdout for the calling skill; errors print {"error": ...} and exit
-    non-zero, same contract as `apify`."""
-    from audit import gmail_gethaytham as gg
-
-    cmd = args.gg_command
-    try:
-        if cmd == "search":
-            out = gg.search_threads(args.query, max_results=args.max)
-        elif cmd == "thread":
-            out = gg.get_thread(args.thread_id)
-        elif cmd == "message":
-            out = gg.get_message(args.message_id)
-        elif cmd == "labels":
-            out = gg.list_labels()
-        elif cmd == "draft":
-            body = sys.stdin.read() if args.body == "-" else args.body
-            out = gg.create_draft(
-                args.to, args.subject, body,
-                thread_id=args.thread_id, in_reply_to=args.in_reply_to,
-            )
-        elif cmd == "drafts":
-            out = gg.list_drafts()
-        else:
-            print(json.dumps({"error": f"gmail-gethaytham: unknown subcommand {cmd!r}"}))
-            sys.exit(2)
-    except gg.GmailGethaythamError as exc:
-        print(json.dumps({"error": str(exc)}, indent=2))
-        sys.exit(1)
-    print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
-
-
-# Manual `apify <cmd>` subcommands that have a no-Apify alternative — when
-# the quota is capped, redirect to it instead of letting the actor run 402.
-# `ig`/`ig-post`/`li-posts`/`li-profile` are NOT here: Firecrawl can't reach
-# either platform, so there is nothing to redirect to and they must run
-# regardless of cap status (blocking them would just strand hook-finding
-# with no fallback at all).
-_APIFY_ALTERNATIVES = {
-    "verify-email": "`python main.py email-verify <address>` (ZeroBounce, no Apify cost)",
-    "search": "`firecrawl_search` + `python main.py classify-footprint` (no Apify cost)",
-    "footprint": "`firecrawl_search` + `python main.py classify-footprint` (no Apify cost)",
-}
+# -------------------------------------------------------------------- fetching
 
 
 def cmd_apify(args) -> None:
-    """No-login third-party fetch layer — LinkedIn/Instagram hooks, email
-    verification, Google SERP (see audit/apify.py). Prints JSON to stdout
-    for the calling skill; errors print {"error": ...} and exit non-zero.
-    `verify-email`/`search`/`footprint` check the quota first and redirect
-    to their no-Apify alternative if capped, rather than running into a 402
-    — see `_APIFY_ALTERNATIVES`. There's no such redirect for `ig`/
-    `li-posts`/`li-profile`/`youtube`: those have no substitute, so they always run.
+    """No-login third-party fetch layer. Prints JSON for the calling skill.
 
-    Every run is also cost-gated (audit/apify.py's approval threshold,
-    $0.10): a call whose estimated cost is unknown or over threshold
-    prints `{"error": ..., "needs_approval": true, "estimated_usd": ...}`
-    and exits 3 instead of running — get Haytham's approval, then re-run
-    the same command with `--approve-cost`."""
+    Every run is cost-gated: a call whose estimate is unknown or over the
+    approval threshold exits 3 rather than running.
+    """
     from audit import apify
 
     cmd = args.apify_command
@@ -1006,12 +914,6 @@ def cmd_apify(args) -> None:
             out = apify.account_limits()
         elif cmd == "actors":
             out = apify.discover_actors(args.query, args.limit)
-        elif cmd in _APIFY_ALTERNATIVES and _apify_quota_note()[0]:
-            print(json.dumps({
-                "error": f"Apify is at/near its monthly cap — use "
-                         f"{_APIFY_ALTERNATIVES[cmd]} instead",
-            }, indent=2))
-            sys.exit(1)
         elif cmd == "ig":
             out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
                                   limit=args.limit, skip_pinned=args.skip_pinned,
@@ -1031,22 +933,20 @@ def cmd_apify(args) -> None:
             out = apify.verify_emails(args.addresses, raw=args.raw, approved=approved)
         elif cmd == "search":
             out = apify.google_search(args.query, pages=args.pages, site=args.site,
-                                      country=args.country, raw=args.raw, approved=approved,
+                                      country=args.country, raw=args.raw,
+                                      approved=approved,
                                       meta=getattr(args, "meta", False))
         elif cmd == "footprint":
             out = apify.footprint_search(args.platform, geo=args.geo, role=args.role,
-                                         country=args.country, raw=args.raw, approved=approved)
+                                         country=args.country, raw=args.raw,
+                                         approved=approved)
         else:
-            parser_error = f"apify: unknown subcommand {cmd!r}"
-            print(json.dumps({"error": parser_error}))
+            print(json.dumps({"error": f"apify: unknown subcommand {cmd!r}"}))
             sys.exit(2)
     except apify.ApifyCostApprovalRequired as exc:
-        print(json.dumps({
-            "error": str(exc),
-            "needs_approval": True,
-            "actor": exc.actor_id,
-            "estimated_usd": exc.estimated_usd,
-        }, indent=2))
+        print(json.dumps({"error": str(exc), "needs_approval": True,
+                          "actor": exc.actor_id,
+                          "estimated_usd": exc.estimated_usd}, indent=2))
         sys.exit(3)
     except apify.ApifyError as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
@@ -1055,13 +955,11 @@ def cmd_apify(args) -> None:
 
 
 def cmd_classify_footprint(args) -> None:
-    """Fetch-agnostic footprint merge (audit/footprint.py) — the Firecrawl-fed
-    replacement for `apify footprint`. Takes hit lists already fetched by the
-    skill via `firecrawl_search` for both query shapes (subdomain + 'powered
-    by' marker) and does the same dedupe/noise-filter/tagging Apify's
-    google-search-scraper used to feed, at no Apify cost. Prints JSON;
-    unknown platform or unreadable input prints {"error": ...} and exits
-    non-zero, same contract as `apify`."""
+    """Merge pre-fetched search hits into deduped, tagged sourcing candidates.
+
+    Fetch-agnostic by design: whatever fetched the hits (the agent's own web
+    search, or `apify search`) hands them here as JSON.
+    """
     from audit import footprint
 
     def _load_hits(path: str | None) -> list[dict]:
@@ -1071,627 +969,224 @@ def cmd_classify_footprint(args) -> None:
         return json.loads(text) if text.strip() else []
 
     try:
-        subdomain_hits = _load_hits(args.subdomain_hits)
-        marker_hits = _load_hits(args.marker_hits)
         out = footprint.classify_footprint_hits(
-            args.platform, subdomain_hits, marker_hits,
-            geo=args.geo, role=args.role,
-        )
+            args.platform, _load_hits(args.subdomain_hits),
+            _load_hits(args.marker_hits), geo=args.geo, role=args.role)
     except (footprint.FootprintError, OSError, json.JSONDecodeError) as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         sys.exit(1)
     print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(prog="funnel-auditor")
-    sub = parser.add_subparsers(dest="command")
+# ------------------------------------------------------------------------ CLI
 
-    p_walk = sub.add_parser("walk", help="crawl + full evidence packet")
-    p_walk.add_argument("url")
-    p_walk.add_argument("--name", help="lead's name (used for the evidence folder + packet header)")
-    p_walk.add_argument("--handle", help="IG handle, e.g. @coachjane")
-    p_walk.add_argument("--followers", type=int, help="IG follower count (audience floor input)")
-    p_walk.add_argument("--out", help="output dir (default: ./evidence/<slug>/)")
-    p_walk.set_defaults(func=cmd_walk)
 
-    p_crawl = sub.add_parser("crawl", help="crawl + terminal summary only")
-    p_crawl.add_argument("url")
-    p_crawl.set_defaults(func=cmd_crawl)
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="main.py",
+        description="The outbound machine. Every command is a decision, "
+                    "printed as a line to quote verbatim.")
+    sub = parser.add_subparsers(dest="command", required=True)
 
-    p_slug = sub.add_parser("slug", help="print the evidence-folder slug for a name/URL (matches `walk` exactly)")
-    p_slug.add_argument("value")
-    p_slug.set_defaults(func=cmd_slug)
+    p = sub.add_parser("intake", help="raw CSV -> profiled, junk-stripped Leads")
+    p.add_argument("path")
+    p.add_argument("--source", help="label for where this list came from")
+    p.add_argument("--out", help="write the Leads as JSON")
+    p.add_argument("--json", action="store_true", help="print JSON instead of a profile")
+    p.set_defaults(func=cmd_intake)
 
-    p_disc_links = sub.add_parser("discover-links", help="classify a pre-fetched page's links (scope/priority, no fetching)")
-    p_disc_links.add_argument("html_file")
-    p_disc_links.add_argument("url")
-    p_disc_links.add_argument("--platform", help="skip auto-detection (bio-link platform name, or omit)")
-    p_disc_links.set_defaults(func=cmd_discover_links)
+    p = sub.add_parser("dedupe", help="the Contacted-Before wall (exits 1 on a warm hit)")
+    p.add_argument("leads", help="Leads JSON from `intake --out`")
+    p.add_argument("--contacts", help="override the wall: a CSV, or a JSON array "
+                                      "of CRM rows (default data/contacted-before.csv)")
+    p.add_argument("--stage", choices=["early", "late"], default="early",
+                   help="early = name/domain before any paid call; late = email after research")
+    p.add_argument("--out", help="write the cleared Leads as JSON")
+    p.set_defaults(func=cmd_dedupe)
 
-    p_disc_checkout = sub.add_parser("discover-checkout", help="find checkout/buy links on a pre-fetched sales/course page")
-    p_disc_checkout.add_argument("html_file")
-    p_disc_checkout.add_argument("url")
-    p_disc_checkout.set_defaults(func=cmd_discover_checkout)
+    p = sub.add_parser("qualify", help="the three floors (unclear passes)")
+    p.add_argument("input", help="JSON file, or '-' for stdin")
+    p.set_defaults(func=cmd_qualify)
 
-    p_ss_name = sub.add_parser("screenshot-name", help="print the exact filename a screenshot should be saved as")
-    p_ss_name.add_argument("url")
-    p_ss_name.add_argument("suffix", choices=["desktop", "mobile"])
-    p_ss_name.set_defaults(func=cmd_screenshot_name)
+    p = sub.add_parser("research", help="validate a worker's research object")
+    p.add_argument("input", help="JSON file, or '-' for stdin")
+    p.set_defaults(func=cmd_research)
 
-    p_ingest = sub.add_parser("ingest", help="build the evidence packet from a manifest of pre-fetched pages (Firecrawl path)")
-    p_ingest.add_argument("manifest", help="path to the manifest JSON (see main.py module docstring)")
-    p_ingest.add_argument("--name", help="lead's name (used for the evidence folder + packet header)")
-    p_ingest.add_argument("--handle", help="IG handle, e.g. @coachjane")
-    p_ingest.add_argument("--followers", type=int, help="IG follower count (audience floor input)")
-    p_ingest.add_argument("--out", help="output dir (default: ./evidence/<slug>/)")
-    p_ingest.set_defaults(func=cmd_ingest)
+    p = sub.add_parser("fetch", help="tier 0 site reads, plus one batched Apify plan")
+    p.add_argument("leads", help="Leads JSON from `intake --out`")
+    p.add_argument("--max-pages", type=int, default=5)
+    p.add_argument("--with-text", action="store_true", help="include page text in the output")
+    p.add_argument("--out", help="write the reads as JSON")
+    p.set_defaults(func=cmd_fetch)
 
-    p_vision = sub.add_parser("vision", help="vision-pass completeness gate (see audit/vision_gate.py)")
-    vision_sub = p_vision.add_subparsers(dest="vision_command", required=True)
+    p = sub.add_parser("anchors", help="which hand-written lines a lead draws")
+    p.add_argument("email")
+    p.add_argument("--coach-type", default="", help="Business | Leadership | Life | ...")
+    p.add_argument("--sells-to", default="", help="corporates | individuals")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_anchors)
 
-    v_init = vision_sub.add_parser("init", help="(re)build the manifest from evidence.json + ig/ + hook/")
-    v_init.add_argument("evidence_dir")
+    p = sub.add_parser("deal", help="anchors for a whole batch, weights held exactly")
+    p.add_argument("leads", help="JSON list of {email, coach_type, sells_to}")
+    p.add_argument("--out", help="write the per-lead anchors as JSON")
+    p.set_defaults(func=cmd_deal)
 
-    v_mark = vision_sub.add_parser("mark", help="mark one or more image paths as read")
-    v_mark.add_argument("evidence_dir")
-    v_mark.add_argument("paths", nargs="+", help="e.g. ig/1.png screenshots/foo_desktop.png")
+    p = sub.add_parser("facts", help="the client-result fact table every number traces to")
+    p.set_defaults(func=cmd_facts)
 
-    v_check = vision_sub.add_parser("check", help="pass/fail: every required image read? (exit 0/1)")
-    v_check.add_argument("evidence_dir")
+    p = sub.add_parser("copy-usage",
+                       help="report a shipped batch's line usage back to Airtable "
+                            "(run AFTER uploading, alongside wall-add)")
+    p.add_argument("usage", help="out/line-usage.csv from `export`")
+    p.add_argument("--date", help="ISO date to stamp (default today)")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_copy_usage)
 
-    v_list = vision_sub.add_parser("list", help="list every tracked image and its read status")
-    v_list.add_argument("evidence_dir")
+    p = sub.add_parser("copy-sync",
+                       help="pull the hand-written lines out of Airtable, "
+                            "rejecting any that fail the lint")
+    p.add_argument("input", nargs="?", default="-",
+                   help="JSON file of Copy Assets records, or '-' for stdin")
+    p.add_argument("--live", action="store_true",
+                   help="fetch directly (needs AIRTABLE_API_KEY)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="validate and report, write nothing")
+    p.set_defaults(func=cmd_copy_sync)
 
-    p_vision.set_defaults(func=cmd_vision)
+    p = sub.add_parser("wall-add",
+                       help="append a shipped batch to data/contacted-before.csv "
+                            "(run AFTER uploading, never before)")
+    p.add_argument("additions", help="out/wall-additions.csv from `export`")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_wall_add)
 
-    p_crm = sub.add_parser(
-        "crm-gate",
-        help="UAE CRM transition gates: offer (the lead has EARNED a number — an earned "
-             "Status or `Asked For Price`; the discovery answer/anchor are advisory now) "
-             "/ send (finding verified + follow-ups-first daily ceiling + touch 2/3 "
-             "carrier check) / log (Touch # actually matches the Email Thread Log — run "
-             "this right after every confirmed-send write, on the fresh re-fetch) — see "
-             "audit/crm_gate.py",
-    )
-    p_crm.add_argument("gate", choices=["offer", "send", "log"])
-    p_crm.add_argument("--tier", choices=["core", "attraction"], default="core",
-                       help="(offer gate) which priced offer is being drafted. `core` (default) "
-                            "is The First Five (AED 2,000 setup + 900/call) and needs the EARNED "
-                            "RIGHT — an earned Status or `Asked For Price`. `attraction` is The "
-                            "Named Fifty (AED 500) and needs only a LIVE THREAD (she replied), "
-                            "because an attraction offer exists to buy a customer and would be "
-                            "unsendable behind the earned right. Pick the tier by which offer you "
-                            "are actually drafting, never by which verdict you want. Mirrors "
-                            "audit/crm_gate.OFFER_TIERS")
-    p_crm.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
-    p_crm.add_argument("--page-body",
-                       help="(log gate) path to the lead's page body, fetched FRESH and dumped "
-                            "verbatim — the gate re-parses the Email Thread Log itself, it does "
-                            "not take a block count on trust")
-    p_crm.add_argument("--sends-today", type=int,
-                       help="(send gate) TOTAL sends already out of the inbox today — all touch "
-                            "types, warm included, both tracks (Gmail sent count)")
-    p_crm.add_argument("--touch", type=int,
-                       help="(send gate) which touch this send is: 1 is always the cold opener, "
-                            "2/3 are the rest of the cold sequence (day 0/3/9, then Dormant), "
-                            "4+ is a warm touch (a thread that got a reply and kept going) — "
-                            "every touch >= 2 runs the same follow-up gate (carrier + freshness)")
-    p_crm.add_argument("--followups-due", type=int,
-                       help="(send gate, touch 1) follow-ups still owed on the opener's send-day — "
-                            "they eat the budget before any opener")
-    p_crm.add_argument("--sends-next-day", type=int, default=None,
-                       help="(send gate, touch 1) tomorrow's already-scheduled sends out of this "
-                            "inbox. Required past noon Dubai: a fresh opener queued after noon is "
-                            "scheduled for tomorrow morning, so it is gated against TOMORROW's "
-                            "ceiling using this count, not today's already-spent one")
-    p_crm.add_argument("--carries",
-                       choices=["second-cold-read", "call-ask", "disambiguating-question",
-                                "second-finding", "leak-fix-offer", "loom-offer"],
-                       help="(send gate, touch >= 2, cold or warm) the new thing this follow-up "
-                            "carries; second-finding is checked against the row's Findings Bank. "
-                            "`loom-offer`/`leak-fix-offer` are DEPRECATED ALIASES for `call-ask`, and "
-                            "`second-finding` for `second-cold-read` (findings stopped being "
-                            "emailed 2026-07-27) "
-                            "(the offer is now The First Five and the turn-two is a call ask "
-                            "with two specific times) — they still "
-                            "pass and emit a deprecation note. Mirrors "
-                            "audit/crm_gate.CARRIER_CHOICES")
-    p_crm.add_argument("--cold-read", default=None,
-                       choices=list(_cold_read_choices()),
-                       help="(send gate, touch 1, REQUIRED) which cold-read pattern the "
-                            "draft's opener was built from. Replaced --opener-rank on "
-                            "2026-07-27, when the opener stopped being a finding and became "
-                            "a cold read; findings are now RESERVED call-bait and are never "
-                            "emailed. Mirrors audit/crm_gate.COLD_READS and "
-                            ".claude/skills/haytham-email-draft/references/cold-reads.md")
-    p_crm.add_argument("--inbox", default=None,
-                       help="(send gate) which sending inbox this send leaves from — its ceiling is "
-                            "independent (default: primary, haytham@auto-mate.one)")
-    p_crm.set_defaults(func=cmd_crm_gate)
+    p = sub.add_parser("lint", help="the gate on model-written copy")
+    p.add_argument("input", help="JSON file (one draft or a list), or '-' for stdin")
+    p.set_defaults(func=cmd_lint)
 
-    p_refresh = sub.add_parser(
-        "refresh-finding",
-        help="cheap re-check for one Findings Bank entry: fetch the finding's page live "
-             "(--url) or from an already-fetched file (--page-file), diff it against the "
-             "stored evidence (--baseline-file), and — if unchanged — auto-stamp `verified:` "
-             "to today (not a full re-walk) — run before every send/offer so a finding the "
-             "coach already fixed can't slip through stale (see audit/crm_gate.py, the "
-             "Rita Baki case)",
-    )
-    p_refresh.add_argument("row_json", help="path to a JSON dump of the lead row's properties, fetched FRESH from Notion")
-    p_refresh.add_argument("--rank", type=int, required=True,
-                           help="which Findings Bank rank to refresh")
-    p_refresh.add_argument("--url", default=None,
-                           help="the finding's page — fetched live (plain HTTP GET, no JS "
-                                "rendering; cheap by design, not a full walk). Use this by "
-                                "default")
-    p_refresh.add_argument("--page-file", default=None,
-                           help="the finding's page content, already fetched some other way "
-                                "(e.g. via Firecrawl for a JS-heavy page) — alternative to --url")
-    p_refresh.add_argument("--baseline-file", default=None,
-                           help="the finding's page content as captured at walk time (or the last "
-                                "refresh); omit to just establish a first baseline, nothing to "
-                                "diff or auto-stamp yet")
-    p_refresh.add_argument("--save-baseline-to", default=None,
-                           help="write this run's fetched page here — becomes the "
-                                "--baseline-file for the NEXT refresh-finding run, so the "
-                                "loop keeps closing itself")
-    p_refresh.set_defaults(func=cmd_refresh_finding)
+    p = sub.add_parser("export", help="write leads.csv + preview.txt for what passed")
+    p.add_argument("input", help="JSON array of drafts")
+    p.add_argument("--out", default="out", help="output directory (default out/)")
+    p.add_argument("--batch", help="batch label (default today)")
+    p.add_argument("--anchors", help="the JSON from `deal --out`. When given, any "
+                                     "draft whose lines disagree with what the "
+                                     "deal assigned is rejected")
+    p.add_argument("--rebalance-ps", action="store_true",
+                   help="reallocate the ps across the leads that actually ship. "
+                        "Use after holds: a deal made for 11 leads puts two ps "
+                        "lines over the 35%% cap once 3 of them hold, and "
+                        "re-dealing would move identity lines and force a "
+                        "re-draft of emails that already passed a cold read")
+    p.set_defaults(func=cmd_export)
 
-    p_log_lint = sub.add_parser(
-        "log-lint",
-        help="the log-grammar rule set (audit/touchlog.py) run against a fresh row + page "
-             "body — Touch # reconciliation, contiguous n, required tokens per direction, "
-             "enum values, inbox/Findings-Bank cross-checks. Fails closed on any ERROR; "
-             "WARN never blocks. See docs/uae-track/log-grammar.md",
-    )
-    p_log_lint.add_argument("row_json", nargs="?", default=None,
-                            help="path to a JSON dump of the lead row's properties, fetched "
-                                 "FRESH from Notion; may embed the page body under "
-                                 '"__page_body__" if --page-body is not given')
-    p_log_lint.add_argument("--page-body", default=None,
-                            help="path to the lead's page body, fetched FRESH and dumped verbatim")
-    p_log_lint.add_argument("--slug", default=None,
-                            help="lint from the repo archive (docs/leads/<slug>/raw.md) instead "
-                                 "of a live row — Touch # reconciliation is skipped (no property "
-                                 "to reconcile against), everything else still runs")
-    p_log_lint.add_argument("--all", action="store_true",
-                            help="lint every lead in one pass — requires --manifest")
-    p_log_lint.add_argument("--manifest", default=None,
-                            help='(with --all) a JSON array of {"row": {...}, "page_body": '
-                                 '"..."} objects, one per non-Disqualified lead, assembled by '
-                                 "the calling skill from a fresh Notion fetch (this module never "
-                                 "talks to Notion directly)")
-    p_log_lint.set_defaults(func=cmd_log_lint)
+    p = sub.add_parser("email-check", help="free shape check: syntax, MX, role/typo flags")
+    p.add_argument("address")
+    p.add_argument("--name", help="lead's full name, for the name-match note")
+    p.set_defaults(func=cmd_email_check)
 
-    p_touch_log = sub.add_parser(
-        "touch-log",
-        help="the ONLY sanctioned way to write a TOUCH:/OFFER:/SOURCE: sentinel line "
-             "(audit/touchlog.py) — self-lints before printing; an invalid block prints "
-             "nothing and exits non-zero rather than emit something half-valid",
-    )
-    touch_sub = p_touch_log.add_subparsers(dest="touch_command", required=True)
+    p = sub.add_parser("email-verify", help="deliverability confirm before a send")
+    p.add_argument("address")
+    p.add_argument("--approve-cost", action="store_true")
+    p.set_defaults(func=cmd_email_verify)
 
-    t_render = touch_sub.add_parser("render", help="build one TOUCH: block (Email Thread Log)")
-    t_render.add_argument("--n", type=int, required=True, help="touch number")
-    t_render.add_argument("--dir", required=True, choices=["out", "in"])
-    t_render.add_argument("--date", required=True, help="YYYY-MM-DD, Dubai calendar day")
-    t_render.add_argument("--inbox", default=None, help="required on --dir out (e.g. \"Inbox 1\")")
-    t_render.add_argument("--seq", default=None, choices=["cold", "warm"],
-                          help="required on --dir out")
-    t_render.add_argument("--carries", default=None,
-                          choices=["opener", "second-cold-read", "call-ask",
-                                   "disambiguating-question", "price-discovery", "money-email",
-                                   "objection-reply", "reactivation",
-                                   "second-finding", "leak-fix-offer", "loom-offer"],
-                          help="required on --dir out when --n >= 2. Mirrors "
-                               "audit/touchlog.CARRIER_CHOICES (loom-offer and leak-fix-offer are deprecated "
-                               "aliases for call-ask)")
-    t_render.add_argument("--finding", type=int, default=None,
-                          help="the Findings Bank rank this touch draws on — required when "
-                               "--carries second-finding")
-    t_render.add_argument("--subject", default=None, help="required on --dir out")
-    t_render.add_argument("--thread", required=True, help="Gmail thread ID")
-    t_render.add_argument("--gate", default=None,
-                          help="required on --dir out — the literal `crm-gate send` verdict "
-                               "line, quoted")
-    t_render.add_argument("--type", default=None,
-                          choices=["Interested", "Price question", "Brush-off", "Logistics",
-                                   "Blunt", "Decline"],
-                          help="reply type — required on --dir in unless --bounce/--auto")
-    t_render.add_argument("--reply-to", type=int, default=None, dest="reply_to",
-                          help="(--dir in) the touch n this reply answers")
-    t_render.add_argument("--bounce", action="store_true", help="this send bounced")
-    t_render.add_argument("--auto", action="store_true", help="this inbound is an autoresponder")
-    t_render.add_argument("--body", default=None, help="the verbatim body, given directly")
-    t_render.add_argument("--body-file", default=None, help="path to the verbatim body")
-    t_render.add_argument("--body-from-gmail", default=None, metavar="THREAD_ID",
-                          help="pull the body straight from the sent/received Gmail message "
-                               "(direct API path, audit/gmail_gethaytham) instead of a "
-                               "transcription step")
-    t_render.set_defaults(func=cmd_touch_log)
+    p = sub.add_parser("email-enrich", help="no-address fallback on the lead's own domain")
+    p.add_argument("name")
+    p.add_argument("domain", help="domain or site URL")
+    p.add_argument("--approve-cost", action="store_true")
+    p.set_defaults(func=cmd_email_enrich)
 
-    t_offer = touch_sub.add_parser("offer", help="build one OFFER: line (## Money) — never edits, only appends")
-    t_offer.add_argument("--type", required=True,
-                         choices=["First Five", "Fewer Calls", "Setup Deferred", "Custom",
-                                  "Leak Fix", "Sprint", "The Minimum", "Payment Plan",
-                                  "Funnel Watch"],
-                         help="First Five / Fewer Calls / Setup Deferred are live; the rest are RETIRED and accepted only so historical OFFER: lines still parse")
-    t_offer.add_argument("--amount", required=True, help="plain number, no currency symbol")
-    t_offer.add_argument("--currency", default="AED")
-    t_offer.add_argument("--date", required=True, help="YYYY-MM-DD")
-    t_offer.add_argument("--status", required=True,
-                         choices=["Proposed", "Accepted", "Declined", "Paid", "Refunded"])
-    t_offer.add_argument("--rung", default=None, choices=["0", "1", "2"])
-    t_offer.add_argument("--objection", default=None)
-    t_offer.add_argument("--terms", default=None,
-                         choices=["pay after", "50% deposit", "plan", "full up front"])
-    t_offer.set_defaults(func=cmd_touch_log)
-
-    t_source = touch_sub.add_parser("source", help="build one SOURCE: line (## Overview)")
-    t_source.add_argument("--channel", required=True)
-    t_source.add_argument("--query", required=True, help="the literal query string that produced this lead")
-    t_source.add_argument("--date", required=True, help="YYYY-MM-DD")
-    t_source.set_defaults(func=cmd_touch_log)
-
-    p_cap = sub.add_parser(
-        "send-cap",
-        help="daily send ceiling, one independent ramp PER inbox (TOTAL sends leaving that "
-             "inbox): status shows a cap + ramp reminder (--inbox to target one, --all for "
-             "every inbox); set moves one step (20 → 25 → 30) or registers a new inbox at 20, "
-             "Haytham's call only — see audit/send_cap.py",
-    )
-    cap_sub = p_cap.add_subparsers(dest="cap_command", required=True)
-    c_status = cap_sub.add_parser("status", help="print the current ceiling, days at this step, and the ramp reminder")
-    c_status.add_argument("--inbox", default=None,
-                          help="which sending inbox by logical label (default: primary, 'Inbox 1')")
-    c_status.add_argument("--all", action="store_true",
-                          help="show every registered inbox and the total additive system ceiling")
-    c_set = cap_sub.add_parser("set", help="move an inbox's ceiling to a ramp step (20/25/30), or register a new inbox at 20 — Haytham's call, never a skill's")
-    c_set.add_argument("value", type=int)
-    c_set.add_argument("--inbox", default=None,
-                       help="which sending inbox by logical label (default: primary); must already be in the registry")
-    c_log = cap_sub.add_parser(
-        "log",
-        help="append one canonical per-inbox line to docs/deliverability-log.md (the ramp evidence file)",
-    )
-    c_log.add_argument("--inbox", required=True, help="the inbox this event concerns (logical label)")
-    c_log.add_argument("--kind", required=True,
-                       choices=["bounce", "spam-flag", "test-score", "over-ceiling", "note"],
-                       help="event type")
-    c_log.add_argument("--detail", required=True, help="one-line detail (address, score, count, etc.)")
-    p_cap.set_defaults(func=cmd_send_cap)
-
-    p_inbox = sub.add_parser(
-        "inbox",
-        help="inbox registry — the seam between logical labels (Inbox 1/2/N, used by the CRM, "
-             "the cap file, and the gate) and real sending addresses + transports. `list` shows "
-             "every inbox with its address, transport, and cap; `route` picks the inbox for a "
-             "lead's next send — see audit/inboxes.py",
-    )
-    inbox_sub = p_inbox.add_subparsers(dest="inbox_command", required=True)
-    inbox_sub.add_parser("list", help="every registered inbox: label, address, transport, cap (JSON)")
-    i_route = inbox_sub.add_parser(
-        "route",
-        help="which inbox a lead's next send leaves from, given its current assignment and today's counts",
-    )
-    i_route.add_argument("--current", default=None,
-                         help="the lead's current Inbox label (blank/omitted for a new, unassigned lead)")
-    i_route.add_argument("--count", action="append", metavar="LABEL=N",
-                         help="today's sends already out of an inbox, e.g. --count 'Inbox 1=18' "
-                              "(repeatable; missing inboxes count 0)")
-    i_route.add_argument("--policy", default="headroom", choices=list(inboxes.ROUTING_POLICIES),
-                         help="routing policy for a NEW lead: headroom (emptiest inbox, default) "
-                              "or fill-primary (fill primary, then overflow)")
-    i_route.add_argument("--weight", action="append", metavar="LABEL=W",
-                         help="warm-up bias for the headroom policy, e.g. --weight 'Inbox 2=0.3' "
-                              "(scales that inbox's effective headroom down while it warms; "
-                              "repeatable; missing = 1.0)")
-    i_counts = inbox_sub.add_parser(
-        "counts",
-        help="today's sent count per inbox — counts direct-API inboxes (gethaytham) here, "
-             "emits the query for Gmail MCP inboxes; queries by epoch seconds at Dubai "
-             "midnight (timezone-exact, unlike after:YYYY/MM/DD)",
-    )
-    i_counts.add_argument("--date", default=None, metavar="YYYY/MM/DD",
-                          help="override the query boundary with a Gmail-style date string "
-                               "(default: epoch seconds at Dubai midnight today, timezone-exact)")
-    i_rec = inbox_sub.add_parser(
-        "reconcile",
-        help="reconcile a lead's CRM Inbox against where its thread physically lives (reality wins)",
-    )
-    i_rec.add_argument("--current", default=None, help="the lead's current CRM Inbox label (may be blank)")
-    i_rec.add_argument("--found-in", required=True, help="the inbox whose Gmail actually holds the thread")
-    p_inbox.set_defaults(func=cmd_inbox)
-
-    p_dash = sub.add_parser(
-        "dashboard",
-        help="command-center dashboard: `skeleton` prints the Python-reachable base "
-             "snapshot (per-inbox ceilings + Inbox 2's sent-today count) + the Gmail-MCP "
-             "count queries, with Notion panels seeded null for the skill to fill; "
-             "`render` validates a completed snapshot and writes the self-contained HTML "
-             "page (published as a Claude Artifact) — see audit/dashboard.py",
-    )
-    dash_sub = p_dash.add_subparsers(dest="dashboard_command", required=True)
-    dash_sub.add_parser(
-        "skeleton",
-        help="print the Python-reachable base snapshot JSON (fill the null panels from "
-             "Notion + Gmail MCP, then pipe into `render`)",
-    )
-    d_render = dash_sub.add_parser(
-        "render", help="validate a completed snapshot JSON and write the dashboard HTML")
-    d_render.add_argument("snapshot_json", help="path to the completed snapshot JSON")
-    d_render.add_argument("--out", required=True, help="output path for the HTML page")
-    d_render.add_argument("--title", default="Funnel Auditor — Command Center",
-                          help="page title (browser tab + Artifact name)")
-    p_dash.set_defaults(func=cmd_dashboard)
-
-    p_email = sub.add_parser(
-        "email-check",
-        help="pre-send address check: syntax + MX + typo/disposable/role flags "
-             "(FAIL = don't send; WARN inconclusive = verify via "
-             "`email-verify`) — see audit/email_check.py",
-    )
-    p_email.add_argument("address")
-    p_email.add_argument("--name", help="lead's name — flags whether the local part matches")
-    p_email.set_defaults(func=cmd_email_check)
-
-    p_email_verify = sub.add_parser(
-        "email-verify",
-        help="deliverability verification (ZeroBounce, audit/email_verifier.py) as a "
-             "quotable gate line: PASS = mailbox confirmed, check `Email Verified` and "
-             "the lead is sendable; FAIL = bounce risk, never send; WARN = inconclusive "
-             "(catch_all/unknown), Haytham's call. The confirm step email-check can't "
-             "do — see audit/email_check.py",
-    )
-    p_email_verify.add_argument("address")
-    p_email_verify.add_argument("--approve-cost", action="store_true",
-                                help="Haytham has approved this call's estimated Apify cost "
-                                     "(only relevant when EMAIL_VERIFY_PROVIDER=apify and the "
-                                     "estimate is over $0.10 — see audit/apify.py)")
-    p_email_verify.set_defaults(func=cmd_email_verify)
-
-    p_email_enrich = sub.add_parser(
-        "email-enrich",
-        help="nominative fallback when no address was harvested: derive name-based "
-             "candidates against the lead's own domain, verify them in one batched "
-             "call, adopt at most ONE deliverable address. PASS = an EMAIL VERIFY: "
-             "PASS on that address (check `Email Verified`); HOLD = catch-all/"
-             "inconclusive, no auto-send; NONE = nothing verified or free-provider "
-             "domain — see audit/email_enrich.py",
-    )
-    p_email_enrich.add_argument("name", help="the lead's full name (Contact Name)")
-    p_email_enrich.add_argument("domain", help="the lead's Site URL or bare branded domain")
-    p_email_enrich.add_argument("--approve-cost", action="store_true",
-                                help="Haytham has approved this call's estimated Apify cost "
-                                     "(only relevant when EMAIL_VERIFY_PROVIDER=apify and the "
-                                     "estimate is over $0.10 — see audit/apify.py)")
-    p_email_enrich.set_defaults(func=cmd_email_enrich)
-
-    p_probe = sub.add_parser(
-        "cta-probe",
-        help="single-page Playwright JS-button click-discovery, for resolving one "
-             "Firecrawl-fetched page's unverified buttons without re-walking the funnel",
-    )
-    p_probe.add_argument("url")
-    p_probe.add_argument("--type", default="sales", choices=["sales", "course", "booking"],
-                         help="the page's link_type (click scope excludes checkout pages by design)")
-    p_probe.set_defaults(func=cmd_cta_probe)
-
-    p_cal = sub.add_parser(
-        "calendar-state",
-        help="read a lead's PUBLIC booking calendar (Calendly / Cal.com) and report how "
-             "much of the next month is unbooked — the acquisition-state finding that "
-             "replaced self-fixable funnel defects as the cold opener",
-    )
-    p_cal.add_argument("url", help="the lead's booking page URL")
-    p_cal.add_argument("--days", type=int, default=30,
-                       help="window width in days; mirrors calendar_state.MAX_WINDOW_DAYS "
-                            "(the API rejects wider ranges with the same error string it "
-                            "uses for a real calendar fault, so wider is refused)")
-    p_cal.add_argument("--timezone", default="Asia/Dubai")
-    p_cal.add_argument("--reads", type=int, default=2,
-                       help="independent reads that must AGREE before a verdict is "
-                            "returned; a transient API 400 cleared on 4 of 4 retries "
-                            "during design, so one read is not evidence")
-    p_cal.set_defaults(func=cmd_calendar_state)
-
-    p_promote = sub.add_parser(
-        "promote-evidence",
-        help="resize/strip/compress one working evidence/<slug>/ screenshot and commit "
-             "it to docs/leads/<slug>/evidence/ — the only screenshots that survive a "
-             "container reclaim. Refuses to overwrite an existing promoted file unless "
-             "--force (evidence is append-only) — see audit/evidence_promotion.py",
-    )
-    p_promote.add_argument("slug", help="the lead's evidence-folder slug (matches `walk`/`slug`)")
-    p_promote.add_argument("--kind", required=True, choices=["finding", "hook"],
-                           help="finding-N.png (needs --rank) or hook.png")
-    p_promote.add_argument("--rank", type=int, help="finding rank (1, 2, ...) — required for --kind finding")
-    p_promote.add_argument("--source", required=True,
-                           help="path to the source screenshot, resolved relative to evidence/<slug>/")
-    p_promote.add_argument("--force", action="store_true",
-                           help="overwrite an existing promoted file (default: refuse)")
-    p_promote.set_defaults(func=cmd_promote_evidence)
-
-    p_apify = sub.add_parser(
-        "apify",
-        help="no-login third-party fetch layer: LinkedIn/Instagram hook evidence "
-             "(the default use — email verification and Google SERP now default "
-             "elsewhere, `email-verify`/`classify-footprint`; `verify-email`/`search`/"
-             "`footprint` here remain a manual fallback). See audit/apify.py. Reads "
-             "APIFY_TOKEN from the environment.",
-    )
+    p_apify = sub.add_parser("apify", help="no-login LinkedIn / Instagram / YouTube / SERP fetch")
     apify_sub = p_apify.add_subparsers(dest="apify_command", required=True)
 
-    apify_sub.add_parser(
-        "limits",
-        help="current monthly usage vs. plan limits — check ONCE before a batch "
-             "so a dead quota isn't rediscovered by every lead independently",
-    )
+    apify_sub.add_parser("limits", help="usage vs plan — check ONCE per batch")
 
-    a_actors = apify_sub.add_parser("actors", help="search the public Apify Store (no token needed)")
-    a_actors.add_argument("query")
-    a_actors.add_argument("--limit", type=int, default=6)
+    a = apify_sub.add_parser("actors", help="search the public Apify Store")
+    a.add_argument("query")
+    a.add_argument("--limit", type=int, default=6)
 
-    a_ig = apify_sub.add_parser("ig", help="Instagram: recent posts w/ captions (post scraper), or profile details (profile scraper)")
-    a_ig.add_argument("url", help="profile URL or @handle (post URL also works for --mode posts)")
-    a_ig.add_argument("--mode", default="posts",
-                      choices=["posts", "details"],
-                      help="posts = feed w/ captions (instagram-post-scraper); "
-                           "details = follower/bio metadata (instagram-profile-scraper)")
-    a_ig.add_argument("--newer-than", dest="newer_than",
-                      help="recency filter for posts mode, e.g. '7 days', '2 months', or 2026-07-01")
-    a_ig.add_argument("--limit", type=int, default=12, help="max posts (posts mode)")
-    a_ig.add_argument("--skip-pinned", dest="skip_pinned", action="store_true",
-                      help="posts mode: drop pinned posts (default keeps them — a pinned "
-                           "post is often the coach's signature/framework content)")
-    a_ig.add_argument("--include-about", dest="include_about", action="store_true",
-                      help="details mode: add the paid about-account block "
-                           "(country, join date, verification)")
-    a_ig.add_argument("--raw", action="store_true", help="skip field trimming")
-    a_ig.add_argument("--approve-cost", action="store_true",
-                      help="Haytham has approved this run's estimated cost (only needed if "
-                           "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("ig", help="Instagram posts or profile details")
+    a.add_argument("url")
+    a.add_argument("--mode", default="posts", choices=["posts", "details"])
+    a.add_argument("--newer-than", dest="newer_than")
+    a.add_argument("--limit", type=int, default=12)
+    a.add_argument("--skip-pinned", dest="skip_pinned", action="store_true")
+    a.add_argument("--include-about", dest="include_about", action="store_true")
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
-    a_igp = apify_sub.add_parser("ig-post", help="full detail on one Instagram post (caption + top comments)")
-    a_igp.add_argument("url")
-    a_igp.add_argument("--raw", action="store_true")
-    a_igp.add_argument("--approve-cost", action="store_true",
-                       help="Haytham has approved this run's estimated cost (only needed if "
-                            "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("ig-post", help="one Instagram post in full")
+    a.add_argument("url")
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
-    a_lip = apify_sub.add_parser("li-posts", help="recent LinkedIn posts (no cookies) — primary hook source")
-    a_lip.add_argument("url")
-    a_lip.add_argument("--max", type=int, default=5, help="max posts (default 5)")
-    a_lip.add_argument("--since",
-                       choices=["any", "1h", "24h", "week", "month", "3months", "6months", "year"],
-                       help="recency window, e.g. week, month")
-    a_lip.add_argument("--raw", action="store_true")
-    a_lip.add_argument("--approve-cost", action="store_true",
-                       help="Haytham has approved this run's estimated cost (only needed if "
-                            "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("li-posts", help="recent LinkedIn posts — primary hook source")
+    a.add_argument("url")
+    a.add_argument("--max", type=int, default=5)
+    a.add_argument("--since", choices=["any", "1h", "24h", "week", "month",
+                                       "3months", "6months", "year"])
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
-    a_lipr = apify_sub.add_parser("li-profile", help="LinkedIn profile enrichment (headline/about/experience)")
-    a_lipr.add_argument("url")
-    a_lipr.add_argument("--email", action="store_true",
-                        help="use the email-search mode ($10/1k) to find an address — no-email leads only")
-    a_lipr.add_argument("--raw", action="store_true")
-    a_lipr.add_argument("--approve-cost", action="store_true",
-                        help="Haytham has approved this run's estimated cost (only needed if "
-                             "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("li-profile", help="LinkedIn headline / about / experience")
+    a.add_argument("url")
+    a.add_argument("--email", action="store_true", help="use the pricier email-search mode")
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
-    a_yt = apify_sub.add_parser("youtube", help="YouTube channel info — subscriber count + stats (the audience-floor number Firecrawl can't read for YT-native coaches)")
-    a_yt.add_argument("channel", help="channel URL or @handle")
-    a_yt.add_argument("--raw", action="store_true")
-    a_yt.add_argument("--approve-cost", action="store_true",
-                      help="Haytham has approved this run's estimated cost (only needed if "
-                           "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("youtube", help="channel stats and recent videos")
+    a.add_argument("channel")
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
-    a_ver = apify_sub.add_parser("verify-email", help="verify one or more addresses before they enter the CRM")
-    a_ver.add_argument("addresses", nargs="+")
-    a_ver.add_argument("--raw", action="store_true")
-    a_ver.add_argument("--approve-cost", action="store_true",
-                       help="Haytham has approved this run's estimated cost (only needed if "
-                            "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("verify-email", help="verify addresses in one batched call")
+    a.add_argument("addresses", nargs="+")
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
-    a_search = apify_sub.add_parser("search", help="Google SERP for one query")
-    a_search.add_argument("query")
-    a_search.add_argument("--pages", type=int, default=1)
-    a_search.add_argument("--site", help="scope to a domain, e.g. linkedin.com")
-    a_search.add_argument("--country", default="ae", help="country bias (default ae); pass '' to disable")
-    a_search.add_argument("--meta", action="store_true",
-                          help="also return relatedQueries + peopleAlsoAsk (query expansion)")
-    a_search.add_argument("--raw", action="store_true")
-    a_search.add_argument("--approve-cost", action="store_true",
-                          help="Haytham has approved this run's estimated cost (only needed if "
-                               "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("search", help="Google SERP for one query")
+    a.add_argument("query")
+    a.add_argument("--pages", type=int, default=1)
+    a.add_argument("--site")
+    a.add_argument("--country", default="ae")
+    a.add_argument("--meta", action="store_true")
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
-    a_footprint = apify_sub.add_parser(
-        "footprint",
-        help="platform footprint sourcing: subdomain + 'powered by' footer signature, merged")
-    a_footprint.add_argument("platform",
-                             help="kajabi | teachable | thinkific | podia | systeme | kartra | skool")
-    a_footprint.add_argument("--geo", default="Dubai",
-                             help="geographic marker (default Dubai; also Abu Dhabi, Sharjah, UAE)")
-    a_footprint.add_argument("--role", default="coach",
-                             help="role/noun to search for (default coach)")
-    a_footprint.add_argument("--country", default="ae", help="country bias (default ae); pass '' to disable")
-    a_footprint.add_argument("--raw", action="store_true")
-    a_footprint.add_argument("--approve-cost", action="store_true",
-                             help="Haytham has approved this run's estimated cost (only needed if "
-                                  "it's over $0.10 — see audit/apify.py's cost approval gate)")
+    a = apify_sub.add_parser("footprint", help="platform footprint sourcing")
+    a.add_argument("platform")
+    a.add_argument("--geo", default="Dubai")
+    a.add_argument("--role", default="coach")
+    a.add_argument("--country", default="ae")
+    a.add_argument("--raw", action="store_true")
+    a.add_argument("--approve-cost", action="store_true")
 
     p_apify.set_defaults(func=cmd_apify)
 
-    p_classify_fp = sub.add_parser(
-        "classify-footprint",
-        help="merge pre-fetched Firecrawl search hits into a deduped, tagged "
-             "platform-footprint result (audit/footprint.py) — the default, "
-             "no-Apify-cost replacement for `apify footprint`",
-    )
-    p_classify_fp.add_argument("platform",
-                               help="kajabi | teachable | thinkific | podia | systeme | kartra | skool")
-    p_classify_fp.add_argument("--subdomain-hits",
-                               help="JSON file (or '-' for stdin) of hits from the site:<domain> query")
-    p_classify_fp.add_argument("--marker-hits",
-                               help="JSON file (or '-' for stdin) of hits from the "
-                                    "'powered by <platform>' query")
-    p_classify_fp.add_argument("--geo", default="Dubai",
-                               help="geographic marker (default Dubai; also Abu Dhabi, Sharjah, UAE)")
-    p_classify_fp.add_argument("--role", default="coach",
-                               help="role/noun searched for (default coach)")
-    p_classify_fp.set_defaults(func=cmd_classify_footprint)
+    p = sub.add_parser("classify-footprint",
+                       help="merge pre-fetched search hits into sourcing candidates")
+    p.add_argument("platform")
+    p.add_argument("--subdomain-hits", help="JSON file, or '-' for stdin")
+    p.add_argument("--marker-hits", help="JSON file, or '-' for stdin")
+    p.add_argument("--geo", default="Dubai")
+    p.add_argument("--role", default="coach")
+    p.set_defaults(func=cmd_classify_footprint)
 
-    p_gg = sub.add_parser(
-        "gmail-gethaytham",
-        help="direct Gmail API for haytham@gethaytham.com (the second UAE send "
-             "inbox) — no Claude connector involved, since Google's Gmail MCP "
-             "endpoint only binds one account and auto-mate.one already claimed "
-             "it. Reads GETHAYTHAM_GMAIL_CLIENT_ID / _CLIENT_SECRET / "
-             "_REFRESH_TOKEN from the environment — see audit/gmail_gethaytham.py.",
-    )
-    gg_sub = p_gg.add_subparsers(dest="gg_command", required=True)
+    return parser
 
-    gg_search = gg_sub.add_parser("search", help="search threads (Gmail query syntax)")
-    gg_search.add_argument("query")
-    gg_search.add_argument("--max", type=int, default=10)
 
-    gg_thread = gg_sub.add_parser("thread", help="fetch one thread, full format")
-    gg_thread.add_argument("thread_id")
-
-    gg_message = gg_sub.add_parser("message", help="fetch one message, full format")
-    gg_message.add_argument("message_id")
-
-    gg_sub.add_parser("labels", help="list labels")
-
-    gg_draft = gg_sub.add_parser("draft", help="create a Gmail DRAFT (never sends)")
-    gg_draft.add_argument("to")
-    gg_draft.add_argument("subject")
-    gg_draft.add_argument("body", help="plain-text body, or '-' to read from stdin")
-    gg_draft.add_argument("--thread-id", help="keep this draft in an existing thread")
-    gg_draft.add_argument("--in-reply-to", help="Message-Id header of the message being replied to")
-
-    gg_sub.add_parser("drafts", help="list existing drafts")
-
-    p_gg.set_defaults(func=cmd_gmail_gethaytham)
-
-    argv = sys.argv[1:]
-    if not argv:
-        parser.print_help()
-        sys.exit(1)
-    # Bare URL → walk
-    if argv[0] not in (
-        "walk", "crawl", "slug", "vision", "crm-gate", "refresh-finding", "send-cap", "inbox",
-        "dashboard", "email-check", "email-verify", "email-enrich", "cta-probe", "apify",
-        "calendar-state",
-        "classify-footprint", "gmail-gethaytham", "discover-links", "discover-checkout",
-        "screenshot-name", "ingest", "promote-evidence", "log-lint", "touch-log", "-h", "--help",
-    ):
-        argv = ["walk"] + argv
-
-    args = parser.parse_args(argv)
-    args.func(args)
+def main() -> None:
+    args = build_parser().parse_args()
+    try:
+        args.func(args)
+    except BrokenPipeError:
+        # `python main.py deal ... | head` closes the pipe mid-print, and the
+        # default handling is a traceback on exit — which looks exactly like a
+        # crash in a gate whose whole job is to be believed. Piping a gate's
+        # output into head or grep is ordinary, so it must be silent.
+        try:
+            sys.stdout.close()
+        finally:
+            os._exit(0)
 
 
 if __name__ == "__main__":

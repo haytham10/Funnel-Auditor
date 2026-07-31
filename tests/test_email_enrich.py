@@ -39,6 +39,29 @@ def test_candidate_locals_three_tokens_uses_first_and_last():
     assert "watson" in got
 
 
+def test_candidate_locals_rejoins_an_apostrophe_particle():
+    """"Jane O'Brien" tokenises to [jane, o, brien] and only the first and last
+    token are used, so every guess was built against "brien" alone — obrien@,
+    the address a real O'Brien actually uses, was never generated."""
+    got = email_enrich.candidate_locals("Jane O'Brien")
+    assert "obrien" in got and "jane.obrien" in got and "jobrien" in got
+
+
+def test_candidate_locals_keeps_the_plain_surname_alongside_the_joined_one():
+    """An Al Fahim may use either. Picking one silently loses the other."""
+    got = email_enrich.candidate_locals("Mohammed Al Fahim")
+    assert "fahim" in got and "alfahim" in got
+    assert got.index("fahim") < got.index("alfahim")   # plain forms rank first
+
+
+def test_candidate_locals_does_not_treat_a_middle_initial_as_a_particle():
+    """"Jane L Smith" is not an O'Brien. Rejoining a bare single letter would
+    guess lsmith@ for a woman whose address is jane.smith@."""
+    got = email_enrich.candidate_locals("Jane L Smith")
+    assert "jane.smith" in got
+    assert not any("lsmith" in local for local in got)
+
+
 def test_candidate_locals_hyphenated_name_splits():
     # A hyphen is a non-letter, so it splits into two tokens.
     got = email_enrich.candidate_locals("Anne-Marie Cox")

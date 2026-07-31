@@ -1,10 +1,16 @@
 """
-URL hygiene shared by the crawler, checks, and evidence layers.
+URL hygiene, shared by every stage that touches a link.
+
+_Reworded 2026-07-31. It named "the crawler, checks, and evidence layers" as its
+consumers; all three were deleted with the audit. The real callers now are
+`normalize`, `dedupe`, `fetch`, `export`, `extract` and `email_enrich` — which
+is more of the machine than before, not less._
 
 Two jobs:
 1. normalize() — one canonical form per page so `site.com`, `site.com/`,
    `site.com/#pricing`, and `site.com/?utm_source=ig` stop counting as four
-   different pages and eating the crawl budget.
+   different pages, which is how a dedupe key stays stable and how a fetch
+   plan stops paying twice for one page.
 2. registrable_domain() / same_site() — "is this the lead's own site?"
    without an external tldextract dependency. Handles the two-level public
    suffixes these leads actually live on (co.uk, com.au, ie, ca, ...).
@@ -29,8 +35,8 @@ def strip_www(host: str) -> str:
     """Drop a leading 'www.' label — a real prefix strip, unlike
     lstrip('www.'), which is a character-set strip that also eats any leading
     run of w/. characters (wine.com -> ine.com, web.site.com -> eb.site.com).
-    The one shared www-stripper, used here and by the crawler/evidence host
-    checks."""
+    The one shared www-stripper: `registrable_domain`, `same_site` and the
+    dedupe domain key all go through it, so they cannot disagree."""
     return host[4:] if host.startswith("www.") else host
 
 

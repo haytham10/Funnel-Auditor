@@ -1,25 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "mcp__Notion__notion-fetch",
-      "mcp__Notion__notion-search",
-      "mcp__Notion__notion-query-data-sources",
-      "mcp__Notion__notion-query-database-view",
-      "mcp__Notion__notion-update-page",
-      "mcp__Notion__notion-get-comments",
-      "mcp__Firecrawl__firecrawl_search",
-      "mcp__Firecrawl__firecrawl_scrape",
-      "mcp__Firecrawl__firecrawl_map",
-      "mcp__Firecrawl__firecrawl_crawl",
-      "mcp__Gmail__search_threads",
-      "mcp__Gmail__get_thread",
-      "mcp__Gmail__get_message",
-      "mcp__Gmail__list_drafts",
-      "mcp__Gmail__create_draft",
-      "mcp__Gmail__update_draft",
-      "mcp__Gmail__list_labels",
+      "mcp__Airtable__list_bases",
+      "mcp__Airtable__list_tables_for_base",
+      "mcp__Airtable__get_table_schema",
+      "mcp__Airtable__list_records_for_table",
+      "mcp__Airtable__search_records",
+      "mcp__Airtable__create_records_for_table",
+      "mcp__Airtable__update_records_for_table",
+      "WebSearch",
+      "WebFetch",
       "Bash(python main.py *)",
-      "Bash(python3 main.py *)"
+      "Bash(python3 main.py *)",
+      "Bash(python -m pytest *)",
+      "Bash(python3 -m pytest *)"
     ]
   },
   "hooks": {
@@ -33,17 +27,6 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/session_memory.py\""
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "mcp__Gmail__create_draft",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/gmail_draft_link_guard.py\""
           }
         ]
       }
