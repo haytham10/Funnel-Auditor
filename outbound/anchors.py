@@ -753,6 +753,96 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
     }
 
 
+def rebalance_ps(drafted: list[dict], *, bank: "CopyBank | None" = None,
+                 cap: float = 0.35) -> dict[str, str]:
+    """Reallocate ONLY the ps across a set that has already been drafted.
+
+    Holds are guaranteed by design — a refuted hook, a twice-refused draft — and
+    every hold unbalances a deal that was made for the larger batch. On the first
+    real run, dropping 3 of 11 put two ps lines at 38% against a 35% cap and the
+    batch check blocked the whole file, correctly. Re-dealing from scratch is the
+    wrong answer: it moves identity lines too, which means re-drafting emails
+    that already passed a cold read.
+
+    The ps is the one beat that can move safely. It is library copy the drafter
+    is told to reproduce "verbatim or near", it sits alone at the end, and it
+    takes no part in the seam between the hook and the identity beat — so
+    swapping it is an allocation decision, not a drafting one. Identity, offer
+    and cta stay exactly as written and verified.
+
+    `drafted` is a list of dicts carrying `email` and `beats`. Returns
+    email -> ps line id. Deterministic for a given set.
+    """
+    from outbound.lint import check_echo
+
+    bank = bank or CopyBank.load()
+    emails = sorted({d["email"] for d in drafted})
+    if not emails:
+        return {}
+    beats_of = {d["email"]: d.get("beats", {}) for d in drafted}
+
+    ceiling = max(1, int(cap * len(emails)))
+    counts: dict[str, int] = {l.id: 0 for l in bank.ps}
+    chosen: dict[str, str] = {}
+
+    from outbound.lint import WORD_MAX
+
+    def fits(beats: dict, line: str) -> bool:
+        """The swap must not push the email over the word ceiling.
+
+        A ps is 11 to 26 words, so exchanging one for another moves the total by
+        up to 15 — enough to tip an email that was sitting at the cap. Two did,
+        and were rejected for length by a change nobody wrote.
+        """
+        from outbound.export import assemble_body
+        body = assemble_body({**beats, "ps": line}, greeting_name="Name")
+        return len(body.split()) <= WORD_MAX
+
+    # Most-constrained first. Processing in address order let unconstrained
+    # leads take the scarce lines, so the leads that could only accept two of
+    # the four arrived to find nothing legal left — and the allocator reported
+    # "no legal line" when a perfect 2/2/2/2 assignment existed. Ordering by how
+    # few options a lead has is the standard fix and stays deterministic; the
+    # address hash breaks ties.
+    options = {e: [l for l in bank.ps
+                   if fits(beats_of.get(e, {}), l.line)
+                   and not check_echo({"offer": beats_of.get(e, {}).get("offer", ""),
+                                       "cta": beats_of.get(e, {}).get("cta", ""),
+                                       "ps": l.line})]
+               for e in emails}
+    emails = sorted(emails, key=lambda e: (len(options[e]), seed(e, "ps-order")))
+
+    for email in emails:
+        beats = beats_of.get(email, {})
+        legal = [
+            l for l in bank.ps
+            if counts[l.id] < ceiling
+            and fits(beats, l.line)
+            and not check_echo({"offer": beats.get("offer", ""),
+                                "cta": beats.get("cta", ""), "ps": l.line})
+        ]
+        # Word budget before share cap: a repeated sentence is a batch-quality
+        # problem, an over-length email is refused outright.
+        if not legal:
+            legal = [l for l in bank.ps
+                     if fits(beats, l.line)
+                     and not check_echo({"offer": beats.get("offer", ""),
+                                         "cta": beats.get("cta", ""), "ps": l.line})]
+        # No legal line means the cap and the echo rule cannot both hold. Fall
+        # back to echo-only: a repeated sentence is a batch-quality problem, a
+        # contradictory one is an email nobody can fix.
+        if not legal:
+            legal = [l for l in bank.ps
+                     if not check_echo({"offer": beats.get("offer", ""),
+                                        "cta": beats.get("cta", ""), "ps": l.line})]
+        if not legal:
+            continue
+        pick = min(legal, key=lambda l: (counts[l.id], seed(email, l.id)))
+        counts[pick.id] += 1
+        chosen[email] = pick.id
+    return chosen
+
+
 def echo_pairs(bank: "CopyBank") -> list[tuple[str, str]]:
     """Offer/ps line pairs that can never be dealt together.
 

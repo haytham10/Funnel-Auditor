@@ -682,6 +682,33 @@ def cmd_export(args) -> None:
         print(f"EXPORT: FAIL — expected a JSON array of drafts, got "
               f"{type(drafts_raw).__name__}.")
         sys.exit(2)
+    if args.rebalance_ps:
+        # Holds are guaranteed by design — a refuted hook, a twice-refused draft
+        # — and every hold unbalances a deal made for the larger batch. Dropping
+        # 3 of 11 on the first real run put two ps lines at 38% against a 35%
+        # cap and the batch check blocked the file, correctly. Re-dealing from
+        # scratch is the wrong answer: it moves identity lines too, forcing a
+        # re-draft of emails that already passed a cold read.
+        #
+        # The ps is the one beat that can move safely. It is library copy the
+        # drafter reproduces near-verbatim, it sits alone at the end, and it
+        # takes no part in the seam between the hook and the identity beat. So
+        # this is an allocation decision, not a drafting one.
+        bank = anchors.CopyBank.load()
+        moves = anchors.rebalance_ps(drafts_raw, bank=bank)
+        by_id = {l.id: l.line for l in bank.ps}
+        moved = 0
+        for row in drafts_raw:
+            new_id = moves.get(row.get("email", ""))
+            if not new_id:
+                continue
+            if row.get("anchor_ids", {}).get("ps") != new_id:
+                moved += 1
+            row.setdefault("anchor_ids", {})["ps"] = new_id
+            row.setdefault("beats", {})["ps"] = by_id[new_id]
+        print(f"REBALANCE: {moved} ps line(s) reallocated across "
+              f"{len(drafts_raw)} shipped lead(s)")
+
     facts = anchors.load_facts()
 
     drafts, results, for_batch = [], {}, []
@@ -724,6 +751,15 @@ def cmd_export(args) -> None:
     dealt = None
     if args.anchors:
         dealt = _load_json(args.anchors, "EXPORT")
+        # A rebalance moved the ps, so the deal file must be told or the drift
+        # check rejects every reallocated lead for using a line it was given.
+        if args.rebalance_ps and isinstance(dealt, dict):
+            for row in drafts_raw:
+                email = row.get("email")
+                new_id = row.get("anchor_ids", {}).get("ps")
+                if email in dealt and new_id:
+                    dealt[email]["ps"] = {"id": new_id,
+                                          "line": row.get("beats", {}).get("ps", "")}
 
     batch_result = lint.check_batch(for_batch, shares)
     out = export.write_batch(drafts, results, out_dir=args.out,
@@ -1035,6 +1071,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--anchors", help="the JSON from `deal --out`. When given, any "
                                      "draft whose lines disagree with what the "
                                      "deal assigned is rejected")
+    p.add_argument("--rebalance-ps", action="store_true",
+                   help="reallocate the ps across the leads that actually ship. "
+                        "Use after holds: a deal made for 11 leads puts two ps "
+                        "lines over the 35%% cap once 3 of them hold, and "
+                        "re-dealing would move identity lines and force a "
+                        "re-draft of emails that already passed a cold read")
     p.set_defaults(func=cmd_export)
 
     p = sub.add_parser("email-check", help="free shape check: syntax, MX, role/typo flags")

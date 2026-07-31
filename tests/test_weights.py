@@ -390,3 +390,119 @@ def test_echo_pairs_names_the_collision_for_the_deal_report():
     bank = anchors.CopyBank.from_csv()
     pairs = anchors.echo_pairs(bank)
     assert ("b4-01", "ps-01") in pairs
+
+
+# ------------------------------------------------- rebalancing after a hold
+
+
+def _drafted(n, ps_line="ps: a no here costs you nothing and costs me nothing."):
+    return [{"email": f"lead{i}@x.ae",
+             "beats": {"hook": "You wrote about pricing packages this week.",
+                       "identity": "Your next client is the job. 12 meetings in 60 days.",
+                       "offer": "I pulled 10 names for you. Not a scraped list.",
+                       "cta": "15 minutes and they're yours the same day, plus why these 10.",
+                       "ps": ps_line}}
+            for i in range(n)]
+
+
+def test_a_rebalance_holds_the_share_cap_when_the_cap_is_reachable():
+    """Holds are guaranteed by design, and every hold unbalances a deal made
+    for the larger batch. Dropping 3 of 11 put two ps lines at 38% against a
+    35% cap, and the batch check blocked the whole file.
+
+    The offers here vary, so all four ps lines are usable and the cap is
+    reachable. See the next test for what happens when it is not."""
+    from outbound import lint
+    bank = anchors.CopyBank.from_csv()
+    offers = ["I pulled 10 names for you. Not a scraped list.",
+              "I've already got 10 names for you, picked one at a time.",
+              "10 names are sitting in a doc with your name on it.",
+              "I went and found 10 names already. People worth the meeting."]
+    for n in (8, 9, 12, 20):
+        drafted = _drafted(n)
+        for i, d in enumerate(drafted):
+            d["beats"]["offer"] = offers[i % len(offers)]
+        moves = anchors.rebalance_ps(drafted, bank=bank)
+        assert len(moves) == n, f"n={n}: only {len(moves)} allocated"
+        counts = {}
+        for line_id in moves.values():
+            counts[line_id] = counts.get(line_id, 0) + 1
+        assert max(counts.values()) / n <= lint.FIXED_LINE_SHARE_CAP, f"n={n}: {counts}"
+
+
+def test_when_the_cap_cannot_hold_the_echo_rule_still_does():
+    """If every offer says "scraped list", ps-01 is excluded and three lines
+    must cover the batch — so the cap is arithmetically unreachable. The
+    fallback drops the CAP, never the echo rule: a repeated sentence is a
+    batch-quality problem, an email that contradicts itself is one nobody can
+    fix."""
+    from outbound import lint
+    bank = anchors.CopyBank.from_csv()
+    by_id = {l.id: l.line for l in bank.ps}
+    drafted = _drafted(8)          # every offer carries "scraped list"
+    moves = anchors.rebalance_ps(drafted, bank=bank)
+    assert len(moves) == 8, "every lead must still get a line"
+    for d in drafted:
+        assert not lint.check_echo(
+            {"offer": d["beats"]["offer"], "cta": d["beats"]["cta"],
+             "ps": by_id[moves[d["email"]]]})
+
+
+def test_a_rebalance_never_introduces_an_echo():
+    from outbound import lint
+    bank = anchors.CopyBank.from_csv()
+    by_id = {l.id: l.line for l in bank.ps}
+    drafted = _drafted(12)
+    moves = anchors.rebalance_ps(drafted, bank=bank)
+    for d in drafted:
+        chosen = by_id[moves[d["email"]]]
+        assert not lint.check_echo({"offer": d["beats"]["offer"],
+                                    "cta": d["beats"]["cta"], "ps": chosen})
+
+
+def test_a_rebalance_never_pushes_an_email_over_the_word_cap():
+    """A ps runs 11 to 26 words, so exchanging one for another moves the total
+    by up to 15 — enough to tip an email sitting at the ceiling. Two were
+    rejected for a length change nobody wrote."""
+    from outbound import export, lint
+    bank = anchors.CopyBank.from_csv()
+    by_id = {l.id: l.line for l in bank.ps}
+    # Bodies deliberately near the ceiling.
+    drafted = _drafted(10)
+    for d in drafted:
+        d["beats"]["identity"] = (
+            "Your next client is the whole job, and finding them is the part "
+            "that takes the time. 12 meetings in 60 days on the last one, "
+            "every meeting with somebody who could actually sign it off.")
+    moves = anchors.rebalance_ps(drafted, bank=bank)
+    for d in drafted:
+        body = export.assemble_body({**d["beats"], "ps": by_id[moves[d["email"]]]},
+                                    greeting_name="Name")
+        assert len(body.split()) <= lint.WORD_MAX, len(body.split())
+
+
+def test_the_rebalance_finds_an_assignment_a_naive_order_would_miss():
+    """Processing in address order let unconstrained leads take the scarce
+    lines, so the constrained ones arrived to find nothing legal — and the
+    allocator gave up where a perfect 2/2/2/2 assignment existed."""
+    bank = anchors.CopyBank.from_csv()
+    drafted = _drafted(8)
+    # Half can only take the shortest ps lines.
+    for d in drafted[:4]:
+        d["beats"]["identity"] = (
+            "Your next client is the whole job, and finding them is the part "
+            "that takes the time. 12 meetings in 60 days on the last one, "
+            "every meeting with somebody who could actually sign it off.")
+    moves = anchors.rebalance_ps(drafted, bank=bank)
+    assert len(moves) == 8
+    counts = {}
+    for line_id in moves.values():
+        counts[line_id] = counts.get(line_id, 0) + 1
+    assert max(counts.values()) <= 3, counts
+
+
+def test_the_rebalance_is_reproducible():
+    bank = anchors.CopyBank.from_csv()
+    drafted = _drafted(12)
+    assert (anchors.rebalance_ps(drafted, bank=bank)
+            == anchors.rebalance_ps(drafted, bank=bank))

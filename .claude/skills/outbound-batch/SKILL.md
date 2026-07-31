@@ -157,6 +157,17 @@ python main.py export work/drafts.json --anchors work/anchors.json \
   --out out/ --batch <YYYY-MM-DD>
 ```
 
+**Pass `--rebalance-ps` whenever any lead held.** Holds are guaranteed — a
+refuted hook, a twice-refused draft — and every hold unbalances a deal that was
+made for the larger batch. Dropping 3 of 11 on the first real run put two ps
+lines at 38% against a 35% cap and the batch check blocked the whole file,
+correctly. Re-dealing from scratch is the wrong answer: it moves identity lines
+too, which means re-drafting emails that already passed a cold read. The ps is
+the one beat that can move safely — library copy, reproduced near-verbatim, sat
+alone at the end, no part in the seam — so this is an allocation decision, not a
+drafting one. It respects the word ceiling and the echo rule as well as the cap,
+and reports how many lines it moved.
+
 **Pass `--anchors`.** It rejects any draft whose lines disagree with what the
 deal assigned, which is the mechanical version of the instruction above. Two
 checks, because the line id is self-reported: the id against the deal, and the
