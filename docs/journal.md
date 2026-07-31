@@ -91,7 +91,35 @@ nothing to do with any change. And editing a module and reverting it inside the
 same second leaves a stale `__pycache__` that mtime invalidation misses, which
 looks exactly like a check ignoring a fix.
 
+### Then a README, and two things it exposed
+
+Haytham asked for a repo README. The care needed was in giving it a job that
+does not overlap START-HERE or the specs — a fourth "what is this" file is the
+rot this whole branch fights. So it is the *repo* front page: quickstart, the
+exit-code table, layout, environment, and where to read next. Everything about
+what the operation IS points at `docs/spec/`.
+
+Added `README.md` to the checked corpus, and it failed immediately on its own
+layout block:
+
+    main.py            the CLI — every command is a decision
+
+which parses as the subcommand `the`, because commands are read from fenced
+blocks. **The obvious fix — requiring a `python` prefix — is wrong**: the docs
+really do write bare `main.py lint`, `main.py apify` and `main.py wall-add`, and
+those would silently stop being checked. A false negative on real content is
+worse than one on alignment. The fix is a single literal space before the
+subcommand: an invocation has one, a column-aligned listing has many.
+
+And the README's first draft stated "452 tests" in two places, which is a value
+the suite owns and which was stale within ten minutes of writing it (454 now).
+Cut, along with "lists all 19" for the command count. The rule catches its
+author as readily as anyone else, which is the point of having it in code.
+
 ### Open follow-ups
+- [ ] **No CI.** There is no `.github/workflows/`, so nothing runs the suite on
+      a push — which means `doc-check` only guards a change if someone runs
+      pytest by hand. A small workflow would close it. Not added; out of scope.
 - [ ] The offer's build order is a set of gates, and none of them is met yet:
       The First Five has never been sold. Everything on the NOT BUILT shelf in
       `docs/spec/03-offer.md` stays there until it is.

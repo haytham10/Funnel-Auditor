@@ -144,6 +144,27 @@ def test_commands_are_read_from_fenced_blocks():
         assert kinds(result) == ["UNKNOWN COMMAND"], result.report()
 
 
+def test_a_column_aligned_file_listing_is_not_an_invocation():
+    """README.md's layout block, which reads as `main.py the` otherwise.
+
+    The fix is the single space before the subcommand, NOT requiring a `python`
+    prefix — docs really do write bare `main.py lint`, and those must stay
+    checked.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        result = check(tmp, {"01-a.md": HEADER
+                             + "\n```\nmain.py            the CLI, one line each\n```\n"})
+        assert result.ok, result.report()
+
+
+def test_a_bare_invocation_is_still_checked():
+    with tempfile.TemporaryDirectory() as tmp:
+        good = check(tmp, {"01-a.md": HEADER + "\nRun `main.py lint` first.\n"})
+        assert good.ok, good.report()
+        bad = check(tmp, {"01-a.md": HEADER + "\nRun `main.py walk` first.\n"})
+        assert kinds(bad) == ["UNKNOWN COMMAND"], bad.report()
+
+
 # --------------------------------------------------------------------- paths
 
 
