@@ -287,10 +287,12 @@ def account_limits() -> dict:
     the same figures shown on the account's Limits page. Costs nothing to
     call and needs no actor run.
 
-    Added after a batch-audit run (evening prep, Jul 15 2026) burned extra
-    tool calls when several lead-processor agents each independently
-    discovered a dead monthly quota by running actors into it one at a
-    time. This lets an orchestrator check once, up front, and skip Apify
+    Added after a batch run (evening prep, Jul 15 2026) burned extra tool
+    calls when several per-lead agents each independently discovered a
+    dead monthly quota by running actors into it one at a time. (Those
+    agents belonged to the funnel-audit pipeline and are gone; the lesson
+    transferred to the research workers.) This lets an orchestrator check
+    once, up front, and skip Apify
     entirely for the rest of a batch instead of every subagent re-learning
     the same fact the expensive way.
 

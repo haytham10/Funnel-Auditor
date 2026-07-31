@@ -1,6 +1,14 @@
 # UAE Coach Market Study — July 2026
  
-_Compiled 2026-07-27 from three sources: the 373-row UAE Lead CRM and 122 full funnel walks (proprietary), external demand research, and a supply-side pricing map. This is the evidence base for the pivot decision recorded in `claude/offer-the-first-five.md`. Figures are labelled measured / modelled / anecdote._
+_Compiled 2026-07-27 from three sources: the 373-row UAE Lead CRM and 122 full funnel walks (proprietary), external demand research, and a supply-side pricing map. Figures are labelled measured / modelled / anecdote._
+
+_Kept 2026-07-31, when the other pre-pivot analysis docs were deleted, because
+its subject is the MARKET rather than the dead offer: the ICP notes in
+`CLAUDE.md` rest on it directly — audience decoupled from price, and a price
+floor that reads `unclear` on most of the market. The funnel walks that fed it
+are gone with the audit; read this as a snapshot of the buyers, not as a
+description of any process that still runs. The pivot decision it was written
+for is now recorded in `docs/START-HERE.md`._
  
 ## Bottom line
  

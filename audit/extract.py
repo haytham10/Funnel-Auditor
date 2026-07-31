@@ -7,7 +7,13 @@ make an un-buyable offer machine-visible, which was a finding, and findings are
 not what this machine sells. `extract_dates` stayed and gained a caller:
 `outbound.qualify.latest_activity_date` uses it to settle the active-in-30-days
 floor mechanically, rather than asking a worker whether a page feels current.
-Its `stale_candidate` flag is a leftover of the audit and nothing reads it._
+
+Its `stale_candidate` and `blog_byline` fields went the same day, in the sweep
+for audit residue. `stale_candidate` was the Pam pattern — a passed kickoff
+date still showing on a page — which is a finding, and `blog_byline` existed
+only to stop a publish date being read as one. Nothing had ever read either.
+The launch-keyword, byline and copyright regexes went with them; the one live
+caller does its own copyright check on `near`, which is why that field stays._
 """
 
 import re
@@ -149,22 +155,8 @@ def extract_emails(html: str, source_url: str = "", seed_url: str = "",
 
 
 # ---------------------------------------------------------------------------
-# Stale dates (the Pam pattern: a passed kickoff date still showing)
+# Dates
 # ---------------------------------------------------------------------------
-
-_LAUNCH_KEYWORDS = re.compile(
-    r"start|begin|kick[\s-]?off|enroll|doors|join|goes? live|cohort|round"
-    r"|register|early bird|deadline|closes?|opens?|workshop|webinar"
-    r"|masterclass|challenge|event|next session|book",
-    re.I,
-)
-
-# A date sitting next to a blog byline / article listing is a publish date,
-# not a launch date. A quiet blog is a soft signal, not the Pam pattern.
-_BYLINE_RE = re.compile(
-    r"read more|min read|posted|published|blog|article|episode",
-    re.I,
-)
 
 _DATE_PATTERNS = [
     # January 5, 2026 / Jan 5 2026 / January 5th
@@ -184,21 +176,17 @@ _DATE_PATTERNS = [
     re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
 ]
 
-_COPYRIGHT_RE = re.compile(r"(?:©|&copy;|copyright)", re.I)
-
 
 def extract_dates(text: str, today: date | None = None, page_url: str = "") -> list[dict]:
     """
-    All parseable dates found in the text, each with context and a
-    stale_candidate flag: date is >7 days past AND sits near
-    launch-implying copy AND is not a copyright line or a blog byline.
-    Blog publish dates get blog_byline=True and never become stale
-    candidates — a quiet blog is reported separately as a soft signal.
+    All parseable dates found in the text, each with its surrounding context.
     Dates written without a year get year_assumed=True — judge those
     with a human eye (could mean next year).
+
+    `page_url` is kept in the signature because callers pass it positionally
+    and it costs nothing; it no longer changes the result.
     """
     today = today or date.today()
-    on_blog_page = bool(re.search(r"/(blog|news|articles|podcast)(/|$)", page_url, re.I))
     results: list[dict] = []
     seen: set[str] = set()
 
@@ -235,20 +223,11 @@ def extract_dates(text: str, today: date | None = None, page_url: str = "") -> l
                 continue
 
             days_past = (today - parsed).days
-            blog_byline = on_blog_page or bool(_BYLINE_RE.search(near))
-            stale = (
-                days_past > 7
-                and days_past < 400
-                and bool(_LAUNCH_KEYWORDS.search(ctx))
-                and not _COPYRIGHT_RE.search(near)
-                and not blog_byline
-            )
             results.append({
                 "raw": raw,
                 "parsed": parsed.isoformat(),
                 "days_past": days_past,
                 "year_assumed": year_assumed,
-                "blog_byline": blog_byline,
                 "context": ctx,
                 # The tight window the copyright and byline tests actually ran
                 # against. `context` is ±80 chars, so a caller re-testing for a
@@ -256,14 +235,14 @@ def extract_dates(text: str, today: date | None = None, page_url: str = "") -> l
                 # is every page. Callers that need "is THIS date a copyright
                 # line" want `near`, not `context`.
                 "near": near.replace("\n", " ").strip(),
-                "stale_candidate": stale,
             })
 
-    # Most recent FIRST, then stale candidates. The old order put every stale
-    # candidate ahead of every fresh one and truncated to 30 — and a stale
-    # candidate requires days_past > 7, so a genuinely recent date always sorted
-    # after them. An events archive with thirty past cohorts pushed "Posted 28
-    # July 2026" off the end, and the activity floor then read the oldest date
-    # on the page as the newest. Nothing downstream depends on stale-first.
-    results.sort(key=lambda d: (abs(d["days_past"]), not d["stale_candidate"]))
+    # Closest to today FIRST, then truncate. The original order put every stale
+    # candidate ahead of every fresh one — and a stale candidate required
+    # days_past > 7, so a genuinely recent date always sorted after them. An
+    # events archive with thirty past cohorts pushed "Posted 28 July 2026" off
+    # the end of the 30, and the activity floor then read the oldest date on
+    # the page as the newest. The stale flag is gone; this ordering is the part
+    # that mattered and it stays.
+    results.sort(key=lambda d: abs(d["days_past"]))
     return results[:30]

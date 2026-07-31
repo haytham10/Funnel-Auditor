@@ -13,5 +13,5 @@ Nine stages, each one a module here, in the order they run:
 
 What this package deliberately does NOT do: send anything, walk a funnel, or
 score a lead on anything it hasn't got evidence for. Sending belongs to
-Smartlead. The audit is dead — see docs/the-machine.md for why.
+Smartlead. The audit is dead — see docs/START-HERE.md for why.
 """

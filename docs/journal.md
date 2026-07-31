@@ -1,3 +1,69 @@
+## 2026-07-31 (audit residue) — swept the repo for what the pivot left behind
+
+Haytham: find any sign of the old audit track and get rid of it. Swept every
+tracked file. Most of what the vocabulary grep turns up is legitimate and
+staying: `audit/` is the surviving chassis and its module name is everywhere,
+`lint.py`'s jargon regexes have to name "funnel" and "audit" in order to ban
+them, `copy/identity.csv` says "my job is finding your next client", and the
+`track` column in the dedupe wall reads "UAE audit" on all 104 rows because
+that is true of those people. `docs/journal-archive.md` is a labelled archive.
+None of that is residue. Four things were.
+
+**`drafting-craft.md` was still teaching the dead offer.** `draft-worker` reads
+it on every email, and every worked example in it sharpened a funnel-audit
+finding: "49K people go through your flow and you keep none of them", "the flow
+ends on a Google Drive link", and, flatly, *"Don't open with 'your funnel's
+good.'"* Meanwhile `mechanics.md` bans the word funnel outright. A live
+reference file was modelling language a live rule forbids. The rules are Harry
+Dry's and transfer fine, so they are unchanged; the examples are now the hook,
+the identity beat, the ten names and the close, and the conflict section says
+what it must no longer mean. It used to mean showing her a problem; that is the
+dead offer and `critical-failures.md` bans it.
+
+**`extract.py` carried a `stale_candidate` flag nothing read.** Its own
+docstring said so. It was the Pam pattern — a passed kickoff date still showing
+on a page — which is a finding. `blog_byline` existed only to stop a publish
+date being mistaken for one, and nothing read that either. Both gone, with the
+launch-keyword, byline and copyright regexes behind them. Checked the one live
+caller (`qualify.latest_activity_date`) against the old implementation on six
+pages: **byte-identical on every shared field**, only the two dead keys
+missing. The sort keeps the ordering fix that mattered (closest to today
+first, so a thirty-cohort events archive can't push the newest date past the
+truncation) and loses only the stale tiebreaker.
+
+**Two pre-pivot analysis docs deleted.**
+`nine-threads-and-phase10-correction.md` and
+`outreach-system-vs-saraev-comparison.md` were not history, they were **open
+fix-lists** — "G16 · Re-verify the finding before any offer *(new, P1)*",
+"crm-gate offer fails if the finding has not been re-verified", "the five
+changes, ranked by expected impact" — prescribing work on a pipeline that no
+longer exists, against a `haytham10/Funnel-Auditor` repo and a Notion CRM,
+pointing at a Part II and a `claude/fix-list-v2-post-phase10.md` that aren't
+here. Read cold, they look like a backlog. Their load-bearing conclusion is
+already distilled in `CLAUDE.md` and `START-HERE.md` (589 leads, zero; 4 of 9
+read the finding and left; 0 of 9 replies reached a call), and git keeps the
+full text.
+
+**`uae-market-study-2026-07.md` kept**, with a note saying why. Its subject is
+the market, not the dead offer, and the ICP rests on it directly: audience
+decoupled from price, and a price floor that reads `unclear` on most of the
+market. The 122 funnel walks that fed it are gone; the note says to read it as
+a snapshot of the buyers, not of any process that still runs.
+
+Plus stale pointers: `outbound/__init__.py` pointed at a `docs/the-machine.md`
+that does not exist (it is `START-HERE.md`), `apify.py` credited a lesson to
+`batch-audit` and `lead-processor` agents that are deleted,
+`test_footprint_sourcing.py` still named Firecrawl as the live feeder, and
+`test_email_verify_gate.py` ended on an empty `crm_gate send` section header.
+
+What is left that names the old track is deliberate: dated notes in
+`CLAUDE.md`, `START-HERE.md`, `agent-orchestration.md`, `draft_lint.py` and
+`extract.py` saying what went and why. `audit/gmail_gethaytham.py` still
+appears in one sentence, which says it was deleted. That is a record, not a
+pointer, and it stays.
+
+408 tests green.
+
 ## 2026-07-31 (li_profile) — back to harvestapi, and the gate it would have jammed
 
 Haytham: use `harvestapi/linkedin-profile-scraper` for LinkedIn profiles, and
