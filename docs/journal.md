@@ -1,3 +1,65 @@
+## 2026-07-31 — Rebuilt as an outbound machine: audit out, anchored AI drafting in
+
+Merged the funnel auditor with the cold-email system Haytham had been running
+separately. The auditor's offer is dead (589 leads, 0 AED, reply→call 0/9); its
+chassis is not. The cold-email system's offer and copy are good; its pipeline
+was not.
+
+**What the merge actually is:** the hand-written copy lines became the drafting
+model's ANCHOR rather than bricks it concatenates. The model authors the hook
+and owns the seams between beats, and may re-voice an anchor for flow, but may
+not change what the anchor claims. That is only safe because `outbound/lint.py`
+makes every failure mechanical.
+
+**Deleted** (~7,400 lines): crawler, evidence, vision gate, Gate 0 floors,
+crm_gate, dashboard, send_cap, inboxes, touchlog, calendar_state, checks/,
+config.py, the whole Gmail path, docs/leads (370 files), every funnel-audit
+skill and agent. Firecrawl is gone from the environment, so the fetch ladder is
+now local HTTP → WebSearch/WebFetch → one batched Apify run.
+
+**Built:** `outbound/` (normalize, dedupe, fetch, qualify, research, anchors,
+lint, export), `copy/` (the four line files + results.csv, the fact table),
+skills `outbound-batch` and `outbound-draft`, agents research-worker,
+hook-worker, hook-verifier, draft-worker, draft-verifier. 209 tests pass.
+
+**Two things the linter caught that I had wrong**, both worth remembering:
+- The first version rejected `id-corp-1` and `id-any-5` — real hand-written
+  lines that *widen* a Business result to "coaches here". Widening is explicitly
+  sanctioned; the failure is only relabelling (a number next to a segment it
+  doesn't belong to). Split into `check_numbers` (invention) and
+  `check_attribution` (relabelling).
+- Periods needed exact unit equivalents: "60 days" and "2 months" are the same
+  fact, and a checker that only knows one rejects an honest line. Approximations
+  are deliberately NOT licensed — 45 days is not 6 weeks.
+
+**Airtable:** new base `appejF07kunksqt4D` ("Outbound Machine") — Leads,
+Batches, Copy Assets, Contacted Before. Seeded Contacted Before with all 103
+previously-contacted leads from the old CRM, 9 flagged warm (Ben Pringle,
+William Brown, Lucia Csobonyei, Lee Harris, Lisa Hugo, Avneet Kohli, Rita Baki,
+Wafa Bassili, Donna Brown). Old base `appaBExqyEZykb1Qk` is archive only.
+
+**ICP narrowed to three measurable floors:** UAE-based, is a coach, active in
+30 days. Audience and program price are captured, never gated — audience
+decoupled from the offer once we started selling her clients rather than
+leverage on her list, and a price floor reads unclear on ~94% of coach sites.
+
+### Open follow-ups
+- [ ] Smartlead column names, so `export.py` writes them exactly. Currently
+      `email, first_name, last_name, full_name, company, subject, body` + lead
+      fields.
+- [ ] Move the Airtable base to its own workspace (the MCP can create a base but
+      not a workspace, so it landed in "My Workspace").
+- [ ] Copy Assets table is created but empty and NOT yet read by `anchors.py` —
+      `copy/*.csv` is authoritative. Wire the Airtable read, or drop the table.
+- [ ] First real batch: measure the tier-0 fetch rate. Nobody has published what
+      share of coach sites a plain HTTP fetch can read, and every cost estimate
+      downstream depends on it.
+- [ ] Reconcile that batch's real Apify cost against the usage dashboard. The
+      last paper estimate was wrong by 6-7x.
+- [ ] Follow-ups (touch 2/3) are not built. They are Smartlead sequence steps
+      and nobody has decided whether they should be per-lead personalised.
+- [ ] Sourcing is phase 2. Phase 1 is drop-a-list only.
+
 # Project Journal — cross-session memory
 
 The narrative git history and Notion don't capture: **what happened each

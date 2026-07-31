@@ -160,8 +160,10 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
 - **Email verification** defaults to Apify/MillionVerifier, auto-falling back to
   ZeroBounce (`ZEROBOUNCE_API_KEY`) when Apify is near cap. Force with
   `EMAIL_VERIFY_PROVIDER=zerobounce`.
-- **Airtable** is the CRM, via MCP: Leads, Batches, Copy Assets,
-  Contacted-Before.
+- **Airtable** is the CRM, via MCP. Base `appejF07kunksqt4D` ("Outbound
+  Machine"): Leads `tbl9lyituyqG8dlnb`, Batches `tbl97PsqhdndK14hP`, Copy Assets
+  `tblZnpXiuGy6V1mzl`, Contacted Before `tblXFiyyKeYwgSUTL`. The old
+  funnel-audit base `appaBExqyEZykb1Qk` is archive only, never written to.
 - **Smartlead** owns sending. No API key here yet; handover is a CSV Haytham
   uploads by hand.
 - `pip install -r requirements.txt`. No browser needed — Playwright went with
