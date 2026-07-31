@@ -50,7 +50,17 @@ reason to look before a run that costs real money.
     li_profile  harvestapi/linkedin-profile-scraper     headline/about/experience; optional email-search mode (finds an address)
     yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number the free tier can't read for YT-native coaches)
     email       account56/email-verifier                MillionVerifier-backed address verification
+    email_alt   michael.g/email-verifier-validator      fallback verifier, only when `email` errors on an address
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
+
+    (email_alt added 2026-07-31: account56/email-verifier started returning
+    `{"status": "error", "error": "Failed to verify email"}` for every address
+    regardless of validity — an actor-side outage, not a per-address signal.
+    Haytham named this specific actor as the fallback. `verify_emails` below
+    retries only the addresses `email` errored on, and normalizes the result
+    (`status`/`technical_status`/`catch_all` -> the `result` token
+    `classify_verification` already reads) rather than teaching that function
+    a second vocabulary.)
 
     (yt_channel added 2026-07-19 for the qualifier's audience floor: a coach
     whose only sizeable channel is YouTube (subscriber count is JS/login-walled
@@ -158,6 +168,7 @@ ACTORS = {
     "li_profile": "harvestapi~linkedin-profile-scraper",
     "yt_channel": "apidojo~youtube-channel-information-scraper",
     "email": "account56~email-verifier",
+    "email_alt": "michael.g~email-verifier-validator",
     "search": "apify~google-search-scraper",
 }
 
@@ -736,19 +747,68 @@ def youtube_channel(channel: str, raw: bool = False, approved: bool = False) -> 
             for i in items]
 
 
+def _normalize_alt_email_result(item: dict) -> dict:
+    """`email_alt` (michael.g/email-verifier-validator) speaks its own
+    vocabulary — top-level `status`: good/bad, `technical_status`:
+    valid/invalid. Fold it into the `result` token `classify_verification`
+    already reads instead of teaching that function a second vocabulary."""
+    if item.get("disposable"):
+        token = "disposable"
+    elif item.get("catch_all"):
+        token = "catch_all"
+    else:
+        technical = (item.get("technical_status") or "").strip().lower()
+        token = technical if technical in ("valid", "invalid") else "unknown"
+    out = dict(item)
+    out["result"] = token
+    return out
+
+
+# account56/email-verifier has been in an outage since 2026-07-31 (returns
+# `{"status": "error"}` for every address, valid or not — an actor fault, not
+# a per-address signal). Haytham: stop spending calls on it while it's down,
+# it's wasting credits for a guaranteed error. `email_alt` is now the one
+# actually called; flip this back once account56 is confirmed recovered.
+_PRIMARY_EMAIL_ACTOR_DOWN = True
+
+
 def verify_emails(emails: list[str], raw: bool = False, approved: bool = False) -> list[dict]:
-    """Verify one or more addresses (MillionVerifier-backed). The confirm
-    step before a found/guessed address enters the CRM. Cost-gated on
-    len(emails)."""
+    """Verify one or more addresses. The confirm step before a found/guessed
+    address enters the CRM. Cost-gated on len(emails).
+
+    Normally tries `email` (account56/email-verifier, MillionVerifier-backed)
+    first and only falls back to `email_alt` (michael.g/email-verifier-
+    validator, Haytham-named fallback) for addresses that error. While
+    `_PRIMARY_EMAIL_ACTOR_DOWN` is set, `email` is skipped entirely and
+    `email_alt` runs directly — no point paying for a guaranteed error."""
     if not emails:
         raise ApifyError("verify_emails needs at least one address")
-    _require_cost_approval(ACTORS["email"], len(emails), approved)
-    items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
+
+    if _PRIMARY_EMAIL_ACTOR_DOWN:
+        _require_cost_approval(ACTORS["email_alt"], len(emails), approved)
+        alt_items = run_actor(ACTORS["email_alt"], {"emails": emails}, memory_mbytes=256)
+        by_email = {alt["email"].strip().lower(): _normalize_alt_email_result(alt)
+                    for alt in alt_items if isinstance(alt, dict) and alt.get("email")}
+    else:
+        _require_cost_approval(ACTORS["email"], len(emails), approved)
+        items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
+        by_email = {(i.get("email") or "").strip().lower(): i
+                    for i in items if isinstance(i, dict) and i.get("email")}
+        errored = [e for e in emails
+                   if (by_email.get(e.strip().lower()) or {}).get("status") == "error"]
+        if errored:
+            _require_cost_approval(ACTORS["email_alt"], len(errored), approved)
+            alt_items = run_actor(ACTORS["email_alt"], {"emails": errored}, memory_mbytes=256)
+            for alt in alt_items:
+                if isinstance(alt, dict) and alt.get("email"):
+                    by_email[alt["email"].strip().lower()] = _normalize_alt_email_result(alt)
+
+    ordered = [by_email[e.strip().lower()] for e in emails if e.strip().lower() in by_email]
     if raw:
-        return items
+        return ordered
     return [_lean(i, ("email", "status", "result", "resultCode", "subStatus",
                       "free", "role", "disposable"))
-            for i in items]
+            for i in ordered]
 
 
 def google_search(query: str, pages: int = 1, site: str | None = None,
