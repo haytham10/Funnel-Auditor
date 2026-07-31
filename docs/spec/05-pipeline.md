@@ -175,8 +175,16 @@ design — it never calls a search API itself.
 cites is on disk, every copy-line id is in the CSVs, every `Defers to:` target
 resolves, every spec file has its header block, no spec file but
 `docs/spec/03-offer.md` carries a price, and no `Allows:` outlives the sentence
-it was written for. **Exit 1** on drift, **exit 2** if the docs cannot be read.
+it was written for. **Exit 1** on drift, **exit 2** if it could not run.
 Owned by `docs/spec/00-index.md`.
+
+It also checks the one value in this operation whose authority is not in the
+repo: the CRM's select options, which `audit/airtable.py` and the two segment
+lists mirror and Airtable owns. That check leaves the machine, so it runs only
+when a key is set, and reports itself as skipped when there is none — CI has no
+key. `doc-check --live` makes a missing key **exit 2** instead of a skip, the
+same assertion `copy-sync --live` is. A schema it could not fetch is exit 2, not
+a pass.
 
 ## What is unknown
 

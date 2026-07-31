@@ -331,6 +331,49 @@ def test_unclear_floors_do_not_block_drafting():
     assert valid_research(uae_based="unclear", uae_based_source="").ready_to_draft
 
 
+# ------------------------------------------------- the lists that must agree
+
+
+def test_the_coach_types_qualify_assigns_are_the_ones_research_accepts():
+    """`qualify` picks a coach type and `research` carries it, so the two lists
+    are the same list written twice. Nothing but this reads them together.
+
+    `research` adds `""` for not-yet-known. That is the only legal difference —
+    a segment in one and not the other means `qualify` can assign a type its own
+    schema check rejects, or a type exists that nothing can ever assign.
+    """
+    assert set(r.COACH_TYPES) - {""} == set(q.COACH_TYPES)
+
+
+def test_the_copy_bank_targets_the_same_segments_with_any_for_the_generic_pool():
+    """`copy_sync`'s list is deliberately NOT the same list, and this pins the
+    difference so it stays deliberate.
+
+    A lead HAS a coach type; an identity line TARGETS one. So the line side
+    swaps `Other` for `Any`, the generic pool every unknown-segment lead draws
+    from. Without this, dropping `Any` reads as a tidy-up and silently empties
+    the pool those leads fall back to.
+    """
+    from outbound import copy_sync
+
+    assert (set(copy_sync.COACH_TYPES)
+            == (set(q.COACH_TYPES) - {"Other"}) | {"Any"})
+
+
+def test_sells_to_is_one_list_the_crm_owns_plus_two_declared_extras():
+    """Three modules, three different member sets, all derived from the CRM's.
+
+    `research` adds `""` (not collected — it is never inferred, so this is
+    common). `copy_sync` adds `""` and `any`, a line that fits either audience.
+    Both are additions; neither may drop or rename a value the CRM has.
+    """
+    from audit import airtable
+    from outbound import copy_sync
+
+    assert set(r.SELLS_TO) == set(airtable.SELLS_TO) | {""}
+    assert set(copy_sync.SELLS_TO) == set(airtable.SELLS_TO) | {"", "any"}
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

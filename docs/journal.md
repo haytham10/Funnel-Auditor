@@ -1,3 +1,55 @@
+## 2026-07-31 (schema drift) — the one authority that is not in this repo
+
+Haytham asked where schemas are stored. The answer is that there is no
+`schemas/` directory and there should not be: every schema here is Python,
+co-located with the stage that owns it, and `research.schema_help()` generates
+its field list *from* the dataclass rather than restating it. Smartlead's eight
+columns are `outbound/export.py`'s `COLUMNS`; the CRM's option lists are tuples
+in `audit/airtable.py`; the Copy Assets field mapping is `copy_sync.FIELD_MAP`.
+
+**Two real cracks, and neither was fixed by moving files.**
+
+**The Airtable tuples are a mirror of a schema this repo does not own.** Their
+only freshness signal was a comment reading "Verified against the base schema
+2026-07-31". Somebody adds a select option in the UI and nothing notices — which
+inverts the reason those tuples exist, since they are there to catch a bad value
+*before* the write fails at the CRM step, which happens after the email is
+already in the upload file. So `doc-check` grew a tenth drift class, `SCHEMA
+DRIFT`, fetching the live field config through the metadata API and comparing
+both directions. It found nothing: all eleven select fields matched on the day
+it was written. That is the point — it is a gate, not a repair.
+
+Three scoping calls worth not re-litigating. It **runs when a key is set and
+reports itself as skipped when there is not**, next to the journal exclusion and
+for the same reason; CI has no key and must not fail every build on a missing
+secret. **`--live` is an assertion, not a switch** — same shape as `copy-sync
+--live`, because "it would have run if it could" is not a thing to rely on. And
+**the test suite passes `airtable=False` explicitly**, for the reason conftest
+pins `OUTBOUND_COPY_SOURCE=csv`: a suite that reaches the network fails on
+somebody else's Airtable edit, which is not a code regression. `tests/
+test_cli_failures.py` strips the key from the subprocess environment for the
+same reason — before that, the suite behaved differently on a machine with a key
+than in CI.
+
+The mapping points each select at **the module that already owns its list**
+rather than adding tuples. `Leads.Coach Type` had no mirror at all, so it is
+pointed at `outbound/research.py` — adding one next to the others would have
+made a fourth copy of a list that already existed three times.
+
+**Which was the second crack.** `COACH_TYPES` is in `research.py`, `qualify.py`
+and `copy_sync.py`, and nothing read them together. The first two are the same
+list (research adds `""` for not-yet-known); the third is deliberately different,
+swapping `Other` for `Any`, the generic pool — a lead *has* a coach type, a line
+*targets* one. `SELLS_TO` is the same story across three modules. Now pinned in
+`tests/test_qualify.py`, including the deliberate difference, so dropping `Any`
+cannot read as a tidy-up and silently empty the pool unknown-segment leads fall
+back to.
+
+`docs/spec/06-state.md` gained the row and a section on why that one row needs a
+check when the rest only need the rule: every other authority is in this repo, so
+following the pointer lands somewhere that cannot lie to you. A browser-edited
+field config has no diff, and a pointer cannot tell you it moved.
+
 ## 2026-07-31 (the spec layer) — defining docs, and a gate that keeps them true
 
 Haytham wanted defining docs for the operation the way uae-track had them, "but

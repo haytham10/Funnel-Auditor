@@ -11,7 +11,7 @@ exactly this in about three weeks and cost a commit literally titled "Sweep the
 last stale prices and rename the guarantee everywhere". That sweep is what a doc
 layer costs when the only thing holding it together is somebody remembering.
 
-So the mechanical half is mechanical. Eight drift classes:
+So the mechanical half is mechanical. Ten drift classes:
 
     UNKNOWN COMMAND        a doc names a `main.py` subcommand the parser doesn't have
     DEAD PATH              a doc cites a repo path that isn't on disk
@@ -22,6 +22,14 @@ So the mechanical half is mechanical. Eight drift classes:
     STALE ALLOW            an Allows: exception outlived the sentence it was for
     UNDOCUMENTED COMMAND   a real subcommand nothing writes down
     VALUE DRIFT            a value a doc owns, and code holds a stale copy of
+    SCHEMA DRIFT           a CRM select option list, and code's copy of it
+
+The last one is the only check here that leaves the machine, and it is the only
+value in the repo whose authority is not in the repo: Airtable's select fields
+are a schema this code mirrors and does not own. It runs when
+`AIRTABLE_API_KEY` is set, and `--live` turns "ran if it could" into "ran".
+Without a key it is reported as skipped, next to the journal exclusion and for
+the same reason — a silent exclusion is indistinguishable from a bug.
 
 **Fails closed.** A docs tree this cannot read is a failure, never a pass — the
 same rule that makes an unreadable dedupe wall exit 2 rather than reading as
@@ -87,6 +95,32 @@ RUNTIME_FILES = ("copy/_airtable.json",)
 # Non-file authorities a `Defers to:` may name. A literal set, so adding one is
 # a code change with a comment rather than a free-text escape.
 EXTERNAL_AUTHORITIES = ("Smartlead", "Airtable", "Apify")
+
+# Every select field in the CRM, and the module attribute that mirrors its
+# option list. `SCHEMA DRIFT` compares the two.
+#
+# The mapping points at the module that already owns each list rather than
+# introducing a copy here. `Leads.Coach Type` is the reason that matters: it had
+# no mirror at all in `audit/airtable.py`, so it is pointed at the research
+# contract, which is where a coach type is decided. Adding a tuple next to the
+# others would have made a fourth copy of a list that already exists three times.
+#
+# `""` is stripped from our side before comparing. Several of these carry it as
+# the not-yet-known sentinel, and Airtable has no such option — a select is
+# either set or absent.
+AIRTABLE_SELECTS = (
+    ("Leads", "Email Status", "audit.airtable", "EMAIL_STATUSES"),
+    ("Leads", "Status", "audit.airtable", "LEAD_STATUSES"),
+    ("Leads", "Failed Floors", "audit.airtable", "FAILED_FLOORS"),
+    ("Leads", "Hook Type", "audit.airtable", "HOOK_TYPES"),
+    ("Leads", "Hook Verified", "audit.airtable", "HOOK_VERIFIED"),
+    ("Leads", "Sells To", "audit.airtable", "SELLS_TO"),
+    ("Leads", "Solo", "audit.airtable", "SOLO"),
+    ("Leads", "Coach Type", "outbound.research", "COACH_TYPES"),
+    ("Copy Assets", "Beat", "outbound.copy_sync", "BEATS"),
+    ("Copy Assets", "Coach Type", "outbound.copy_sync", "COACH_TYPES"),
+    ("Copy Assets", "Sells To", "outbound.copy_sync", "SELLS_TO"),
+)
 
 HEADER_LINES = 15
 HEADER_FIELDS = ("Owns", "Defers to", "Allows")
@@ -190,6 +224,9 @@ class DocCheckResult:
                        f"{c.get('apify', 0)} apify subcommand(s) known, "
                        f"{c.get('copy_ids', 0)} copy id(s), "
                        f"{c.get('specs', 0)} spec doc(s) with headers")
+            if "selects" in c:
+                out.append(f"  {c['selects']} CRM select field(s) matched "
+                           f"the live base")
         for path, why in self.skipped:
             out.append(f"  skipped: {path} ({why})")
         return "\n".join(out)
@@ -507,6 +544,58 @@ def check_word_budget(rel: str, lines: list) -> list:
                     f"outbound/lint.py enforces {want}")]
 
 
+def mirrored_options(module: str, attr: str) -> set:
+    """Our copy of one select's options, minus the not-set sentinel.
+
+    Imported here rather than at module scope so this file keeps its one-way
+    dependency: doc_check reaches into the code it checks, and nothing in that
+    code reaches back.
+    """
+    import importlib
+
+    try:
+        values = getattr(importlib.import_module(module), attr)
+    except (ImportError, AttributeError) as exc:
+        raise DocCheckError(f"cannot read {module}.{attr}: {exc}") from exc
+    if not values:
+        raise DocCheckError(f"{module}.{attr} is empty")
+    return {v for v in values if v}
+
+
+def check_airtable_selects(schema: dict) -> list:
+    """Our mirrors of the CRM's select fields against the live base.
+
+    Both directions are findings, and they fail differently:
+
+    - **We list an option the base does not have.** A write of that value is
+      rejected by Airtable at the CRM step, which is *after* the email is in the
+      upload file. This is the failure the tuples were written to prevent, and
+      they can only prevent it while they are true.
+    - **The base has an option we do not list.** Somebody added it in the UI.
+      Nothing breaks today, but the guard now rejects a value the CRM accepts,
+      which reads as a bug in the machine rather than a stale tuple.
+    """
+    from audit import airtable
+
+    out = []
+    for table, field, module, attr in AIRTABLE_SELECTS:
+        ours = mirrored_options(module, attr)
+        try:
+            theirs = set(airtable.select_options(schema, table, field))
+        except airtable.AirtableError as exc:
+            raise DocCheckError(str(exc)) from exc
+        rel = module.replace(".", "/") + ".py"
+        for value in sorted(ours - theirs):
+            out.append(Finding(rel, 0, "SCHEMA DRIFT",
+                               f"{attr} lists {value!r} and {table}.{field} has "
+                               f"no such option — that write fails at the CRM"))
+        for value in sorted(theirs - ours):
+            out.append(Finding(rel, 0, "SCHEMA DRIFT",
+                               f"{table}.{field} offers {value!r} and {attr} "
+                               f"does not — the guard rejects a legal value"))
+    return out
+
+
 def check_documented_commands(tree: dict, spec_text: str, corpus_text: str,
                               main_doc: str) -> list:
     """Drift the other way: a command that exists and nothing writes down.
@@ -579,12 +668,23 @@ def main_docstring(root: Path) -> str:
 # ----------------------------------------------------------------- entry point
 
 
-def check_docs(root: Path | None = None, *, parser=None) -> DocCheckResult:
+def check_docs(root: Path | None = None, *, parser=None,
+               airtable: bool | None = None) -> DocCheckResult:
     """Every drift class, over the whole corpus. Raises DocCheckError on exit 2.
 
     `parser` is passed in rather than imported so this module never depends on
     main.py — the dependency runs one way, and a test can drive it with a
     synthetic parser.
+
+    `airtable` is tri-state, and each state has one caller:
+
+    - **None** — run the schema check if a key is there. What bare `doc-check`
+      does, so the check costs nothing to have and needs nobody to remember it.
+    - **True** — demand it. What `--live` does; no key is exit 2, not a skip.
+    - **False** — never. What the test suite does, for the reason
+      `tests/conftest.py` pins `OUTBOUND_COPY_SOURCE=csv`: a suite that reaches
+      the network starts failing on somebody else's Airtable edit, which is not
+      a code regression. The check's own logic is tested against a stub.
     """
     root = Path(root) if root else Path(__file__).resolve().parent.parent
     if parser is None:
@@ -630,4 +730,33 @@ def check_docs(root: Path | None = None, *, parser=None) -> DocCheckResult:
         "copy_ids": sum(len(v) for v in ids.values()),
         "specs": specs,
     }
+    _airtable_pass(result, airtable)
     return result
+
+
+def _airtable_pass(result: DocCheckResult, airtable: bool | None) -> None:
+    """Run, skip-with-a-reason, or refuse. Never silently pass."""
+    from audit import airtable as client
+
+    if airtable is False:
+        return
+    if not client.available():
+        if airtable:
+            raise DocCheckError(
+                "AIRTABLE_API_KEY is not set and --live demands the CRM schema "
+                "check actually ran")
+        result.skipped.append((
+            f"the {client.BASE_ID} select options",
+            "no AIRTABLE_API_KEY — `doc-check --live` to demand this check"))
+        return
+
+    try:
+        schema = client.base_schema()
+    except client.AirtableError as exc:
+        # Fail closed. A schema this could not fetch is exit 2, never a pass:
+        # a gate that reports clean because it could not look is worse than no
+        # gate, because it is believed.
+        raise DocCheckError(f"cannot read the CRM schema: {exc}") from exc
+
+    result.findings.extend(check_airtable_selects(schema))
+    result.counts["selects"] = len(AIRTABLE_SELECTS)

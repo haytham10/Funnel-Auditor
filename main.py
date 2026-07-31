@@ -1002,17 +1002,26 @@ def cmd_doc_check(args) -> None:
     project's doc set died of exactly that and cost a commit titled "Sweep the
     last stale prices and rename the guarantee everywhere". This is that sweep,
     run by a machine, on every test run.
+
+    `--live` is an assertion, not a switch: the CRM schema check already runs
+    whenever `AIRTABLE_API_KEY` is set, and this makes a missing key exit 2
+    instead of a reported skip. Same shape as `copy-sync --live`, and for the
+    same reason — "it would have run if it could" is not a thing to rely on.
     """
     from outbound import doc_check
 
     try:
-        result = doc_check.check_docs(parser=build_parser())
+        result = doc_check.check_docs(parser=build_parser(),
+                                      airtable=True if args.live else None)
     except doc_check.DocCheckError as exc:
-        # Exit 2, never 0. A docs tree that could not be read must never report
-        # as clean, for the same reason an unreadable wall must never read as
-        # "nobody has been contacted".
-        print(f"DOC-CHECK: FAIL — cannot read the docs: {exc}. "
-              f"Refusing to report a docs tree it could not check.")
+        # Exit 2, never 0. Something it could not read must never report as
+        # clean, for the same reason an unreadable wall must never read as
+        # "nobody has been contacted". Says "could not run" rather than "cannot
+        # read the docs" because the CRM schema check can fail here too, and a
+        # network error reported as a docs problem sends the reader to the
+        # wrong file.
+        print(f"DOC-CHECK: FAIL — could not run: {exc}. "
+              f"Refusing to report a check it could not complete.")
         sys.exit(2)
     print(result.report())
     sys.exit(0 if result.ok else 1)
@@ -1213,6 +1222,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("doc-check",
                        help="the docs against the code they describe")
+    p.add_argument("--live", action="store_true",
+                   help="demand the CRM schema check ran (needs AIRTABLE_API_KEY)")
     p.set_defaults(func=cmd_doc_check)
 
     return parser

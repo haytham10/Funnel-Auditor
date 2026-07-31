@@ -18,6 +18,7 @@ has been contacted".
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -26,10 +27,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def offline_env() -> dict:
+    """The CLI's environment with the Airtable key removed.
+
+    `doc-check` runs its CRM schema check whenever a key is present, which is
+    the right default for a person and the wrong one for a suite: the tests
+    would reach the network on a developer machine and not in CI, so a failure
+    would depend on who ran them. Same reason conftest.py pins
+    OUTBOUND_COPY_SOURCE=csv. The schema check has its own tests, against a stub.
+    """
+    env = dict(os.environ)
+    env.pop("AIRTABLE_API_KEY", None)
+    return env
+
+
 def run(*args, stdin: str = "") -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "main.py", *args],
-        cwd=ROOT, input=stdin, capture_output=True, text=True,
+        cwd=ROOT, input=stdin, capture_output=True, text=True, env=offline_env(),
     )
 
 
@@ -354,10 +369,12 @@ def test_doc_check_exits_2_when_it_cannot_read_the_docs():
             (shutil.copytree if src.is_dir() else shutil.copy2)(src, dst)
         (Path(tmp) / "docs").mkdir()
         result = subprocess.run([sys.executable, "main.py", "doc-check"],
-                                cwd=tmp, capture_output=True, text=True)
+                                cwd=tmp, capture_output=True, text=True,
+                                env=offline_env())
         assert result.returncode == 2, result.stdout + result.stderr
         assert "Traceback" not in result.stdout + result.stderr
-        assert "cannot read" in result.stdout
+        assert "could not run" in result.stdout
+        assert "docs/spec" in result.stdout, "it must name what it could not read"
 
 
 def test_piping_doc_check_into_head_does_not_traceback():
@@ -365,7 +382,7 @@ def test_piping_doc_check_into_head_does_not_traceback():
     command most likely to be piped into head or grep."""
     proc = subprocess.run(
         f"{sys.executable} main.py doc-check 2>&1 | head -1",
-        cwd=ROOT, shell=True, capture_output=True, text=True)
+        cwd=ROOT, shell=True, capture_output=True, text=True, env=offline_env())
     assert "Traceback" not in proc.stdout + proc.stderr
     assert "BrokenPipe" not in proc.stdout + proc.stderr
 

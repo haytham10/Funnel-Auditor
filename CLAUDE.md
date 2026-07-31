@@ -123,9 +123,12 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   command a doc names must exist in the parser, every path it backticks must be
   on disk, every copy-line id must be in the CSV, every `Defers to:` must
   resolve, and **no defining doc but `docs/spec/03-offer.md` may carry a
-  price**. Exit 1 on drift, exit 2 if it cannot read the docs. It runs with the
+  price**. Exit 1 on drift, exit 2 if it could not run. It runs with the
   test suite, not with a batch — a doc typo must never be able to halt a real
-  send file.
+  send file. It also checks the CRM's select options against the tuples that
+  mirror them, which is the one authority this repo does not own; that half
+  needs a key, says so when there is none, and `--live` makes a missing key
+  exit 2 rather than a skip.
 
 ## The ICP
 
