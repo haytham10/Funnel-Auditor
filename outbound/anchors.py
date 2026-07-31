@@ -40,6 +40,15 @@ COPY_DIR = Path(__file__).resolve().parent.parent / "copy"
 
 EXACT_MATCH_RATIO = 0.70    # segment-matched line 70% of the time, generic 30%
 
+# The loaded bank, cached for the life of the process. See CopyBank.load.
+_BANK: "CopyBank | None" = None
+
+
+def reset_cache() -> None:
+    """Drop the cached bank. For tests, and for a re-read after copy-sync."""
+    global _BANK
+    _BANK = None
+
 
 # --------------------------------------------------------------- the fact table
 
@@ -183,12 +192,18 @@ class Line:
 
 
 def _read_lines(name: str) -> list[Line]:
+    """One beat's lines, sorted by id — the same canonical order every source
+    produces, so a lead draws the same line whether the bank came from Airtable,
+    a snapshot, or this file."""
     path = COPY_DIR / name
     with open(path, newline="", encoding="utf-8-sig") as handle:
         rows = list(csv.DictReader(handle))
-    return [Line(id=row["id"], line=row["line"],
-                 meta={k: v for k, v in row.items() if k not in ("id", "line")})
-            for row in rows]
+    return sorted(
+        (Line(id=row["id"], line=row["line"],
+              meta={k: v for k, v in row.items() if k not in ("id", "line")})
+         for row in rows),
+        key=lambda line: line.id,
+    )
 
 
 @dataclass
@@ -197,15 +212,97 @@ class CopyBank:
     offer: list[Line]
     cta: list[Line]
     ps: list[Line]
+    source: str = "csv"
 
     @classmethod
-    def load(cls) -> "CopyBank":
+    def from_lines(cls, lines: list[dict], source: str) -> "CopyBank":
+        def beat(name: str) -> list[Line]:
+            # Sorted by id: the draw indexes into this list, so the order has to
+            # be a property of the data rather than of whichever source it came
+            # from. See copy_sync.normalize_records.
+            return sorted(
+                (Line(id=l["id"], line=l["line"], meta=dict(l.get("meta", {})))
+                 for l in lines if l.get("beat") == name),
+                key=lambda line: line.id,
+            )
+        return cls(identity=beat("identity"), offer=beat("offer"),
+                   cta=beat("cta"), ps=beat("ps"), source=source)
+
+    @classmethod
+    def from_csv(cls) -> "CopyBank":
+        """The committed files, no network. Always available."""
         return cls(
             identity=_read_lines("identity.csv"),
             offer=_read_lines("offer.csv"),
             cta=_read_lines("cta.csv"),
             ps=_read_lines("ps.csv"),
+            source="csv",
         )
+
+    @classmethod
+    def load(cls, *, refresh: bool = False) -> "CopyBank":
+        """Airtable if reachable, the last synced snapshot if not, CSV if neither.
+
+        Airtable exists so Haytham can change a line without touching code, and
+        the CSVs exist so the machine still runs when Airtable does not. The
+        order is the whole design:
+
+        1. **Live Airtable**, when `AIRTABLE_API_KEY` is set. Dormant today —
+           no key is in the environment — and it activates with no other change
+           the moment one is.
+        2. **`copy/_airtable.json`**, the snapshot written by
+           `main.py copy-sync`. That is the working path right now: Airtable's
+           MCP is the model's tool, not Python's, so a skill fetches the records
+           and pipes them to the sync, which validates before writing.
+        3. **`copy/*.csv`**, committed and always present.
+
+        Every path above the CSVs has already passed `copy_sync.validate`, so a
+        line reaching a draft has been checked for invented numbers, relabelled
+        segments, and roll ranges that leave leads drawing nothing. A live fetch
+        that fails validation falls through rather than shipping — better a
+        slightly stale line than an unchecked one.
+
+        **Cached for the life of the process.** The lines do not change during a
+        run, and `draw()` is called once per lead: without this, a 200-lead batch
+        made 200 identical HTTP requests, spent minutes in pure latency, and
+        would have tripped Airtable's 5-requests-per-second limit. Pass
+        `refresh=True` after a `copy-sync` to pick up an edit mid-session.
+
+        `OUTBOUND_COPY_SOURCE=csv` forces the offline path. The test suite sets
+        it, so tests never touch the network and never depend on what someone
+        typed into Airtable this morning.
+        """
+        global _BANK
+        if _BANK is not None and not refresh:
+            return _BANK
+
+        import os
+        from outbound import copy_sync
+
+        forced = os.environ.get("OUTBOUND_COPY_SOURCE", "").strip().lower()
+
+        if forced != "csv":
+            if forced != "snapshot":
+                try:
+                    from audit import airtable
+                    if airtable.available():
+                        records = airtable.copy_assets()
+                        lines, _ = copy_sync.normalize_records(records)
+                        if lines and not copy_sync.validate(lines):
+                            _BANK = cls.from_lines(lines, "airtable")
+                            return _BANK
+                except Exception:
+                    # A dead key, a rename, a network blip. Never fatal: falling
+                    # through to a checked snapshot beats stopping the run.
+                    pass
+
+            snapshot = copy_sync.load_snapshot()
+            if snapshot:
+                _BANK = cls.from_lines(snapshot, "snapshot")
+                return _BANK
+
+        _BANK = cls.from_csv()
+        return _BANK
 
 
 # ------------------------------------------------------------------- the draw

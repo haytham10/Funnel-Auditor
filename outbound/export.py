@@ -2,13 +2,18 @@
 
 Two outputs:
 
-**`leads.csv`** — one row per lead, carrying an already-assembled `subject` and
-`body`. Smartlead stitches nothing. Everything it could get wrong at merge time
-is decided here, where it can be linted, and what you read in the preview is
-byte-for-byte what leaves. The individual beats ride along as extra columns for
-analysis later, but the body is authoritative.
+**`leads.csv`** — one row per lead, eight columns, carrying an already-assembled
+`subject` and `body`. Smartlead stitches nothing. Everything it could get wrong
+at merge time is decided here, where it can be linted, and what you read in the
+preview is byte-for-byte what leaves.
 
 **`preview.txt`** — the emails rendered in full, in order, to be read.
+
+**`wall-additions.csv`** — the rows to append to `data/contacted-before.csv`
+*after* the batch is actually uploaded. Deliberately not appended here: nothing
+has been sent at export time, and walling a lead who never received anything
+would silently exclude her from every future batch. `main.py wall-add` closes
+that loop once the upload has happened.
 
 There is no automated gate that replaces reading the preview. `lint.py` catches
 what a machine can catch: an invented number, a lost claim, a jargon word, a
@@ -30,16 +35,31 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-# The upload file's columns, in order. `email` first because every tool on
-# earth expects it there; `subject` and `body` are what actually send.
+# The upload file's columns. Exactly these, in this order, and nothing else.
+#
+# `email`, `first_name`, `last_name`, `website` and `location` are Smartlead's
+# own lead fields and map straight through. `linkedin_url`, `subject` and `body`
+# arrive as custom fields, usable in a campaign step as {{linkedin_url}},
+# {{subject}} and {{body}}.
+#
+# Nothing analytical is here on purpose. Coach type, hook citation, which anchor
+# lines were drawn, lint output, batch — all of it lives in Airtable, where it
+# can be grouped and filtered. Carrying it in the upload file would add eight
+# custom fields to the Smartlead campaign that never get used and clutter every
+# lead view.
 COLUMNS = [
-    "email", "first_name", "last_name", "full_name", "company",
-    "subject", "body",
-    "coach_type", "sells_to", "city", "website", "linkedin_url",
-    "hook_type", "hook_source_url",
-    "identity_line_id", "offer_line_id", "cta_line_id", "ps_line_id",
-    "batch", "slug",
+    "email",
+    "first_name",
+    "last_name",
+    "website",
+    "linkedin_url",
+    "location",
+    "subject",
+    "body",
 ]
+
+# What gets appended to data/contacted-before.csv AFTER the batch is uploaded.
+WALL_COLUMNS = ["name", "email", "domain", "warm", "status", "track"]
 
 
 @dataclass
@@ -63,28 +83,32 @@ class Draft:
     hook_type: str = ""
     hook_source_url: str = ""
 
-    def row(self, batch: str) -> dict:
+    def row(self) -> dict:
+        """The Smartlead row. Eight columns, nothing analytical."""
         return {
             "email": self.email,
             "first_name": self.first_name,
             "last_name": self.last_name,
-            "full_name": self.name,
-            "company": self.company,
-            "subject": self.subject,
-            "body": self.body,
-            "coach_type": self.coach_type,
-            "sells_to": self.sells_to,
-            "city": self.city,
             "website": self.website,
             "linkedin_url": self.linkedin_url,
-            "hook_type": self.hook_type,
-            "hook_source_url": self.hook_source_url,
-            "identity_line_id": self.anchor_ids.get("identity", ""),
-            "offer_line_id": self.anchor_ids.get("offer", ""),
-            "cta_line_id": self.anchor_ids.get("cta", ""),
-            "ps_line_id": self.anchor_ids.get("ps", ""),
-            "batch": batch,
-            "slug": self.slug,
+            "location": self.city,
+            "subject": self.subject,
+            "body": self.body,
+        }
+
+    def wall_row(self) -> dict:
+        """The row that enters `data/contacted-before.csv` once this is sent.
+
+        Not warm: nobody has replied. It flips only when a reply lands, by hand.
+        """
+        from audit.urls import registrable_domain
+        return {
+            "name": self.name,
+            "email": self.email,
+            "domain": registrable_domain(self.website) if self.website else "",
+            "warm": "no",
+            "status": "Outreach Sent",
+            "track": "Outbound",
         }
 
 
@@ -160,13 +184,25 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
     preview_path = out / "preview.txt"
     rejects_path = out / "rejected.txt"
 
+    wall_path = out / "wall-additions.csv"
+
     if not batch_blocked and passed:
         with open(csv_path, "w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=COLUMNS)
             writer.writeheader()
             for draft in passed:
-                writer.writerow(draft.row(batch))
+                writer.writerow(draft.row())
         preview_path.write_text(preview(passed), encoding="utf-8")
+
+        # Written but NOT appended to the wall. Nothing has been sent yet —
+        # Haytham uploads by hand, and walling a lead who never actually
+        # received anything would silently exclude her from every future batch.
+        # `main.py wall-add out/wall-additions.csv` closes the loop afterwards.
+        with open(wall_path, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=WALL_COLUMNS)
+            writer.writeheader()
+            for draft in passed:
+                writer.writerow(draft.wall_row())
 
     if rejected:
         rejects_path.write_text(
@@ -192,8 +228,9 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
         if top:
             lines.append(f"  {beat} top line {top[0]} at {top[1]:.0%}")
     if not batch_blocked and passed:
-        lines.append(f"  wrote {csv_path}")
+        lines.append(f"  wrote {csv_path} ({len(COLUMNS)} columns for Smartlead)")
         lines.append(f"  READ {preview_path} BEFORE UPLOADING — it is the gate")
+        lines.append(f"  after uploading: python main.py wall-add {wall_path}")
 
     return {
         "written": len(passed),
@@ -201,5 +238,6 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
         "blocked": batch_blocked,
         "csv": str(csv_path) if passed and not batch_blocked else "",
         "preview": str(preview_path) if passed and not batch_blocked else "",
+        "wall_additions": str(wall_path) if passed and not batch_blocked else "",
         "report": "\n".join(lines),
     }

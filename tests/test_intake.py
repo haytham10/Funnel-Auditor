@@ -245,6 +245,66 @@ def test_an_empty_wall_clears_everyone():
     assert len(dedupe.partition(leads, dedupe.ContactWall())["clear"]) == 5
 
 
+# ------------------------------------------------------- the wall on disk
+
+
+def test_the_repo_wall_loads():
+    """`data/contacted-before.csv` is read on every batch. If it stops loading,
+    the machine's most consequential check silently stops working."""
+    wall = dedupe.ContactWall.from_csv()
+    assert len(wall) > 100, f"only {len(wall)} contacts"
+
+
+def test_the_repo_wall_still_carries_its_warm_threads():
+    wall = dedupe.ContactWall.from_csv()
+    warm = [c for c in wall.by_name.values() if c.warm]
+    assert len(warm) == 9, [c.name for c in warm]
+
+
+def test_a_known_warm_lead_is_matched_from_the_repo_wall():
+    wall = dedupe.ContactWall.from_csv()
+    hit = dedupe.check_early(normalize.map_row({"Name": "Lisa Hugo"}), wall)
+    assert hit and hit.warm
+
+
+def test_a_missing_wall_file_yields_an_empty_wall_not_a_crash():
+    """The CLI turns this into a hard failure rather than a silent pass — a
+    missing file must never read as "nobody has been contacted"."""
+    wall = dedupe.ContactWall.from_csv("/nonexistent/wall.csv")
+    assert len(wall) == 0
+
+
+def test_warm_reads_every_spelling_a_human_might_type():
+    for value in ("yes", "Yes", "TRUE", "1", "y"):
+        assert dedupe._truthy(value), value
+    for value in ("no", "", "false", None, "0"):
+        assert not dedupe._truthy(value), value
+
+
+def test_rows_round_trip_through_to_rows():
+    wall = dedupe.ContactWall.from_csv()
+    rows = wall.to_rows()
+    assert len(rows) == len(wall)
+    assert set(rows[0]) == {"name", "email", "domain", "warm", "status", "track"}
+    # Warm first, so a human scanning the file sees the dangerous ones at the top.
+    assert rows[0]["warm"] == "yes"
+
+
+def test_a_csv_wall_and_a_records_wall_agree():
+    """The CRM-export path and the CSV path must produce the same verdicts, or
+    a one-off export would quietly disagree with the committed wall."""
+    from_csv = dedupe.ContactWall.from_csv()
+    from_records = dedupe.ContactWall.from_records([
+        {"name": r["name"], "email": r["email"], "domain": r["domain"],
+         "warm": r["warm"], "status": r["status"]}
+        for r in from_csv.to_rows()
+    ])
+    lead = normalize.map_row({"Name": "Lisa Hugo"})
+    a = dedupe.check_early(lead, from_csv)
+    b = dedupe.check_early(lead, from_records)
+    assert bool(a) == bool(b) and a.warm == b.warm
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

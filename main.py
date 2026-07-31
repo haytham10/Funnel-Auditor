@@ -10,9 +10,11 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
 
     intake      raw CSV -> profiled, junk-stripped Leads
     dedupe      the Contacted-Before wall, both passes
+    wall-add    append a shipped batch to the wall, after it is uploaded
     qualify     the three floors, run over a research JSON
     research    validate one worker's returned research object
     anchors     which hand-written lines a lead draws, and what it may cite
+    copy-sync   pull the lines out of Airtable, rejecting any that fail the lint
     lint        the checks that make model-written copy safe
     export      leads.csv + preview.txt, refusing to write a failing email
     email-*     address shape, deliverability, and the no-address fallback
@@ -85,9 +87,24 @@ def cmd_dedupe(args) -> None:
     from outbound import dedupe
 
     leads = _load_leads(args.leads)
-    contacts = json.loads(Path(args.contacts).read_text(encoding="utf-8"))
-    wall = dedupe.ContactWall.from_records(contacts)
+    if args.contacts:
+        # An explicit file, for walling against a one-off CRM export.
+        raw = Path(args.contacts).read_text(encoding="utf-8")
+        wall = (dedupe.ContactWall.from_records(json.loads(raw))
+                if args.contacts.endswith(".json")
+                else dedupe.ContactWall.from_csv(args.contacts))
+    else:
+        wall = dedupe.ContactWall.from_csv()
+
+    if not len(wall):
+        print("DEDUPE: FAIL — the wall is empty. Refusing to pass a batch it "
+              "cannot check; a missing file must not read as 'nobody has been "
+              "contacted'.")
+        sys.exit(2)
+
     result = dedupe.partition(leads, wall, stage=args.stage)
+    print(f"  wall: {len(wall)} contacts, "
+          f"{sum(1 for c in wall.by_name.values() if c.warm)} warm")
 
     print("\n".join(dedupe.report(result, stage=args.stage)))
     if args.out:
@@ -176,6 +193,105 @@ def cmd_anchors(args) -> None:
     print("allowed numbers: " +
           ", ".join(str(n) for n in sorted(anchor.allowed_numbers)))
     print("\nAny number in the body outside that set is invented or relabelled.")
+
+
+def cmd_copy_sync(args) -> None:
+    """Pull the hand-written lines out of Airtable, rejecting the bad ones.
+
+    Airtable exists so a line can change without touching code. That is only
+    safe because this is a gate: a line whose numbers do not trace to
+    `copy/results.csv`, or that attaches one segment's result to another, is
+    rejected here rather than reaching a stranger's inbox two stages later.
+
+    Two ways in. With `AIRTABLE_API_KEY` set, `--live` fetches directly.
+    Without one — which is the case today — a skill fetches the Copy Assets
+    records through the Airtable MCP and pipes them here as JSON.
+    """
+    from outbound import copy_sync
+
+    if args.live:
+        from audit import airtable
+        if not airtable.available():
+            print("COPY-SYNC: FAIL — --live needs AIRTABLE_API_KEY in the "
+                  "environment. Without it, fetch Copy Assets through the MCP "
+                  "and pipe the records to this command instead.")
+            sys.exit(2)
+        try:
+            records = airtable.copy_assets()
+        except airtable.AirtableError as exc:
+            print(f"COPY-SYNC: FAIL — {exc}")
+            sys.exit(1)
+        source = "airtable-api"
+    else:
+        raw = sys.stdin.read() if args.input == "-" else \
+            Path(args.input).read_text(encoding="utf-8")
+        payload = json.loads(raw)
+        # Accept a bare list, or the MCP's {"records": [...]} envelope.
+        records = payload.get("records", payload) if isinstance(payload, dict) else payload
+        source = "mcp"
+
+    result = copy_sync.sync(records, source=source, write=not args.dry_run)
+    print(result.report())
+    if result.ok and not args.dry_run:
+        print(f"  wrote {copy_sync.SNAPSHOT}")
+        print("  regenerated copy/*.csv — commit them so the fallback matches")
+    sys.exit(0 if result.ok else 1)
+
+
+def cmd_wall_add(args) -> None:
+    """Append a shipped batch to `data/contacted-before.csv`.
+
+    Run this AFTER the upload has actually happened. Export deliberately does
+    not do it: nothing has been sent at export time, and walling a lead who
+    never received anything would silently exclude her from every future batch.
+
+    Idempotent. Re-running it adds nothing, so running it twice after a
+    half-remembered upload is safe.
+    """
+    from outbound import dedupe, export
+
+    wall = dedupe.ContactWall.from_csv()
+    before = len(wall)
+
+    with open(args.additions, newline="", encoding="utf-8-sig") as handle:
+        incoming = list(csv.DictReader(handle))
+
+    added = []
+    for row in incoming:
+        contact = dedupe.KnownContact(
+            name=(row.get("name") or "").strip(),
+            email=(row.get("email") or "").strip(),
+            domain=(row.get("domain") or "").strip(),
+            status=(row.get("status") or "Outreach Sent").strip(),
+            warm=dedupe._truthy(row.get("warm")),
+            track=(row.get("track") or "Outbound").strip(),
+        )
+        # Checked against the wall's own keys rather than check_early/check_late:
+        # those read a Lead's `site_url`, which a KnownContact does not have, so
+        # the domain half would silently never match.
+        already = (
+            (contact.name and dedupe.name_key(contact.name) in wall.by_name)
+            or (contact.email and dedupe.email_key(contact.email) in wall.by_email)
+            or (contact.domain and dedupe.domain_key(contact.domain) in wall.by_domain)
+        )
+        if already:
+            continue
+        wall.add(contact)
+        added.append(contact.name)
+
+    if added and not args.dry_run:
+        with open(dedupe.CONTACTED_BEFORE, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=export.WALL_COLUMNS)
+            writer.writeheader()
+            writer.writerows(wall.to_rows())
+
+    print(f"WALL-ADD: {len(added)} added, "
+          f"{len(incoming) - len(added)} already present "
+          f"({before} -> {len(wall)})")
+    for name in added[:10]:
+        print(f"  + {name}")
+    if added and not args.dry_run:
+        print(f"  wrote {dedupe.CONTACTED_BEFORE} — commit it")
 
 
 def cmd_facts(args) -> None:
@@ -525,7 +641,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("dedupe", help="the Contacted-Before wall (exits 1 on a warm hit)")
     p.add_argument("leads", help="Leads JSON from `intake --out`")
-    p.add_argument("contacts", help="JSON array of CRM rows")
+    p.add_argument("--contacts", help="override the wall: a CSV, or a JSON array "
+                                      "of CRM rows (default data/contacted-before.csv)")
     p.add_argument("--stage", choices=["early", "late"], default="early",
                    help="early = name/domain before any paid call; late = email after research")
     p.add_argument("--out", help="write the cleared Leads as JSON")
@@ -555,6 +672,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("facts", help="the client-result fact table every number traces to")
     p.set_defaults(func=cmd_facts)
+
+    p = sub.add_parser("copy-sync",
+                       help="pull the hand-written lines out of Airtable, "
+                            "rejecting any that fail the lint")
+    p.add_argument("input", nargs="?", default="-",
+                   help="JSON file of Copy Assets records, or '-' for stdin")
+    p.add_argument("--live", action="store_true",
+                   help="fetch directly (needs AIRTABLE_API_KEY)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="validate and report, write nothing")
+    p.set_defaults(func=cmd_copy_sync)
+
+    p = sub.add_parser("wall-add",
+                       help="append a shipped batch to data/contacted-before.csv "
+                            "(run AFTER uploading, never before)")
+    p.add_argument("additions", help="out/wall-additions.csv from `export`")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_wall_add)
 
     p = sub.add_parser("lint", help="the gate on model-written copy")
     p.add_argument("input", help="JSON file (one draft or a list), or '-' for stdin")

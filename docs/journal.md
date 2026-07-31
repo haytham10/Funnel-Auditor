@@ -1,3 +1,68 @@
+## 2026-07-31 (later) — Airtable read wired, wall moved to the repo, Smartlead columns pinned
+
+Four asks, and two real bugs found while doing them.
+
+**The Airtable read is a gate, not a copy.** `outbound/copy_sync.py` pulls Copy
+Assets and validates every line before writing: numbers must trace to
+`copy/results.csv`, no number may sit next to a segment it doesn't belong to,
+and the weighted beats must cover 1-100 with no gap or overlap. Nothing is
+written if anything fails. That last check was already needed and missing — a
+gap in the roll ranges means some leads draw nothing and fall through to a
+positional fallback nobody chose.
+
+`anchors.CopyBank.load()` now tries live Airtable, then the last synced
+snapshot, then the CSVs. `AIRTABLE_API_KEY` turned out to be live in the
+environment after all, so the direct path is running today.
+
+**Bug 1, found by the tests hanging: no cache.** `load()` fetched on every
+call, so five draws made five HTTP requests. A 200-lead batch would have made
+200 and tripped Airtable's 5-req/sec limit. Now cached per process, with
+`OUTBOUND_COPY_SOURCE=csv` to force offline (the test suite sets it via
+conftest, so the suite is network-free and doesn't depend on live data).
+
+**Bug 2, found by round-tripping the real CSVs through a live fetch and
+diffing: order changed the draw.** Airtable returns records in view order and
+`draw_identity` indexes into the list, so the same lead drew a *different* line
+depending on which source the bank loaded from. Deterministic within a source,
+false across them. Fixed with a canonical sort by id everywhere; `copy/identity.csv`
+is reordered in this commit as a result (content byte-identical, verified). A
+test now asserts all three sources agree.
+
+**Contacted Before moved to `data/contacted-before.csv`** — 104 rows, 9 warm —
+and the Airtable table was deleted. Two walls that can disagree is worse than
+either, and the dangerous direction is the repo one going stale while Airtable
+looks current, since the repo one is what runs. It is read on every batch, never
+needs a view, and appending is a commit, so the wall has a history for free.
+`dedupe` now exits 2 on an unreadable wall rather than passing the batch.
+
+**Export writes exactly eight Smartlead columns**: email, first_name, last_name,
+website, linkedin_url, location, subject, body. Nothing analytical — that lives
+in Airtable. It also writes `wall-additions.csv`, deliberately NOT applied:
+nothing is sent at export time, and walling a lead who never received anything
+would silently exclude her from every future batch. `main.py wall-add` closes
+that loop after the upload, idempotently.
+
+**Leads table rebuilt lean**, 34 fields to 28, grouped in the order the machine
+fills them. Two real simplifications: the three floors collapsed into
+`Qualified` (checkbox) + `Failed Floors` (multi-select), which is the query that
+actually matters; and Status went 11 options to 7, with hold reasons living in
+`Blockers` as text rather than as five near-identical statuses. New table ID
+`tbl51dU7ojrxCVfxZ`. Copy Assets seeded with all 43 lines.
+
+250 tests pass. The whole loop verified live end to end: live Airtable read →
+copy-sync → intake → dedupe (stopped on a planted warm lead) → export →
+wall-add → next batch blocks the walled lead.
+
+### Open follow-ups
+- [ ] `results.csv` is repo-only on purpose (lines are voice and get tweaked;
+      results are audited evidence). Revisit if that friction bites.
+- [ ] Move the Airtable base to its own workspace — the MCP can create a base
+      but not a workspace, so it is in "My Workspace".
+- [ ] Follow-ups (touch 2/3) still not built. Smartlead sequence steps; nobody
+      has decided whether they should be per-lead personalised.
+- [ ] First real batch still needs to measure the tier-0 fetch rate and
+      reconcile Apify cost against the dashboard.
+
 ## 2026-07-31 — Rebuilt as an outbound machine: audit out, anchored AI drafting in
 
 Merged the funnel auditor with the cold-email system Haytham had been running

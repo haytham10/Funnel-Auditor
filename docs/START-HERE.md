@@ -63,7 +63,8 @@ a linter made that safe.
 | hook | `hook-worker` proposes, `hook-verifier` re-fetches the citation |
 | draft | `draft-worker` writes against the anchors, `draft-verifier` reads cold |
 | `lint` | everything mechanical, failing closed |
-| `export` | `leads.csv` and `preview.txt` |
+| `export` | `leads.csv` (8 columns), `preview.txt`, `wall-additions.csv` |
+| `wall-add` | after you upload, the batch enters the wall |
 
 Fire `outbound-batch` for a whole list, `outbound-draft` for one email.
 
@@ -74,7 +75,12 @@ Fire `outbound-batch` for a whole list, `outbound-draft` for one email.
   segment it doesn't belong to. `copy/results.csv` is the authority.
 - **No hook that a second agent couldn't re-fetch and confirm.** No hook found
   is a good answer; the lead just holds.
-- **No paid call before the dedupe wall**, and a warm-thread hit stops the run.
+- **No paid call before the dedupe wall** (`data/contacted-before.csv`), and a
+  warm-thread hit stops the run. A missing wall file fails the run rather than
+  reading as "nobody has been contacted".
+- **No line from Airtable that fails the linter.** `copy-sync` is a gate: edit a
+  line to cite a number no client result supports and the sync refuses it,
+  writing nothing.
 - **No verdict without a source.** A hard yes/no naming nothing was reasoned,
   not fetched, and the schema rejects it.
 

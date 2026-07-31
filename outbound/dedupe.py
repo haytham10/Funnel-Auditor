@@ -6,6 +6,11 @@ received a cold template on an existing thread, two of them live warm
 conversations. A cold opener landing on someone mid-negotiation is not a
 wasted send, it is the only kind of send that actively destroys something.
 
+The wall itself is `data/contacted-before.csv` — in the repo, not in a CRM. It
+is read on every run, it never needs a view or a filter, and it is the cheapest
+check in the machine; a network hop and an ephemeral container are a strange
+dependency for that. Appending is a commit, so the wall has a history for free.
+
 **Pass 1 runs on name and domain, BEFORE any paid call.** This ordering is the
 bug the old pipeline shipped: dedupe ran last, so an already-excluded lead paid
 for all 8 Apify calls and was then thrown away. A text match costs nothing and
@@ -22,11 +27,17 @@ A false positive costs one lead we skip. A false negative costs a relationship.
 
 from __future__ import annotations
 
+import csv
 import re
 import unicodedata
 from dataclasses import dataclass
+from pathlib import Path
 
 from audit.urls import registrable_domain
+
+# The wall lives in the repo, not a CRM. Read on every run, appended to by
+# commit, and diffable — see `ContactWall.from_csv` for why.
+CONTACTED_BEFORE = Path(__file__).resolve().parent.parent / "data" / "contacted-before.csv"
 
 _PARTICLES = {"van", "von", "de", "del", "della", "da", "di", "du", "la",
               "le", "el", "al", "bin", "ibn", "abu", "mac", "mc", "st"}
@@ -116,23 +127,81 @@ class ContactWall:
 
     @classmethod
     def from_records(cls, records: list[dict]) -> "ContactWall":
-        """Build from Airtable/Notion rows the skill layer fetched.
+        """Build from CRM rows the skill layer fetched.
 
-        Accepts the field spellings both CRMs use, so the caller can hand over
-        rows from either without reshaping them first.
+        Accepts the field spellings the old Notion and Airtable CRMs used, so a
+        historical export can be walled without reshaping it first.
         """
         wall = cls()
         for row in records:
             status = str(row.get("Status") or row.get("status") or "")
+            warm = row.get("Warm", row.get("warm"))
             wall.add(KnownContact(
                 name=row.get("Contact Name") or row.get("Name") or row.get("name") or "",
                 email=row.get("Email") or row.get("email") or "",
                 domain=row.get("Site URL") or row.get("Domain") or row.get("domain") or "",
                 status=status,
-                warm=_is_warm(status),
+                warm=_truthy(warm) if warm is not None else _is_warm(status),
                 track=row.get("Track") or row.get("track") or "",
             ))
         return wall
+
+    @classmethod
+    def from_csv(cls, path: str | Path | None = None) -> "ContactWall":
+        """The wall as it actually lives: a CSV in the repo.
+
+        `data/contacted-before.csv`, six columns, one row per person, editable
+        by hand in any text editor. It is deliberately not in a CRM: it is read
+        on every single run, it never needs a view or a filter or a rollup, and
+        an ephemeral container plus a network hop is a strange dependency for
+        the cheapest and most consequential check in the machine.
+
+        Appending a row is a commit, which also means the wall has a history —
+        `git log` answers "when did we first write to her" without a CRM field
+        for it.
+        """
+        path = Path(path) if path else CONTACTED_BEFORE
+        wall = cls()
+        if not path.exists():
+            return wall
+        with open(path, newline="", encoding="utf-8-sig") as handle:
+            for row in csv.DictReader(handle):
+                wall.add(KnownContact(
+                    name=(row.get("name") or "").strip(),
+                    email=(row.get("email") or "").strip(),
+                    domain=(row.get("domain") or "").strip(),
+                    status=(row.get("status") or "").strip(),
+                    warm=_truthy(row.get("warm")),
+                    track=(row.get("track") or "").strip(),
+                ))
+        return wall
+
+    def to_rows(self) -> list[dict]:
+        """Every contact, deduplicated, in CSV column order.
+
+        Used to append a finished batch to the wall without rewriting the file
+        by hand, and to round-trip a CRM export into it once.
+        """
+        seen: dict[int, KnownContact] = {}
+        for contact in (list(self.by_name.values()) + list(self.by_email.values())
+                        + list(self.by_domain.values())):
+            seen[id(contact)] = contact
+        return [
+            {"name": c.name, "email": c.email, "domain": c.domain,
+             "warm": "yes" if c.warm else "no", "status": c.status,
+             "track": c.track}
+            for c in sorted(seen.values(), key=lambda c: (not c.warm, c.name.lower()))
+        ]
+
+
+_TRUE = {"yes", "y", "true", "1", "warm", "t"}
+
+
+def _truthy(value) -> bool:
+    """CSV has no booleans, and a CRM checkbox arrives as any of five things."""
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in _TRUE
 
 
 # Any status that means a human was on the other end of this thread.

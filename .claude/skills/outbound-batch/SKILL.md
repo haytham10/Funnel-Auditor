@@ -25,12 +25,13 @@ problem and no amount of research fixes it.
 Then the wall, which runs **before any paid call**:
 
 ```
-python main.py dedupe work/leads.json work/contacts.json --out work/clear.json
+python main.py dedupe work/leads.json --out work/clear.json
 ```
 
-`work/contacts.json` comes from Airtable's Contacted-Before table. Pull it with
-`mcp__Airtable__list_records_for_table` and write it to disk; do not pass rows
-through a prompt.
+The wall is `data/contacted-before.csv`, in the repo. No fetch, no argument —
+it is read on every run and it is the cheapest check in the machine. An
+unreadable wall exits 2 rather than passing the batch, because a missing file
+must never read as "nobody has been contacted".
 
 **A warm hit exits 1 and stops the run.** Show Haytham the names. A cold opener
 landing on a live conversation is the one failure here that destroys something
@@ -80,7 +81,7 @@ twice.
 Then the late dedupe, now that addresses exist:
 
 ```
-python main.py dedupe work/researched.json work/contacts.json --stage late
+python main.py dedupe work/researched.json --stage late
 ```
 
 ## Stage 3 — hooks
@@ -108,6 +109,13 @@ For each lead with a VERIFIED hook, draw its anchors:
 python main.py anchors <email> --coach-type <T> --sells-to <S> --json
 ```
 
+The lines come from Airtable when a key is present, the last synced snapshot
+otherwise, and the committed CSVs as a floor — cached once per process, so a
+big batch makes one request rather than one per lead. If Haytham has edited a
+line in Airtable this session, run `python main.py copy-sync` first: it
+validates every line against `copy/results.csv` and refuses to write if any
+cites a number no client result supports.
+
 Then fan out `draft-worker` with the hook, the research object and the anchors.
 Each draft goes to `draft-verifier`, which reads it cold.
 
@@ -123,10 +131,29 @@ python main.py export work/drafts.json --out out/ --batch <YYYY-MM-DD>
 ```
 
 It writes only what passed, blocks the whole file on a batch-level failure, and
-lists every rejection with its reason. Then write the batch to Airtable: one
-**Batches** row, and one **Leads** row per lead including the ones that held,
-with their blockers. A lead that vanished with no record is worse than a kill
-you can read.
+lists every rejection with its reason. Three files come out:
+
+- **`leads.csv`** — exactly eight columns for Smartlead: `email`, `first_name`,
+  `last_name`, `website`, `linkedin_url`, `location`, `subject`, `body`. Nothing
+  analytical; that belongs in Airtable.
+- **`preview.txt`** — the gate. Read it.
+- **`wall-additions.csv`** — held back deliberately. See below.
+
+Then write the batch to Airtable: one **Batches** row, and one **Leads** row per
+lead including the ones that held, with their Blockers. A lead that vanished
+with no record is worse than a kill you can read.
+
+## Stage 6 — after Haytham uploads
+
+```
+python main.py wall-add out/wall-additions.csv
+```
+
+**Only after the upload has actually happened.** Nothing was sent at export
+time, and walling a lead who never received anything would silently exclude her
+from every future batch. It is idempotent, so running it twice is safe.
+
+Then commit `data/contacted-before.csv`. That commit is the wall's history.
 
 ## The brief
 

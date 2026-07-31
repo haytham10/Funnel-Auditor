@@ -49,7 +49,7 @@ research    research-worker per slice -> typed objects, schema-validated
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
 lint        every check that can be mechanical, failing closed
-export      leads.csv (assembled subject + body) + preview.txt
+export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
 ```
 
 `outbound-batch` runs the whole thing. `outbound-draft` is the single-lead and
@@ -100,7 +100,14 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   bridge, voice, and batch repetition.
 - `python main.py email-check|email-verify|email-enrich` — address shape,
   deliverability, and the no-address fallback on her own branded domain.
-- `python main.py dedupe` — exits 1 on a warm hit.
+- `python main.py dedupe` — exits 1 on a warm hit, exit 2 if the wall is
+  unreadable. A missing wall file must never read as "nobody has been contacted".
+- `python main.py copy-sync` — pulls the hand-written lines out of Airtable and
+  **rejects any that fail the linter**, so an edit there cannot break an email.
+  Writes nothing when anything fails.
+- `python main.py wall-add` — appends a shipped batch to the wall. Run it AFTER
+  uploading, never before: walling a lead who never received anything would
+  silently exclude her from every future batch.
 
 ## The ICP
 
@@ -136,7 +143,15 @@ deterministic line draw and the fact table), `lint` (the checks), `export`
 
 **`copy/`** — Haytham's hand-written lines. `identity.csv`, `offer.csv`,
 `cta.csv`, `ps.csv`, and `results.csv`, which is the fact table every number in
-every email traces back to. Edit these rather than the code.
+every email traces back to. **Edit the lines in Airtable, then run `copy-sync`,
+which validates and regenerates these files.** `results.csv` is repo-only on
+purpose: the lines are voice and get tweaked, the results are audited evidence
+and should not be casually editable.
+
+**`data/contacted-before.csv`** — the dedupe wall. In the repo rather than a CRM
+because it is read on every run, never needs a view or a filter, and a network
+hop is a strange dependency for the cheapest and most consequential check here.
+Appending is a commit, so the wall has a history for free.
 
 **Skills** — `outbound-batch` (the whole run), `outbound-draft` (one email, and
 the voice references). **Agents** — `research-worker`, `hook-worker`,
@@ -160,10 +175,16 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
 - **Email verification** defaults to Apify/MillionVerifier, auto-falling back to
   ZeroBounce (`ZEROBOUNCE_API_KEY`) when Apify is near cap. Force with
   `EMAIL_VERIFY_PROVIDER=zerobounce`.
-- **Airtable** is the CRM, via MCP. Base `appejF07kunksqt4D` ("Outbound
-  Machine"): Leads `tbl9lyituyqG8dlnb`, Batches `tbl97PsqhdndK14hP`, Copy Assets
-  `tblZnpXiuGy6V1mzl`, Contacted Before `tblXFiyyKeYwgSUTL`. The old
-  funnel-audit base `appaBExqyEZykb1Qk` is archive only, never written to.
+- **Airtable** is the CRM. Base `appejF07kunksqt4D` ("Outbound Machine"):
+  Leads `tbl51dU7ojrxCVfxZ`, Batches `tbl97PsqhdndK14hP`, Copy Assets
+  `tblZnpXiuGy6V1mzl`. The old funnel-audit base `appaBExqyEZykb1Qk` is archive
+  only, never written to.
+- **Reading Airtable from Python** needs `AIRTABLE_API_KEY` (`audit/airtable.py`).
+  Without it, the MCP is the model's tool only, and a skill pipes records to
+  `copy-sync` instead. `anchors.py` tries live, then the last synced snapshot,
+  then the CSVs, and **caches for the process** — without that, a 200-lead batch
+  made 200 identical requests and would trip Airtable's rate limit.
+  `OUTBOUND_COPY_SOURCE=csv` forces the offline path; the test suite sets it.
 - **Smartlead** owns sending. No API key here yet; handover is a CSV Haytham
   uploads by hand.
 - `pip install -r requirements.txt`. No browser needed — Playwright went with

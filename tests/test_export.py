@@ -42,11 +42,14 @@ def draft(slug="sarah", name="Sarah Khan", subject="your Hashimoto post",
           identity=None):
     body = export.assemble_body(beats(identity), greeting_name=name.split()[0])
     return export.Draft(
-        slug=slug, name=name, first_name=name.split()[0], email=f"{slug}@site.ae",
+        slug=slug, name=name, first_name=name.split()[0],
+        last_name=name.split()[-1], email=f"{slug}@site.ae",
         subject=subject, body=body, beats=beats(identity),
         anchor_ids={"identity": "id-health-2", "offer": "b4-01",
                     "cta": "cta-01", "ps": "ps-01"},
-        coach_type="Health", sells_to="individuals", city="Dubai")
+        coach_type="Health", sells_to="individuals", city="Dubai",
+        website="https://sarahcoaching.ae",
+        linkedin_url="https://linkedin.com/in/sarah")
 
 
 def lint_all(drafts):
@@ -89,8 +92,9 @@ def test_a_passing_draft_is_written():
         rows = list(csv.DictReader(open(Path(tmp) / "leads.csv", encoding="utf-8")))
         assert len(rows) == 1
         assert rows[0]["email"] == "sarah@site.ae"
+        assert rows[0]["first_name"] == "Sarah"
+        assert rows[0]["location"] == "Dubai"
         assert "15 minutes" in rows[0]["body"]
-        assert rows[0]["batch"] == "2026-07-31"
 
 
 def test_a_failing_draft_is_absent_from_the_csv():
@@ -103,7 +107,7 @@ def test_a_failing_draft_is_absent_from_the_csv():
         out = export.write_batch(drafts, lint_all(drafts), out_dir=tmp)
         assert out["written"] == 1 and out["rejected"] == 1
         rows = list(csv.DictReader(open(Path(tmp) / "leads.csv", encoding="utf-8")))
-        assert [r["slug"] for r in rows] == ["good"]
+        assert [r["email"] for r in rows] == ["good@site.ae"]
 
 
 def test_an_unlinted_draft_is_refused():
@@ -152,11 +156,67 @@ def test_every_column_is_present_even_when_empty():
             assert next(csv.reader(handle)) == export.COLUMNS
 
 
-def test_subject_and_body_are_the_only_content_columns():
-    """Smartlead stitches nothing. The beats ride along for analysis, but what
-    sends is one assembled subject and one assembled body."""
-    assert "subject" in export.COLUMNS and "body" in export.COLUMNS
-    assert not any(c in export.COLUMNS for c in ("hook", "identity", "offer", "cta"))
+def test_the_upload_file_is_exactly_the_agreed_columns():
+    """Eight, in this order. Adding an analytical column here would create a
+    Smartlead custom field that never gets used and clutters every lead view;
+    that data belongs in Airtable, where it can be grouped and filtered."""
+    assert export.COLUMNS == [
+        "email", "first_name", "last_name", "website",
+        "linkedin_url", "location", "subject", "body",
+    ]
+
+
+def test_no_analytical_column_leaks_into_the_upload_file():
+    for column in ("coach_type", "sells_to", "hook_type", "hook_source_url",
+                   "identity_line_id", "slug", "batch", "company"):
+        assert column not in export.COLUMNS, column
+
+
+def test_a_lead_with_no_linkedin_still_writes_a_row():
+    """"linkedin (if present)" — absent is an empty cell, never a dropped row."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        d.linkedin_url = ""
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp)
+        assert out["written"] == 1
+        rows = list(csv.DictReader(open(Path(tmp) / "leads.csv", encoding="utf-8")))
+        assert rows[0]["linkedin_url"] == ""
+
+
+# ----------------------------------------------------------------- the wall
+
+
+def test_wall_additions_are_written_but_not_applied():
+    """Nothing has been sent at export time. Walling a lead who never received
+    anything would silently exclude her from every future batch."""
+    with tempfile.TemporaryDirectory() as tmp:
+        drafts = [draft()]
+        out = export.write_batch(drafts, lint_all(drafts), out_dir=tmp)
+        rows = list(csv.DictReader(
+            open(Path(tmp) / "wall-additions.csv", encoding="utf-8")))
+        assert len(rows) == 1
+        assert rows[0]["name"] == "Sarah Khan"
+        assert rows[0]["warm"] == "no"
+        assert rows[0]["track"] == "Outbound"
+        assert out["wall_additions"].endswith("wall-additions.csv")
+
+
+def test_a_rejected_lead_never_reaches_the_wall_additions():
+    """She got no email, so she must stay eligible for the next batch."""
+    with tempfile.TemporaryDirectory() as tmp:
+        good = draft("good", "Good Coach")
+        bad = draft("bad", "Bad Coach", subject="second subject",
+                    identity="9 meetings in 6 weeks for a health coach in Dubai.")
+        export.write_batch([good, bad], lint_all([good, bad]), out_dir=tmp)
+        rows = list(csv.DictReader(
+            open(Path(tmp) / "wall-additions.csv", encoding="utf-8")))
+        assert [r["name"] for r in rows] == ["Good Coach"]
+
+
+def test_the_wall_row_carries_a_registrable_domain():
+    d = draft()
+    d.website = "https://www.sarahcoaching.ae/about"
+    assert d.wall_row()["domain"] == "sarahcoaching.ae"
 
 
 # --------------------------------------------------------------------- preview
