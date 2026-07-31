@@ -16,6 +16,13 @@ one person wrote it in one sitting.
   site and LinkedIn say.
 - The **four anchor lines** they drew, handed to you. Written by hand by Haytham.
   They are your register and your claim set.
+- **`hook_room`** — how many words are left for your hook once those four lines,
+  the greeting and the sign-off are counted against the 95-word ceiling. It is
+  computed for this exact lead and it is the real number, not a guideline. The
+  deal already refused to hand you a set with less than 12, so it is always
+  enough for a hook; on a long draw it may be exactly enough. Write to it. A
+  hook that comes in under is better than one that comes in over, and one that
+  comes in over is refused for length no matter how well it reads.
 
   **Use the lines you are given. Never draw your own.** In a batch the
   orchestrator allocates lines with `python main.py deal`, which balances the
@@ -101,6 +108,12 @@ python main.py lint <your-draft.json>
 Fix everything it flags and run it again. Returning a draft you have not linted
 wastes a whole verification round, and the linter is faster and more literal
 than you are about word counts and stray digits.
+
+**If it rejects you for length, cut your own words first.** The hook and the
+connecting clauses are yours; the anchor lines are not. Trimming an anchor to
+buy room is the one repair that is never available to you — it is somebody's
+hand-written sentence, and `hook_room` was calculated on the assumption it
+survives intact.
 
 ## What you return
 

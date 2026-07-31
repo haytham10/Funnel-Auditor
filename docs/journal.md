@@ -1,3 +1,58 @@
+## 2026-07-31 (email length) — the hook pays, so stop charging the copy
+
+Haytham asked who pays for a long email. The answer was the hook: four of five
+beats are drawn, so the only elastic text is beat 1. Then two bugs and a bad
+rule fell out of measuring it.
+
+**`_check_hook_room` was undercounting by three words.** It summed the four
+drawn lines. `assemble_body` also puts a greeting and a sign-off into the body
+`check_voice` counts, and it did not know about either. So it read the live bank
+as leaving **13** words for a hook when the real figure was **10** — under its
+own 12-word floor. The one combination it existed to catch was going through,
+and would have surfaced downstream as a too-long draft, blaming the hook instead
+of the lines that squeezed it. Today's earlier entry saying "hook room is back to
+14" was really 11.
+
+**Two word counters that disagreed.** `lint.check_voice` counts
+`\b[\w'-]+\b`; the allocator's guards used `str.split()`. A separated figure is
+two words to the first and one to the second, and `_UNSEPARATED` *requires* the
+comma form on any four-digit currency amount. Latent — every live line writes
+"AED 77k" — but armed. Now one `lint.word_count`, used everywhere.
+
+**The rule itself was wrong, and that is the part worth keeping.** Requiring the
+longest line in every beat to coexist made length a *copy* problem: the only
+available fix was to trim a hand-written sentence until it read like a machine
+wrote it. Haytham's objection, and he was right — measured it after: **6 of the
+2,112 combinations** were ever too tight. The bank was being held hostage by
+0.28% of draws.
+
+So the constraint moved to where the combination is chosen. **`_resolve_length`
+refuses to deal a set with no room for a hook** — swaps the ps, or the ps and
+the cta, exactly the way `_resolve_echoes` already handles two beats repeating a
+phrase. That function's own docstring had named `_check_hook_room` as the same
+principle; it just had not been applied. Identity never moves: it is matched to
+the lead's segment, which is what the 70/30 ratio exists to buy. Lines are never
+edited.
+
+Runs on **both** paths. `draw()` needed it more than `deal_batch` did — a
+per-lead hash has no batch to spread against, and `outbound-draft` is the last
+place anyone would look for the cause. Over 4,000 single-lead draws: 10 repaired,
+0 short.
+
+`_check_hook_room` now asks the only length question a swap cannot answer: **can
+this line be dealt at all**, paired with the shortest line in every other beat.
+A line that fails that is dead copy — it draws a weight and never reaches a
+reader, which is what `ps-01` was doing under the echo rule.
+
+**The drafter is handed `hook_room` per lead** instead of discovering it by
+rejection. A drafter that knows it has 14 words writes 14; one that does not
+writes 20 and gets refused. `deal` prints the range across the batch, a `LENGTH`
+line when it had to move a beat (the weight drift is real, so it is said rather
+than absorbed), and a `WARN` when no legal swap existed.
+
+Live bank after all of it: hook room **12 to 36** words, nothing trimmed, no line
+rewritten. 486 tests green, doc-check clean.
+
 ## 2026-07-31 (explainers) — two pages for people who have not read any of this
 
 Haytham: "I need to visualize where everything is, and how the machine works

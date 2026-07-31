@@ -45,6 +45,50 @@ FIXED_LINE_SHARE_CAP = 0.35
 BRIDGE_PHRASE_CAP = 0.10
 MIN_BATCH_FOR_SHARES = 8
 
+# The hook is the only beat nobody writes in advance, so it is the only one
+# that gets squeezed when the four drawn lines are long. Twelve words is a
+# short hook but a real one ("Saw your talk on why senior people stall").
+MIN_HOOK_WORDS = 12
+
+
+def word_count(text: str) -> int:
+    """The one word counter. Everything that reasons about length uses it.
+
+    There used to be two. This function's rule counts a separated figure as two
+    words ("AED 91,500" -> "AED", "91", "500") while `str.split()` counts it as
+    one, and the allocator's length guards used `split()` while the check that
+    actually rejects an email used this. A guard that counts low fails in the
+    shipping direction: it says the combination fits, and the linter then
+    refuses the email nobody can shorten. Latent rather than live — every
+    current line writes "AED 77k" — but `_UNSEPARATED` below *requires* the
+    comma form on any four-digit currency figure, so the trap was armed and
+    waiting for the first line that used one.
+    """
+    return len(re.findall(r"\b[\w'-]+\b", text or ""))
+
+
+def hook_room(beats: dict) -> int:
+    """Words left for the hook once the four drawn lines are in place.
+
+    Measured on the assembled body rather than by summing the four lines,
+    because the body carries a greeting and a sign-off that the count in
+    `check_voice` includes and a sum of lines does not. That gap was three
+    words and it was load-bearing: the sync-time guard read the live bank as
+    leaving 13 words for a hook when the real figure was 10, under its own
+    12-word floor, so the one combination it existed to catch went through and
+    would have been rejected downstream as a too-long draft — pointing at the
+    hook instead of at the lines that squeezed it.
+
+    Assumes a one-word first name, as the export's own preview does. A
+    two-word first name costs one more word than this predicts.
+    """
+    from outbound.export import assemble_body
+
+    body = assemble_body(
+        {beat: beats.get(beat, "") or "" for beat in ("identity", "offer", "cta", "ps")},
+        greeting_name="Name")
+    return WORD_MAX - word_count(body)
+
 # Words that give away an operator writing to a civilian.
 #
 # Matched on WORD BOUNDARIES, with an explicit suffix where a stem is meant.
@@ -289,7 +333,7 @@ def check_voice(body: str) -> tuple[list[str], list[str]]:
             f'unformatted number "{match.group(0)}" reads as a merge field'
         )
 
-    words = len(re.findall(r"\b[\w'-]+\b", body))
+    words = word_count(body)
     if words < WORD_MIN:
         failures.append(f"{words} words, under {WORD_MIN}")
     elif words > WORD_MAX:

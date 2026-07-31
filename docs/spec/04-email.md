@@ -24,6 +24,38 @@ Short is not a style preference. The email is asking for fifteen minutes from
 someone who did not ask to hear from us, and every sentence past the fourth is
 an argument for deleting it.
 
+**Counted on the assembled body**, which includes the greeting and the sign-off,
+by one function — `lint.word_count`. There were briefly two counters, and they
+disagreed by a word on any figure carrying a separator, in the direction of a
+guard passing a combination the linter then refused.
+
+### The hook pays
+
+Four of the five beats are drawn, so the hook is the only beat that absorbs a
+long draw. `lint.MIN_HOOK_WORDS` is the floor: twelve words is a short hook but
+a real one.
+
+**A long line is not the problem. A long *combination* is.** This used to be
+enforced against the copy — the longest line in every beat had to be able to
+coexist, so one 27-word identity line could fail the whole bank and the only fix
+on offer was to trim a hand-written sentence until it read like a machine wrote
+it. For a combination nobody had to be dealt: six of the live bank's 2,112 were
+ever too tight.
+
+So the constraint moved to where the combination is actually chosen. **The deal
+does not issue a set of lines with no room for a hook** — it swaps the ps, or
+the ps and the cta, exactly as it already does when two beats repeat a phrase.
+The lines are never edited. Identity never moves, because it is matched to the
+lead's segment and that match is the thing the 70/30 ratio exists to buy.
+
+What is still checked against the copy is the one failure a swap cannot fix: a
+line so long it can never be dealt with *any* partner set. That line is dead —
+it draws a weight and never reaches a reader.
+
+The drafter is handed its actual hook budget per lead rather than discovering it
+by rejection. A drafter that knows it has fourteen words writes fourteen; one
+that does not writes twenty and gets refused for length.
+
 ## The beats, and why the order is fixed
 
 Each beat answers the objection the reader raises at that exact moment. Reorder
