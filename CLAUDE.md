@@ -107,7 +107,10 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   Writes nothing when anything fails.
 - `python main.py wall-add` — appends a shipped batch to the wall. Run it AFTER
   uploading, never before: walling a lead who never received anything would
-  silently exclude her from every future batch.
+  silently exclude her from every future batch. Idempotent.
+- `python main.py copy-usage` — reports which lines actually shipped back to
+  Copy Assets. Also after uploading. **Additive, not idempotent** — run once
+  per batch.
 
 ## The ICP
 
@@ -125,6 +128,23 @@ attached.
 site disagrees.** `sells_to` is collected from her own words, never inferred —
 an empty answer draws a generic line, which is weaker than an exact match and
 much stronger than a wrong one.
+
+## How lines get chosen
+
+**A batch is dealt, not rolled.** `python main.py deal` allocates the whole
+batch at once so the declared weights actually hold. Per-lead hashing is
+unbiased only in the limit: measured on the live lines, a 50-lead batch gave one
+offer line 8% against a declared 20% and pushed another to 38%, over the
+repetition cap. It converged near n=200, and batches are not that big. Dealing
+gets the worst miss to about 1 point. `python main.py anchors` keeps the
+per-lead draw for single-lead work, where there is no batch to balance against.
+
+**The repetition cap outranks the 70/30 exact-match ratio.** When a segment has
+too few identity lines to spread its share — Executive has exactly one usable
+for an individuals-facing lead — the excess spills to generic rather than
+putting one sentence in front of 70% of a batch. `deal` then prints a `THIN`
+line naming the segment and how many more lines it needs. That is the fix; the
+spill is the workaround.
 
 ## Key pieces
 
@@ -147,6 +167,12 @@ every email traces back to. **Edit the lines in Airtable, then run `copy-sync`,
 which validates and regenerates these files.** `results.csv` is repo-only on
 purpose: the lines are voice and get tweaked, the results are audited evidence
 and should not be casually editable.
+
+Adding a line is three cells — Beat, Line, Weight. `Line ID` generates from the
+text if left blank and `Word Count` is computed, so neither is something to get
+wrong. **Weight is a relative share on any scale**; blank means an equal share.
+It replaced hand-maintained roll ranges, where adding a fifth line meant
+renumbering the other four to keep the spans contiguous.
 
 **`data/contacted-before.csv`** — the dedupe wall. In the repo rather than a CRM
 because it is read on every run, never needs a view or a filter, and a network

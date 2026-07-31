@@ -324,26 +324,131 @@ def _roll(email: str, salt: str, modulo: int = 100) -> int:
     return (seed(email, salt) % modulo) + 1
 
 
-def draw_weighted(lines: list[Line], email: str, salt: str) -> Line:
-    """Pick by the `roll_1_100` range each line declares."""
-    roll = _roll(email, salt, 100)
-    for line in lines:
-        span = line.meta.get("roll_1_100", "")
-        if "-" in span:
-            low, _, high = span.partition("-")
-            if int(low) <= roll <= int(high):
-                return line
-    return lines[roll % len(lines)]
+def weight_of(line: Line) -> float:
+    """A line's declared share. Blank means "equal share with its siblings".
 
-
-def draw_identity(lines: list[Line], email: str, *,
-                  coach_type: str, sells_to: str) -> Line:
-    """Match on segment AND audience, with a 70/30 exact-to-generic split.
-
-    Falls through in order: exact segment + exact audience -> exact segment,
-    any audience -> generic (`Any`). An unknown `sells_to` never invents a
-    match; it just drops to the segment-only pool, which is honest.
+    Weights replaced hand-maintained roll ranges. Under ranges, adding a fifth
+    offer line meant renumbering all four existing ones so the spans stayed
+    contiguous, by hand, with a validator that failed the whole sync if the
+    arithmetic slipped. A weight is one number that cannot be wrong on its own.
     """
+    raw = str(line.meta.get("weight", "") or "").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return 0.0
+    return max(0.0, value)
+
+
+def shares(lines: list[Line]) -> dict[str, float]:
+    """Each line's share of its beat, normalised to 1. Never a gap, never an
+    overlap — those failure modes belonged to ranges and no longer exist."""
+    if not lines:
+        return {}
+    weights = {line.id: weight_of(line) for line in lines}
+    total = sum(weights.values())
+    if total <= 0:
+        equal = 1.0 / len(lines)
+        return {line.id: equal for line in lines}
+    return {line_id: w / total for line_id, w in weights.items()}
+
+
+def draw_weighted(lines: list[Line], email: str, salt: str) -> Line:
+    """One lead's line, by weight. The single-lead path.
+
+    Cumulative shares rather than declared ranges, so the ranges are derived
+    and always contiguous by construction. Deterministic per lead forever,
+    which is what `outbound-draft` needs when there is no batch to balance
+    against. For a batch, use `deal` — see why below.
+    """
+    if not lines:
+        raise ValueError("no lines to draw from")
+    roll = _roll(email, salt, 10_000) / 10_000
+    cumulative = 0.0
+    per_line = shares(lines)
+    for line in lines:
+        cumulative += per_line[line.id]
+        if roll <= cumulative:
+            return line
+    return lines[-1]
+
+
+def allocate(lines: list[Line], count: int,
+             weights: dict[str, float] | None = None) -> dict[str, int]:
+    """How many of `count` leads each line should get. Largest remainder.
+
+    Independent per-lead hashing is unbiased in the limit and wrong in
+    practice: measured over the real offer lines, a 50-lead batch gave one line
+    8% against a declared 20% and pushed another to 38%, over the 35% batch
+    cap. It only converged near n=200, and batches are not that big.
+
+    Largest-remainder allocation hits the declared weights as exactly as whole
+    leads allow, so the repetition cap is satisfied by construction instead of
+    being warned about after the fact.
+    """
+    lines = _unique(lines)
+    if not lines or count <= 0:
+        return {line.id: 0 for line in lines}
+
+    per_line = _normalise(weights, lines) if weights else shares(lines)
+    exact = {line.id: per_line[line.id] * count for line in lines}
+    floors = {line_id: int(value) for line_id, value in exact.items()}
+    remaining = count - sum(floors.values())
+
+    # Ties break on a hash of the line id, not the id itself. Alphabetical
+    # tie-breaking is deterministic AND systematically biased: with 3 leads over
+    # 9 equally-weighted identity lines every remainder ties, and sorting by id
+    # handed all three seats to `id-any-1/2/3` — so small segment groups never
+    # drew their matched line at all, which is the entire point of the pool.
+    order = sorted(lines, key=lambda l: (-(exact[l.id] - floors[l.id]),
+                                         seed(l.id, "tiebreak")))
+    for line in order[:remaining]:
+        floors[line.id] += 1
+    return floors
+
+
+def _normalise(weights: dict[str, float], lines: list[Line]) -> dict[str, float]:
+    total = sum(max(0.0, weights.get(l.id, 0.0)) for l in lines)
+    if total <= 0:
+        equal = 1.0 / len(lines)
+        return {l.id: equal for l in lines}
+    return {l.id: max(0.0, weights.get(l.id, 0.0)) / total for l in lines}
+
+
+def deal(lines: list[Line], emails: list[str], salt: str,
+         weights: dict[str, float] | None = None) -> dict[str, Line]:
+    """Assign a whole batch at once so the declared weights actually hold.
+
+    Deterministic given the same batch: leads are ordered by their own hash,
+    then handed out against the allocation. Re-running a batch reproduces it
+    exactly.
+
+    The trade-off, stated plainly: a lead's line depends on the batch it was in,
+    where `draw_weighted` depends only on the lead. That is the right trade here
+    because dedupe means a lead appears in exactly one batch, and because the
+    thing being protected against is two coaches who compare notes seeing the
+    same sentence — which is a property of the batch, not of a lead.
+    """
+    if not lines:
+        raise ValueError("no lines to draw from")
+    lines = _unique(lines)
+    ordered = sorted(dict.fromkeys(emails), key=lambda e: seed(e, salt))
+    quota = allocate(lines, len(ordered), weights)
+
+    assignment: dict[str, Line] = {}
+    index = 0
+    for line in lines:
+        for _ in range(quota[line.id]):
+            assignment[ordered[index]] = line
+            index += 1
+    for email in ordered[index:]:          # rounding slack, never more than one
+        assignment[email] = lines[-1]
+    return assignment
+
+
+def _identity_pools(lines: list[Line], coach_type: str,
+                    sells_to: str) -> tuple[list[Line], list[Line]]:
+    """(exact-match pool, generic pool) for this lead's segment and audience."""
     def pool(type_match, sells_match) -> list[Line]:
         return [l for l in lines
                 if type_match(l.meta.get("coach_type", ""))
@@ -354,7 +459,56 @@ def draw_identity(lines: list[Line], email: str, *,
     exact_type = pool(lambda t: t == coach_type, lambda s: s in ("any", ""))
     generic = pool(lambda t: t == "Any", lambda s: True)
 
-    exact = exact_both + exact_type
+    # Deduped. A line tagged `sells_to = any` satisfies BOTH exact_both (when
+    # the lead's own sells_to is "any") and exact_type, so concatenating put it
+    # in the pool twice — which silently double-weighted it in the per-lead
+    # draw, and made the batch deal hand out more seats than there were leads.
+    return _unique(exact_both + exact_type), generic
+
+
+def _unique(lines: list[Line]) -> list[Line]:
+    """First occurrence of each id, order preserved."""
+    seen: set[str] = set()
+    out = []
+    for line in lines:
+        if line.id not in seen:
+            seen.add(line.id)
+            out.append(line)
+    return out
+
+
+def _identity_pool(lines: list[Line], coach_type: str,
+                   sells_to: str) -> tuple[list[Line], dict[str, float]]:
+    """The eligible lines for this lead, and the weight each should carry.
+
+    The 70/30 exact-to-generic ratio is expressed as weights rather than as a
+    coin flip per lead. That makes it real at batch level — 7 of 10 Health leads
+    genuinely get a Health line — instead of a per-lead gamble that clusters,
+    and it is what stops equal weights from tying and handing every seat to
+    whichever line sorts first.
+    """
+    exact, generic = _identity_pools(lines, coach_type, sells_to)
+    if not exact and not generic:
+        return lines, {}
+    if not exact:
+        return generic, {}
+    if not generic:
+        return exact, {}
+
+    weights = {l.id: EXACT_MATCH_RATIO / len(exact) for l in exact}
+    weights.update({l.id: (1 - EXACT_MATCH_RATIO) / len(generic) for l in generic})
+    return exact + generic, weights
+
+
+def draw_identity(lines: list[Line], email: str, *,
+                  coach_type: str, sells_to: str) -> Line:
+    """Match on segment AND audience, with a 70/30 exact-to-generic split.
+
+    Falls through in order: exact segment + exact audience -> exact segment,
+    any audience -> generic (`Any`). An unknown `sells_to` never invents a
+    match; it just drops to the segment-only pool, which is honest.
+    """
+    exact, generic = _identity_pools(lines, coach_type, sells_to)
     if exact and generic:
         # 70/30, decided per lead so the ratio holds across a batch without
         # anyone tracking a running count.
@@ -437,6 +591,131 @@ def draw(email: str, *, coach_type: str = "", sells_to: str = "",
         segment=segment,
         allowed_numbers=all_numbers(facts),
     )
+
+
+def split_identity(lines: list[Line], emails: list[str], *,
+                   coach_type: str, sells_to: str,
+                   cap: float = 0.35) -> tuple[dict[str, Line], list[str]]:
+    """Decide this segment's matched lines, and hand back who needs a generic one.
+
+    Two stages, and the order matters. First decide *how many* of this group get
+    a segment-matched line — 70/30 — then spread that many across the matched
+    lines available. Doing it in one stage with per-line weights undershot to
+    60%: Health has 3 matched lines against 6 generic ones, so the generic side
+    carried the larger rounding remainders and took every leftover seat.
+
+    The leads that did not get a matched line are RETURNED rather than dealt
+    here, because the generic pool is shared by every segment in the batch and
+    the repetition cap is a property of the batch, not of one group. Dealing
+    generics per group put `id-any-1` in front of 42% of a 12-lead batch: six
+    small groups each independently picked the same first line.
+    """
+    exact, generic = _identity_pools(lines, coach_type, sells_to)
+    ordered = sorted(dict.fromkeys(emails), key=lambda e: seed(e, "identity-mix"))
+
+    if not exact:
+        return {}, ordered
+    if not generic:
+        return deal(exact, ordered, "identity"), []
+
+    total = len(ordered)
+    want_exact = int(total * EXACT_MATCH_RATIO)
+    if (total * EXACT_MATCH_RATIO - want_exact) >= 0.5:
+        want_exact += 1
+
+    # The cap outranks the ratio. Executive has exactly one identity line usable
+    # for an individuals-facing lead, so a straight 70% put that one sentence in
+    # front of 70% of the batch. A weaker match beats the same sentence twice in
+    # one inbox pair, so the excess spills to generic.
+    ceiling = max(1, int(cap * total)) * len(exact)
+    want_exact = min(want_exact, ceiling)
+
+    return deal(exact, ordered[:want_exact], "identity"), ordered[want_exact:]
+
+
+def thin_segments(bank: "CopyBank", *, cap: float = 0.35) -> dict[str, int]:
+    """Segments with too few identity lines to fill their share without repeating.
+
+    Reported rather than silently worked around: the spill above keeps a batch
+    legal, but the real fix is writing another line for that segment, and nobody
+    knows to do that unless something says so.
+    """
+    needed = {}
+    for coach_type in {l.meta.get("coach_type", "") for l in bank.identity}:
+        if not coach_type or coach_type == "Any":
+            continue
+        for sells_to in ("individuals", "corporates"):
+            exact, _ = _identity_pools(bank.identity, coach_type, sells_to)
+            if exact and len(exact) * cap < EXACT_MATCH_RATIO:
+                shortfall = -(-int(EXACT_MATCH_RATIO * 100) // int(cap * 100)) - len(exact)
+                if shortfall > 0:
+                    needed[f"{coach_type}/{sells_to}"] = shortfall
+    return needed
+
+
+def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
+               facts: FactTable | None = None) -> dict[str, Anchor]:
+    """Anchors for a whole batch, allocated so the declared weights hold.
+
+    `leads` is a list of dicts carrying at least `email`, and optionally
+    `coach_type` and `sells_to`. Returns email -> Anchor.
+
+    This is what `outbound-batch` uses. `draw()` stays the single-lead path for
+    `outbound-draft`, where there is no batch to balance against. The two differ
+    on purpose: per-lead hashing is unbiased only in the limit, and at 50 leads
+    it missed a declared 20% weight by 12 points and broke the repetition cap.
+
+    Identity is dealt per segment pool rather than globally, because the pool a
+    lead draws from depends on its own `coach_type` and `sells_to` — balancing
+    across leads that could never draw the same line would mean nothing.
+    """
+    bank = bank or CopyBank.load()
+    facts = facts or load_facts()
+
+    fixed: dict[str, dict[str, Line]] = {}
+    for beat, lines in (("offer", bank.offer), ("cta", bank.cta), ("ps", bank.ps)):
+        fixed[beat] = deal(lines, [l["email"] for l in leads], beat)
+
+    # Identity: group leads by the pool they are eligible for, deal within each.
+    pools: dict[tuple, list[dict]] = {}
+    for lead in leads:
+        key = (lead.get("coach_type", ""), lead.get("sells_to", ""))
+        pools.setdefault(key, []).append(lead)
+
+    identity: dict[str, Line] = {}
+    segments: dict[str, str] = {}
+    needs_generic: list[str] = []
+
+    # Matched lines per segment; everyone else collected for one shared deal.
+    for (coach_type, sells_to), group in pools.items():
+        matched, spilled = split_identity(
+            bank.identity, [l["email"] for l in group],
+            coach_type=coach_type, sells_to=sells_to)
+        identity.update(matched)
+        needs_generic.extend(spilled)
+
+    if needs_generic:
+        _, generic = _identity_pools(bank.identity, "", "")
+        identity.update(deal(generic or bank.identity, needs_generic,
+                             "identity-generic"))
+
+    for lead in leads:
+        drawn = identity[lead["email"]].meta.get("coach_type", "")
+        coach_type = lead.get("coach_type", "")
+        segments[lead["email"]] = coach_type if drawn == coach_type else ""
+
+    widened = all_numbers(facts)
+    return {
+        lead["email"]: Anchor(
+            identity=identity[lead["email"]],
+            offer=fixed["offer"][lead["email"]],
+            cta=fixed["cta"][lead["email"]],
+            ps=fixed["ps"][lead["email"]],
+            segment=segments[lead["email"]],
+            allowed_numbers=widened,
+        )
+        for lead in leads
+    }
 
 
 def batch_shares(anchors: list[Anchor]) -> dict[str, dict[str, float]]:

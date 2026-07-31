@@ -64,7 +64,9 @@ a linter made that safe.
 | draft | `draft-worker` writes against the anchors, `draft-verifier` reads cold |
 | `lint` | everything mechanical, failing closed |
 | `export` | `leads.csv` (8 columns), `preview.txt`, `wall-additions.csv` |
+| `deal` | the batch's anchor lines, allocated so the weights hold |
 | `wall-add` | after you upload, the batch enters the wall |
+| `copy-usage` | after you upload, Copy Assets learns what shipped |
 
 Fire `outbound-batch` for a whole list, `outbound-draft` for one email.
 

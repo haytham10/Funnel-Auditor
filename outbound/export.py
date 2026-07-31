@@ -185,6 +185,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
     rejects_path = out / "rejected.txt"
 
     wall_path = out / "wall-additions.csv"
+    usage_path = out / "line-usage.csv"
 
     if not batch_blocked and passed:
         with open(csv_path, "w", newline="", encoding="utf-8") as handle:
@@ -203,6 +204,20 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
             writer.writeheader()
             for draft in passed:
                 writer.writerow(draft.wall_row())
+
+        # Which lines actually shipped, for `main.py copy-usage`. Recorded from
+        # the written set only: a line that appeared in a rejected draft never
+        # reached a reader and must not count as used.
+        usage: dict[str, int] = {}
+        for draft in passed:
+            for line_id in draft.anchor_ids.values():
+                if line_id:
+                    usage[line_id] = usage.get(line_id, 0) + 1
+        with open(usage_path, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["line_id", "count"])
+            writer.writeheader()
+            for line_id, count in sorted(usage.items()):
+                writer.writerow({"line_id": line_id, "count": count})
 
     if rejected:
         rejects_path.write_text(
@@ -231,6 +246,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
         lines.append(f"  wrote {csv_path} ({len(COLUMNS)} columns for Smartlead)")
         lines.append(f"  READ {preview_path} BEFORE UPLOADING — it is the gate")
         lines.append(f"  after uploading: python main.py wall-add {wall_path}")
+        lines.append(f"                   python main.py copy-usage {usage_path}")
 
     return {
         "written": len(passed),
@@ -239,5 +255,6 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
         "csv": str(csv_path) if passed and not batch_blocked else "",
         "preview": str(preview_path) if passed and not batch_blocked else "",
         "wall_additions": str(wall_path) if passed and not batch_blocked else "",
+        "line_usage": str(usage_path) if passed and not batch_blocked else "",
         "report": "\n".join(lines),
     }

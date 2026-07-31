@@ -14,6 +14,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     qualify     the three floors, run over a research JSON
     research    validate one worker's returned research object
     anchors     which hand-written lines a lead draws, and what it may cite
+    deal        the same, for a whole batch, with the weights held exactly
+    copy-usage  report a shipped batch's line usage back to Airtable
     copy-sync   pull the lines out of Airtable, rejecting any that fail the lint
     lint        the checks that make model-written copy safe
     export      leads.csv + preview.txt, refusing to write a failing email
@@ -292,6 +294,114 @@ def cmd_wall_add(args) -> None:
         print(f"  + {name}")
     if added and not args.dry_run:
         print(f"  wrote {dedupe.CONTACTED_BEFORE} — commit it")
+
+
+def cmd_deal(args) -> None:
+    """Anchors for a whole batch, allocated so the declared weights hold.
+
+    The batch path, as against `anchors`, which is one lead. Independent
+    per-lead hashing is unbiased only in the limit: measured over the real offer
+    lines, a 50-lead batch gave one line 8% against a declared 20% and pushed
+    another to 38%, over the repetition cap. Dealing the batch hits the weights
+    as closely as whole leads allow, so the cap holds by construction.
+    """
+    from outbound import anchors
+
+    leads = json.loads(Path(args.leads).read_text(encoding="utf-8"))
+    dealt = anchors.deal_batch(leads)
+
+    out = {
+        email: {
+            "identity": {"id": a.identity.id, "line": a.identity.line},
+            "offer": {"id": a.offer.id, "line": a.offer.line},
+            "cta": {"id": a.cta.id, "line": a.cta.line},
+            "ps": {"id": a.ps.id, "line": a.ps.line},
+            "segment": a.segment,
+            "allowed_numbers": sorted(a.allowed_numbers),
+        }
+        for email, a in dealt.items()
+    }
+    if args.out:
+        Path(args.out).write_text(json.dumps(out, indent=2), encoding="utf-8")
+
+    from outbound.lint import FIXED_LINE_SHARE_CAP
+
+    shares = anchors.batch_shares(list(dealt.values()))
+    print(f"DEAL: {len(dealt)} leads")
+    for beat, per_line in shares.items():
+        top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
+        flag = "  OVER CAP" if next(iter(per_line.values())) > FIXED_LINE_SHARE_CAP else ""
+        print(f"  {beat:<9} {top}{flag}")
+
+    # Which segments cannot fill their 70% share without repeating a sentence.
+    # The deal already spilled to generic to stay legal; this says what to write.
+    thin = anchors.thin_segments(anchors.CopyBank.load(), cap=FIXED_LINE_SHARE_CAP)
+    drawn = {l.meta.get("coach_type", "") for l in
+             [a.identity for a in dealt.values()]}
+    for segment, shortfall in sorted(thin.items()):
+        if segment.split("/")[0] in drawn or not drawn:
+            print(f"  THIN  {segment}: {shortfall} more identity line(s) would let it "
+                  f"hold its share without repeating")
+    if args.out:
+        print(f"  wrote {args.out}")
+
+
+def cmd_copy_usage(args) -> None:
+    """Report a shipped batch's line usage back to Airtable.
+
+    Run after `wall-add`, for the same reason: it records what actually went
+    out. Without it the weights stay guesses forever, because nothing anywhere
+    records which line was in front of which reader.
+
+    Increments `Times Used` and stamps `Last Used`. Needs AIRTABLE_API_KEY; the
+    counts are in `out/line-usage.csv` either way, so a missing key loses the
+    write, not the data.
+
+    **Additive, and deliberately not idempotent** — unlike `wall-add`, which
+    can be re-run safely. `Times Used` is a running total of emails sent, and
+    there is no way to tell a re-run from a genuine second batch that happened
+    to use the same lines. Run it once per batch. `--dry-run` first if unsure.
+    """
+    from datetime import date
+    from audit import airtable
+
+    with open(args.usage, newline="", encoding="utf-8-sig") as handle:
+        counts = {r["line_id"]: int(r["count"]) for r in csv.DictReader(handle)}
+
+    if not airtable.available():
+        print("COPY-USAGE: SKIPPED — no AIRTABLE_API_KEY. Counts are still in "
+              f"{args.usage}; re-run this when a key is set.")
+        for line_id, count in sorted(counts.items()):
+            print(f"  {line_id}: +{count}")
+        sys.exit(0)
+
+    try:
+        records = airtable.list_records(airtable.COPY_ASSETS_TABLE)
+    except airtable.AirtableError as exc:
+        print(f"COPY-USAGE: FAIL — {exc}")
+        sys.exit(1)
+
+    by_id = {r.get("fields", {}).get("Line ID"): r for r in records}
+    today = args.date or date.today().isoformat()
+    updates, missing = [], []
+    for line_id, count in counts.items():
+        record = by_id.get(line_id)
+        if not record:
+            missing.append(line_id)
+            continue
+        previous = record.get("fields", {}).get("Times Used") or 0
+        updates.append({"id": record["id"], "fields": {
+            "Times Used": int(previous) + count, "Last Used": today}})
+
+    if args.dry_run:
+        print(f"COPY-USAGE: dry run, {len(updates)} line(s) would be updated")
+    else:
+        written = airtable.update_records(airtable.COPY_ASSETS_TABLE, updates)
+        print(f"COPY-USAGE: {written} line(s) updated, dated {today}")
+        print("  NOTE  additive, unlike wall-add. Run once per batch — a second "
+              "run adds the same counts again.")
+    for line_id in sorted(missing):
+        print(f"  WARN  {line_id} is not in Copy Assets — run copy-sync?")
 
 
 def cmd_facts(args) -> None:
@@ -670,8 +780,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_anchors)
 
+    p = sub.add_parser("deal", help="anchors for a whole batch, weights held exactly")
+    p.add_argument("leads", help="JSON list of {email, coach_type, sells_to}")
+    p.add_argument("--out", help="write the per-lead anchors as JSON")
+    p.set_defaults(func=cmd_deal)
+
     p = sub.add_parser("facts", help="the client-result fact table every number traces to")
     p.set_defaults(func=cmd_facts)
+
+    p = sub.add_parser("copy-usage",
+                       help="report a shipped batch's line usage back to Airtable "
+                            "(run AFTER uploading, alongside wall-add)")
+    p.add_argument("usage", help="out/line-usage.csv from `export`")
+    p.add_argument("--date", help="ISO date to stamp (default today)")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_copy_usage)
 
     p = sub.add_parser("copy-sync",
                        help="pull the hand-written lines out of Airtable, "

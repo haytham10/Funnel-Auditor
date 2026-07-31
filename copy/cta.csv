@@ -1,5 +1,5 @@
-id,line,weight_pct,roll_1_100,word_count
-cta-01,15 minutes and they're yours the same day. I'll tell you why these 10 and not the other 40.,30,1-30,19
-cta-02,Give me 15 minutes this week and the 10 are in your inbox before the call ends.,25,31-55,17
-cta-03,"15 minutes, and you get the 10 that day plus what ruled the other 40 out.",25,56-80,16
-cta-04,"Worth 15 minutes? You'll have the 10 within a day of us speaking, and I'll show you how I picked them.",20,81-100,21
+id,line,weight,word_count
+cta-01,15 minutes and they're yours the same day. I'll tell you why these 10 and not the other 40.,30,19
+cta-02,Give me 15 minutes this week and the 10 are in your inbox before the call ends.,25,17
+cta-03,"15 minutes, and you get the 10 that day plus what ruled the other 40 out.",25,16
+cta-04,"Worth 15 minutes? You'll have the 10 within a day of us speaking, and I'll show you how I picked them.",20,21

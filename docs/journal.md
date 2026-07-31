@@ -1,3 +1,65 @@
+## 2026-07-31 (later still) — Copy Assets stopped being an inert table
+
+Haytham: "the copy assets just sit there as a table, it shouldn't be a
+bottleneck." Three things were true, and measuring first is what found the
+second and third.
+
+**1. Editing it had arithmetic homework attached.** Adding a fifth offer line
+meant renumbering the other four roll ranges by hand so the spans stayed
+contiguous, with a validator that failed the whole sync on a slip. Replaced with
+a plain `Weight` on any scale, blank meaning equal share. Ranges are derived at
+load, so the gap-and-overlap failure class is gone rather than checked. `Line ID`
+now generates from the text when blank and `Word Count` is computed, so adding a
+line is three cells: Beat, Line, Weight.
+
+**2. The declared weights were fiction at real batch sizes.** Measured before
+touching anything: independent per-lead hashing over the live offer lines gave
+`b4-04` 8% against a declared 20% at n=50, pushed `b4-03` to 38% over the 35%
+cap, and only converged near n=200. Added `deal` — largest-remainder allocation
+over the whole batch. Worst miss at n=50 went 13 points to 1, and the cap is now
+satisfied by construction instead of warned about afterwards. `anchors` keeps the
+per-lead draw for single-lead work where there is no batch to balance.
+
+**3. Nothing ever came back.** Added `copy-usage`, which reports which lines
+actually shipped into `Times Used` / `Last Used` after an upload. The weights are
+guesses today and usage plus reply data is the only thing that can replace a
+guess with a measurement. Additive, deliberately not idempotent, unlike
+`wall-add` — flagged in the output because the asymmetry could bite.
+
+**Three bugs found while doing it, two of them pre-existing:**
+
+- `exact_both + exact_type` put the same identity line in the pool twice
+  whenever `sells_to` was `any`. That silently double-weighted those lines in
+  the old per-lead draw, and made the batch deal issue more seats than there
+  were leads. Deduped.
+- **Alphabetical tie-breaking was systematically biased.** With 3 leads over 9
+  equally-weighted identity lines every remainder ties, and sorting by id handed
+  all three seats to `id-any-1/2/3` — so small segment groups never drew their
+  matched line at all, which is the entire point of the pool. Ties now break on
+  a hash of the id.
+- **Dealing generics per segment clustered across the batch.** Six small segment
+  groups each independently picked the same first generic line and put it in
+  front of 42% of a 12-lead batch. The generic pool is shared, so it is now
+  dealt once across the whole batch after each segment's matched share is taken.
+
+**One content gap surfaced, not papered over.** Executive has exactly one
+identity line usable for an individuals-facing lead, so a straight 70% match
+rate put that sentence in front of 70% of the batch. The cap outranks the ratio,
+so the excess spills to generic — but `deal` now prints a `THIN` line naming the
+segment and the shortfall, because the spill is the workaround and writing
+another line is the fix.
+
+Copy Assets rebuilt (12 fields, seeded from Python rather than by hand) and
+`audit/airtable.py` gained a narrow write path. 280 tests pass. Verified live:
+deal → copy-sync → export → copy-usage → read back → reset.
+
+### Open follow-ups
+- [ ] Write a second Executive identity line for individuals-facing leads.
+      `python main.py deal` prints the shortfall on any batch containing one.
+- [ ] `Times Used` becomes useful only when reply data lands. Per-line reply
+      rate is the number that turns the weights from guesses into measurements,
+      and it needs Smartlead replies flowing back.
+
 ## 2026-07-31 (later) — Airtable read wired, wall moved to the repo, Smartlead columns pinned
 
 Four asks, and two real bugs found while doing them.

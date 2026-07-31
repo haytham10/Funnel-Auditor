@@ -103,11 +103,20 @@ the instructions, not with those two leads.
 
 ## Stage 4 — draft
 
-For each lead with a VERIFIED hook, draw its anchors:
+For every lead with a VERIFIED hook at once, deal the anchors:
 
 ```
-python main.py anchors <email> --coach-type <T> --sells-to <S> --json
+python main.py deal work/draftable.json --out work/anchors.json
 ```
+
+**Deal, do not loop `anchors`.** That command is the single-lead path for
+`outbound-draft`. Per-lead hashing is unbiased only in the limit: at 50 leads it
+missed a declared 20% weight by 12 points and broke the repetition cap. Dealing
+the batch hits the weights as closely as whole leads allow.
+
+Read the `THIN` lines it prints. They name a segment with too few identity lines
+to hold its share without repeating a sentence, and the fix is writing one more
+line for that segment in Airtable, not anything in code.
 
 The lines come from Airtable when a key is present, the last synced snapshot
 otherwise, and the committed CSVs as a floor — cached once per process, so a
@@ -149,9 +158,17 @@ with no record is worse than a kill you can read.
 python main.py wall-add out/wall-additions.csv
 ```
 
-**Only after the upload has actually happened.** Nothing was sent at export
+```
+python main.py copy-usage out/line-usage.csv
+```
+
+**Both only after the upload has actually happened.** Nothing was sent at export
 time, and walling a lead who never received anything would silently exclude her
-from every future batch. It is idempotent, so running it twice is safe.
+from every future batch.
+
+`wall-add` is idempotent. `copy-usage` is **not** — it adds to a running total,
+and nothing can tell a re-run from a genuine second batch using the same lines.
+Run it once, `--dry-run` first if unsure.
 
 Then commit `data/contacted-before.csv`. That commit is the wall's history.
 

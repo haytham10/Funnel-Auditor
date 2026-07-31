@@ -13,8 +13,10 @@ the key later turns the manual sync automatic with no other change — and until
 then, nothing silently half-works: `available()` is False, and the caller falls
 through to the snapshot and then to the CSVs.
 
-Read-only by design. Nothing here writes to Airtable. The record-writing path
-stays in the skill layer where a human can see it happen.
+Reads are unrestricted. Writes are deliberately narrow: `update_records` exists
+so a finished batch can report usage back to Copy Assets, which is the only way
+the weights ever stop being guesses. Nothing here creates or deletes a table,
+and nothing writes a Lead — that stays in the skill layer where a human sees it.
 """
 
 from __future__ import annotations
@@ -91,3 +93,51 @@ def copy_assets(base_id: str = BASE_ID) -> list[dict]:
     """The Copy Assets table, as flat field dicts."""
     return [record.get("fields", {})
             for record in list_records(COPY_ASSETS_TABLE, base_id=base_id)]
+
+
+def update_records(table: str, updates: list[dict], *,
+                   base_id: str = BASE_ID) -> int:
+    """PATCH existing records. `updates` is [{"id": rec..., "fields": {...}}].
+
+    Batched at 10, which is Airtable's per-request limit, and the reason this
+    lives here rather than being open-coded at the call site.
+    """
+    if not updates:
+        return 0
+    url = f"{API_ROOT}/{base_id}/{requests.utils.quote(table)}"
+    written = 0
+    for start in range(0, len(updates), 10):
+        chunk = updates[start:start + 10]
+        try:
+            response = requests.patch(url, headers={**_headers(),
+                                                    "Content-Type": "application/json"},
+                                      json={"records": chunk}, timeout=TIMEOUT)
+        except requests.RequestException as exc:
+            raise AirtableError(f"Airtable unreachable: {exc}") from exc
+        if response.status_code != 200:
+            raise AirtableError(
+                f"Airtable returned {response.status_code}: {response.text[:200]}")
+        written += len(response.json().get("records", []))
+    return written
+
+
+def create_records(table: str, records: list[dict], *,
+                   base_id: str = BASE_ID) -> int:
+    """POST new records. `records` is [{"fields": {...}}]. Batched at 10."""
+    if not records:
+        return 0
+    url = f"{API_ROOT}/{base_id}/{requests.utils.quote(table)}"
+    written = 0
+    for start in range(0, len(records), 10):
+        chunk = records[start:start + 10]
+        try:
+            response = requests.post(url, headers={**_headers(),
+                                                   "Content-Type": "application/json"},
+                                     json={"records": chunk}, timeout=TIMEOUT)
+        except requests.RequestException as exc:
+            raise AirtableError(f"Airtable unreachable: {exc}") from exc
+        if response.status_code != 200:
+            raise AirtableError(
+                f"Airtable returned {response.status_code}: {response.text[:200]}")
+        written += len(response.json().get("records", []))
+    return written

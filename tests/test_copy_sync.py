@@ -30,8 +30,7 @@ def record(line_id, beat, line, **meta):
         "Coach Type": meta.get("coach_type", ""),
         "Sells To": meta.get("sells_to", ""),
         "Shape": meta.get("shape", ""),
-        "Roll Range": meta.get("roll", ""),
-        "Word Count": meta.get("words", 0),
+        "Weight": meta.get("weight"),
     })
     return {"id": f"rec{line_id}", "fields": fields}
 
@@ -46,13 +45,13 @@ def good_set():
                "Your next client is the whole job. 67 meetings and 30 signed this year.",
                coach_type="Any", sells_to="any", shape="aggregate"),
         record("b4-x", "offer", "I pulled 10 names for you before writing this.",
-               roll="1-50"),
+               weight=50),
         record("b4-y", "offer", "I already found 10 names, picked one at a time.",
-               roll="51-100"),
+               weight=100),
         record("cta-x", "cta",
                "15 minutes and they're yours the same day, plus why these 10 and not the other 40.",
-               roll="1-100"),
-        record("ps-x", "ps", "ps: a no here costs you nothing.", roll="1-100"),
+               weight=100),
+        record("ps-x", "ps", "ps: a no here costs you nothing.", weight=100),
     ]
 
 
@@ -75,11 +74,24 @@ def test_an_inactive_row_is_skipped_not_failed():
     assert any("Active unchecked" in s for s in skipped)
 
 
-def test_a_row_with_no_line_id_is_skipped():
-    records = good_set() + [{"fields": {"Beat": "ps", "Line": "orphan"}}]
-    lines, skipped = copy_sync.normalize_records(records)
-    assert len(lines) == len(good_set())
-    assert any("no Line ID" in s for s in skipped)
+def test_a_row_with_no_line_id_gets_one_generated():
+    """A Line ID is bookkeeping. Making someone invent a unique string before
+    their new line can exist is exactly the friction this table should not have."""
+    records = good_set() + [{"fields": {"Beat": "ps", "Line": "ps: a costless no.",
+                                        "Active": True}}]
+    lines, notes = copy_sync.normalize_records(records)
+    assert len(lines) == len(good_set()) + 1
+    assert any("auto" in n for n in notes)
+    generated = [l for l in lines if l["id"].startswith("ps-") and l["id"] != "ps-x"]
+    assert len(generated) == 1
+
+
+def test_a_generated_line_id_is_stable_across_syncs():
+    """Derived from the text, so re-syncing does not churn it."""
+    row = [{"fields": {"Beat": "ps", "Line": "ps: a costless no.", "Active": True}}]
+    first, _ = copy_sync.normalize_records(row)
+    again, _ = copy_sync.normalize_records(row)
+    assert first[0]["id"] == again[0]["id"]
 
 
 # ------------------------------------------------------------------ the gate
@@ -145,46 +157,41 @@ def test_a_bad_coach_type_is_rejected():
     assert any("is not a segment" in p for p in copy_sync.validate(lines))
 
 
-# ------------------------------------------------------------- the roll ranges
+# ----------------------------------------------------------------- weights
 
 
-def test_a_gap_in_the_roll_ranges_is_rejected():
-    """Invisible until it bites: a roll landing in the gap draws nothing and
-    falls through to a positional fallback nobody chose."""
+def test_a_non_numeric_weight_is_rejected():
     records = good_set()
-    records[3]["fields"]["Roll Range"] = "60-100"      # 51-59 uncovered
+    records[2]["fields"]["Weight"] = "lots"
     lines, _ = copy_sync.normalize_records(records)
-    problems = copy_sync.validate(lines)
-    assert any("uncovered" in p for p in problems), problems
+    assert any("not a number" in p for p in copy_sync.validate(lines))
 
 
-def test_an_overlap_in_the_roll_ranges_is_rejected():
-    """An overlap means the declared weights are a fiction."""
+def test_a_negative_weight_is_rejected():
     records = good_set()
-    records[3]["fields"]["Roll Range"] = "40-100"      # overlaps 40-50
+    records[2]["fields"]["Weight"] = -5
     lines, _ = copy_sync.normalize_records(records)
-    assert any("overlap" in p for p in copy_sync.validate(lines))
+    assert any("negative" in p for p in copy_sync.validate(lines))
 
 
-def test_a_missing_roll_range_is_rejected():
+def test_blank_weights_are_fine():
+    """Blank means an equal share. Adding a line without deciding its weight
+    must not fail the sync — that was the old roll-range friction."""
     records = good_set()
-    records[2]["fields"]["Roll Range"] = ""
+    for record in records:
+        record["fields"].pop("Weight", None)
     lines, _ = copy_sync.normalize_records(records)
-    assert any("no Roll Range" in p for p in copy_sync.validate(lines))
+    assert copy_sync.validate(lines) == []
 
 
-def test_identity_needs_no_roll_range():
-    """Identity is matched on segment, not rolled. Only the fixed beats weight."""
-    lines, _ = copy_sync.normalize_records(good_set())
-    assert not any("id-" in p and "Roll Range" in p
-                   for p in copy_sync.validate(lines))
-
-
-def test_a_range_outside_1_to_100_is_rejected():
-    records = good_set()
-    records[2]["fields"]["Roll Range"] = "0-50"
+def test_there_is_no_gap_or_overlap_left_to_get_wrong():
+    """The whole failure class went with the ranges. Adding a fifth offer line
+    used to mean renumbering the other four; now it means typing one number."""
+    records = good_set() + [record("b4-z", "offer",
+                                   "I already pulled 10 names, one at a time.",
+                                   weight=40)]
     lines, _ = copy_sync.normalize_records(records)
-    assert any("outside 1-100" in p for p in copy_sync.validate(lines))
+    assert copy_sync.validate(lines) == []
 
 
 # ---------------------------------------------------------- the generic fallback
@@ -255,9 +262,10 @@ def test_regenerated_csvs_round_trip_back_through_the_bank():
         copy_dir = Path(tmp)
         copy_sync.sync(good_set(), copy_dir=copy_dir)
         rows = (copy_dir / "offer.csv").read_text()
-        assert "b4-x" in rows and "1-50" in rows
-        # weight_pct is derived from the range, not carried separately
-        assert ",50," in rows
+        assert "id,line,weight,word_count" in rows
+        assert "b4-x" in rows
+        # word_count is computed from the line, never carried from Airtable
+        assert rows.rstrip().endswith(("9", "10", "11", "12"))
 
 
 # -------------------------------------------------- the load ladder, stubbed

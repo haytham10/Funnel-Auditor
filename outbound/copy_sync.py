@@ -12,11 +12,10 @@ What it checks, beyond the obvious required fields:
   and the sync fails naming the line.
 - **No number sits next to a segment it doesn't belong to.** Widening a Business
   result to "coaches here" is fine; calling it a health coach's is not.
-- **The weighted beats cover 1-100 with no gap and no overlap.** This one is
-  invisible until it bites: `offer`, `cta` and `ps` are drawn by rolling 1-100
-  and taking the line whose range covers the roll. A gap means some leads draw
-  nothing and quietly fall through to a positional fallback; an overlap means
-  the declared weights are a fiction.
+- **Weights are sane.** A weight is one number that cannot be wrong on its own,
+  which is why it replaced hand-maintained roll ranges: under ranges, adding a
+  fifth offer line meant renumbering the other four so the spans stayed
+  contiguous, and a slip failed the whole sync. Blank means "equal share".
 - **A generic (`Any`) identity line exists.** It is the fallback for every lead
   whose segment is unknown, and without one they draw from an empty pool.
 
@@ -28,6 +27,7 @@ Airtable says. On failure it writes nothing at all.
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -51,8 +51,7 @@ FIELD_MAP = {
     "Coach Type": "coach_type",
     "Sells To": "sells_to",
     "Shape": "shape",
-    "Roll Range": "roll_1_100",
-    "Word Count": "word_count",
+    "Weight": "weight",
     "Active": "active",
 }
 
@@ -89,29 +88,37 @@ def normalize_records(records: list[dict]) -> tuple[list[dict], list[str]]:
     because the two paths into this module return different shapes and making
     the caller remember which is a bug waiting to happen.
     """
-    lines, skipped = [], []
+    lines, skipped, generated = [], [], []
     for record in records:
         fields = record.get("fields", record) if isinstance(record, dict) else {}
         row = {our: fields.get(theirs) for theirs, our in FIELD_MAP.items()}
 
+        beat_name = (row.get("beat") or "").strip().lower()
         line_id = (row.get("id") or "").strip()
         if not line_id:
-            skipped.append("a row with no Line ID")
-            continue
+            # Generated rather than refused. A Line ID is bookkeeping, and
+            # making someone invent a unique string by hand before their new
+            # line can exist is exactly the friction this table should not have.
+            # Derived from the line text, so the same line always gets the same
+            # id and re-syncing does not churn it.
+            digest = hashlib.sha256(
+                f"{beat_name}|{(row.get('line') or '').strip()}".encode()
+            ).hexdigest()[:6]
+            line_id = f"{beat_name or 'line'}-{digest}"
+            generated.append(f"{line_id} (auto, no Line ID given)")
         if row.get("active") is False:
             skipped.append(f"{line_id}: Active unchecked")
             continue
 
         lines.append({
             "id": line_id,
-            "beat": (row.get("beat") or "").strip().lower(),
+            "beat": beat_name,
             "line": (row.get("line") or "").strip(),
             "meta": {
                 "coach_type": (row.get("coach_type") or "").strip(),
                 "sells_to": (row.get("sells_to") or "").strip(),
                 "shape": (row.get("shape") or "").strip(),
-                "roll_1_100": (row.get("roll_1_100") or "").strip(),
-                "word_count": str(row.get("word_count") or ""),
+                "weight": str(row.get("weight") or "").strip(),
             },
         })
 
@@ -122,46 +129,34 @@ def normalize_records(records: list[dict]) -> tuple[list[dict], list[str]]:
     # becomes false. Caught by round-tripping the committed CSVs through a live
     # fetch and diffing.
     lines.sort(key=lambda l: (l["beat"], l["id"]))
-    return lines, skipped
+    return lines, skipped + generated
 
 
-def _check_ranges(lines: list[dict], beat: str) -> list[str]:
-    """1-100, covered exactly once. A gap or an overlap is a silent bug."""
-    spans: list[tuple[int, int, str]] = []
+def _check_weights(lines: list[dict], beat: str) -> list[str]:
+    """A weight is a non-negative number, or blank for an equal share.
+
+    There is deliberately nothing else to get wrong. The gap-and-overlap class
+    of failure disappeared with the ranges it belonged to: shares are derived
+    from weights at load time, so they always sum to one.
+    """
     problems = []
+    positive = 0
     for line in lines:
-        raw = line["meta"].get("roll_1_100", "")
-        if "-" not in raw:
-            problems.append(f"{beat} line {line['id']} has no Roll Range")
+        raw = str(line["meta"].get("weight", "") or "").strip()
+        if not raw:
             continue
-        low, _, high = raw.partition("-")
         try:
-            spans.append((int(low), int(high), line["id"]))
+            value = float(raw)
         except ValueError:
-            problems.append(f"{beat} line {line['id']}: Roll Range {raw!r} is not a range")
-    if problems:
-        return problems
-
-    covered = [0] * 101
-    for low, high, line_id in spans:
-        if not (1 <= low <= high <= 100):
-            problems.append(f"{beat} line {line_id}: range {low}-{high} is outside 1-100")
+            problems.append(f"{beat} line {line['id']}: weight {raw!r} is not a number")
             continue
-        for value in range(low, high + 1):
-            covered[value] += 1
+        if value < 0:
+            problems.append(f"{beat} line {line['id']}: weight {value} is negative")
+        elif value > 0:
+            positive += 1
 
-    gaps = [v for v in range(1, 101) if covered[v] == 0]
-    overlaps = [v for v in range(1, 101) if covered[v] > 1]
-    if gaps:
-        problems.append(
-            f"{beat} roll ranges leave {len(gaps)} value(s) uncovered "
-            f"(e.g. {gaps[0]}) — those leads draw nothing"
-        )
-    if overlaps:
-        problems.append(
-            f"{beat} roll ranges overlap on {len(overlaps)} value(s) "
-            f"(e.g. {overlaps[0]}) — the declared weights are not real"
-        )
+    if positive and positive != len([l for l in lines if str(l["meta"].get("weight", "") or "").strip()]):
+        pass  # mixed blank and set is fine: blanks simply score zero share
     return problems
 
 
@@ -210,7 +205,7 @@ def validate(lines: list[dict], facts=None) -> list[str]:
     for beat in WEIGHTED_BEATS:
         beat_lines = [l for l in lines if l["beat"] == beat]
         if beat_lines:
-            problems.extend(_check_ranges(beat_lines, beat))
+            problems.extend(_check_weights(beat_lines, beat))
 
     identity = [l for l in lines if l["beat"] == "identity"]
     if identity and not [l for l in identity if l["meta"].get("coach_type") == "Any"]:
@@ -227,15 +222,21 @@ def validate(lines: list[dict], facts=None) -> list[str]:
 # regenerated file diffs cleanly against a hand-edited one.
 CSV_COLUMNS = {
     "identity": ["id", "coach_type", "sells_to", "shape", "line", "word_count"],
-    "offer": ["id", "line", "weight_pct", "roll_1_100", "word_count"],
-    "cta": ["id", "line", "weight_pct", "roll_1_100", "word_count"],
-    "ps": ["id", "line", "weight_pct", "roll_1_100", "word_count"],
+    "offer": ["id", "line", "weight", "word_count"],
+    "cta": ["id", "line", "weight", "word_count"],
+    "ps": ["id", "line", "weight", "word_count"],
 }
 
 
 def _row_for(line: dict, beat: str) -> dict:
+    """One CSV row. `word_count` is always computed, never carried.
+
+    It used to be a field someone typed into Airtable, which meant it could
+    disagree with the line sitting next to it and nothing would notice. It is a
+    function of the line, so it is derived here.
+    """
     meta = line["meta"]
-    word_count = meta.get("word_count") or str(len(line["line"].split()))
+    word_count = str(len(line["line"].split()))
     if beat == "identity":
         return {
             "id": line["id"], "coach_type": meta.get("coach_type", ""),
@@ -243,14 +244,10 @@ def _row_for(line: dict, beat: str) -> dict:
             "shape": meta.get("shape", ""), "line": line["line"],
             "word_count": word_count,
         }
-    span = meta.get("roll_1_100", "")
-    weight = ""
-    if "-" in span:
-        low, _, high = span.partition("-")
-        weight = str(int(high) - int(low) + 1)
     return {
-        "id": line["id"], "line": line["line"], "weight_pct": weight,
-        "roll_1_100": span, "word_count": word_count,
+        "id": line["id"], "line": line["line"],
+        "weight": str(meta.get("weight", "") or "").strip(),
+        "word_count": word_count,
     }
 
 

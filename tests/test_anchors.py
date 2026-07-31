@@ -91,14 +91,21 @@ def test_a_corporate_lead_can_draw_a_corporate_line():
     assert "corporates" in drawn
 
 
-def test_weighted_lines_respect_their_declared_ranges():
+def test_the_single_lead_draw_lands_inside_the_declared_share():
+    """Ranges are derived from weights now, so they are contiguous by
+    construction and there is nothing left to hand-maintain."""
     bank = anchors.CopyBank.load()
+    per_line = anchors.shares(bank.offer)
     for i in range(50):
         email = f"c{i}@example.ae"
         line = anchors.draw_weighted(bank.offer, email, "offer")
-        roll = (anchors.seed(email, "offer") % 100) + 1
-        low, _, high = line.meta["roll_1_100"].partition("-")
-        assert int(low) <= roll <= int(high)
+        roll = ((anchors.seed(email, "offer") % 10_000) + 1) / 10_000
+        cumulative = 0.0
+        for candidate in bank.offer:
+            cumulative += per_line[candidate.id]
+            if candidate.id == line.id:
+                break
+        assert roll <= cumulative + 1e-9, (email, line.id)
 
 
 # --------------------------------------------------------------- the fact table
