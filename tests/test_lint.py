@@ -33,7 +33,9 @@ def good_beats():
                   "scraped list, people I'd actually start with."),
         "cta": ("15 minutes and they're yours the same day. I'll tell you why "
                 "these 10 and not the other 40."),
-        "ps": "ps: not a list. If the timing's wrong that's a fine answer.",
+        # NOT ps-01 ("not a list"): the offer beat above already says
+        # "Not a scraped list", and check_echo rejects that pair.
+        "ps": "ps: a no here costs you nothing and costs me nothing.",
     }
 
 
@@ -169,6 +171,30 @@ def test_missing_ps_fails():
     result = run(beats)
     assert not result.passed
     assert any("ps beat is missing" in f for f in result.failures)
+
+
+# ------------------------------------------------------------- beat collisions
+
+
+def test_the_offer_and_ps_cannot_both_say_list():
+    """Found by a cold reader on a real draft, not by any check. `b4-01` says
+    "Not a scraped list" and `ps-01` says "not a list"; four lines apart in
+    ninety words the same denial twice reads as protesting too much. Neither
+    line is at fault, which is why this is checked on the PAIR."""
+    beats = good_beats()
+    beats["ps"] = "ps: not a list. If the timing's wrong that's a fine answer."
+    result = run(beats)
+    assert not result.passed
+    assert any("both say 'list'" in f for f in result.failures)
+
+
+def test_a_shared_word_in_the_authored_beats_is_not_a_collision():
+    """Only the three library-drawn beats are checked. The hook and identity
+    beat are authored per lead, so a repeat there is the drafter's own doing
+    and the voice rules already cover it."""
+    beats = good_beats()
+    beats["hook"] = "You wrote about the list of things nobody says out loud."
+    assert run(beats).passed, run(beats).failures
 
 
 # ---------------------------------------------------------------- the bridge

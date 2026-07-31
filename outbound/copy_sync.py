@@ -243,6 +243,16 @@ def validate(lines: list[dict], facts=None) -> list[str]:
                         f"{line_id}: makes no {label!r} claim, so every email "
                         f"dealt this line fails the lint")
 
+        # "No gendered pronoun in an identity line" is a copy rule, not a
+        # re-voicing task, and it is a one-word fix at the source. Eight of the
+        # thirty-one live identity lines carried "her" or "him", so a quarter of
+        # the identity bank could not ship as written and every drafter dealt
+        # one had to notice and silently rewrite it. The bridge rule stays the
+        # model's job; this one belongs to the line.
+        if beat == "identity":
+            for message in lint.check_identity_pronouns(text):
+                problems.append(f"{line_id}: {message}")
+
         if beat == "identity":
             coach_type = line["meta"].get("coach_type", "")
             sells_to = line["meta"].get("sells_to", "")

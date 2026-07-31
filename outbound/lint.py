@@ -319,6 +319,37 @@ def check_subject(subject: str) -> list[str]:
     return problems
 
 
+# Distinctive phrases that must not appear twice in one email. Two beats can be
+# individually fine and still collide once dealt together: `b4-01` says "Not a
+# scraped list" and `ps-01` says "not a list", and four lines apart in ninety
+# words the same denial twice reads as protesting too much. A cold reader caught
+# it on a real draft; nothing mechanical could, because neither line is at fault.
+_ECHO_PHRASES = (
+    "list", "pitch deck", "scraped", "no hard feelings", "costs you nothing",
+    "worth the meeting", "one at a time",
+)
+
+
+def check_echo(beats: dict[str, str]) -> list[str]:
+    """A distinctive phrase repeated across two beats of the same email.
+
+    Checked across offer/cta/ps only. The hook and identity beat are authored
+    per lead, so a repeat there is the drafter's own doing and the voice rules
+    already cover it; these three are drawn from a library, and the collision
+    is a property of the PAIR rather than of either line.
+    """
+    problems = []
+    drawn = {b: (beats.get(b) or "").lower() for b in ("offer", "cta", "ps")}
+    for phrase in _ECHO_PHRASES:
+        where = [b for b, text in drawn.items() if phrase in text]
+        if len(where) > 1:
+            problems.append(
+                f"the {' and '.join(where)} beats both say {phrase!r} — "
+                f"re-voice one of them"
+            )
+    return problems
+
+
 def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
                 allowed_numbers: set, facts=None) -> Result:
     """Everything, for one email. This is the gate `export` refuses to skip.
@@ -343,6 +374,7 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
     else:
         result.warnings.append("no fact table passed, relabelling not checked")
     result.failures.extend(check_claims(beats))
+    result.failures.extend(check_echo(beats))
     result.failures.extend(check_bridge(beats.get("identity", "")))
     result.failures.extend(check_identity_pronouns(beats.get("identity", "")))
 

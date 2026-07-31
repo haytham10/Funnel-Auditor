@@ -34,7 +34,9 @@ def beats(identity=None):
                   "scraped list, people I'd actually start with."),
         "cta": ("15 minutes and they're yours the same day. I'll tell you why "
                 "these 10 and not the other 40."),
-        "ps": "ps: not a list. If the timing's wrong that's a fine answer.",
+        # NOT ps-01 ("not a list"): the offer beat says "Not a scraped
+        # list", and check_echo rejects that pair.
+        "ps": "ps: a no here costs you nothing and costs me nothing.",
     }
 
 
@@ -46,7 +48,7 @@ def draft(slug="sarah", name="Sarah Khan", subject="your Hashimoto post",
         last_name=name.split()[-1], email=f"{slug}@site.ae",
         subject=subject, body=body, beats=beats(identity),
         anchor_ids={"identity": "id-health-2", "offer": "b4-01",
-                    "cta": "cta-01", "ps": "ps-01"},
+                    "cta": "cta-01", "ps": "ps-03"},
         coach_type="Health", sells_to="individuals", city="Dubai",
         website="https://sarahcoaching.ae",
         linkedin_url="https://linkedin.com/in/sarah")

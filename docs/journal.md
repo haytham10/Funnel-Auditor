@@ -1,3 +1,77 @@
+## 2026-07-31 (the first real batch) — 13 leads, end to end
+
+Haytham dropped a real list and said run all 12. Every number below is measured,
+not estimated, and every bug below was found by running the machine rather than
+reading it.
+
+**The funnel, stage by stage.** 13 rows in. Dedupe caught 1 (Salma El-Shurafa,
+already contacted, cold). Tier 0 read **9 of 12 sites free (75%)**, 5k to 86k
+characters each, and planned 2 batched Apify escalations rather than 12 separate
+ones. All 12 passed the three floors. **11 of 12 hooks found and independently
+verified (92%), zero refuted**, one clean no-hook (Nicola Tate: site is an
+unconnected Wix domain with no Wayback snapshot, newest LinkedIn post 137 days
+old, nothing on podcast or Instagram). 11 drafted, all 11 passed the linter.
+
+**Then the draft-verifier refuted 7 of 11.** That is the headline. The linter
+passed every one of them, and a cold reader who never saw them written sent back
+4 SEND and 7 REWRITE. It caught: three numbers stacked into one proof sentence
+so it reads as a pitch deck; "I got an executive coach here 6 meetings", which
+parses wrong on first read and does it on the credibility line; "on the last
+run", which tells the reader she is in a batch one line before the email claims
+the names were picked for her; a subject promising "the action step in your
+framework" over a body that opens on a different quote entirely; and one genuine
+stapled-beats failure where the drafter pasted the identity anchor in with no
+bridge sentence in front of it. The worker/verifier split is the whole reason
+this machine exists and this is the run that earned it.
+
+**Four bugs, three of which would have shipped.**
+
+1. *The website column never mapped.* The list used `companyWebsite`; the alias
+   table did not know that spelling, so 13 of 13 sites mapped to nothing and the
+   entire free site-read tier was skipped in silence. Added the sales-export
+   spellings, and `intake` now prints the columns it ignored.
+
+2. *Tier 0 crashed on the first page of the first site.* `extract_emails`
+   returns two buckets in a dict and `_harvest` called `list.extend()` on it,
+   which iterates the keys — so `read.emails` filled with the strings "personal"
+   and "generic" and died on `.get`. Unreachable with an empty page list, which
+   is what every existing test had. `tests/test_fetch.py` now feeds real HTML
+   through the real harvest, and the buckets stay apart until the end so a jane@
+   on page four still outranks an info@ on page one.
+
+3. *`coach_type` came back empty for 3 of 12 real headlines* — "Career and
+   Work-Life Balance Coach", "Chief Executive Officer Coach" — because the
+   patterns wanted the segment word adjacent to "coach". Added a loose pass
+   allowing words between them, restricted to the headline and tried only after
+   every strict pattern fails.
+
+4. *Eight of the thirty-one identity lines carried "her" or "him"*, which
+   `check_identity_pronouns` blocks — a quarter of the identity bank could not
+   ship as written, and every drafter dealt one had to notice and silently
+   rewrite it. Same class as yesterday's cta-02: `copy-sync` validated numbers,
+   attribution and claims but never ran the pronoun check. It does now, and the
+   eight lines are fixed in Airtable.
+
+**Two findings that only a reader could produce, one now mechanical.** The cold
+reader caught `b4-01` ("Not a scraped list") dealt alongside `ps-01` ("not a
+list") — the same denial twice in ninety words. Neither line is at fault, so the
+check belongs on the pair: `check_echo` now rejects any email whose offer, cta
+and ps repeat a distinctive phrase. It fires on exactly 1 of the 16 offer/ps
+combinations, and both test fixtures were using that pair, which is how common it
+is. The second finding has no mechanical fix yet: `id-any-6` is a research
+anecdote rather than a client result, and it was the one draft with no bridge —
+it may only be safe on a lead whose hook is already about market opacity.
+
+**A hazard worth naming.** Three draft-workers returned invented email addresses
+in their JSON (`andy@theteamspace.ae` for a `.com` lead, and two others). Nothing
+asked them for an address. The export takes the address from the lead record, so
+nothing shipped wrong, but an orchestrator that trusted the worker's field would
+mail the wrong person. Drafters should not be emitting addresses at all.
+
+Final: 10 of 13 in the upload file, Cheryl held on the echo check, Nicola held on
+no hook, Salma held on the wall. 337 tests green. Apify spend for the whole
+batch stayed inside the $29 cap at 25.6% before the run.
+
 ## 2026-07-31 (last pass) — the hardening run, and the gate that was rejecting its own copy
 
 Haytham: "do a final run over every part... make sure the system is ready,
