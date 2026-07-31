@@ -91,11 +91,22 @@ than you are about word counts and stray digits.
 ## What you return
 
 ```
-slug, name, first_name, email, subject
+slug, subject
 beats     { hook, identity, offer, cta, ps }
 anchor_ids  { identity, offer, cta, ps }
 lint      the literal PASS line from main.py lint, quoted
 ```
+
+**No email address, and no name beyond the slug.** This block used to ask for
+`email`, and on the first real batch three of eleven drafters filled it in with
+an address that did not exist — `andy@theteamspace.ae` for a lead whose domain
+is `.com`. Nothing had asked them to guess; the field was simply there, so it
+got filled. The orchestrator already holds the real address from the lead
+record and joins on `slug`, so nothing shipped wrong, but a field you are asked
+for is a field you will invent when you do not have it. The fix is to not ask.
+
+Same rule for anything else you were not handed: if it is not in your prompt,
+it is not yours to supply.
 
 You do not write to Airtable and you do not export. The orchestrator does that
 after an independent reader has looked at your seams.

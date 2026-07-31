@@ -215,6 +215,43 @@ def check_dealt(drafts: list[Draft], dealt: dict,
     return problems
 
 
+def check_address(draft) -> tuple[list[str], list[str]]:
+    """(fatal, warnings) for the address on this draft.
+
+    The last look before a row becomes a send. On the first real batch three of
+    eleven drafting workers returned an invented address — `andy@theteamspace.ae`
+    for a lead whose domain is `.com` — because their return block asked for one
+    and they did not have it. That block no longer asks, but "the agent stopped
+    doing that" is not a guarantee, and mailing the wrong person is the one error
+    here that cannot be taken back.
+
+    **Only an empty or malformed address is fatal.** Both are unambiguous: there
+    is nothing to send to. A branded domain that disagrees with the lead's site
+    is only a WARNING, because the obvious-looking rule kills real people —
+    `cheryl@cherylnankoo.com` against a site of `thenankoo.com` is one person
+    with a personal-brand domain and a consultancy domain, which is ordinary,
+    and dropping her would be the permanent invisible kill this machine is built
+    to avoid. The warning surfaces the shape a hallucination takes; a human
+    decides. A free-provider address never warns at all.
+    """
+    from audit.email_check import looks_like_email
+    from audit.email_enrich import FREE_PROVIDERS
+    from audit.urls import registrable_domain
+
+    address = (draft.email or "").strip()
+    if not address:
+        return ["no email address on the draft"], []
+    if not looks_like_email(address):
+        return [f"{address!r} is not a usable address"], []
+
+    mail_domain = registrable_domain(address.rsplit("@", 1)[-1])
+    site_domain = registrable_domain(draft.website) if draft.website else ""
+    if not site_domain or mail_domain in FREE_PROVIDERS or mail_domain == site_domain:
+        return [], []
+    return [], [f"{draft.name or draft.slug}: address is on {mail_domain} but the "
+                f"site is {site_domain} — check it is really theirs"]
+
+
 def write_batch(drafts: list[Draft], lint_results: dict, *,
                 out_dir: str | Path = "out", batch: str = "",
                 anchor_shares: dict | None = None,
@@ -244,10 +281,14 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
     # draft is processed last overwrites the other's lint verdict — in either
     # direction. A broken email inheriting a clean verdict reaches leads.csv.
     # Email is unique by the time drafts exist: dedupe guarantees it.
-    passed, rejected = [], []
+    passed, rejected, warnings = [], [], []
     for draft in drafts:
         result = lint_results.get(draft.email)
-        if draft.email in drift:
+        fatal, address_warnings = check_address(draft)
+        warnings.extend(address_warnings)
+        if fatal:
+            rejected.append((draft, fatal))
+        elif draft.email in drift:
             rejected.append((draft, drift[draft.email]))
         elif result is None:
             rejected.append((draft, ["never linted — refusing to write it"]))
@@ -316,6 +357,10 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
             lines.append(f"    - {failure}")
     for draft, reasons in rejected:
         lines.append(f"  reject  {draft.name}: {reasons[0]}")
+    # Written, but worth a human's eye before the upload. A warning never blocks
+    # a row: the rule everywhere here is that only a clear failure drops a lead.
+    for warning in warnings:
+        lines.append(f"  check   {warning}")
     for beat, shares in (anchor_shares or {}).items():
         top = next(iter(shares.items()), None)
         if top:

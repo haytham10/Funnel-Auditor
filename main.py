@@ -365,6 +365,25 @@ def cmd_deal(args) -> None:
 
     shares = anchors.batch_shares(list(dealt.values()))
     print(f"DEAL: {len(dealt)} leads")
+
+    # A ps that had to move because its offer already said the same thing. The
+    # swap is correct and the drift it causes is real, so it is reported rather
+    # than absorbed: `ps-01` cannot pair with `b4-01`, so it structurally cannot
+    # reach its declared share whatever the weights say.
+    from outbound.lint import check_echo
+    swapped = sum(
+        1 for a in dealt.values()
+        if check_echo({"offer": a.offer.line, "cta": a.cta.line, "ps": a.ps.line})
+    )
+    collisions = anchors.echo_pairs(anchors.CopyBank.load())
+    if collisions:
+        pairs = ", ".join(f"{o}+{p}" for o, p in collisions)
+        print(f"  ECHO  {len(collisions)} offer/ps pair(s) cannot be dealt "
+              f"together ({pairs}); ps reallocated, so its share runs under "
+              f"its weight by design")
+    if swapped:
+        print(f"  WARN  {swapped} lead(s) still echo after reallocation — "
+              f"the lint will reject them")
     for beat, per_line in shares.items():
         top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
         flag = "  OVER CAP" if next(iter(per_line.values())) > FIXED_LINE_SHARE_CAP else ""

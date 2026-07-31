@@ -704,6 +704,8 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
         coach_type = lead.get("coach_type", "")
         segments[lead["email"]] = coach_type if drawn == coach_type else ""
 
+    _resolve_echoes(fixed, [l["email"] for l in leads], bank)
+
     widened = all_numbers(facts)
     return {
         lead["email"]: Anchor(
@@ -716,6 +718,79 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
         )
         for lead in leads
     }
+
+
+def echo_pairs(bank: "CopyBank") -> list[tuple[str, str]]:
+    """Offer/ps line pairs that can never be dealt together.
+
+    Reported by `deal` rather than merely worked around, because the workaround
+    has a visible cost: a ps line that collides with one of four offers loses
+    roughly a quarter of its allocation and can never reach its declared weight.
+    Someone tuning weights needs to know that before concluding the allocator is
+    broken.
+    """
+    from outbound.lint import check_echo
+
+    out = []
+    for offer in bank.offer:
+        for ps in bank.ps:
+            if check_echo({"offer": offer.line, "cta": "", "ps": ps.line}):
+                out.append((offer.id, ps.id))
+    return out
+
+
+def _resolve_echoes(fixed: dict[str, dict[str, Line]], emails: list[str],
+                    bank: "CopyBank") -> None:
+    """Swap the ps when the dealt offer/cta/ps repeat a distinctive phrase.
+
+    `b4-01` ("Not a scraped list") and `ps-01` ("not a list") are each fine and
+    collide when dealt together: the same denial twice in ninety words reads as
+    protesting too much. On the live bank that pair is 1 of 16, which is 124 of
+    the 1,984 possible combinations, so roughly one email in sixteen was being
+    rejected at export for something no drafter caused and none could fix
+    without abandoning an anchor.
+
+    Catching it at allocation is the same principle as `_check_hook_room`: a
+    combination the linter will reject is a combination the deal should never
+    have issued. The ps moves rather than the offer because ps is the shortest
+    beat and the one the design already calls "verbatim or near", so replacing
+    it costs the least. Weights drift by at most the number of swapped leads,
+    which is far cheaper than losing those leads at the gate.
+
+    Silent by design when a swap is available and impossible to miss when it is
+    not: with no clean ps in the bank the pair is left alone and the linter
+    still catches it downstream, which is the fail-closed direction.
+    """
+    from outbound.lint import check_echo
+
+    # Replacements go to the currently least-used clean line, which keeps the
+    # displaced share spread instead of piling it on one sentence. Taking the
+    # first clean candidate pushed a ps line to 35% at n=200 — exactly the
+    # repetition cap — and hashing instead put it at 36% on an 11-lead batch,
+    # because a hash cannot see what it has already handed out. Counting can.
+    # Ties break on the lead's own hash, and the whole pass runs in sorted email
+    # order, so the result is still reproducible for a given batch.
+    counts: dict[str, int] = {}
+    for line in fixed["ps"].values():
+        counts[line.id] = counts.get(line.id, 0) + 1
+
+    for email in sorted(emails):
+        offer = fixed["offer"].get(email)
+        cta = fixed["cta"].get(email)
+        ps = fixed["ps"].get(email)
+        if not (offer and cta and ps):
+            continue
+        beats = {"offer": offer.line, "cta": cta.line, "ps": ps.line}
+        if not check_echo(beats):
+            continue
+        clean = [c for c in bank.ps
+                 if c.id != ps.id and not check_echo({**beats, "ps": c.line})]
+        if not clean:
+            continue                      # linter still catches it: fail closed
+        pick = min(clean, key=lambda c: (counts.get(c.id, 0), seed(email, c.id)))
+        counts[ps.id] -= 1
+        counts[pick.id] = counts.get(pick.id, 0) + 1
+        fixed["ps"][email] = pick
 
 
 def batch_shares(anchors: list[Anchor]) -> dict[str, dict[str, float]]:

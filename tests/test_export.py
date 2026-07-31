@@ -367,6 +367,42 @@ def test_a_draft_with_no_lint_entry_is_refused_not_written():
         assert "never linted" in Path(tmp, "rejected.txt").read_text()
 
 
+def test_an_invented_address_is_flagged_but_not_dropped():
+    """Three of eleven drafting workers on the first real batch returned an
+    address that did not exist, because their return block asked for one. The
+    block no longer asks; this is the belt. It WARNS rather than rejects,
+    because the obvious rule kills real people: cheryl@cherylnankoo.com against
+    a site of thenankoo.com is one person with two domains, which is ordinary."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        d.email = "sarah@somewhere-else.ae"
+        d.website = "https://sarahcoaching.ae"
+        out = export.write_batch([d], {d.email: lint_all([d])[d.email]}, out_dir=tmp)
+        assert out["written"] == 1, "a domain mismatch must not drop a lead"
+        assert "check it is really theirs" in out["report"]
+
+
+def test_a_free_provider_address_never_warns():
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        d.email = "sarah@gmail.com"
+        d.website = "https://sarahcoaching.ae"
+        out = export.write_batch([d], {d.email: lint_all([d])[d.email]}, out_dir=tmp)
+        assert out["written"] == 1
+        assert "check it is really theirs" not in out["report"]
+
+
+def test_a_missing_or_malformed_address_is_fatal():
+    """The one address failure that IS unambiguous: there is nothing to send to."""
+    for bad in ("", "not-an-address"):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = draft()
+            d.email = bad
+            out = export.write_batch([d], {bad: None}, out_dir=tmp)
+            assert out["written"] == 0, repr(bad)
+            assert out["rejected"] == 1, repr(bad)
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

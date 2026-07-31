@@ -335,3 +335,58 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------------------- the echo reallocation
+
+
+def test_the_deal_never_issues_a_colliding_offer_ps_pair():
+    """`b4-01` ("Not a scraped list") and `ps-01` ("not a list") are each fine
+    and collide when dealt together. On the live bank that is 1 of 16 offer/ps
+    pairs, so roughly one email in sixteen was rejected at export for something
+    no drafter caused and none could fix without abandoning an anchor."""
+    from outbound import lint
+    bank = anchors.CopyBank.from_csv()
+    for n in (8, 11, 25, 50, 200):
+        leads = [{"email": f"lead{i}@x.ae", "coach_type": "", "sells_to": ""}
+                 for i in range(n)]
+        dealt = anchors.deal_batch(leads, bank=bank)
+        echoes = [e for e, a in dealt.items()
+                  if lint.check_echo({"offer": a.offer.line, "cta": a.cta.line,
+                                      "ps": a.ps.line})]
+        assert not echoes, f"n={n}: {echoes}"
+
+
+def test_the_reallocation_does_not_push_a_ps_line_over_the_cap():
+    """Taking the first clean candidate put one ps at 35% at n=200, exactly the
+    repetition cap; hashing put it at 36% on an 11-lead batch, because a hash
+    cannot see what it has already handed out. Counting can."""
+    from outbound import lint
+    bank = anchors.CopyBank.from_csv()
+    for n in (8, 11, 25, 50, 100, 200):
+        leads = [{"email": f"lead{i}@x.ae", "coach_type": "", "sells_to": ""}
+                 for i in range(n)]
+        dealt = anchors.deal_batch(leads, bank=bank)
+        counts: dict = {}
+        for a in dealt.values():
+            counts[a.ps.id] = counts.get(a.ps.id, 0) + 1
+        top = max(counts.values()) / n
+        assert top <= lint.FIXED_LINE_SHARE_CAP, f"n={n}: top ps share {top:.0%}"
+
+
+def test_the_reallocation_is_reproducible():
+    bank = anchors.CopyBank.from_csv()
+    leads = [{"email": f"lead{i}@x.ae", "coach_type": "", "sells_to": ""}
+             for i in range(50)]
+    first = {e: a.ps.id for e, a in anchors.deal_batch(leads, bank=bank).items()}
+    second = {e: a.ps.id for e, a in anchors.deal_batch(leads, bank=bank).items()}
+    assert first == second
+
+
+def test_echo_pairs_names_the_collision_for_the_deal_report():
+    """The workaround has a visible cost: a ps colliding with one of four
+    offers loses roughly a quarter of its allocation and can never reach its
+    declared weight. Someone tuning weights needs to know that."""
+    bank = anchors.CopyBank.from_csv()
+    pairs = anchors.echo_pairs(bank)
+    assert ("b4-01", "ps-01") in pairs
