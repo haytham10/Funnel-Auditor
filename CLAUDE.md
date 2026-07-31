@@ -123,9 +123,12 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   command a doc names must exist in the parser, every path it backticks must be
   on disk, every copy-line id must be in the CSV, every `Defers to:` must
   resolve, and **no defining doc but `docs/spec/03-offer.md` may carry a
-  price**. Exit 1 on drift, exit 2 if it cannot read the docs. It runs with the
+  price**. Exit 1 on drift, exit 2 if it could not run. It runs with the
   test suite, not with a batch — a doc typo must never be able to halt a real
-  send file.
+  send file. It also checks the CRM's select options against the tuples that
+  mirror them, which is the one authority this repo does not own; that half
+  needs a key, says so when there is none, and `--live` makes a missing key
+  exit 2 rather than a skip.
 
 ## The ICP
 
@@ -213,6 +216,13 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
 - **The repo's `.claude/skills/` is authoritative** — never a remembered or
   globally-installed copy. A SessionStart hook fingerprints every on-disk
   SKILL.md; if the `v=` differs from what you recall, the file on disk wins.
+- **A push runs the CRM schema check.** `.claude/hooks/schema_drift.py` fires on
+  every Bash call, returns immediately unless the command contains `git push`,
+  and then compares `audit/airtable.py`'s select mirrors against the live base.
+  **Drift blocks the push; a failure to reach Airtable warns and allows it** —
+  opposite defaults, because a stale mirror endangers a batch rather than a
+  merge, and an outage must not hold every unrelated push hostage. It exists
+  because CI has no key and this is where one lives.
 - **Cross-session memory is `docs/journal.md`.** The container is ephemeral.
   When a session does anything worth remembering, add a dated entry at the top
   and commit it.

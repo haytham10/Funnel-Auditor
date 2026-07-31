@@ -26,6 +26,7 @@ import os
 import requests
 
 API_ROOT = "https://api.airtable.com/v0"
+META_ROOT = "https://api.airtable.com/v0/meta/bases"
 TIMEOUT = 20
 
 # The live base. Recorded here rather than passed in, because a typo'd base ID
@@ -40,7 +41,12 @@ BATCHES_TABLE = "Batches"
 # Single-select fields reject a value outside their option list, and the write
 # fails at the CRM step — after the email is already in the upload file. These
 # mirror the live base so a bad value is caught before it gets that far.
-# Verified against the base schema 2026-07-31.
+#
+# They are a copy of a schema this repo does not own, which is the one place the
+# rest of the value-ownership rule cannot reach: somebody adds an option in the
+# Airtable UI and nothing here notices. `main.py doc-check --live` closes that
+# by fetching `base_schema()` and comparing, so the freshness of these tuples is
+# a check rather than the date on this comment.
 HOOK_TYPES = ("WORK", "LIFE", "METRIC")
 HOOK_VERIFIED = ("verified", "proposed", "refuted", "inconclusive", "none")
 EMAIL_STATUSES = ("pass", "enriched", "warn", "fail", "none")
@@ -110,6 +116,65 @@ def copy_assets(base_id: str = BASE_ID) -> list[dict]:
     """The Copy Assets table, as flat field dicts."""
     return [record.get("fields", {})
             for record in list_records(COPY_ASSETS_TABLE, base_id=base_id)]
+
+
+def base_schema(base_id: str = BASE_ID) -> dict:
+    """Every table in the base, with each field's type and its select choices.
+
+    Needs `schema.bases:read` on the token, which is a *different* scope from
+    the record reads above. A token granted only record access works everywhere
+    else in this module and 403s here, so that case names the missing scope
+    rather than reporting a bare "forbidden" that reads like a wrong key.
+
+    Returns Airtable's own shape untouched. `select_options` does the reshaping.
+    """
+    url = f"{META_ROOT}/{base_id}/tables"
+    try:
+        response = requests.get(url, headers=_headers(), timeout=TIMEOUT)
+    except requests.RequestException as exc:
+        raise AirtableError(f"Airtable unreachable: {exc}") from exc
+
+    if response.status_code == 401:
+        raise AirtableError("Airtable rejected the key (401)")
+    if response.status_code == 403:
+        raise AirtableError(
+            "Airtable refused the base schema (403) — the token needs the "
+            "schema.bases:read scope, which record access does not include")
+    if response.status_code == 404:
+        raise AirtableError(f"no base {base_id}")
+    if response.status_code != 200:
+        raise AirtableError(
+            f"Airtable returned {response.status_code}: {response.text[:200]}")
+
+    payload = response.json()
+    if not payload.get("tables"):
+        raise AirtableError(f"base {base_id} reports no tables")
+    return payload
+
+
+def select_options(schema: dict, table: str, field: str) -> tuple:
+    """The choice names of one select field, in the base's own order.
+
+    A missing table, a missing field or a field that is not a select is an
+    error, never an empty tuple. An empty option list would compare equal to a
+    tuple of nothing and read as "no drift" — the same failure as an unreadable
+    dedupe wall reading as "nobody has been contacted".
+    """
+    for entry in schema.get("tables", []):
+        if entry.get("name") != table:
+            continue
+        for spec in entry.get("fields", []):
+            if spec.get("name") != field:
+                continue
+            if spec.get("type") not in ("singleSelect", "multipleSelects"):
+                raise AirtableError(
+                    f"{table}.{field} is a {spec.get('type')}, not a select")
+            choices = spec.get("options", {}).get("choices", [])
+            if not choices:
+                raise AirtableError(f"{table}.{field} reports no choices")
+            return tuple(c["name"] for c in choices)
+        raise AirtableError(f"no field {field!r} in {table}")
+    raise AirtableError(f"no table {table!r} in the base schema")
 
 
 def update_records(table: str, updates: list[dict], *,

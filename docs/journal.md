@@ -1,3 +1,95 @@
+## 2026-07-31 (the push hook) — running the live check where the key actually is
+
+The schema check shipped an hour earlier had a hole Haytham spotted immediately:
+it needs a key, CI has none, so the only path that runs automatically is the one
+path that cannot look. His observation was that ~99% of his PRs are opened from a
+Claude Code session — and a session has a key.
+
+So `.claude/hooks/schema_drift.py` is a **PreToolUse hook on Bash** that binds the
+check to `git push`, which is what opens or updates the PR and is the last point
+before the mirror leaves the machine.
+
+**It matches by substring, not by the hook's `if:` filter, and that is the whole
+design.** `if:` uses permission-rule syntax, which is prefix-matched:
+`Bash(git push*)` does not match `git add -A && git commit -m ... && git push -u
+origin ...`, which is how a commit-and-push is actually written — it is how the
+push that shipped the schema check was written, three hours earlier in this same
+session. The filter would have been a gate that looked installed and never fired.
+So it matches every Bash call and returns after one `in` test; nothing beyond the
+interpreter is imported until a push is confirmed. Measured at 58ms on the fast
+path.
+
+**It blocks on drift and allows on could-not-run**, which is the opposite of the
+fail-closed rule everywhere else here, and the exception is deliberate. Real
+drift is one line to fix and nothing else catches it. But "Airtable is
+unreachable" would hold every unrelated push in the repo hostage to somebody
+else's outage, and a stale mirror endangers a *batch*, not a merge. That case
+warns where a person sees it — loudly, never silently, or "it would have run if
+it could" is back, which is the thing `--live` exists to kill.
+
+Proved it fires rather than assuming: sentinel prefix on the hook command, a
+harmless Bash call, read the sentinel, strip it. Also pipe-tested all six paths
+(non-push, plain push, compound push, malformed stdin, no key, injected drift)
+before wiring it into settings at all.
+
+**Note for a future session:** writing this file was blocked by the auto-mode
+classifier the first time — a new executable the harness runs automatically is
+exactly the kind of thing that should need a human. Haytham switched auto mode
+off. Do not try to route around that denial; explain and ask, which is what
+worked.
+
+## 2026-07-31 (schema drift) — the one authority that is not in this repo
+
+Haytham asked where schemas are stored. The answer is that there is no
+`schemas/` directory and there should not be: every schema here is Python,
+co-located with the stage that owns it, and `research.schema_help()` generates
+its field list *from* the dataclass rather than restating it. Smartlead's eight
+columns are `outbound/export.py`'s `COLUMNS`; the CRM's option lists are tuples
+in `audit/airtable.py`; the Copy Assets field mapping is `copy_sync.FIELD_MAP`.
+
+**Two real cracks, and neither was fixed by moving files.**
+
+**The Airtable tuples are a mirror of a schema this repo does not own.** Their
+only freshness signal was a comment reading "Verified against the base schema
+2026-07-31". Somebody adds a select option in the UI and nothing notices — which
+inverts the reason those tuples exist, since they are there to catch a bad value
+*before* the write fails at the CRM step, which happens after the email is
+already in the upload file. So `doc-check` grew a tenth drift class, `SCHEMA
+DRIFT`, fetching the live field config through the metadata API and comparing
+both directions. It found nothing: all eleven select fields matched on the day
+it was written. That is the point — it is a gate, not a repair.
+
+Three scoping calls worth not re-litigating. It **runs when a key is set and
+reports itself as skipped when there is not**, next to the journal exclusion and
+for the same reason; CI has no key and must not fail every build on a missing
+secret. **`--live` is an assertion, not a switch** — same shape as `copy-sync
+--live`, because "it would have run if it could" is not a thing to rely on. And
+**the test suite passes `airtable=False` explicitly**, for the reason conftest
+pins `OUTBOUND_COPY_SOURCE=csv`: a suite that reaches the network fails on
+somebody else's Airtable edit, which is not a code regression. `tests/
+test_cli_failures.py` strips the key from the subprocess environment for the
+same reason — before that, the suite behaved differently on a machine with a key
+than in CI.
+
+The mapping points each select at **the module that already owns its list**
+rather than adding tuples. `Leads.Coach Type` had no mirror at all, so it is
+pointed at `outbound/research.py` — adding one next to the others would have
+made a fourth copy of a list that already existed three times.
+
+**Which was the second crack.** `COACH_TYPES` is in `research.py`, `qualify.py`
+and `copy_sync.py`, and nothing read them together. The first two are the same
+list (research adds `""` for not-yet-known); the third is deliberately different,
+swapping `Other` for `Any`, the generic pool — a lead *has* a coach type, a line
+*targets* one. `SELLS_TO` is the same story across three modules. Now pinned in
+`tests/test_qualify.py`, including the deliberate difference, so dropping `Any`
+cannot read as a tidy-up and silently empty the pool unknown-segment leads fall
+back to.
+
+`docs/spec/06-state.md` gained the row and a section on why that one row needs a
+check when the rest only need the rule: every other authority is in this repo, so
+following the pointer lands somewhere that cannot lie to you. A browser-edited
+field config has no diff, and a pointer cannot tell you it moved.
+
 ## 2026-07-31 (the spec layer) — defining docs, and a gate that keeps them true
 
 Haytham wanted defining docs for the operation the way uae-track had them, "but

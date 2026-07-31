@@ -80,8 +80,18 @@ def build(tmp, spec: dict, extra: dict | None = None) -> Path:
     return root
 
 
+# The whole suite runs the doc checks offline. The CRM schema check is the one
+# that leaves the machine, and a suite that reaches the network starts failing
+# on somebody's Airtable edit, which is not a code regression — the same reason
+# conftest.py pins OUTBOUND_COPY_SOURCE=csv. Its logic is tested below against
+# a stub schema, which is stricter than a live call anyway: a stub can be wrong
+# on purpose.
+OFFLINE = False
+
+
 def check(tmp, spec: dict, extra: dict | None = None):
-    return doc_check.check_docs(build(tmp, spec, extra), parser=fake_parser())
+    return doc_check.check_docs(build(tmp, spec, extra), parser=fake_parser(),
+                                airtable=OFFLINE)
 
 
 def kinds(result) -> list:
@@ -332,7 +342,7 @@ def test_a_copy_csv_with_no_id_column_cannot_run():
         root = build(tmp, {"01-a.md": HEADER + "\nbody\n"})
         (root / "copy" / "ps.csv").write_text("line\nno id column\n", encoding="utf-8")
         try:
-            doc_check.check_docs(root, parser=fake_parser())
+            doc_check.check_docs(root, parser=fake_parser(), airtable=OFFLINE)
         except doc_check.DocCheckError as exc:
             assert "ps.csv" in str(exc)
         else:
@@ -414,7 +424,8 @@ def test_a_parser_with_no_subcommands_cannot_run():
     with tempfile.TemporaryDirectory() as tmp:
         root = build(tmp, {"01-a.md": HEADER + "\nbody\n"})
         try:
-            doc_check.check_docs(root, parser=argparse.ArgumentParser())
+            doc_check.check_docs(root, parser=argparse.ArgumentParser(),
+                                 airtable=OFFLINE)
         except doc_check.DocCheckError:
             pass
         else:
@@ -446,6 +457,129 @@ def test_dropping_the_word_budget_entirely_is_also_drift():
         assert kinds(result) == ["VALUE DRIFT"], result.report()
 
 
+# --------------------------------------------------------------- schema drift
+
+
+def stub_schema(overrides: dict | None = None) -> dict:
+    """A base schema built from what the repo currently mirrors, so it passes.
+
+    Built FROM `AIRTABLE_SELECTS` rather than hand-typed. A hand-typed copy of
+    eleven option lists is a fourth copy of the thing this check exists to stop
+    from existing twice, and it would go stale exactly as silently.
+    """
+    tables: dict = {}
+    for table, field, module, attr in doc_check.AIRTABLE_SELECTS:
+        options = sorted((overrides or {}).get(
+            (table, field), doc_check.mirrored_options(module, attr)))
+        tables.setdefault(table, []).append({
+            "name": field,
+            "type": "singleSelect",
+            "options": {"choices": [{"name": v} for v in options]},
+        })
+    return {"tables": [{"name": name, "fields": fields}
+                       for name, fields in tables.items()]}
+
+
+def test_a_matching_schema_is_no_drift():
+    assert doc_check.check_airtable_selects(stub_schema()) == []
+
+
+def test_an_option_we_list_and_the_base_does_not_is_caught():
+    """The failure the tuples exist to prevent: the write is rejected by
+    Airtable at the CRM step, after the email is in the upload file."""
+    from audit import airtable
+
+    short = tuple(v for v in airtable.HOOK_TYPES if v != "METRIC")
+    schema = stub_schema({("Leads", "Hook Type"): short})
+    findings = doc_check.check_airtable_selects(schema)
+    assert [f.kind for f in findings] == ["SCHEMA DRIFT"], findings
+    assert "METRIC" in findings[0].detail
+    assert findings[0].path == "audit/airtable.py", findings[0]
+
+
+def test_an_option_added_in_the_ui_is_caught():
+    """Drift the other way. Nothing breaks today; the guard now rejects a value
+    the CRM accepts, which reads as a bug in the machine."""
+    from audit import airtable
+
+    grown = airtable.LEAD_STATUSES + ("Nurture",)
+    schema = stub_schema({("Leads", "Status"): grown})
+    findings = doc_check.check_airtable_selects(schema)
+    assert [f.kind for f in findings] == ["SCHEMA DRIFT"], findings
+    assert "Nurture" in findings[0].detail
+
+
+def test_the_not_set_sentinel_is_not_expected_in_the_base():
+    """`""` is our not-yet-known marker. Airtable has no such option — a select
+    is set or absent — so it must never be reported as missing from the base."""
+    from outbound import research
+
+    assert "" in research.COACH_TYPES, "the sentinel this test is about is gone"
+    assert doc_check.check_airtable_selects(stub_schema()) == []
+
+
+def test_every_mapped_option_list_resolves_and_is_not_empty():
+    """A typo in the mapping must fail loudly. An unreadable option list read as
+    an empty set would compare equal to nothing and report as no drift."""
+    for table, field, module, attr in doc_check.AIRTABLE_SELECTS:
+        assert doc_check.mirrored_options(module, attr), f"{module}.{attr}"
+
+
+def test_an_unreachable_field_cannot_read_as_no_drift():
+    """A renamed field in the base is exit 2, never a pass."""
+    schema = stub_schema()
+    schema["tables"][0]["fields"][0]["name"] = "Renamed In The UI"
+    try:
+        doc_check.check_airtable_selects(schema)
+    except doc_check.DocCheckError:
+        pass
+    else:
+        raise AssertionError("a field it could not read must never read as clean")
+
+
+def test_live_without_a_key_is_exit_2_not_a_skip():
+    """--live is an assertion. "It would have run if it could" is the thing it
+    exists to stop being relied on."""
+    import os
+
+    from audit import airtable
+
+    saved = os.environ.pop("AIRTABLE_API_KEY", None)
+    try:
+        assert not airtable.available()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = build(tmp, {"01-a.md": HEADER + "\nbody\n"})
+            try:
+                doc_check.check_docs(root, parser=fake_parser(), airtable=True)
+            except doc_check.DocCheckError as exc:
+                assert "AIRTABLE_API_KEY" in str(exc), exc
+            else:
+                raise AssertionError("--live with no key must not report clean")
+    finally:
+        if saved is not None:
+            os.environ["AIRTABLE_API_KEY"] = saved
+
+
+def test_no_key_is_a_reported_skip_never_a_silent_pass():
+    """Bare doc-check without a key still runs — CI has no key — but the check
+    it could not do is printed, for the same reason the journal exclusion is."""
+    import os
+
+    saved = os.environ.pop("AIRTABLE_API_KEY", None)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = build(tmp, {"01-a.md": HEADER + "\nbody\n"})
+            result = doc_check.check_docs(root, parser=fake_parser())
+        assert result.ok, result.report()
+        reasons = [why for what, why in result.skipped if "select" in what]
+        assert reasons, result.skipped
+        assert "AIRTABLE_API_KEY" in reasons[0], reasons
+        assert "select" in result.report()
+    finally:
+        if saved is not None:
+            os.environ["AIRTABLE_API_KEY"] = saved
+
+
 # ------------------------------------------------------- the real repo
 
 
@@ -455,7 +589,7 @@ def test_the_repo_itself_passes():
     sys.path.insert(0, str(ROOT))
     import main
 
-    result = doc_check.check_docs(ROOT, parser=main.build_parser())
+    result = doc_check.check_docs(ROOT, parser=main.build_parser(), airtable=OFFLINE)
     assert result.ok, result.report()
 
 
@@ -465,7 +599,7 @@ def test_the_journal_is_skipped_on_purpose():
     sys.path.insert(0, str(ROOT))
     import main
 
-    result = doc_check.check_docs(ROOT, parser=main.build_parser())
+    result = doc_check.check_docs(ROOT, parser=main.build_parser(), airtable=OFFLINE)
     skipped = dict(result.skipped)
     assert "docs/journal.md" in skipped, result.skipped
     assert skipped["docs/journal.md"].strip(), "an exclusion must carry a reason"
@@ -486,7 +620,7 @@ def test_a_missing_spec_dir_cannot_run():
             path.unlink()
         (root / "docs" / "spec").rmdir()
         try:
-            doc_check.check_docs(root, parser=fake_parser())
+            doc_check.check_docs(root, parser=fake_parser(), airtable=OFFLINE)
         except doc_check.DocCheckError:
             pass
         else:

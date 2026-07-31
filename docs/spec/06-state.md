@@ -24,6 +24,7 @@ spec doc names a row here rather than copying from it.
 | the research contract | `outbound/research.py` | code | every worker |
 | the Apify cost ceiling | `audit/apify.py` | code | every paid call |
 | the CRM base and table ids | `CLAUDE.md` | by hand, rarely | `audit/airtable.py` |
+| the CRM's select options | Airtable, in the field config | by hand, in the UI | `audit/airtable.py`, `outbound/research.py`, `outbound/copy_sync.py`, all three checked against it by `doc-check --live` |
 | what happened, and why | `docs/journal.md` | at the end of a session | the SessionStart hook |
 | the run's output | `out/` | `export` | a person, before uploading |
 | API keys | the environment | never the repo | the modules that need them |
@@ -65,6 +66,31 @@ nothing if anything fails, so an edit in Airtable cannot break an email.
 eight hand-filled intake forms, and they are the thing every number in every
 email traces back to. They should not be casually editable, so they are not in a
 tool that makes editing easy.
+
+## Why one row in the table needs a check and the rest do not
+
+Every other authority above is in this repo, so the rule is enough: a reader who
+follows the pointer arrives somewhere that cannot lie to them, and a change to
+the value is a commit that shows up in a diff.
+
+The CRM's select options are the exception. They are edited in a browser by a
+person who is not thinking about this repo, they have no diff, and three modules
+mirror them so that a bad value is caught before a write fails at the CRM step —
+which happens *after* the email is already in the upload file. A mirror of a
+schema nobody here owns is a value that goes stale silently, which is exactly the
+failure the rest of this file is written to prevent, and pointing at the
+authority does not fix it because the pointer cannot tell you it moved.
+
+So that row gets the thing a rule cannot give it: `doc-check --live` fetches the
+live field config and compares. It is the only check in this repo that leaves the
+machine, and that is the reason it is worth the network call.
+
+**And it runs where the key is.** CI has no `AIRTABLE_API_KEY`, so on the one
+path that runs automatically it cannot look. A Claude Code session has one, and
+a push from that session is what opens or updates the pull request — so
+`.claude/hooks/schema_drift.py` binds the check to the push and blocks it on
+drift. A check that only runs when somebody remembers is the thing this whole
+layer exists to stop relying on.
 
 ## State that is deliberately ephemeral
 

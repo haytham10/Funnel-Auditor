@@ -34,6 +34,12 @@ jobs:
       - name: Install
         run: pip install -r requirements-dev.txt
 
+      # Without --live, and deliberately. CI has no AIRTABLE_API_KEY, so the CRM
+      # schema half reports itself as skipped rather than failing every build on
+      # a missing secret. It is caught on a developer machine, where a key is
+      # normally set and bare doc-check runs it. Giving CI a key with the
+      # schema.bases:read scope would make it a per-push gate; nobody has
+      # decided whether this repo's CI should hold a CRM credential.
       - name: doc-check
         run: python main.py doc-check
 
