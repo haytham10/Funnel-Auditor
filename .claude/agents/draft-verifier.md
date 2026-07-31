@@ -28,8 +28,8 @@ a slot.
 
 Read it aloud in your head. Where does the register jump? A warm, specific first
 line followed by a stiff credential is two writers. A colloquial hook followed
-by a marketing sentence is two writers. Check `references/voice.md` for what the
-register is supposed to be, and `references/critical-failures.md` for the
+by a marketing sentence is two writers. Check `.claude/skills/outbound-draft/references/voice.md` for what the
+register is supposed to be, and `.claude/skills/outbound-draft/references/critical-failures.md` for the
 specific AI tells that have shipped before — three-part parallelism, tidy
 symmetry, transitions that announce themselves.
 

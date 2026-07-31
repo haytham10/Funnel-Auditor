@@ -87,7 +87,7 @@ rediscover it. Ordinals are already exempt, so "the 21st of June" is fine.
 
 ## Subject
 
-Under 8 words, lowercase-ish, the hook compressed. Never a bare question. It
+8 words or fewer, lowercase-ish, the hook compressed. Never a bare question. It
 should look like a line from a colleague, not a campaign.
 
 ## Before you return

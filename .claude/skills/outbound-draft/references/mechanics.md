@@ -42,7 +42,7 @@ little sense to anyone else.
 - Good: "the 2 choices framework", "your episode on eldest kids", "hello 35"
 - Dead: "quick question", "I noticed something", "free audit for coaches"
 
-Under 8 words. No end punctuation, no ALL CAPS, sentence case. Human, not
+8 words or fewer. No end punctuation, no ALL CAPS, sentence case. Human, not
 clever. Never a bare question — a question subject invites an answer, and an
 answer is a dead end that looks like success.
 

@@ -55,7 +55,7 @@ sentence goes somewhere else, the subject reads disconnected from the email
 under it — she opened for one thing and landed on another.
 
 **Fix:** the subject IS the hook compressed. Write the hook first, then cut it
-down to under 8 words for the subject. Doing it the other way around is how
+down to 8 words or fewer for the subject. Doing it the other way around is how
 they drift apart.
 
 ## The email OS vs. voice tension, resolved for the hook

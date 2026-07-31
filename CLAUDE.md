@@ -210,8 +210,10 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
   `tblnZBHjn430hAB5w`. The old funnel-audit base `appaBExqyEZykb1Qk` is archive
   only, never written to.
 - **Reading Airtable from Python** needs `AIRTABLE_API_KEY` (`audit/airtable.py`).
-  Without it, the MCP is the model's tool only, and a skill pipes records to
-  `copy-sync` instead. `anchors.py` tries live, then the last synced snapshot,
+  With a key, bare `copy-sync` fetches directly; `--live` asserts the key rather
+  than enabling the fetch. Without one, the MCP is the model's tool only and a
+  skill pipes records to `copy-sync` on stdin, which it says plainly instead of
+  printing a JSON error. `anchors.py` tries live, then the last synced snapshot,
   then the CSVs, and **caches for the process** — without that, a 200-lead batch
   made 200 identical requests and would trip Airtable's rate limit.
   `OUTBOUND_COPY_SOURCE=csv` forces the offline path; the test suite sets it.
