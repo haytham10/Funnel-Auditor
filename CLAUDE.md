@@ -13,7 +13,7 @@ the warmup, the ramp, the sequence steps and the replies. Haytham uploads.
 
 ## What is sold
 
-The email offers **ten names** — real people who fit her buyer profile, already
+The email offers **ten names** — real people who fit their buyer profile, already
 pulled, handed over on a fifteen-minute call along with why those ten and not
 the other forty. That is the entire ask. No price appears in any email.
 
@@ -103,7 +103,7 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   text. A drafter that drew its own line ships an email that reads perfectly and
   a CRM row naming a sentence the reader never saw.
 - `python main.py email-check|email-verify|email-enrich` — address shape,
-  deliverability, and the no-address fallback on her own branded domain.
+  deliverability, and the no-address fallback on their own branded domain.
 - `python main.py dedupe` — exits 1 on a warm hit, exit 2 if the wall is
   unreadable. A missing wall file must never read as "nobody has been contacted".
 - `python main.py copy-sync` — pulls the hand-written lines out of Airtable and
@@ -111,7 +111,7 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   Writes nothing when anything fails.
 - `python main.py wall-add` — appends a shipped batch to the wall. Run it AFTER
   uploading, never before: walling a lead who never received anything would
-  silently exclude her from every future batch. Idempotent.
+  silently exclude them from every future batch. Idempotent.
 - `python main.py copy-usage` — reports which lines actually shipped back to
   Copy Assets. Also after uploading. **Additive, not idempotent** — run once
   per batch.
@@ -124,12 +124,12 @@ serving here), **actually a coach**, **active in the last 30 days**.
 Captured but never gated on: `coach_type`, `sells_to`, `audience_size`,
 `top_program_price_aed`, `solo`. Two of these used to be floors and both were
 wrong for different reasons — audience decoupled from the offer the moment we
-started selling her clients rather than leverage on her list, and a price floor
+started selling their clients rather than leverage on their list, and a price floor
 reads `unclear` on ~94% of the market, which is a coin flip with extra fetches
 attached.
 
 `coach_type` picks the identity line, so it matters: **LinkedIn wins when the
-site disagrees.** `sells_to` is collected from her own words, never inferred —
+site disagrees.** `sells_to` is collected from their own words, never inferred —
 an empty answer draws a generic line, which is weaker than an exact match and
 much stronger than a wrong one.
 

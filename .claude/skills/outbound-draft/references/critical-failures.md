@@ -52,7 +52,7 @@ applied to how many numbers land in one place rather than which ones.
 The subject has to be echoed in the first body sentence. If the subject is built
 around a specific hook (a framework name, an episode title) and the first body
 sentence goes somewhere else, the subject reads disconnected from the email
-under it — she opened for one thing and landed on another.
+under it — they opened for one thing and landed on another.
 
 **Fix:** the subject IS the hook compressed. Write the hook first, then cut it
 down to 8 words or fewer for the subject. Doing it the other way around is how
@@ -68,7 +68,7 @@ rather than staying an abstract contradiction to re-derive every draft:
 - First body sentence: the cited fact. This is the admiration — attention paid
   is the admiration, not an adjective about it.
 - Second clause, same paragraph: what you took from it. Without this the
-  paragraph hands her back her own sentence and the next one has nowhere to
+  paragraph hands them back their own sentence and the next one has nowhere to
   start.
 
 _(This section used to resolve the tension against a finding: sentence one
@@ -103,7 +103,7 @@ make the next step one decision, then stop.**
 ## The close is an open door, not a bow
 
 No "let me know." No "looking forward." No "if you're open to it." **And no
-question about her business as the whole close.**
+question about their business as the whole close.**
 
 The close asks for fifteen minutes, carries a clock on the deliverable, and
 names the one thing only a conversation can answer:

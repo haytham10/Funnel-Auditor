@@ -12,9 +12,9 @@ one person wrote it in one sitting.
 
 - The **verified hook** — already found and already confirmed by someone else.
   Use it. Do not go looking for a better one.
-- The **research object** — her segment, who she sells to, her city, what her
+- The **research object** — their segment, who they sell to, their city, what their
   site and LinkedIn say.
-- The **four anchor lines** she drew, handed to you. Written by hand by Haytham.
+- The **four anchor lines** they drew, handed to you. Written by hand by Haytham.
   They are your register and your claim set.
 
   **Use the lines you are given. Never draw your own.** In a batch the
@@ -53,7 +53,7 @@ raised.
 
 **The identity line must turn to the reader before its first digit.** A
 second-person clause ahead of the first number is the cheapest thing that makes
-the proof hers rather than a résumé line. Most of the hand-written identity
+the proof theirs rather than a résumé line. Most of the hand-written identity
 lines still open on a bare stat, so on most leads this is work you have to do,
 not a rule you have to obey.
 
@@ -73,7 +73,7 @@ coach's is a relabel, and it surfaces the moment two coaches compare emails.
 
 **The check does not care whose number it is, and that is deliberate.** A digit
 inside the lead's OWN product name trips it too — "Case Cracking 101" fails
-because 101 is not a client result, even though it is her title and not a claim
+because 101 is not a client result, even though it is their title and not a claim
 about anything. That is not a bug to work around by arguing with the linter: the
 rule is "no digit in the body that isn't a real result", and loosening it to
 allow digits beside a capitalised word would let "AED 91,500 Programme" through,

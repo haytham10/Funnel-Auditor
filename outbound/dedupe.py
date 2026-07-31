@@ -112,7 +112,7 @@ def email_key(address: str) -> str:
 # path is the identity and the domain is noise, so keying on it merges everyone.
 # The live wall already had six rows collapsed onto three such hosts — two of
 # them warm — which broke in both directions: a new coach on `linktr.ee/x`
-# matched Lee Harris and was reported "already present", so she was emailed and
+# matched Lee Harris and was reported "already present", so they were emailed and
 # then never walled; and any lead carrying `stan.store` hit Ben Pringle's warm
 # row and halted the whole batch.
 _NON_IDENTIFYING_HOSTS = frozenset({
@@ -223,7 +223,7 @@ class ContactWall:
         the cheapest and most consequential check in the machine.
 
         Appending a row is a commit, which also means the wall has a history —
-        `git log` answers "when did we first write to her" without a CRM field
+        `git log` answers "when did we first write to them" without a CRM field
         for it.
         """
         path = Path(path) if path else CONTACTED_BEFORE

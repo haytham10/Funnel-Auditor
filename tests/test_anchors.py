@@ -222,7 +222,7 @@ if __name__ == "__main__":
 def test_an_individuals_seller_is_never_handed_corporate_proof():
     """The generic pool used to take every `Any` line regardless of audience,
     so "I get coaches in front of the people who actually hold the budget"
-    could land on a health coach whose buyer is one person paying for herself.
+    could land on a health coach whose buyer is one person paying for themselves.
     The identity beat's whole job is a matching reference group."""
     bank = anchors.CopyBank.from_csv()
     for coach_type in ("Health", "Life", "Mindset", "Fitness", "Career"):

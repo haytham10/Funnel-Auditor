@@ -200,7 +200,7 @@ def test_a_lead_with_no_linkedin_still_writes_a_row():
 
 def test_wall_additions_are_written_but_not_applied():
     """Nothing has been sent at export time. Walling a lead who never received
-    anything would silently exclude her from every future batch."""
+    anything would silently exclude them from every future batch."""
     with tempfile.TemporaryDirectory() as tmp:
         drafts = [draft()]
         out = export.write_batch(drafts, lint_all(drafts), out_dir=tmp)
@@ -214,7 +214,7 @@ def test_wall_additions_are_written_but_not_applied():
 
 
 def test_a_rejected_lead_never_reaches_the_wall_additions():
-    """She got no email, so she must stay eligible for the next batch."""
+    """They got no email, so they must stay eligible for the next batch."""
     with tempfile.TemporaryDirectory() as tmp:
         good = draft("good", "Good Coach")
         bad = draft("bad", "Bad Coach", subject="second subject",
@@ -434,7 +434,7 @@ def test_the_crm_enums_match_the_live_base():
 
 
 def test_a_non_latin_name_is_flagged_for_a_human_to_set():
-    """A real lead shipped with "\u062e\u0648\u0631\u064a" in last_name while his own LinkedIn slug
+    """A real lead shipped with "\u062e\u0648\u0631\u064a" in last_name while their own LinkedIn slug
     read "samikhoury1". The machine does NOT transliterate — guessing someone's
     preferred Latin spelling is the same class of error as inventing their
     address — so it surfaces it and leaves the choice to a human."""

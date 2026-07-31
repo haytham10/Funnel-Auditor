@@ -75,7 +75,7 @@ def registrable_domain(url_or_host: str) -> str:
 
 def same_site(url_a: str, url_b: str) -> bool:
     """True when both URLs share a registrable domain — the lead's own site
-    including subdomains (courses.her-site.com counts as hers)."""
+    including subdomains (courses.coach-site.com counts as the same site)."""
     return registrable_domain(url_a) == registrable_domain(url_b)
 
 

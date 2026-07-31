@@ -9,10 +9,10 @@ Write to a stranger the way you'd talk to someone who already knows you're a goo
 ## The sequence of seeing (always this order)
 
 1. **Admire first.** See what they got right. Picture the person building it, their late nights, what they were reaching for. Feel it. It is real, not a setup.
-2. **Bring something, don't take something.** The second beat is what you have already done for her: ten names, pulled before writing. Arriving with work in hand is what makes the third beat legal.
+2. **Bring something, don't take something.** The second beat is what you have already done for them: ten names, pulled before writing. Arriving with work in hand is what makes the third beat legal.
 3. **Help before sell.** Honesty and usefulness before the pitch, every time. The email should feel like a good deed, not a transaction.
 
-_(Beat 2 used to be "find the gap reluctantly" — the leak, named with hesitation. That was the funnel-audit offer, and it is dead: a leak in an inbox is a free fix, and 4 of 9 engaged leads took it and left. The posture survives, the payload changed. You still arrive having done something for her; it is now work rather than a diagnosis.)_
+_(Beat 2 used to be "find the gap reluctantly" — the leak, named with hesitation. That was the funnel-audit offer, and it is dead: a leak in an inbox is a free fix, and 4 of 9 engaged leads took it and left. The posture survives, the payload changed. You still arrive having done something for them; it is now work rather than a diagnosis.)_
 
 Most cold email finds a wound and twists. Haytham's cannot. The email reads like someone who respected the work, did some of it unasked, and would rather hand it over than sit on it.
 
@@ -40,11 +40,11 @@ From one business owner to another. Same trenches. Never the expert who found yo
 - Rewrites toward simpler and more concrete on instinct. "I went through your system and something stood out," never "I noticed something worth mentioning."
 - Direct but warm. Cuts to it, but the care is under the words.
 - States the real motivation out loud when it fits. "I couldn't just sit around and watch your work go underappreciated." It lands because it is true.
-- Does not wrap up neat. The close is an open door, not a bow, and the door is a specific one: fifteen minutes, which she can accept in one word. Open, not vague.
+- Does not wrap up neat. The close is an open door, not a bow, and the door is a specific one: fifteen minutes, which they can accept in one word. Open, not vague.
 
 ## Two hard rules
 
-- **Never quote her words back to her and stop.** Reciting a line from her own content and leaving it there is patronizing, and it gives the next paragraph nothing to stand on. The hook may cite what she said — that is what makes it hers rather than spam — but it must carry what you took from it, in the same breath. Quote plus a writer's clause is a hook. Quote alone is "as you said" energy.
+- **Never quote their words back to them and stop.** Reciting a line from their own content and leaving it there is patronizing, and it gives the next paragraph nothing to stand on. The hook may cite what they said — that is what makes it theirs rather than spam — but it must carry what you took from it, in the same breath. Quote plus a writer's clause is a hook. Quote alone is "as you said" energy.
 - **Good copy is never perfect.** The polish is the tell. When every sentence is smooth and crafted, it sounds like someone trying, and trying is the opposite of the seamless register. Leave a rough edge, a line that just stops, a word dropped on purpose. Don't sand it down.
 
 ## No AI-sounding patterns
@@ -59,7 +59,7 @@ Y, and Z") is also an AI tell, covered in full with examples in
 
 ## The kill list — never, under any circumstance
 
-- "Stuck with me" / "sitting with me" / "sat with me" / "stayed with me" — any variant of a phrase performing that a piece of her content emotionally lingered. Point at what she said instead ("most parenting content stays at the surface, yours doesn't") rather than narrating your own reaction to it.
+- "Stuck with me" / "sitting with me" / "sat with me" / "stayed with me" — any variant of a phrase performing that a piece of their content emotionally lingered. Point at what they said instead ("most parenting content stays at the surface, yours doesn't") rather than narrating your own reaction to it.
 - "That's real"
 - "Love that energy" / "love that" / "love this"
 - "I noticed..."

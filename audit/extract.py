@@ -107,7 +107,7 @@ def extract_emails(html: str, source_url: str = "", seed_url: str = "",
     Scope rule: an address only counts when the page it was found on is the
     lead's own site, OR the address's domain matches the lead's domain.
     (A radio station's reception@ address harvested from a press link is
-    not her contact — that exact failure shipped once.)
+    not their contact — that exact failure shipped once.)
 
     Ranking: locals containing the lead's first/last name outrank other
     personal-looking locals; generic prefixes (info@, hello@, reception@...)

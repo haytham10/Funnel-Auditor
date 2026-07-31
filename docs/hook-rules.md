@@ -22,18 +22,18 @@ That last part is the whole difference between a hook and a quote. Compare:
 > for yourself. That is a strange thing to read from someone who sells the
 > solving.
 
-The first hands her back her own sentence and stops. The second has a writer in
+The first hands them back their own sentence and stops. The second has a writer in
 it, and the paragraph after it now has somewhere to start from.
 
 ## The four requirements
 
-- **Specific to her.** If it could go to another coach in the same segment
+- **Specific to them.** If it could go to another coach in the same segment
   unedited, it is not a hook.
 - **Recent.** Inside ~90 days for a post. An evergreen framework or an
-  About-page line she wrote herself is fine at any age.
+  About-page line they wrote themselves is fine at any age.
 - **Cited.** A URL actually fetched, the quote verbatim, and a date.
-- **Hers.** Something she wrote, said, built or named — not something written
-  about her, and not her website's marketing copy.
+- **Theirs.** Something they wrote, said, built or named — not something
+  written about them, and not their website's marketing copy.
 
 ## The twelve bans
 
@@ -44,11 +44,12 @@ email fail even when the hook is technically true.
    hero section of a thousand coach sites.
 2. **No compliment with no object.** "Love your content" names nothing.
 3. **No invented specifics.** If it cannot be cited, it does not exist.
-4. **No inferred emotion.** You do not know she was nervous, proud or relieved.
+4. **No inferred emotion.** You do not know they were nervous, proud or
+   relieved.
 5. **No follower counts or growth observations.** They read as surveillance,
-   and the offer has nothing to do with her audience.
+   and the offer has nothing to do with their audience.
 6. **No stale news as fresh.** A 2023 podcast is not "your recent episode."
-7. **No third-party coverage.** A directory listing is not her voice.
+7. **No third-party coverage.** A directory listing is not their voice.
 8. **No stacking.** One observation. Two makes it a dossier.
 9. **The hook must have a writer in it.** See above. This is the most common
    failure and it cannot be repaired downstream — a hook with no writer produces
@@ -57,14 +58,14 @@ email fail even when the hook is technically true.
     a dead end that looks like success. The close asks for the meeting.
 11. **No flattery escalation.** "Brilliant", "incredible", "so inspiring."
     Peer to peer, not fan to celebrity.
-12. **No restating her offer back to her.** She knows what she sells.
+12. **No restating their offer back to them.** They know what they sell.
 
 ## Where hooks come from, in cost order
 
 1. **LinkedIn posts** — the richest source by a distance.
    `python main.py apify li-posts <url> --max 5 --since month`
-2. **Her own About page** — free, already fetched by the research stage.
-3. **Podcasts and YouTube** — web search for her name plus "podcast", then
+2. **Their own About page** — free, already fetched by the research stage.
+3. **Podcasts and YouTube** — web search for their name plus "podcast", then
    fetch the episode page for the description and date.
 4. **Instagram** — `python main.py apify ig <url> --mode posts`
 
@@ -74,9 +75,9 @@ that column.
 
 ## Types
 
-- **WORK** — a framework, a launch, a client result she published.
-- **LIFE** — a personal update she chose to make public.
-- **METRIC** — a number *she* published about her own work. Never one you
+- **WORK** — a framework, a launch, a client result they published.
+- **LIFE** — a personal update they chose to make public.
+- **METRIC** — a number *they* published about their own work. Never one you
   counted yourself.
 
 Recorded per lead so hook type becomes a testable variable against reply rate
@@ -92,7 +93,8 @@ checking anything. Under the old machine, unread citations reached real drafts,
 and a third of self-certified findings failed under scrutiny while carrying a
 verified flag.
 
-- **VERIFIED** — quote is on the page, she wrote it, date holds, it is specific.
+- **VERIFIED** — quote is on the page, they wrote it, date holds, it is
+  specific.
 - **REFUTED** — a citable contradiction, never a feeling.
 - **INCONCLUSIVE** — page would not load or has changed. Holds, never kills.
 

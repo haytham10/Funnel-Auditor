@@ -12,7 +12,7 @@ preview is byte-for-byte what leaves.
 **`wall-additions.csv`** — the rows to append to `data/contacted-before.csv`
 *after* the batch is actually uploaded. Deliberately not appended here: nothing
 has been sent at export time, and walling a lead who never received anything
-would silently exclude her from every future batch. `main.py wall-add` closes
+would silently exclude them from every future batch. `main.py wall-add` closes
 that loop once the upload has happened.
 
 There is no automated gate that replaces reading the preview. `lint.py` catches
@@ -230,7 +230,7 @@ def check_address(draft) -> tuple[list[str], list[str]]:
     is only a WARNING, because the obvious-looking rule kills real people —
     `cheryl@cherylnankoo.com` against a site of `thenankoo.com` is one person
     with a personal-brand domain and a consultancy domain, which is ordinary,
-    and dropping her would be the permanent invisible kill this machine is built
+    and dropping them would be the permanent invisible kill this machine is built
     to avoid. The warning surfaces the shape a hallucination takes; a human
     decides. A free-provider address never warns at all.
     """
@@ -257,7 +257,7 @@ def check_merge_fields(draft) -> list[str]:
 
     A name in a non-Latin script reaches Smartlead's `last_name` column exactly
     as the source list wrote it — a real lead on the first batch carried
-    "\u062e\u0648\u0631\u064a" while his own LinkedIn slug read "samikhoury1". The machine does
+    "\u062e\u0648\u0631\u064a" while their own LinkedIn slug read "samikhoury1". The machine does
     NOT transliterate: guessing someone's preferred Latin spelling is the same
     class of error as inventing their address, and it is theirs to choose. So
     this surfaces it and leaves the decision to a human.
@@ -395,7 +395,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
 
         # Written but NOT appended to the wall. Nothing has been sent yet —
         # Haytham uploads by hand, and walling a lead who never actually
-        # received anything would silently exclude her from every future batch.
+        # received anything would silently exclude them from every future batch.
         # `main.py wall-add out/wall-additions.csv` closes the loop afterwards.
         with open(wall_path, "w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=WALL_COLUMNS)

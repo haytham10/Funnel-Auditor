@@ -50,7 +50,7 @@ def test_a_cold_status_with_a_blank_warm_column_stays_cold():
 def test_a_shared_link_in_bio_host_is_not_an_identity():
     """The live wall had six rows collapsed onto three such hosts, two warm.
     It broke both ways: a new coach on linktr.ee matched Lee Harris and was
-    reported "already present", so she was emailed and never walled; and any
+    reported "already present", so they were emailed and never walled; and any
     lead carrying stan.store hit a warm row and halted the batch."""
     for shared in ("https://linktr.ee/noura", "https://stan.store/x",
                    "https://beacons.ai/y", "https://instagram.com/z"):
@@ -175,7 +175,7 @@ def test_ordinary_words_containing_jargon_do_not_drop_an_email():
     for innocent in ("Your post on optimism landed with me.",
                      "Loved your talk in the auditorium last week.",
                      "Saw you were auditioning speakers.",
-                     "She moved from Detroit last year.",
+                     "They moved from Detroit last year.",
                      "A holistic practice, and a specialist listener."):
         failures, _ = lint.check_voice(innocent)
         assert not [f for f in failures if "jargon" in f], innocent

@@ -10,18 +10,18 @@ hook, an identity beat, the offer and the close.)_
 
 ## The three rules (also the core of the gate)
 
-**1. Can I visualize it?** If you can't picture it, she won't remember it. "ten
+**1. Can I visualize it?** If you can't picture it, they won't remember it. "ten
 names sitting in a doc with your name on it" — you can see that. "a curated
 prospect list tailored to your business" — you can't see anything.
 
-**2. Can I falsify it?** Provably true or false makes her sit up. "a health
+**2. Can I falsify it?** Provably true or false makes them sit up. "a health
 coach in Dubai closed AED 78k over 2 months from prospects I put in front of
 them" — checkable, sharp. "I get coaches great results" — nobody can argue, so
 nobody cares.
 
 **3. Can nobody else say it?** Could another freelancer send this exact email to
 another coach with the name swapped? If yes, it's a template and it's dead. The
-hook must be bespoke to her.
+hook must be bespoke to them.
 
 ## Make it concrete (zoom in)
 
@@ -36,13 +36,13 @@ Never send the abstract version.
 ## Make it falsifiable (point, don't talk)
 
 You can't talk, you can only point. No adjectives doing the work — no
-"amazing," "powerful," "incredible." Point at the exact thing she said, on the
+"amazing," "powerful," "incredible." Point at the exact thing they said, on the
 exact date.
 - Talking: "loved your recent content on burnout"
 - Pointing: "your episode on eldest kids, the bit about the 2 choices framework"
 
 A falsifiable line is you putting your head on the chopping block. That is what
-makes her read it.
+makes them read it.
 
 ## Make it bespoke (look deeper)
 
@@ -56,10 +56,10 @@ with a hidden "but": the thing was going one way, but. "10 names, and I'll tell
 you why these 10 and not the other 40" — the 40 is what makes the 10 mean
 something.
 
-Note what this is NOT any more: it used to mean showing her a problem. Naming
-what is wrong with her business is the dead offer, and `critical-failures.md`
+Note what this is NOT any more: it used to mean showing them a problem. Naming
+what is wrong with their business is the dead offer, and `critical-failures.md`
 bans it outright. The contrast now runs between what you did and what you left
-out, never between what she has and what she lacks.
+out, never between what they have and what they lack.
 
 ## Facts — if in doubt, give a fact
 

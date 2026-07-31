@@ -1,3 +1,41 @@
+## 2026-07-31 (pronouns) — the docs called every lead "she"
+
+Haytham, with a screenshot of `hook-rules.md`: it still says "her" and "she" in
+some docs. It did, roughly 180 times across 30 files, and the sharpest version
+of the problem is that **`mechanics.md` carried the rule against it.** "No
+gendered pronouns in an identity line. It fires across a whole segment and
+'her' is wrong about half the time. Use 'them'." That paragraph sat in the
+middle of a file that addressed the reader as "she" in eleven other places. The
+linter enforces the rule on the identity beat; nothing enforced it on the
+instructions, and the instructions are what the drafter reads first. A doc that
+models the default it bans is how the default gets written back into an email.
+
+Swept every live surface: `hook-rules.md`, all five agents, both skills and the
+four voice references, `CLAUDE.md`, `START-HERE.md`, and the docstrings and
+comments in `main.py`, `outbound/` and `audit/`, plus the test fixtures. Not a
+sed — "her" splits between possessive and object ("hands her back her own
+sentence" needs *them* then *their*), and "she sells" has to become "they
+sell", so it was per-instance.
+
+What deliberately still says it:
+
+- `lint.py`'s `GENDERED` regex, which has to name the tokens to ban them, and
+  the `copy_sync` comment recording that 31 live identity lines once carried
+  one.
+- `test_lint.py`'s fixture, which must contain "her" or it stops testing that a
+  gendered identity line fails. Verified both directions still behave.
+- The rule itself, quoting the word.
+- **`voice.md`'s "he/him", which refers to Haytham rather than a lead.** Left
+  alone deliberately: that is his own self-reference in his own voice doc, not a
+  default applied to strangers, and changing it was not what he asked for.
+  Flagged for him to call.
+
+Also renamed the `her-site.com` fixture domain to `coach-site.com` in
+`audit/urls.py` and its test.
+
+408 tests green. The four shipped copy banks were already clean — no gendered
+pronoun in any of the 45 lines.
+
 ## 2026-07-31 (audit residue) — swept the repo for what the pivot left behind
 
 Haytham: find any sign of the old audit track and get rid of it. Swept every

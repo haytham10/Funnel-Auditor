@@ -48,8 +48,8 @@ Each beat answers the objection raised at that exact moment. That ordering is
 why the sequence is fixed.
 
 **1 · Hook** — *"is this a spammer?"* One or two sentences about something
-specific and recent she did, from real cited evidence. Rules in
-`docs/hook-rules.md`. Never fabricated, and never her site's marketing copy.
+specific and recent they did, from real cited evidence. Rules in
+`docs/hook-rules.md`. Never fabricated, and never their site's marketing copy.
 
 **2 · Identity** — *"who is this and why should I care?"* Proof-based, never
 title-based: a matched reference group, a real number, a timeframe. This beat
@@ -57,7 +57,7 @@ exists because two leads once replied trying to sell *to* Haytham — a warm,
 specific email with no proof in it reads as someone looking for work.
 
 **3 · Offer** — *"what can you do for me?"* Ten names, already pulled, for
-people who fit her buyer profile. Fixed across the campaign.
+people who fit their buyer profile. Fixed across the campaign.
 
 **4 · Close** — *"what happens next?"* Fifteen minutes, a clock on the
 deliverable, and why these ten and not the other forty. **That second half is
@@ -73,7 +73,7 @@ name: **"why are you telling me this?"** The hook just created context, so
 jumping to a credential skips the question the hook itself raised.
 
 **The identity line must turn to the reader before its first digit.** A
-second-person clause ahead of the first number makes the proof hers instead of a
+second-person clause ahead of the first number makes the proof theirs instead of a
 résumé line. This is a hard requirement, not a ratio — there is no lead for whom
 a bare stat is the right second paragraph, and the linter fails a batch that
 tries.
