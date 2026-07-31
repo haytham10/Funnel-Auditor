@@ -1,3 +1,48 @@
+## 2026-07-31 (li_profile) — back to harvestapi, and the gate it would have jammed
+
+Haytham: use `harvestapi/linkedin-profile-scraper` for LinkedIn profiles, and
+the two `apify/instagram-*` actors for Instagram. Instagram was already on
+those two (split there 2026-07-18), so this was the LinkedIn half only.
+
+`li_profile` now matches `li_posts` — both LinkedIn calls run through one
+vendor. **The reason it left harvestapi on 2026-07-16 has not gone away:** that
+actor enforces its own ~20-runs/month quota, independent of Apify billing, and
+a batch hit it mid-run. Nothing here can see that quota. `account_limits()`
+reads Apify's USD cap and knows nothing about a vendor's own counter, and the
+cost gate won't catch it either, because a quota-exhausted run is cheap rather
+than expensive. So it will surface the same way it did before: an actor error
+on run 21. The profile call is optional by design (posts-first), so the answer
+mid-batch is to drop it for the rest of the run, not to swap actors under a
+half-finished batch.
+
+**The swap would have silently jammed the cost gate.** harvestapi prices two
+events, `profile` at $4/1k and `profile_with_email` at $10/1k, and flags
+neither `isPrimaryEvent`. `_actor_primary_event_price_usd` infers a primary
+event by that flag, falling back to the sole recurring event when exactly one
+exists — two recurring events and no flag is precisely its give-up case. It
+returns None, the gate reads None as "can't estimate", and **every**
+`li-profile` call raises `APPROVAL REQUIRED` forever. Not a wrong price: no
+price. Wrappers can now name their charge event outright (`event_key`), so the
+estimate prices the mode actually being run rather than assuming the cheap one,
+and `_pricing_cache` is keyed on (actor, event) — keyed on the actor alone, the
+email mode would have been billed at the no-email rate. A named event that
+isn't in the actor's pricing returns None rather than falling back to some
+other event's price: a stale hint has to fail closed.
+
+The two actors return different shapes, so `linkedin_profile` normalizes.
+apimaestro nested everything under `basic_info` with an `email` string;
+harvestapi is flat, splits `firstName`/`lastName`, puts addresses under
+`emails` (each with its own deliverability verdict, so the picker prefers a
+valid one and falls back to the first rather than to nothing) and the location
+string under `location.linkedinText`. It has no `is_current` flag — a running
+position reads `endDate.text == "Present"`, same fact. Callers see the same
+keys they did before. `_raise_on_actor_error` now guards this path too; it
+didn't before, so an unresolvable profile came back as an empty-but-valid one.
+
+Verified live against the real actor, not just the stub: one profile pull
+through `main.py apify li-profile` cleared the gate automatically and returned
+the normalized record. 408 tests green (8 new).
+
 ## 2026-07-31 (last copy gap) — Executive/individuals filled
 
 `id-exec-3`: *"The executives worth your time are already paying for help

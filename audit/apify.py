@@ -47,7 +47,7 @@ reason to look before a run that costs real money.
     ig_profile  apify/instagram-profile-scraper         profile details (followers/bio/latest posts; optional about-account add-on)
     ig_post     apify/instagram-post-scraper            recent posts w/ captions (date-filterable, can skip pinned); single-post detail
     li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
-    li_profile  apimaestro/linkedin-profile-detail      headline/about/experience; optional email-search mode (finds an address)
+    li_profile  harvestapi/linkedin-profile-scraper     headline/about/experience; optional email-search mode (finds an address)
     yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number the free tier can't read for YT-native coaches)
     email       account56/email-verifier                MillionVerifier-backed address verification
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
@@ -69,14 +69,28 @@ reason to look before a run that costs real money.
     `skipPinnedPosts` toggle. The unified actor's reels/comments/mentions/
     stories modes had no consumer in the skills and were dropped with it.)
 
-    (li_profile switched from harvestapi/linkedin-profile-scraper to
-    apimaestro/linkedin-profile-detail 2026-07-16 — the harvestapi PROFILE
-    actor specifically enforces its own ~20-runs/month quota independent of
-    Apify billing, and a batch hit it mid-run. li_posts stays on harvestapi:
-    that actor isn't capped and is roughly 2.5x cheaper per post than
-    apimaestro's equivalent — confirmed by comparing run costs in the Apify
-    console after a brief mis-swap of both actors together. Don't swap
-    li_posts again without re-confirming the cap actually applies to it.)
+    (li_profile went harvestapi/linkedin-profile-scraper -> apimaestro/
+    linkedin-profile-detail 2026-07-16 -> back to harvestapi 2026-07-31, on
+    Haytham's call. It now matches li_posts, so both LinkedIn calls run
+    through one vendor. **The thing that forced the 2026-07-16 move was a
+    ~20-runs/month quota the harvestapi PROFILE actor enforces itself,
+    independent of Apify billing, and a batch hit it mid-run.** Nothing in
+    this module can see that quota — it is not in `account_limits()`, which
+    reads Apify's USD cap and knows nothing about a vendor's own counter, and
+    it does not show up in the cost gate either, since a quota-exhausted run
+    is cheap, not expensive. So it fails as a mid-batch actor error on run 21,
+    the way it did before. If a batch dies on LinkedIn profiles with a quota
+    message, that is this, not a code fault: the profile call is optional by
+    design (posts-first, below), so drop it for the rest of the run rather
+    than swapping actors mid-batch.
+
+    The two actors return DIFFERENT shapes and `linkedin_profile` normalizes
+    both to the same record — apimaestro nested everything under `basic_info`
+    with an `email` string; harvestapi is flat, splits `firstName`/`lastName`,
+    puts the address list under `emails` (each entry carrying its own
+    deliverability verdict, which is why the picker below prefers a valid one)
+    and the location string under `location.linkedinText`. Callers see the
+    same keys either way.)
 
 ## Cost discipline (Instagram and the email-search mode are the pricey ones)
 
@@ -141,7 +155,7 @@ ACTORS = {
     "ig_profile": "apify~instagram-profile-scraper",
     "ig_post": "apify~instagram-post-scraper",
     "li_posts": "harvestapi~linkedin-profile-posts",
-    "li_profile": "apimaestro~linkedin-profile-detail",
+    "li_profile": "harvestapi~linkedin-profile-scraper",
     "yt_channel": "apidojo~youtube-channel-information-scraper",
     "email": "account56~email-verifier",
     "search": "apify~google-search-scraper",
@@ -158,6 +172,22 @@ _SYNC_TIMEOUT_SECS = 240
 COST_APPROVAL_THRESHOLD_USD = 0.10
 
 LI_POSTED_LIMITS = ("any", "1h", "24h", "week", "month", "3months", "6months", "year")
+
+# harvestapi/linkedin-profile-scraper's two modes, as the exact enum strings
+# its input schema accepts (the prices are part of the label, not decoration —
+# a near-miss string is rejected by the actor). Which one runs decides which
+# charge event bills, hence LI_PROFILE_EVENTS below.
+LI_PROFILE_MODES = {
+    False: "Profile details no email ($4 per 1k)",
+    True: "Profile details + email search ($10 per 1k)",
+}
+# Charge-event keys for the same two modes. This actor flags NEITHER event as
+# primary and both are recurring, so the pricing reader can't pick one on its
+# own and would return "can't estimate" — which the gate treats as blocked.
+# Naming the event is what keeps an ordinary one-profile call automatic, and
+# it prices the mode actually being run rather than assuming the cheap one.
+LI_PROFILE_EVENTS = {False: "profile", True: "profile_with_email"}
+
 # Only the two modes the dedicated actors cover: details -> profile scraper,
 # posts -> post scraper. The old unified actor's reels/comments/mentions/
 # stories modes had no consumer and went with it.
@@ -302,7 +332,11 @@ def account_limits() -> dict:
 
 # Per-process caches — one lookup per actor / per account per run of the
 # CLI, not one per call. Pricing and plan tier don't change mid-process.
-_pricing_cache: dict[str, float | None] = {}
+# Keyed by (actor_id, event_key) because one actor can bill different events
+# at different prices — li_profile's email mode is 2.5x its no-email mode, and
+# a cache keyed on the actor alone would price the second call at the first
+# call's rate.
+_pricing_cache: dict[tuple[str, str | None], float | None] = {}
 _tier_cache: dict[str, str | None] = {"tier": None, "fetched": False}
 
 
@@ -327,7 +361,7 @@ def _account_tier() -> str | None:
     return tier
 
 
-def _actor_primary_event_price_usd(actor_id: str) -> float | None:
+def _actor_primary_event_price_usd(actor_id: str, event_key: str | None = None) -> float | None:
     """Current per-unit USD price of an actor's dominant charge event, read
     live from `GET /v2/acts/<id>` (the same pricingInfos block shown on the
     actor's Store page) — the actual number Apify will bill, not a
@@ -340,9 +374,19 @@ def _actor_primary_event_price_usd(actor_id: str) -> float | None:
     pricing can't be read at all (network failure, actor not found, or a
     pricing model/shape this doesn't recognize) — callers treat None as
     'can't estimate' and require approval rather than assume a run is
-    cheap."""
-    if actor_id in _pricing_cache:
-        return _pricing_cache[actor_id]
+    cheap.
+
+    `event_key` names the charge event outright, for an actor that offers
+    several and flags none (harvestapi/linkedin-profile-scraper prices
+    `profile` and `profile_with_email` and marks neither primary, so the
+    inference above gives up on it). A caller that knows which mode it is
+    about to run knows which event bills; without the hint that call would be
+    unpriceable and blocked forever. A named event that isn't in the actor's
+    pricing still returns None — a hint that has gone stale must fail closed,
+    not fall back to a different event's price."""
+    cache_key = (actor_id, event_key)
+    if cache_key in _pricing_cache:
+        return _pricing_cache[cache_key]
     price: float | None = None
     try:
         resp = requests.get(f"{APIFY_BASE}/acts/{actor_id}", headers=_auth_headers(), timeout=20)
@@ -356,11 +400,14 @@ def _actor_primary_event_price_usd(actor_id: str) -> float | None:
                 elif model == "PAY_PER_EVENT":
                     events = ((current.get("pricingPerEvent") or {})
                               .get("actorChargeEvents") or {})
-                    primary = next((e for e in events.values() if e.get("isPrimaryEvent")), None)
-                    if primary is None:
-                        recurring = [e for e in events.values() if not e.get("isOneTimeEvent")]
-                        if len(recurring) == 1:
-                            primary = recurring[0]
+                    if event_key is not None:
+                        primary = events.get(event_key)
+                    else:
+                        primary = next((e for e in events.values() if e.get("isPrimaryEvent")), None)
+                        if primary is None:
+                            recurring = [e for e in events.values() if not e.get("isOneTimeEvent")]
+                            if len(recurring) == 1:
+                                primary = recurring[0]
                     if primary is not None:
                         tiered = primary.get("eventTieredPricingUsd")
                         if tiered:
@@ -371,32 +418,36 @@ def _actor_primary_event_price_usd(actor_id: str) -> float | None:
                             price = primary.get("eventPriceUsd")
     except requests.RequestException:
         pass
-    _pricing_cache[actor_id] = price
+    _pricing_cache[cache_key] = price
     return price
 
 
-def estimate_cost_usd(actor_id: str, item_count: int) -> tuple[float | None, str]:
+def estimate_cost_usd(actor_id: str, item_count: int,
+                      event_key: str | None = None) -> tuple[float | None, str]:
     """Estimate one run's cost as (primary event's live per-unit price) x
     item_count — item_count being whatever the caller expects Apify to
     charge per-item for (resultsLimit, maxPosts, len(emails), pages, ...).
     Prices the dominant cost driver only, not situational add-ons
     (reactions/comments if requested, a captured AI Overview) — a go/no-go
-    estimate for the approval gate, not an invoice. Returns (None, reason)
-    when the price can't be read."""
-    price = _actor_primary_event_price_usd(actor_id)
+    estimate for the approval gate, not an invoice. `event_key` names the
+    charge event when the actor prices several and flags none as primary; see
+    `_actor_primary_event_price_usd`. Returns (None, reason) when the price
+    can't be read."""
+    price = _actor_primary_event_price_usd(actor_id, event_key)
     if price is None:
         return None, "pricing unavailable (network error or unrecognized pricing model)"
     return round(price * max(item_count, 1), 4), ""
 
 
-def _require_cost_approval(actor_id: str, item_count: int, approved: bool) -> None:
+def _require_cost_approval(actor_id: str, item_count: int, approved: bool,
+                           event_key: str | None = None) -> None:
     """The approval gate every wrapper below calls before running. No-op
     once approved=True (the caller already has Haytham's sign-off for this
     call); otherwise estimates the cost and raises ApifyCostApprovalRequired
     if it's unknown or over COST_APPROVAL_THRESHOLD_USD."""
     if approved:
         return
-    est, reason = estimate_cost_usd(actor_id, item_count)
+    est, reason = estimate_cost_usd(actor_id, item_count, event_key)
     if est is None or est > COST_APPROVAL_THRESHOLD_USD:
         raise ApifyCostApprovalRequired(actor_id, est, reason)
 
@@ -571,37 +622,75 @@ def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
             for i in items]
 
 
+def _li_best_email(emails: list) -> str | None:
+    """Pick one address out of harvestapi's `emails` list. Each entry carries
+    its own `status`/`deliverable` verdict from the actor's own check, so a
+    valid one is preferred over a merely-present one; the first address is the
+    fallback rather than nothing, since an unverified address still beats no
+    address and `email-verify` re-checks it downstream anyway."""
+    entries = [e for e in emails or [] if isinstance(e, dict) and e.get("email")]
+    if not entries:
+        return None
+    valid = next(
+        (e for e in entries
+         if e.get("deliverable") is True or str(e.get("status", "")).lower() == "valid"),
+        None,
+    )
+    return (valid or entries[0])["email"]
+
+
 def linkedin_profile(url: str, with_email: bool = False, raw: bool = False,
                      approved: bool = False) -> list[dict]:
     """LinkedIn profile enrichment (headline, about, experience). Pass
-    with_email=True ONLY when hunting an address for a no-email lead. Takes
-    a profile URL or bare username. Cost-gated (1 item)."""
-    _require_cost_approval(ACTORS["li_profile"], 1, approved)
-    items = run_actor(ACTORS["li_profile"], {"username": url, "includeEmail": with_email},
-                       memory_mbytes=256)
+    with_email=True ONLY when hunting an address for a no-email lead — it
+    switches the actor to its email-search mode, which bills 2.5x the plain
+    one. Takes a profile URL or bare public identifier. Cost-gated (1 item, at
+    the price of whichever mode is being run)."""
+    event = LI_PROFILE_EVENTS[bool(with_email)]
+    _require_cost_approval(ACTORS["li_profile"], 1, approved, event_key=event)
+    items = run_actor(
+        ACTORS["li_profile"],
+        # `queries` takes profile URLs or bare public identifiers
+        # interchangeably, which is the one input field that accepts both —
+        # the more specific `urls`/`publicIdentifiers` fields would make the
+        # caller decide which of the two it holds.
+        {"queries": [url], "profileScraperMode": LI_PROFILE_MODES[bool(with_email)]},
+        memory_mbytes=256,
+    )
     if raw:
         return items
+    _raise_on_actor_error(items, url)
     out = []
     for i in items:
-        info = i.get("basic_info") or {}
-        location = info.get("location") or {}
-        experience = [
-            {k: e.get(k) for k in
-             ("title", "company", "location", "duration", "description", "is_current")
-             if e.get(k) not in (None, "", [])}
-            for e in (i.get("experience") or [])
-        ]
+        location = i.get("location") or {}
+        current = (i.get("currentPosition") or [{}])[0]
+        experience = []
+        for e in i.get("experience") or []:
+            end = e.get("endDate") or {}
+            rec_e = {
+                "title": e.get("position"),
+                "company": e.get("companyName"),
+                "location": e.get("location"),
+                "duration": e.get("duration"),
+                "description": e.get("description"),
+                # harvestapi has no is_current flag; a position still running
+                # reads "Present" as its end date, which is the same fact.
+                "is_current": str(end.get("text", "")).strip().lower() == "present" or None,
+            }
+            experience.append({k: v for k, v in rec_e.items() if v not in (None, "", [])})
+        websites = [w for w in (i.get("websites") or []) if isinstance(w, str)]
+        name = " ".join(p for p in (i.get("firstName"), i.get("lastName")) if p)
         rec = {
-            "linkedinUrl": info.get("profile_url"),
-            "publicIdentifier": info.get("public_identifier"),
-            "fullName": info.get("fullname"),
-            "headline": info.get("headline"),
-            "about": info.get("about"),
-            "location": location.get("full"),
-            "currentCompany": info.get("current_company"),
-            "followerCount": info.get("follower_count"),
-            "website": info.get("creator_website"),
-            "email": info.get("email"),
+            "linkedinUrl": i.get("linkedinUrl"),
+            "publicIdentifier": i.get("publicIdentifier"),
+            "fullName": name,
+            "headline": i.get("headline"),
+            "about": i.get("about"),
+            "location": location.get("linkedinText"),
+            "currentCompany": current.get("companyName"),
+            "followerCount": i.get("followerCount"),
+            "website": websites[0] if websites else None,
+            "email": _li_best_email(i.get("emails")),
             "experience": experience,
         }
         out.append({k: v for k, v in rec.items() if v not in (None, "", [])})

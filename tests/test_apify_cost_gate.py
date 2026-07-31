@@ -155,6 +155,58 @@ def test_pay_per_event_ambiguous_multiple_recurring_no_primary_flag_is_none(monk
     assert apify._actor_primary_event_price_usd("ambiguous~actor") is None
 
 
+def _li_profile_pricing():
+    """harvestapi/linkedin-profile-scraper's real pricing shape (2026-07-31):
+    two recurring events, NEITHER flagged primary."""
+    return {"data": {"pricingInfos": [{
+        "pricingModel": "PAY_PER_EVENT",
+        "pricingPerEvent": {"actorChargeEvents": {
+            "profile": {"eventPriceUsd": 0.004},
+            "profile_with_email": {"eventPriceUsd": 0.01},
+        }},
+    }]}}
+
+
+def test_named_event_key_prices_ambiguous_actor(monkeypatch):
+    # Without the hint this is the ambiguous case above and returns None,
+    # which the gate treats as blocked — naming the event is what keeps an
+    # ordinary one-profile call automatic.
+    _reset_caches()
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+    monkeypatch.setattr(apify.requests, "get", lambda *a, **k: _FakeResponse(_li_profile_pricing()))
+    actor = apify.ACTORS["li_profile"]
+    assert apify._actor_primary_event_price_usd(actor) is None
+    assert apify._actor_primary_event_price_usd(actor, "profile") == 0.004
+    assert apify._actor_primary_event_price_usd(actor, "profile_with_email") == 0.01
+
+
+def test_unknown_event_key_is_none_not_a_fallback_price(monkeypatch):
+    # A hint that has gone stale (actor renamed its events) must fail closed
+    # into "can't estimate", never quietly bill at some other event's rate.
+    _reset_caches()
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+    monkeypatch.setattr(apify.requests, "get", lambda *a, **k: _FakeResponse(_li_profile_pricing()))
+    assert apify._actor_primary_event_price_usd(apify.ACTORS["li_profile"], "gone") is None
+
+
+def test_pricing_cache_is_keyed_per_event_not_per_actor(monkeypatch):
+    # One actor, two prices: a cache keyed on the actor alone would hand the
+    # email mode the no-email mode's price.
+    _reset_caches()
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+    calls = {"n": 0}
+
+    def fake_get(*a, **k):
+        calls["n"] += 1
+        return _FakeResponse(_li_profile_pricing())
+    monkeypatch.setattr(apify.requests, "get", fake_get)
+    actor = apify.ACTORS["li_profile"]
+    assert apify._actor_primary_event_price_usd(actor, "profile") == 0.004
+    assert apify._actor_primary_event_price_usd(actor, "profile_with_email") == 0.01
+    assert apify._actor_primary_event_price_usd(actor, "profile") == 0.004  # cached
+    assert calls["n"] == 2
+
+
 def test_price_none_on_network_failure(monkeypatch):
     _reset_caches()
     monkeypatch.setattr(apify, "_auth_headers", lambda: {})
@@ -188,7 +240,7 @@ def test_price_cached_after_first_lookup(monkeypatch):
 def test_estimate_cost_multiplies_price_by_item_count(monkeypatch):
     _reset_caches()
     monkeypatch.setattr(
-        apify, "_actor_primary_event_price_usd", lambda actor_id: 0.002
+        apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 0.002
     )
     est, reason = apify.estimate_cost_usd("some~actor", 10)
     assert est == 0.02
@@ -197,7 +249,7 @@ def test_estimate_cost_multiplies_price_by_item_count(monkeypatch):
 
 def test_estimate_cost_unknown_when_price_unavailable(monkeypatch):
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: None)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: None)
     est, reason = apify.estimate_cost_usd("some~actor", 10)
     assert est is None
     assert reason
@@ -207,7 +259,7 @@ def test_require_cost_approval_noop_when_already_approved(monkeypatch):
     _reset_caches()
     # If this were called, it would fail the test (no price mock supplied) —
     # approved=True must short-circuit before any estimate is attempted.
-    def boom(actor_id):
+    def boom(actor_id, event_key=None):
         raise AssertionError("should not estimate when already approved")
     monkeypatch.setattr(apify, "_actor_primary_event_price_usd", boom)
     apify._require_cost_approval("some~actor", 999, approved=True)  # no raise
@@ -215,7 +267,7 @@ def test_require_cost_approval_noop_when_already_approved(monkeypatch):
 
 def test_require_cost_approval_blocks_over_threshold(monkeypatch):
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.002)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 0.002)
     try:
         apify._require_cost_approval("some~actor", 100, approved=False)  # $0.20
     except apify.ApifyCostApprovalRequired as exc:
@@ -227,7 +279,7 @@ def test_require_cost_approval_blocks_over_threshold(monkeypatch):
 
 def test_require_cost_approval_blocks_when_unknown(monkeypatch):
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: None)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: None)
     try:
         apify._require_cost_approval("some~actor", 1, approved=False)
     except apify.ApifyCostApprovalRequired as exc:
@@ -238,14 +290,14 @@ def test_require_cost_approval_blocks_when_unknown(monkeypatch):
 
 def test_require_cost_approval_allows_under_threshold(monkeypatch):
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.002)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 0.002)
     apify._require_cost_approval("some~actor", 5, approved=False)  # $0.01, no raise
 
 
 def test_require_cost_approval_at_threshold_is_allowed(monkeypatch):
     # Exactly the threshold should not require approval (gate is "> threshold").
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.01)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 0.01)
     apify._require_cost_approval("some~actor", 10, approved=False)  # exactly $0.10
 
 
@@ -253,7 +305,7 @@ def test_require_cost_approval_at_threshold_is_allowed(monkeypatch):
 
 def test_verify_emails_blocks_over_threshold_before_running(monkeypatch):
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 1.0)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 1.0)
 
     def boom(*a, **k):
         raise AssertionError("run_actor should not be called when cost-gated")
@@ -269,7 +321,7 @@ def test_verify_emails_blocks_over_threshold_before_running(monkeypatch):
 def test_verify_emails_runs_when_approved(monkeypatch):
     _reset_caches()
 
-    def boom(actor_id):
+    def boom(actor_id, event_key=None):
         raise AssertionError("should not estimate when already approved")
     monkeypatch.setattr(apify, "_actor_primary_event_price_usd", boom)
     monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [{"email": "a@b.com", "status": "ok"}])
@@ -279,7 +331,7 @@ def test_verify_emails_runs_when_approved(monkeypatch):
 
 def test_instagram_gates_on_limit(monkeypatch):
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.01)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 0.01)
 
     def boom(*a, **k):
         raise AssertionError("run_actor should not be called when cost-gated")
@@ -296,7 +348,7 @@ def test_instagram_routes_details_to_profile_actor_posts_to_post_actor(monkeypat
     # The Instagram split (2026-07-18): details -> instagram-profile-scraper
     # (usernames input), posts -> instagram-post-scraper (username input).
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.001)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 0.001)
     seen = {}
 
     def fake_run(actor_id, run_input, **k):
@@ -320,7 +372,7 @@ def test_instagram_routes_details_to_profile_actor_posts_to_post_actor(monkeypat
 
 def test_instagram_post_routes_to_post_actor(monkeypatch):
     _reset_caches()
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id: 0.001)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", lambda actor_id, event_key=None: 0.001)
     seen = {}
 
     def fake_run(actor_id, run_input, **k):
@@ -338,6 +390,121 @@ def test_ig_username_normalizes_urls_and_handles(monkeypatch=None):
     assert apify._ig_username("@coachjane") == "coachjane"
     assert apify._ig_username("https://www.instagram.com/coachjane/?hl=en") == "coachjane"
     assert apify._ig_username("instagram.com/coachjane") == "coachjane"
+
+
+def test_linkedin_profile_routes_to_harvestapi_with_mode_string(monkeypatch):
+    # The li_profile swap back to harvestapi (2026-07-31): `queries` input,
+    # and a profileScraperMode enum string the actor matches exactly.
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.004)
+    seen = {}
+
+    def fake_run(actor_id, run_input, **k):
+        seen["actor"] = actor_id
+        seen["input"] = run_input
+        return []
+    monkeypatch.setattr(apify, "run_actor", fake_run)
+
+    apify.linkedin_profile("https://www.linkedin.com/in/coachjane")
+    assert seen["actor"] == "harvestapi~linkedin-profile-scraper"
+    assert seen["input"] == {
+        "queries": ["https://www.linkedin.com/in/coachjane"],
+        "profileScraperMode": "Profile details no email ($4 per 1k)",
+    }
+
+    apify.linkedin_profile("coachjane", with_email=True)
+    assert seen["input"]["profileScraperMode"] == "Profile details + email search ($10 per 1k)"
+
+
+def test_linkedin_profile_gates_on_the_mode_actually_being_run(monkeypatch):
+    # The email mode bills a different event; the estimate must price that
+    # one, not assume the cheap mode.
+    _reset_caches()
+    asked = []
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [])
+
+    def fake_price(actor_id, event_key=None):
+        asked.append(event_key)
+        return 0.004
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", fake_price)
+    apify.linkedin_profile("coachjane")
+    apify.linkedin_profile("coachjane", with_email=True)
+    assert asked == ["profile", "profile_with_email"]
+
+
+def test_linkedin_profile_normalizes_harvestapi_output(monkeypatch):
+    # harvestapi is flat where apimaestro nested under basic_info — callers
+    # must keep seeing the same keys across the swap.
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.004)
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [{
+        "linkedinUrl": "https://www.linkedin.com/in/coachjane",
+        "publicIdentifier": "coachjane",
+        "firstName": "Jane",
+        "lastName": "Doe",
+        "headline": "Leadership coach",
+        "about": "I coach founders.",
+        "location": {"linkedinText": "Dubai, United Arab Emirates"},
+        "currentPosition": [{"companyName": "Jane Doe Coaching"}],
+        "followerCount": 4097,
+        "websites": ["https://janedoe.ae"],
+        "emails": [
+            {"email": "stale@old.com", "status": "invalid", "deliverable": False},
+            {"email": "jane@janedoe.ae", "status": "valid", "deliverable": True},
+        ],
+        "experience": [
+            {"position": "Founder", "companyName": "Jane Doe Coaching",
+             "location": "Dubai", "duration": "4 yrs",
+             "endDate": {"text": "Present"}},
+            {"position": "Consultant", "companyName": "Someone Else",
+             "endDate": {"text": "2021"}},
+        ],
+    }])
+    rec = apify.linkedin_profile("coachjane", with_email=True)[0]
+    assert rec["fullName"] == "Jane Doe"
+    assert rec["location"] == "Dubai, United Arab Emirates"
+    assert rec["currentCompany"] == "Jane Doe Coaching"
+    assert rec["followerCount"] == 4097
+    assert rec["website"] == "https://janedoe.ae"
+    # the deliverable address wins over the first one listed
+    assert rec["email"] == "jane@janedoe.ae"
+    assert rec["experience"][0] == {
+        "title": "Founder", "company": "Jane Doe Coaching",
+        "location": "Dubai", "duration": "4 yrs", "is_current": True,
+    }
+    # a finished role carries no is_current key at all, rather than False
+    assert "is_current" not in rec["experience"][1]
+
+
+def test_linkedin_profile_falls_back_to_an_unverified_address(monkeypatch):
+    # No address is verified-valid: return the one we have rather than none —
+    # email-verify re-checks it downstream anyway.
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.01)
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [{
+        "publicIdentifier": "coachjane",
+        "emails": [{"email": "jane@janedoe.ae", "status": "unknown"}],
+    }])
+    assert apify.linkedin_profile("coachjane", with_email=True)[0]["email"] == "jane@janedoe.ae"
+
+
+def test_linkedin_profile_surfaces_actor_side_failure(monkeypatch):
+    # An unresolvable profile comes back as an `error` field in a 200 response;
+    # it must not read as an empty-but-valid profile.
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.004)
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [
+        {"error": "not_found", "errorDescription": "profile does not exist"}])
+    try:
+        apify.linkedin_profile("ghost")
+    except apify.ApifyError as exc:
+        assert "ghost" in str(exc)
+    else:
+        raise AssertionError("expected ApifyError on an actor-side failure")
 
 
 def test_footprint_search_forwards_approved_to_both_google_search_calls(monkeypatch):
