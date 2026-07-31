@@ -329,6 +329,15 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
 
     batch_blocked = bool(batch_result and not batch_result.passed)
 
+    # Clear last run's files FIRST. They were only written inside
+    # `if not batch_blocked and passed`, so a blocked or fully-rejected batch
+    # left the previous run's leads.csv sitting in the same default `out/`
+    # directory — reporting "nothing written" over a file that is still there
+    # and still uploadable.
+    for stale in ("leads.csv", "preview.txt", "wall-additions.csv",
+                  "line-usage.csv", "rejected.txt"):
+        (out / stale).unlink(missing_ok=True)
+
     csv_path = out / "leads.csv"
     preview_path = out / "preview.txt"
     rejects_path = out / "rejected.txt"

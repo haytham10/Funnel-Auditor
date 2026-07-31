@@ -105,6 +105,10 @@ class SegmentResult:
         found = {
             self.meetings, self.first_meeting_days, self.clients,
             self.aed_closed, self.client_price_aed,
+            # The docstring says every field is citable, and these two were not
+            # in the set: a line saying "I wrote to 401 business coaches" was
+            # rejected as invented although 401 is this row's own `sent`.
+            self.sourced, self.sent,
         }
         for text in (self.period, self.close_period):
             found |= period_numbers(text)
@@ -148,8 +152,14 @@ class FactTable:
         if self.total_meetings:
             numbers.add(round(100 * self.total_clients / self.total_meetings))
         if self.total_sent:
+            # A float, and the old `isinstance(n, int)` filter on the next line
+            # threw it straight back out — so the real reply rate (3.2%) was
+            # unwritable, while `lint._licensed` carried rounding logic that
+            # existed only to accept it. A gate that cannot pass a true number
+            # is a gate that teaches drafters to distrust it.
             numbers.add(round(100 * self.total_meetings / self.total_sent, 1))
-        return {n for n in numbers if isinstance(n, int)}
+        return {n for n in numbers if isinstance(n, (int, float))
+                and not isinstance(n, bool)}
 
 
 def load_facts(path: Path | None = None) -> FactTable:
@@ -671,6 +681,29 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
     """
     bank = bank or CopyBank.load()
     facts = facts or load_facts()
+
+    # Email is the identity key throughout this function, so a blank one merges
+    # people. `Research.email` defaults to "", and two address-less leads
+    # collapsed into a single anchor: three leads in, two out, with a Health
+    # coach left holding a Business identity line and `deal` cheerfully
+    # reporting "2 leads". Refused rather than worked around — a lead with no
+    # address cannot be exported anyway, so silently dropping it here would only
+    # move the confusion downstream.
+    missing = [l for l in leads if not (l.get("email") or "").strip()]
+    if missing:
+        raise ValueError(
+            f"{len(missing)} lead(s) have no email, and the deal is keyed by "
+            f"address: {[l.get('name') or l.get('slug') or '?' for l in missing][:5]}. "
+            f"Resolve or drop them before dealing.")
+    seen: dict[str, int] = {}
+    for lead in leads:
+        seen[lead["email"]] = seen.get(lead["email"], 0) + 1
+    duplicated = [e for e, n in seen.items() if n > 1]
+    if duplicated:
+        raise ValueError(
+            f"the same address appears more than once in this batch: "
+            f"{duplicated[:5]}. Dedupe before dealing, or one of them silently "
+            f"takes the other's lines.")
 
     fixed: dict[str, dict[str, Line]] = {}
     for beat, lines in (("offer", bank.offer), ("cta", bank.cta), ("ps", bank.ps)):

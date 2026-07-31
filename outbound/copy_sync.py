@@ -81,6 +81,20 @@ class SyncResult:
         return "\n".join(out)
 
 
+def _truthy_active(value) -> bool:
+    """An Airtable checkbox, read safely in every shape it arrives in.
+
+    True / "true" / "yes" / 1 are live. None (the field omitted, which is what
+    Airtable sends for unchecked) and False are not. A string that is present
+    but empty is not either.
+    """
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in ("true", "yes", "y", "1", "checked")
+
+
 def normalize_records(records: list[dict]) -> tuple[list[dict], list[str]]:
     """Airtable records -> our line shape. Inactive rows are skipped, not failed.
 
@@ -106,7 +120,12 @@ def normalize_records(records: list[dict]) -> tuple[list[dict], list[str]]:
             ).hexdigest()[:6]
             line_id = f"{beat_name or 'line'}-{digest}"
             generated.append(f"{line_id} (auto, no Line ID given)")
-        if row.get("active") is False:
+        # Airtable OMITS an unchecked checkbox from `fields`, so an unticked
+        # Active arrives as absent, not False — and `is False` never fired.
+        # Unchecking a line to retire it did nothing at all, and the line kept
+        # being dealt. Absent now means inactive, which is also the safer
+        # default: a row that does not say it is live is not dealt.
+        if not _truthy_active(row.get("active")):
             skipped.append(f"{line_id}: Active unchecked")
             continue
 

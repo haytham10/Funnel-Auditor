@@ -136,6 +136,11 @@ def classify_footprint_hits(
     for h in (subdomain_hits or []):
         if not isinstance(h, dict) or not h.get("url"):
             continue
+        # The noise filter ran only over marker hits, so a platform's own page
+        # arriving through the subdomain query (`site:kajabi.com` returning
+        # kajabi.com/pricing) became a sourcing candidate.
+        if _is_footprint_noise(h["url"]):
+            continue
         host = _host_of(h["url"])
         if host and host not in by_host:
             by_host[host] = {**h, "foundVia": "subdomain", "platform": key}

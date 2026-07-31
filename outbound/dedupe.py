@@ -107,10 +107,36 @@ def email_key(address: str) -> str:
     return f"{local}@{domain}"
 
 
+# Hosts that thousands of coaches share. A registrable domain identifies a
+# PERSON only when the domain is theirs; for a link-in-bio or social host the
+# path is the identity and the domain is noise, so keying on it merges everyone.
+# The live wall already had six rows collapsed onto three such hosts — two of
+# them warm — which broke in both directions: a new coach on `linktr.ee/x`
+# matched Lee Harris and was reported "already present", so she was emailed and
+# then never walled; and any lead carrying `stan.store` hit Ben Pringle's warm
+# row and halted the whole batch.
+_NON_IDENTIFYING_HOSTS = frozenset({
+    "linktr.ee", "beacons.ai", "bio.link", "stan.store", "milkshake.app",
+    "taplink.cc", "linkin.bio", "carrd.co", "about.me", "solo.to", "many.link",
+    "instagram.com", "linkedin.com", "facebook.com", "youtube.com", "youtu.be",
+    "tiktok.com", "twitter.com", "x.com", "medium.com", "substack.com",
+    "wixsite.com", "squarespace.com", "wordpress.com", "blogspot.com",
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "yahoo.com",
+    "icloud.com", "me.com", "proton.me", "protonmail.com",
+})
+
+
 def domain_key(url_or_domain: str) -> str:
+    """The registrable domain, or "" when it identifies nobody in particular.
+
+    An empty key is never indexed and never matches, which is the correct
+    outcome: two coaches on the same link-in-bio host are not the same person,
+    and the name and email passes still cover them.
+    """
     if not url_or_domain:
         return ""
-    return registrable_domain(url_or_domain)
+    domain = registrable_domain(url_or_domain)
+    return "" if domain in _NON_IDENTIFYING_HOSTS else domain
 
 
 @dataclass
@@ -175,7 +201,13 @@ class ContactWall:
                 email=row.get("Email") or row.get("email") or "",
                 domain=row.get("Site URL") or row.get("Domain") or row.get("domain") or "",
                 status=status,
-                warm=_truthy(warm) if warm is not None else _is_warm(status),
+                # A PRESENT BUT EMPTY column must not beat the status. `""` is
+                # not None, so `warm is not None` let a blank checkbox override
+                # "Reply Received" and mark a live thread cold — after which a
+                # loose name match returns a NameEcho, which by design proceeds.
+                # That is the one failure this module says destroys rather than
+                # wastes, reached through an empty cell.
+                warm=_truthy(warm) or _is_warm(status),
                 track=row.get("Track") or row.get("track") or "",
             ))
         return wall

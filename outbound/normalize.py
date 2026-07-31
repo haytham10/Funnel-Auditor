@@ -261,9 +261,18 @@ def map_row(row: dict, *, source: str = "") -> Lead:
 
         if field_name == "site_url":
             verdict = classify_site(value)
-            lead.site_verdict = verdict.verdict
+            # Only record the verdict that matches what we KEPT. `site_url` is
+            # only ever set (never cleared), so with two site-ish columns the
+            # last one processed used to stamp its verdict over the first —
+            # leaving a lead with a good site carrying verdict "junk" and a note
+            # saying the site was dropped. Nothing in Python reads the field,
+            # but an operator reading the profile does.
+            # Record the verdict only when it describes what we KEPT.
+            if verdict.verdict == "own_site" or not lead.site_url:
+                lead.site_verdict = verdict.verdict
             if verdict.verdict == "own_site":
                 lead.site_url = verdict.url
+                lead.site_verdict = verdict.verdict
             elif verdict.verdict == "platform":
                 extra_platforms.append(verdict)
                 lead.notes.append(f"site column held a {verdict.platform} URL")

@@ -46,12 +46,23 @@ BRIDGE_PHRASE_CAP = 0.10
 MIN_BATCH_FOR_SHARES = 8
 
 # Words that give away an operator writing to a civilian.
+#
+# Matched on WORD BOUNDARIES, with an explicit suffix where a stem is meant.
+# A raw substring test drops real emails and gives a false reason for it: the
+# hook quotes the lead's own words, so "optimism" tripped "optimi", "auditorium"
+# and "auditioning" tripped "audit", and "Detroit" tripped "ROI". Each of those
+# rejected a whole email and named a jargon word that was never in it, which is
+# unfixable by the drafter because the complaint is not true.
 JARGON = (
-    "funnel", "conversion", "convert", "audit", "sequence", "cadence",
-    "pipeline", "outreach", "prospecting", "lead magnet", "cold email",
-    "optimi", "leverage", "synerg", "touchpoint", "top of funnel",
-    "drip", "nurture", "CRM", "ICP", "KPI", "ROI",
+    r"funnels?", r"conversions?", r"converts?", r"converting",
+    r"audits?", r"auditing", r"sequences?", r"cadences?",
+    r"pipelines?", r"outreach", r"prospecting", r"lead magnets?",
+    r"cold emails?", r"optimi[sz]e[ds]?", r"optimi[sz]ing",
+    r"optimi[sz]ations?", r"leverage[ds]?", r"leveraging",
+    r"synerg(?:y|ies|istic)", r"touchpoints?", r"top of funnel",
+    r"drip", r"nurture", r"CRM", r"ICP", r"KPIs?", r"ROI",
 )
+_JARGON_RE = re.compile(r"\b(?:" + "|".join(JARGON) + r")\b", re.I)
 
 # Closers that hand the reader a free exit and ask for nothing.
 WEAK_CLOSERS = (
@@ -264,9 +275,8 @@ def check_voice(body: str) -> tuple[list[str], list[str]]:
         failures.append(f"bare link or address: {', '.join(links[:3])}")
 
     lowered = body.lower()
-    for word in JARGON:
-        if word.lower() in lowered:
-            failures.append(f'operator jargon: "{word}"')
+    for found in sorted({m.group(0).lower() for m in _JARGON_RE.finditer(body)}):
+        failures.append(f'operator jargon: "{found}"')
     for closer in WEAK_CLOSERS:
         if closer in lowered:
             failures.append(f'weak closer: "{closer}"')
@@ -304,7 +314,8 @@ def check_identity_pronouns(identity: str) -> list[str]:
 
 def check_subject(subject: str) -> list[str]:
     problems = []
-    text = (subject or "").strip()
+    raw = subject or ""
+    text = raw.strip()
     if not text:
         return ["subject is empty"]
     words = len(text.split())
@@ -314,7 +325,9 @@ def check_subject(subject: str) -> list[str]:
         problems.append("em-dash in subject")
     if text.endswith("?") and words <= 3:
         problems.append("subject is a bare question, reads as a template")
-    if text != text.strip() or text.isupper():
+    # `text` was stripped above, so `text != text.strip()` was always False and
+    # only the ALL CAPS half of this ever ran. Checked on the raw value instead.
+    if raw != raw.strip() or text.isupper():
         problems.append("subject capitalisation is off")
     return problems
 
@@ -324,10 +337,16 @@ def check_subject(subject: str) -> list[str]:
 # scraped list" and `ps-01` says "not a list", and four lines apart in ninety
 # words the same denial twice reads as protesting too much. A cold reader caught
 # it on a real draft; nothing mechanical could, because neither line is at fault.
+# Matched on word boundaries, for the same reason JARGON is: `"list" in text`
+# fires inside realistic, specialist, listen, listing, holistic and enlist. The
+# live offer line b4-01 contains "scraped list", so any ps or cta re-voiced with
+# one of those ordinary words was rejected — and the stated reason was false, so
+# the drafter could not act on it.
 _ECHO_PHRASES = (
-    "list", "pitch deck", "scraped", "no hard feelings", "costs you nothing",
-    "worth the meeting", "one at a time",
+    r"lists?", r"pitch decks?", r"scraped", r"no hard feelings",
+    r"costs? you nothing", r"worth the meeting", r"one at a time",
 )
+_ECHO_RES = [(p, re.compile(rf"\b{p}\b", re.I)) for p in _ECHO_PHRASES]
 
 
 def check_echo(beats: dict[str, str]) -> list[str]:
@@ -339,12 +358,13 @@ def check_echo(beats: dict[str, str]) -> list[str]:
     is a property of the PAIR rather than of either line.
     """
     problems = []
-    drawn = {b: (beats.get(b) or "").lower() for b in ("offer", "cta", "ps")}
-    for phrase in _ECHO_PHRASES:
-        where = [b for b, text in drawn.items() if phrase in text]
+    drawn = {b: (beats.get(b) or "") for b in ("offer", "cta", "ps")}
+    for phrase, pattern in _ECHO_RES:
+        where = [b for b, text in drawn.items() if pattern.search(text)]
         if len(where) > 1:
+            label = phrase.replace(r"s?", "").replace(r"\b", "")
             problems.append(
-                f"the {' and '.join(where)} beats both say {phrase!r} — "
+                f"the {' and '.join(where)} beats both say {label!r} — "
                 f"re-voice one of them"
             )
     return problems
@@ -456,7 +476,11 @@ def check_batch(emails: list[dict], anchor_shares: dict | None = None) -> Result
             )
 
     subjects = [e.get("subject", "").strip().lower() for e in emails]
-    repeats = {s for s in subjects if s and subjects.count(s) > 1}
+    # Sorted, not set-ordered. The design says a skill quotes the gate's line
+    # verbatim; a set iterates in string-hash order, which is randomised per
+    # process, so the same failing batch printed its subjects in a different
+    # order on every run and no two quotes matched.
+    repeats = sorted({s for s in subjects if s and subjects.count(s) > 1})
     for subject in repeats:
         result.failures.append(f'subject "{subject}" is reused in this batch')
 

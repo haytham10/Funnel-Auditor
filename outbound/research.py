@@ -19,6 +19,7 @@ Two rules encoded here:
 from __future__ import annotations
 
 import re
+import dataclasses
 from dataclasses import dataclass, field, asdict
 from datetime import date
 
@@ -78,8 +79,30 @@ class Research:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Research":
-        known = {f for f in cls.__dataclass_fields__}
-        return cls(**{k: v for k, v in data.items() if k in known})
+        """Build from a worker's JSON, coercing `null` to the field's default.
+
+        A worker that writes `"uae_based_source": null` — the honest JSON for
+        "I could not settle this" — produced `AttributeError: 'NoneType' has no
+        attribute 'strip'` in `validate`, uncaught. That turned a schema
+        violation into what reads as a crashed gate, which is precisely what the
+        loaders were written to prevent. Coerced once here rather than with an
+        `or ""` at each of the nine use sites, where the tenth would be missed.
+        """
+        known = cls.__dataclass_fields__
+        fields = {}
+        for key, value in data.items():
+            if key not in known:
+                continue
+            if value is None:
+                spec = known[key]
+                if spec.default is not dataclasses.MISSING:
+                    value = spec.default
+                elif spec.default_factory is not dataclasses.MISSING:
+                    value = spec.default_factory()
+                else:
+                    continue
+            fields[key] = value
+        return cls(**fields)
 
     @property
     def passes_floors(self) -> bool:
@@ -172,6 +195,28 @@ def validate(research: Research) -> list[str]:
     return problems
 
 
+def schema_help() -> str:
+    """The field list, generated from the dataclass rather than written down.
+
+    `research-worker` is told its object must match this module, and nothing
+    enumerates the fields for it — the same weak contract that had drafters
+    inventing an email address because their return block asked for one. Prose
+    listing the fields would drift the first time one changed; this cannot,
+    because it IS the dataclass.
+    """
+    from dataclasses import fields as dataclass_fields
+
+    rows = []
+    for f in dataclass_fields(Research):
+        kind = getattr(f.type, "__name__", str(f.type))
+        rows.append(f"    {f.name:26} {kind}")
+    return ("  the schema, one flat object per lead:\n" + "\n".join(rows) +
+            "\n  verdict fields take exactly 'yes' | 'no' | 'unclear', and each "
+            "carries its own\n  _source naming the page it came from. Fields you "
+            "could not settle stay at\n  their defaults; do not invent values to "
+            "look complete.")
+
+
 def report(research: Research) -> str:
     """The quotable summary a worker returns and an orchestrator cross-checks."""
     problems = validate(research)
@@ -189,6 +234,8 @@ def report(research: Research) -> str:
     ]
     for problem in problems:
         lines.append(f"  SCHEMA  {problem}")
+    if problems:
+        lines.append(schema_help())
     for blocker in research.blockers():
         lines.append(f"  blocked  {blocker}")
     return "\n".join(lines)

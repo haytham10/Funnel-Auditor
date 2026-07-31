@@ -27,6 +27,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from audit.urls import registrable_domain
+
 YES, NO, UNCLEAR = "yes", "no", "unclear"
 
 ACTIVITY_WINDOW_DAYS = 30
@@ -40,7 +42,8 @@ UAE_CITIES = (
     "ras al khaimah", "ras al-khaimah", "umm al quwain", "al ain",
 )
 UAE_MARKERS = (
-    "united arab emirates", "u.a.e", "uae", ".ae", "jumeirah", "marina",
+    "united arab emirates", "u.a.e", "uae", ".ae", "jumeirah",
+    "dubai marina",
     "downtown dubai", "difc", "jlt", "business bay", "silicon oasis",
     "media city", "internet city", "khalifa city", "yas island",
     # Neighbourhoods a real bio writes instead of the emirate. Every one of
@@ -251,13 +254,29 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
             return Verdict(UNCLEAR, source or "text",
                            f"claims reach, not residence: {phrase}")
 
+    # An explicit statement of residence is checked FIRST, and settles it either
+    # way. It used to run last, after a loose scan for UAE words — so "I am a
+    # coach based in Toronto. Read my essay at nowhere.aeon.co" returned YES on
+    # ".ae", and "Our client Marina came to us from Manchester" returned YES on
+    # "marina". A coach who has written down where she lives outranks a word
+    # that happened to appear in a URL.
+    stated = _stated_residence(text, source)
+    if stated is not None:
+        return stated
+
     for marker in UAE_CITIES:
         if re.search(rf"\b{re.escape(marker)}\b", haystack):
             return Verdict(YES, source or "text", marker)
-    if domain.lower().endswith(".ae"):
+    # The TLD, on the DOMAIN only. `".ae" in haystack` matched aeon.co,
+    # michae.com and every other incidental "ae" in a page of prose.
+    if registrable_domain(domain).endswith(".ae") if domain else False:
         return Verdict(YES, source or "domain", domain)
+    # Word-bounded, for the same reason. "marina" inside "Marina Bay, Singapore"
+    # is not a Dubai address.
     for marker in UAE_MARKERS:
-        if marker in haystack:
+        if marker == ".ae":
+            continue                      # handled above, on the domain only
+        if re.search(rf"\b{re.escape(marker)}\b", haystack):
             return Verdict(YES, source or "text", marker)
 
     # A RECOGNISED other place is the only thing that earns a NO. Matched
@@ -269,6 +288,11 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
     # lead, and it hard-killed eleven real UAE localities including Al Barsha,
     # Deira and Mirdif. Now an unrecognised place is `unclear` — one research
     # call — because a false kill is permanent and nobody ever sees it.
+    return _stated_residence(text, source) or Verdict(UNCLEAR, source or "text")
+
+
+def _stated_residence(text: str, source: str = "") -> "Verdict | None":
+    """A "based in X" line, resolved. None when the text has no such line."""
     other = re.search(
         r"\b(?:based|located|living|headquartered)\s+in\s+(?:the\s+)?"
         r"([A-Za-z]+(?:[ -][A-Za-z]+)?)",
@@ -281,6 +305,16 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
             return Verdict(YES, source or "text", other.group(0))
         if lowered in UAE_SHORTHAND:
             return Verdict(YES, source or "text", f"{other.group(0)} (UAE shorthand)")
+        # The neighbourhood list too. This branch now runs BEFORE the general
+        # marker scan, so without this "Based in Al Barsha" reached the foreign
+        # check and came back unclear — undoing the eleven-locality fix.
+        # Check the whole matched phrase too, not only the captured group: the
+        # optional "the" prefix in the pattern above consumes it, so "Based in
+        # The Greens" captured just "Greens" and missed the marker.
+        whole = other.group(0).lower()
+        if any(m in lowered or m in whole
+               for m in UAE_MARKERS if m != ".ae"):
+            return Verdict(YES, source or "text", other.group(0))
         if lowered in FOREIGN_PLACES:
             return Verdict(NO, source or "text", other.group(0))
         # "Based in Manchester, UK" — the regex takes two words, so check the
@@ -290,8 +324,7 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
             return Verdict(NO, source or "text", other.group(0))
         return Verdict(UNCLEAR, source or "text",
                        f"{other.group(0)} — place not recognised either way")
-
-    return Verdict(UNCLEAR, source or "text")
+    return None
 
 
 def check_coach(*, headline: str = "", text: str = "", source: str = "") -> Verdict:

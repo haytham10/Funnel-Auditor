@@ -280,6 +280,19 @@ def apify_batch_plan(urls: list[str], *, render: bool = False,
     }
 
 
+def _read_key(lead) -> str:
+    """A key that is unique per LEAD, not per name.
+
+    `slug` comes from the name and falls back to the domain, so two rows from a
+    directory that share a company site — or two coaches with the same name —
+    collapsed into one entry. `partition` dedupes on name and email but never on
+    domain, so nameless rows survive to here. The survivor's page text is then
+    the other person's, and it feeds qualify and the hook.
+    """
+    return (getattr(lead, "email", "") or "").strip().lower() or \
+        f"{getattr(lead, 'slug', '')}|{getattr(lead, 'site_url', '')}"
+
+
 def batch_fetch(leads: list, *, max_pages: int = 5) -> dict:
     """Tier 0 across a whole batch, then the plan for what it couldn't read.
 
@@ -295,7 +308,7 @@ def batch_fetch(leads: list, *, max_pages: int = 5) -> dict:
         if not getattr(lead, "site_url", ""):
             continue
         read = read_site(lead.site_url, max_pages=max_pages, session=session)
-        reads[lead.slug] = read
+        reads[_read_key(lead)] = read
         if read.escalate:
             thin.extend(read.escalate)
         elif not read.ok:

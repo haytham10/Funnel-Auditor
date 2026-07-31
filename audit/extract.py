@@ -214,9 +214,20 @@ def extract_dates(text: str, today: date | None = None, page_url: str = "") -> l
 
             cleaned = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", raw)
             year_assumed = not re.search(r"\d{4}", raw)
+            # `dayfirst` on the slash form. dateutil defaults to MONTH-first, so
+            # a UAE/UK-format "03/07/2026" silently became 7 March instead of
+            # 3 July — and `check_active` is a floor where a `no` is the only
+            # thing that kills. An active coach was dropped with an evidence
+            # string that read authoritatively. Ambiguous either way, so it is
+            # resolved toward this market's convention rather than the library's.
+            slash_form = "/" in cleaned
             try:
-                parsed = dateparser.parse(cleaned, default=dateparser.parse(f"{today.year}-06-15")).date()
-            except (ValueError, OverflowError):
+                parsed = dateparser.parse(
+                    cleaned,
+                    default=dateparser.parse(f"{today.year}-06-15"),
+                    dayfirst=slash_form,
+                ).date()
+            except (ValueError, OverflowError, TypeError):
                 continue
 
             # Bare years-in-past like "© 2024" parse oddly; also skip absurd ranges
@@ -248,6 +259,11 @@ def extract_dates(text: str, today: date | None = None, page_url: str = "") -> l
                 "stale_candidate": stale,
             })
 
-    # Stale candidates first, then most recent
-    results.sort(key=lambda d: (not d["stale_candidate"], abs(d["days_past"])))
+    # Most recent FIRST, then stale candidates. The old order put every stale
+    # candidate ahead of every fresh one and truncated to 30 — and a stale
+    # candidate requires days_past > 7, so a genuinely recent date always sorted
+    # after them. An events archive with thirty past cohorts pushed "Posted 28
+    # July 2026" off the end, and the activity floor then read the oldest date
+    # on the page as the newest. Nothing downstream depends on stale-first.
+    results.sort(key=lambda d: (abs(d["days_past"]), not d["stale_candidate"]))
     return results[:30]

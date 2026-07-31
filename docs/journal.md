@@ -1,3 +1,84 @@
+## 2026-07-31 (the diagnostic pass) — 16 findings, worst-first
+
+Haytham: "full diagnose end-to-end, no more loose ends, we need to ship." Two
+adversarial audits plus a systematic sweep of every command against every bad
+input. Everything below was reproduced before it was fixed.
+
+**The four that would have destroyed something.**
+
+*A blank `Warm` column beat the status.* `warm is not None` meant an empty
+checkbox overrode "Reply Received" and marked a live thread cold. A loose name
+match on a cold contact returns a `NameEcho`, which by design proceeds — so the
+one send this machine calls destructive rather than wasteful was reachable
+through an empty cell.
+
+*Shared link-in-bio hosts collapsed distinct people into one wall entry.* The
+live wall already had six rows keyed on `stan.store`, `linktr.ee` and
+`beacons.ai`, two of them warm. It broke both ways: a new coach on
+`linktr.ee/x` matched Lee Harris and was reported "already present", so she was
+emailed and then never walled; and any lead carrying `stan.store` hit a warm row
+and halted the batch. `domain_key` now returns "" for a host that identifies
+nobody — the path is the identity, and the registrable domain throws it away.
+
+*A blank email merged two leads in the deal.* Keyed by address, and
+`Research.email` defaults to "". Three leads in, two anchors out, with a Health
+coach holding a Business identity line and `deal` reporting "2 leads". Blank and
+duplicate addresses are now refused outright.
+
+*`.ae` was substring-matched over the whole page, and the marker scan ran before
+the stated-residence check.* "I am a coach based in Toronto. Read my essay at
+nowhere.aeon.co" returned YES on ".ae"; "Our client Marina came to us from
+Manchester" returned YES on "marina". A non-UAE coach passed the floor and got
+an identity line whose entire premise is the UAE reference group. A written
+statement of residence now outranks an incidental word, markers are word-bounded,
+and the TLD is checked on the domain only.
+
+**Two of the false-rejection bugs were mine, from this same session.** The
+jargon list and my new `_ECHO_PHRASES` both used raw substring tests: "optimism"
+tripped "optimi", "auditorium" and "auditioning" tripped "audit", "Detroit"
+tripped "ROI", and "realistic" tripped "list". Each dropped a whole email and
+named a word that was not in it — unfixable by the drafter, because the
+complaint was false. Both are word-bounded now, with explicit stems.
+
+**A lead lost to a date format.** dateutil parses month-first by default, so a
+UAE/UK "03/07/2026" silently became 7 March, and `check_active` is a floor where
+`no` is the only thing that kills. Separately, `extract_dates` sorted stale
+candidates first and truncated at 30 — and a stale candidate requires
+`days_past > 7`, so a genuinely recent date always sorted after them and fell
+off the end of a long events archive.
+
+**Three gates that could not fire.** The real reply rate (3.2%) was computed and
+then discarded by an `isinstance(n, int)` filter, while `lint._licensed` carried
+rounding logic that existed only to accept it — a true number was unwritable. A
+segment's own `sent` and `sourced` counts were documented as citable and left
+out of the set. And half of `check_subject`'s last check tested `text !=
+text.strip()` on an already-stripped string.
+
+**And the quieter ones.** An unchecked Airtable checkbox arrives ABSENT, not
+`False`, so `is False` never fired and retiring a line did nothing. A blocked
+batch left the previous run's `leads.csv` in the same default `out/` — reporting
+"nothing written" over a file that was still there and still uploadable. `null`
+from a worker crashed the schema gate rather than failing it. `batch_fetch` keyed
+on slug, so two directory rows sharing a company site got one read and the
+survivor's page text was the other person's. Repeated-subject failures printed in
+string-hash order, randomised per process, against a design that says a skill
+quotes the line verbatim.
+
+**Also this pass:** every command now exits 2 rather than tracebacking on a
+missing file, malformed JSON, the wrong JSON shape or an unrecognisable CSV —
+`wall-add` on a mistyped path used to print "0 added, 104 -> 104", which reads
+exactly like "already walled". The echo collision moved from the export gate to
+the deal, where it belongs: one email in sixteen was being rejected for a
+combination no drafter caused. `main.py lint` assembles the body from beats, so
+the PASS line a drafting worker is required to quote is obtainable at all.
+`research` accepts the slice array its own skill tells workers to produce. And
+the test suite was order-dependent — a stub over `audit.airtable` was restored
+only when a previous module existed, so twenty-four export tests failed in the
+full run and passed alone.
+
+385 tests green, order-independent forward and reverse. `tests/test_audit_regressions.py`
+pins all sixteen findings by failure mode.
+
 ## 2026-07-31 (the first real batch) — 13 leads, end to end
 
 Haytham dropped a real list and said run all 12. Every number below is measured,
