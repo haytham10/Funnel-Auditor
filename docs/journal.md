@@ -91,6 +91,53 @@ nothing to do with any change. And editing a module and reverting it inside the
 same second leaves a stale `__pycache__` that mtime invalidation misses, which
 looks exactly like a check ignoring a fix.
 
+### Then a README, and two things it exposed
+
+Haytham asked for a repo README. The care needed was in giving it a job that
+does not overlap START-HERE or the specs — a fourth "what is this" file is the
+rot this whole branch fights. So it is the *repo* front page: quickstart, the
+exit-code table, layout, environment, and where to read next. Everything about
+what the operation IS points at `docs/spec/`.
+
+Added `README.md` to the checked corpus, and it failed immediately on its own
+layout block:
+
+    main.py            the CLI — every command is a decision
+
+which parses as the subcommand `the`, because commands are read from fenced
+blocks. **The obvious fix — requiring a `python` prefix — is wrong**: the docs
+really do write bare `main.py lint`, `main.py apify` and `main.py wall-add`, and
+those would silently stop being checked. A false negative on real content is
+worse than one on alignment. The fix is a single literal space before the
+subcommand: an invocation has one, a column-aligned listing has many.
+
+And the README's first draft stated "452 tests" in two places, which is a value
+the suite owns and which was stale within ten minutes of writing it (454 now).
+Cut, along with "lists all 19" for the command count. The rule catches its
+author as readily as anyone else, which is the point of having it in code.
+
+### And then CI, which was the hole under all of it
+
+Flagged that there was no `.github/workflows/`, so nothing ran the suite on a
+push — meaning `doc-check` only guarded a change if someone remembered pytest.
+Haytham: add it. `.github/workflows/checks.yml` now runs on every push to
+`outbound` and every PR.
+
+Two choices worth the note:
+
+- **`doc-check` is its own step**, even though `test_the_repo_itself_passes`
+  already covers it. A docs drift should report as a named failing step printing
+  the line it was built to print, not as a pytest traceback somebody has to read
+  to discover the docs are stale.
+- **`requirements-dev.txt` rather than a `pip install pytest` line in the YAML.**
+  "What it takes to run the suite" is a fact about this repo, and a fact with one
+  home does not drift. Putting it in CI config would have made the workflow the
+  authority on a dependency, which is the thing this whole branch argues against.
+
+Single Python version, 3.11, matching what the repo is developed on. A matrix
+would invent a support policy nobody has decided; when one is decided it belongs
+in `docs/spec/` first.
+
 ### Open follow-ups
 - [ ] The offer's build order is a set of gates, and none of them is met yet:
       The First Five has never been sold. Everything on the NOT BUILT shelf in

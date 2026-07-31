@@ -1,0 +1,41 @@
+# The gates, run on every push and pull request.
+#
+# Until this existed, `doc-check` only guarded a change if somebody remembered
+# to run pytest by hand — which is the same class of problem the whole gate
+# layer exists to remove. A check nobody runs is a check that does not exist.
+#
+# doc-check runs as its own step even though the suite already covers it via
+# `test_the_repo_itself_passes`. That is on purpose: a docs drift then reports
+# as a named failing step printing the line it is meant to print, instead of a
+# pytest traceback somebody has to read to learn the docs are stale.
+
+name: checks
+
+on:
+  push:
+    branches: [outbound]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Single version, matching what the repo is developed on. A matrix would
+      # invent a support policy nobody has decided on; when one is decided, it
+      # belongs in docs/spec/ first and here second.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: doc-check
+        run: python main.py doc-check
+
+      - name: Tests
+        run: python -m pytest -q

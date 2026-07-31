@@ -65,7 +65,7 @@ from pathlib import Path
 
 # The corpus. Everything else in the repo is code, and code has tests.
 SCAN_GLOBS = ("docs/**/*.md", ".claude/skills/**/*.md")
-SCAN_FILES = ("CLAUDE.md",)
+SCAN_FILES = ("CLAUDE.md", "README.md")
 
 SPEC_DIR = "docs/spec"
 PRICE_OWNER = "docs/spec/03-offer.md"
@@ -101,8 +101,18 @@ _FIELD = re.compile(r"^\*\*(" + "|".join(HEADER_FIELDS) + r"):\*\*\s*(.*)$")
 # `$ python3 main.py apify li-posts` — the leading prompt, the interpreter and
 # the second token are all optional. The second token is only consulted for
 # `apify`, the one command with nested subparsers.
+#
+# Exactly ONE space before the subcommand, deliberately. A column-aligned file
+# listing in a fenced block reads as an invocation otherwise:
+#
+#     main.py            the CLI — every command is a decision
+#
+# which yields the subcommand `the`. Requiring the `python` prefix instead
+# would be the obvious fix and is wrong: docs really do write bare `main.py
+# lint`, `main.py apify` and `main.py wall-add`, and those would stop being
+# checked. A false negative on real content is worse than one on alignment.
 _COMMAND = re.compile(
-    r"(?:\$\s*)?(?:python3?\s+)?main\.py\s+([a-z][a-z0-9|_-]*)(?:\s+([a-z][a-z0-9_-]*))?")
+    r"(?:\$\s*)?(?:python3? )?main\.py ([a-z][a-z0-9|_-]*)(?: +([a-z][a-z0-9_-]*))?")
 
 # A price is a currency marker with a digit against it. Requiring the digit is
 # what saves `top_program_price_aed` and prose about "the price conversation".

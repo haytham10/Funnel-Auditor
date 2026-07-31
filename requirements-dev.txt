@@ -1,0 +1,10 @@
+# What the tests need, on top of requirements.txt.
+#
+# Deliberately a file rather than a line in the CI workflow. "What it takes to
+# run the suite" is a fact about this repo, and a fact with one home does not
+# drift; the same reason copy/results.csv is not a number typed into an email.
+#
+# Every test file also runs standalone (`python tests/test_lint.py`), so the
+# suite works without pytest — this makes `python -m pytest` work too.
+-r requirements.txt
+pytest>=8.0
