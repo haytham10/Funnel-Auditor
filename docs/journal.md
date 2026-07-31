@@ -116,10 +116,29 @@ the suite owns and which was stale within ten minutes of writing it (454 now).
 Cut, along with "lists all 19" for the command count. The rule catches its
 author as readily as anyone else, which is the point of having it in code.
 
+### And then CI, which was the hole under all of it
+
+Flagged that there was no `.github/workflows/`, so nothing ran the suite on a
+push — meaning `doc-check` only guarded a change if someone remembered pytest.
+Haytham: add it. `.github/workflows/checks.yml` now runs on every push to
+`outbound` and every PR.
+
+Two choices worth the note:
+
+- **`doc-check` is its own step**, even though `test_the_repo_itself_passes`
+  already covers it. A docs drift should report as a named failing step printing
+  the line it was built to print, not as a pytest traceback somebody has to read
+  to discover the docs are stale.
+- **`requirements-dev.txt` rather than a `pip install pytest` line in the YAML.**
+  "What it takes to run the suite" is a fact about this repo, and a fact with one
+  home does not drift. Putting it in CI config would have made the workflow the
+  authority on a dependency, which is the thing this whole branch argues against.
+
+Single Python version, 3.11, matching what the repo is developed on. A matrix
+would invent a support policy nobody has decided; when one is decided it belongs
+in `docs/spec/` first.
+
 ### Open follow-ups
-- [ ] **No CI.** There is no `.github/workflows/`, so nothing runs the suite on
-      a push — which means `doc-check` only guards a change if someone runs
-      pytest by hand. A small workflow would close it. Not added; out of scope.
 - [ ] The offer's build order is a set of gates, and none of them is met yet:
       The First Five has never been sold. Everything on the NOT BUILT shelf in
       `docs/spec/03-offer.md` stays there until it is.

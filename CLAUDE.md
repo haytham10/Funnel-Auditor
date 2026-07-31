@@ -240,5 +240,9 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
   `OUTBOUND_COPY_SOURCE=csv` forces the offline path; the test suite sets it.
 - **Smartlead** owns sending. No API key here yet; handover is a CSV Haytham
   uploads by hand.
-- `pip install -r requirements.txt`. No browser needed — Playwright went with
-  the crawler.
+- `pip install -r requirements.txt` to run the machine, `requirements-dev.txt`
+  to also run the tests. No browser needed — Playwright went with the crawler.
+- **CI runs `doc-check` and the suite on every push and PR**
+  (`.github/workflows/checks.yml`). `doc-check` gets its own step even though
+  the suite covers it, so a docs drift reports as a named failure printing its
+  own line rather than a pytest traceback.

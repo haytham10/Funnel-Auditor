@@ -16,13 +16,17 @@ intake -> dedupe -> fetch -> research -> hook -> draft -> lint -> export
 ## Quickstart
 
 ```bash
-pip install -r requirements.txt
-python main.py doc-check          # the docs against the code they describe
-python -m pytest -q               # the suite, doc-check included
+pip install -r requirements-dev.txt   # or requirements.txt to just run it
+python main.py doc-check              # the docs against the code they describe
+python -m pytest -q                   # the suite, doc-check included
 ```
 
-`pytest` is not in `requirements.txt`. Every test file also runs standalone —
-`python tests/test_lint.py` — so the suite works without it.
+`pytest` is in `requirements-dev.txt`, not `requirements.txt` — running the
+machine does not need it. Every test file also runs standalone
+(`python tests/test_lint.py`), so the suite works either way.
+
+Both of those commands run on every push and pull request
+(`.github/workflows/checks.yml`).
 
 Run a whole list end to end by handing a CSV to the `outbound-batch` skill. For
 one email, or to repair one, use `outbound-draft`. Both live in
