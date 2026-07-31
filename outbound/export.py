@@ -252,6 +252,45 @@ def check_address(draft) -> tuple[list[str], list[str]]:
                 f"site is {site_domain} — check it is really theirs"]
 
 
+def check_merge_fields(draft) -> list[str]:
+    """Fields that will appear verbatim in the campaign and may not be right.
+
+    A name in a non-Latin script reaches Smartlead's `last_name` column exactly
+    as the source list wrote it — a real lead on the first batch carried
+    "\u062e\u0648\u0631\u064a" while his own LinkedIn slug read "samikhoury1". The machine does
+    NOT transliterate: guessing someone's preferred Latin spelling is the same
+    class of error as inventing their address, and it is theirs to choose. So
+    this surfaces it and leaves the decision to a human.
+    """
+    import unicodedata
+
+    def non_latin(text: str) -> bool:
+        """A letter from a different script. Accents are NOT that.
+
+        "José Álvarez" is ordinary Latin and belongs in the column as written;
+        an ASCII test flagged it, which would train the reader to ignore this
+        warning. Decomposing strips the accent and leaves a Latin letter, so
+        only a genuinely different alphabet survives.
+        """
+        for ch in text:
+            if not ch.isalpha():
+                continue
+            base = unicodedata.normalize("NFKD", ch)[0]
+            if not ("A" <= base <= "Z" or "a" <= base <= "z"):
+                return True
+        return False
+
+    problems = []
+    for field in ("first_name", "last_name"):
+        value = (getattr(draft, field, "") or "").strip()
+        if value and non_latin(value):
+            problems.append(
+                f"{draft.name or draft.slug}: {field} {value!r} is not Latin "
+                f"script and ships to Smartlead as written — set the spelling "
+                f"this person uses")
+    return problems
+
+
 def check_crm_enums(draft) -> list[str]:
     """Values that a single-select field in Airtable would reject.
 
@@ -316,6 +355,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
         fatal, address_warnings = check_address(draft)
         warnings.extend(address_warnings)
         warnings.extend(check_crm_enums(draft))
+        warnings.extend(check_merge_fields(draft))
         if fatal:
             rejected.append((draft, fatal))
         elif draft.email in drift:

@@ -383,13 +383,26 @@ def test_the_reallocation_is_reproducible():
     assert first == second
 
 
-def test_echo_pairs_names_the_collision_for_the_deal_report():
-    """The workaround has a visible cost: a ps colliding with one of four
-    offers loses roughly a quarter of its allocation and can never reach its
-    declared weight. Someone tuning weights needs to know that."""
+def test_echo_pairs_detects_a_collision_when_one_exists():
+    """The reporter itself, on a bank built to collide. `b4-01` + the old
+    `ps-01` was the live instance; the copy was rewritten so the pair no longer
+    exists, but the mechanism has to keep working for the next one."""
     bank = anchors.CopyBank.from_csv()
-    pairs = anchors.echo_pairs(bank)
-    assert ("b4-01", "ps-01") in pairs
+    colliding = anchors.CopyBank(
+        identity=bank.identity,
+        offer=[anchors.Line(id="b4-t", line="I pulled 10 names. Not a scraped list.")],
+        cta=bank.cta,
+        ps=[anchors.Line(id="ps-t", line="ps: not a list. A fine answer either way.")],
+    )
+    assert ("b4-t", "ps-t") in anchors.echo_pairs(colliding)
+
+
+def test_the_live_bank_has_no_undealable_offer_ps_pair():
+    """Stronger than the old assertion. `ps-01` said "not a list", which only
+    made sense after an offer that mentioned one: it collided with `b4-01` and
+    was a non-sequitur after `b4-03` and `b4-04`. Rewritten, so all sixteen
+    pairs are now dealable and the ps can reach its declared weight."""
+    assert anchors.echo_pairs(anchors.CopyBank.from_csv()) == []
 
 
 # ------------------------------------------------- rebalancing after a hold

@@ -433,6 +433,32 @@ def test_the_crm_enums_match_the_live_base():
     assert "Held" in airtable.LEAD_STATUSES
 
 
+def test_a_non_latin_name_is_flagged_for_a_human_to_set():
+    """A real lead shipped with "\u062e\u0648\u0631\u064a" in last_name while his own LinkedIn slug
+    read "samikhoury1". The machine does NOT transliterate — guessing someone's
+    preferred Latin spelling is the same class of error as inventing their
+    address — so it surfaces it and leaves the choice to a human."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        d.last_name = "\u062e\u0648\u0631\u064a"
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp)
+        assert out["written"] == 1, "a name is not a reason to drop a lead"
+        assert "not Latin script" in out["report"]
+
+
+def test_accented_latin_is_not_flagged():
+    """"José Álvarez" is ordinary Latin and belongs in the column as written.
+    An ASCII test flagged it, which would train the reader to ignore the
+    warning that matters."""
+    with tempfile.TemporaryDirectory() as tmp:
+        for first, last in (("José", "Álvarez"), ("Zoë", "Müller"),
+                            ("Anne-Marie", "O'Brien")):
+            d = draft()
+            d.first_name, d.last_name = first, last
+            out = export.write_batch([d], lint_all([d]), out_dir=tmp)
+            assert "not Latin script" not in out["report"], f"{first} {last}"
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
