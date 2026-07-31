@@ -1,3 +1,22 @@
+## 2026-07-31 (last copy gap) — Executive/individuals filled
+
+`id-exec-3`: *"The executives worth your time are already paying for help
+somewhere. AED 44,000 of that went to an executive coach I found the meetings
+for."*
+
+An Executive coach selling to individuals had exactly one usable line
+(`id-exec-2`), so the deal had to spill her to generic to stay under the
+repetition cap. `id-exec-1` is corporate-framed — budget holders — and unusable
+for a buyer paying for their own coaching. The new line frames the buyer as a
+senior person already spending on help, which is what individuals-facing means
+for this segment, and cites AED 44,000: a number neither other Executive line
+uses, so two Executive coaches comparing emails see different proof.
+
+**`thin_segments` is now empty.** Every segment/audience pool can hold its share
+without repeating a sentence, for the first time since the bank was written.
+
+400 tests green. The bank is 45 lines: 33 identity, 4 offer, 4 cta, 4 ps.
+
 ## 2026-07-31 (the corporate generic) — and the mirror bug it uncovered
 
 Haytham: "write the corporate-facing generic identity line." Writing it was the

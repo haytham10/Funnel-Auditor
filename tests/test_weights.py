@@ -296,10 +296,23 @@ def test_a_mixed_batch_holds_the_cap_across_segments():
 
 def test_thin_segments_names_what_to_write():
     """The spill keeps a batch legal; it does not fix the gap. Nobody writes
-    another Executive line unless something says the pool is too thin."""
-    thin = anchors.thin_segments(anchors.CopyBank.from_csv())
-    assert "Executive/individuals" in thin
-    assert thin["Executive/individuals"] >= 1
+    another line unless something says the pool is too thin.
+
+    Executive/individuals was the live instance and has since been filled, so
+    this exercises the reporter on a bank built with one line in a segment."""
+    bank = anchors.CopyBank.from_csv()
+    one_line = [l for l in bank.identity
+                if not (l.meta.get("coach_type") == "Health"
+                        and l.id != "id-health-1")]
+    thin = anchors.thin_segments(anchors.CopyBank(
+        identity=one_line, offer=bank.offer, cta=bank.cta, ps=bank.ps))
+    assert any(k.startswith("Health/") for k in thin), thin
+
+
+def test_the_live_bank_has_no_thin_segment_left():
+    """Every segment/audience pool can now hold its share without repeating a
+    sentence. Executive/individuals was the last one open."""
+    assert anchors.thin_segments(anchors.CopyBank.from_csv()) == {}
 
 
 def test_a_well_stocked_segment_is_not_flagged_thin():
