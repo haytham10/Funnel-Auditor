@@ -166,7 +166,7 @@ the assigned id is not, and it produces an email that reads fine alongside usage
 counts and a CRM row describing an email nobody received.
 
 It writes only what passed, blocks the whole file on a batch-level failure, and
-lists every rejection with its reason. Four files come out:
+lists every rejection with its reason. Five files come out:
 
 - **`leads.csv`** — exactly eight columns for Smartlead: `email`, `first_name`,
   `last_name`, `website`, `linkedin_profile`, `location`, `subject`, `body`. Nothing

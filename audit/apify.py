@@ -20,11 +20,10 @@ It also wraps email verification (the `email-check` WARN → verify fallback,
 and the confirm-before-CRM step for a found address) and a Google SERP
 scraper (sourcing + finding episode / About / profile pages).
 
-Everything web-fetchable (podcasts, YouTube, About pages, funnel walks,
-checkout probes) stays on the free tier, which is cheaper and already
-connected. This layer is deliberately small: the five Haytham-vetted
-actors below and nothing else. Adding actors is surface area and cost, not
-capability.
+Everything web-fetchable (podcasts, YouTube, About pages, blog posts) stays
+on the free tier, which is cheaper and already connected. This layer is
+deliberately small: the seven Haytham-vetted actors below and nothing
+else. Adding actors is surface area and cost, not capability.
 
 Email verification moved off this layer for a few weeks (2026-07-17, after
 the free plan's small monthly USD cap kept getting hit) and is back on it

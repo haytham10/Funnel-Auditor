@@ -71,6 +71,20 @@ A number sitting next to a named segment must belong to that segment. Widening
 to "a coach here" is honest and allowed. Calling a Business result a health
 coach's is a relabel, and it surfaces the moment two coaches compare emails.
 
+**The check does not care whose number it is, and that is deliberate.** A digit
+inside the lead's OWN product name trips it too — "Case Cracking 101" fails
+because 101 is not a client result, even though it is her title and not a claim
+about anything. That is not a bug to work around by arguing with the linter: the
+rule is "no digit in the body that isn't a real result", and loosening it to
+allow digits beside a capitalised word would let "AED 91,500 Programme" through,
+which is the exact failure the whole check exists to stop.
+
+The workaround is one move and costs nothing: **put the full name in the
+subject, and describe it in the body.** "the conversation behind case cracking
+101" as the subject, "the Case Cracking course" in the sentence. A drafter found
+this unaided on the first real batch; you should not need a second round to
+rediscover it. Ordinals are already exempt, so "the 21st of June" is fine.
+
 ## Subject
 
 Under 8 words, lowercase-ish, the hook compressed. Never a bare question. It

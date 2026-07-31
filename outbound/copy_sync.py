@@ -285,8 +285,16 @@ def validate(lines: list[dict], facts=None) -> list[str]:
 
 # CSV column order per beat, matching the committed files exactly so a
 # regenerated file diffs cleanly against a hand-edited one.
+# `weight` is on EVERY beat, identity included. It was omitted from identity on
+# the assumption that identity is matched on segment rather than weighted — but
+# `anchors.weight_of` reads it for any line, and the Airtable field accepts it,
+# so a weight set on an identity line survived into the live bank and the
+# snapshot and vanished from the regenerated CSV. That is a bank whose draw
+# depends on which rung of the three-source ladder answered, which is the exact
+# failure the canonical id sort was added to kill.
 CSV_COLUMNS = {
-    "identity": ["id", "coach_type", "sells_to", "shape", "line", "word_count"],
+    "identity": ["id", "coach_type", "sells_to", "shape", "weight", "line",
+                 "word_count"],
     "offer": ["id", "line", "weight", "word_count"],
     "cta": ["id", "line", "weight", "word_count"],
     "ps": ["id", "line", "weight", "word_count"],

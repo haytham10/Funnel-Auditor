@@ -261,18 +261,45 @@ def cmd_qualify(args) -> None:
 
 
 def cmd_research(args) -> None:
-    """Validate one worker's returned research object against the schema.
+    """Validate a worker's returned research against the schema.
 
     Catches the two failures a plausible-sounding worker produces: a verdict
     outside the enum, and a hard yes/no with nothing named as its source. A
     verdict that names nothing was reasoned, not fetched.
+
+    Accepts ONE object or an ARRAY of them. `research-worker` handles a slice of
+    about ten leads and returns an array — which this used to reject outright
+    with "expected one JSON object, got list", printed right beside a skill
+    instruction that says a schema violation goes back to the worker once. The
+    documented validation step failed on the documented file, and it failed in
+    a way that reads like the worker returned garbage.
     """
     from outbound import research as r
 
-    data = _load_object(args.input, "RESEARCH")
-    obj = r.Research.from_dict(data)
-    print(r.report(obj))
-    sys.exit(0 if not r.validate(obj) else 1)
+    data = _load_json(args.input, "RESEARCH")
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        print(f"RESEARCH: FAIL — expected an object or an array of them, got "
+              f"{type(data).__name__}.")
+        sys.exit(2)
+    if not data:
+        print("RESEARCH: FAIL — no research objects to validate. An empty slice "
+              "is a worker that returned nothing, not a slice that passed.")
+        sys.exit(2)
+
+    failed = 0
+    for entry in data:
+        if not isinstance(entry, dict):
+            print(f"RESEARCH: FAIL — array holds a {type(entry).__name__}, "
+                  f"expected an object per lead.")
+            sys.exit(2)
+        obj = r.Research.from_dict(entry)
+        print(r.report(obj))
+        failed += 1 if r.validate(obj) else 0
+    if len(data) > 1:
+        print(f"RESEARCH: {len(data) - failed}/{len(data)} valid")
+    sys.exit(1 if failed else 0)
 
 
 # -------------------------------------------------------------------- anchors
@@ -321,8 +348,16 @@ def cmd_copy_sync(args) -> None:
     """
     from outbound import copy_sync
 
-    if args.live:
-        from audit import airtable
+    from audit import airtable
+
+    # Use the key when there is one. The skill and CLAUDE.md both say "run
+    # `python main.py copy-sync`" after editing a line, and bare `copy-sync`
+    # read stdin — so it blocked on a TTY, or exited 2 with a JSON error, at the
+    # exact moment someone had just edited a line. The likely reading is
+    # "Airtable is down" rather than "I was supposed to pipe records in".
+    # `--live` is now an assertion (fail if no key) rather than the only way in.
+    use_live = args.live or (args.input == "-" and airtable.available())
+    if use_live:
         if not airtable.available():
             print("COPY-SYNC: FAIL — --live needs AIRTABLE_API_KEY in the "
                   "environment. Without it, fetch Copy Assets through the MCP "
@@ -335,7 +370,20 @@ def cmd_copy_sync(args) -> None:
             sys.exit(1)
         source = "airtable-api"
     else:
-        payload = _load_json(args.input, "COPY-SYNC")
+        if args.input == "-" and (sys.stdin.isatty() or not (raw := sys.stdin.read()).strip()):
+            print("COPY-SYNC: FAIL — no AIRTABLE_API_KEY and nothing piped in. "
+                  "Either set the key and re-run, or fetch the Copy Assets "
+                  "records through the Airtable MCP and pipe them to this "
+                  "command.")
+            sys.exit(2)
+        if args.input == "-":
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                print(f"COPY-SYNC: FAIL — piped input is not JSON: {exc}")
+                sys.exit(2)
+        else:
+            payload = _load_json(args.input, "COPY-SYNC")
         # Accept a bare list, or the MCP's {"records": [...]} envelope.
         records = payload.get("records", payload) if isinstance(payload, dict) else payload
         source = "mcp"
@@ -576,17 +624,34 @@ def cmd_lint(args) -> None:
               f"{type(drafts).__name__}.")
         sys.exit(2)
 
+    from outbound.export import assemble_body
+
     facts = anchors.load_facts()
     failed = 0
     for draft in drafts:
         allowed = draft.get("allowed_numbers")
         if allowed is None:
             allowed = anchors.all_numbers(facts)
+        beats = draft.get("beats", {})
+        # Assemble from the beats when no body is given, exactly as `export`
+        # does. A drafting worker returns beats — its whole contract is beats —
+        # and this used to answer "body is empty", so the PASS line it is
+        # required to quote was unobtainable. The alternative, telling workers
+        # to assemble their own, is worse: the order is load-bearing, and a
+        # worker that joined it differently would quote a PASS about text that
+        # is not what ships, with word count the check most likely to differ.
+        # One assembler, used by both commands, is the only version that cannot
+        # drift.
+        body = draft.get("body") or ""
+        if not body.strip() and beats:
+            body = assemble_body(
+                beats, greeting_name=draft.get("first_name", "")
+                or (draft.get("name", "").split() or [""])[0])
         result = lint.check_email(
             name=draft.get("name", draft.get("slug", "lead")),
             subject=draft.get("subject", ""),
-            body=draft.get("body", ""),
-            beats=draft.get("beats", {}),
+            body=body,
+            beats=beats,
             allowed_numbers=set(allowed),
             facts=facts,
         )

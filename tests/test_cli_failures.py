@@ -87,10 +87,34 @@ def test_qualify_on_a_json_array_exits_2_with_a_readable_line():
     assert "one JSON object" in result.stdout
 
 
-def test_research_on_a_json_array_exits_2():
-    result = run("research", "-", stdin=json.dumps([{"lead": "Sarah"}]))
-    assert result.returncode == 2, result.stdout + result.stderr
+def test_research_accepts_a_slice_array():
+    """`research-worker` handles a slice of about ten leads and returns an
+    array. This used to exit 2 with "expected one JSON object, got list",
+    printed beside a skill instruction that says a schema violation goes back
+    to the worker once — so the documented validation step failed on the
+    documented file, in a way that read like the worker returned garbage."""
+    slice_of_two = [
+        {"name": "A", "uae_based": "yes", "is_coach": "yes", "active_recent": "unclear"},
+        {"name": "B", "uae_based": "yes", "is_coach": "yes", "active_recent": "unclear"},
+    ]
+    result = run("research", "-", stdin=json.dumps(slice_of_two))
     assert "Traceback" not in result.stderr
+    assert "RESEARCH A" in result.stdout and "RESEARCH B" in result.stdout
+    assert "2 valid" in result.stdout or "/2" in result.stdout
+
+
+def test_research_still_takes_a_single_object():
+    result = run("research", "-", stdin=json.dumps(
+        {"name": "A", "uae_based": "yes", "is_coach": "yes", "active_recent": "unclear"}))
+    assert "Traceback" not in result.stderr
+    assert "RESEARCH A" in result.stdout
+
+
+def test_an_empty_research_slice_exits_2():
+    """A worker that returned nothing is not a slice that passed."""
+    result = run("research", "-", stdin="[]")
+    assert result.returncode == 2, result.stdout
+    assert "returned nothing" in result.stdout
 
 
 def test_a_missing_input_file_exits_2():
@@ -259,6 +283,54 @@ def test_a_malformed_last_activity_exits_2():
         assert result.returncode == 2, result.stdout
         assert "Traceback" not in result.stderr
         assert "ISO date" in result.stdout
+
+
+def test_lint_assembles_the_body_from_beats():
+    """A drafting worker's whole contract is beats, and `lint` answered "body is
+    empty" — so the PASS line the worker is required to quote was unobtainable.
+    Telling workers to assemble their own is worse: the order is load-bearing,
+    and a worker that joined it differently would quote a PASS about text that
+    is not what ships, with word count the check most likely to differ."""
+    draft = {
+        "slug": "sarah-ahmed", "name": "Sarah Ahmed",
+        "subject": "your hashimoto post",
+        "beats": {
+            "hook": ("You wrote that you couldn't contain the excitement of "
+                     "uncovering a solution for yourself."),
+            "identity": ("My job is finding your next client. A health coach in "
+                         "Dubai closed AED 78,000 over 2 months from prospects "
+                         "I put in front of them."),
+            "offer": ("I pulled 10 names for you before writing this. Not a "
+                      "scraped list, people I'd actually start with."),
+            "cta": ("15 minutes and they're yours the same day. I'll tell you "
+                    "why these 10 and not the other 40."),
+            "ps": "ps: a no here costs you nothing and costs me nothing.",
+        },
+    }
+    result = run("lint", "-", stdin=json.dumps([draft]))
+    assert result.returncode == 0, result.stdout
+    assert "PASS" in result.stdout
+    assert "body is empty" not in result.stdout
+
+
+def test_lint_uses_an_explicit_body_when_one_is_given():
+    """The assembler is a fallback, not an override."""
+    result = run("lint", "-", stdin=json.dumps([{
+        "name": "X", "subject": "a subject", "body": "", "beats": {}}]))
+    assert "body is empty" in result.stdout
+
+
+def test_the_same_assembler_serves_lint_and_export():
+    """One assembler, used by both commands, is the only version that cannot
+    drift. If these ever diverge, a draft lints clean and ships different text."""
+    import subprocess
+    check = subprocess.run(
+        [sys.executable, "-c",
+         "import main, outbound.export as e, inspect;"
+         "src = inspect.getsource(main.cmd_lint);"
+         "print('assemble_body' in src and 'from outbound.export import' in src)"],
+        cwd=ROOT, capture_output=True, text=True)
+    assert check.stdout.strip() == "True", check.stdout + check.stderr
 
 
 if __name__ == "__main__":

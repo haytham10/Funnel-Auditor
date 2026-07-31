@@ -1,7 +1,7 @@
 """
 Nominative email enrichment — the no-email fallback stage.
 
-When the walk harvests no address, this derives candidate addresses from the
+When the site read and the research worker harvest no address, this derives candidate addresses from the
 lead's name + their OWN branded domain (jane@, jane.doe@, jdoe@, ...), verifies
 them through the existing deliverability checker, and — only if exactly one
 candidate comes back provably deliverable — adopts it as the lead's address.
