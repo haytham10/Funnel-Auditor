@@ -523,7 +523,8 @@ def cmd_export(args) -> None:
     batch_result = lint.check_batch(for_batch, shares)
     out = export.write_batch(drafts, results, out_dir=args.out,
                              batch=args.batch or "", anchor_shares=shares,
-                             batch_result=batch_result, dealt=dealt)
+                             batch_result=batch_result, dealt=dealt,
+                             bank=anchors.CopyBank.load() if dealt else None)
     print(batch_result.report())
     print(out["report"])
     sys.exit(1 if out["blocked"] or out["rejected"] else 0)

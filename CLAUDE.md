@@ -98,6 +98,10 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   than fetched.
 - `python main.py lint <drafts.json>` — traceability, claim preservation, the
   bridge, voice, and batch repetition.
+- `python main.py export --anchors <deal.json>` — the drafts really used the
+  lines the batch deal assigned, checked on both the reported id and the written
+  text. A drafter that drew its own line ships an email that reads perfectly and
+  a CRM row naming a sentence the reader never saw.
 - `python main.py email-check|email-verify|email-enrich` — address shape,
   deliverability, and the no-address fallback on her own branded domain.
 - `python main.py dedupe` — exits 1 on a warm hit, exit 2 if the wall is

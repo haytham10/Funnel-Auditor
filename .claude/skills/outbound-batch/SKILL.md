@@ -146,10 +146,12 @@ python main.py export work/drafts.json --anchors work/anchors.json \
 ```
 
 **Pass `--anchors`.** It rejects any draft whose lines disagree with what the
-deal assigned, which is the mechanical version of the instruction above. A
-drafter that drew its own line produces an email that reads fine and a CRM row
-that names a sentence the reader never saw; nothing else in the run would catch
-it.
+deal assigned, which is the mechanical version of the instruction above. Two
+checks, because the line id is self-reported: the id against the deal, and the
+written text against every other line in that beat. Re-voicing the assigned line
+is fine and expected; reproducing a *different* line verbatim while reporting
+the assigned id is not, and it produces an email that reads fine alongside usage
+counts and a CRM row describing an email nobody received.
 
 It writes only what passed, blocks the whole file on a batch-level failure, and
 lists every rejection with its reason. Four files come out:

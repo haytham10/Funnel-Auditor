@@ -158,7 +158,13 @@ def preview(drafts: list[Draft], *, width: int = 78) -> str:
     return "\n".join(blocks)
 
 
-def check_dealt(drafts: list[Draft], dealt: dict) -> dict[str, list[str]]:
+def _normalised(text: str) -> str:
+    import re
+    return re.sub(r"[^a-z0-9 ]", "", (text or "").lower()).strip()
+
+
+def check_dealt(drafts: list[Draft], dealt: dict,
+                bank=None) -> dict[str, list[str]]:
     """Did each draft actually use the lines the batch deal assigned it?
 
     A mechanical check on an instruction that is otherwise only prose. The
@@ -169,8 +175,22 @@ def check_dealt(drafts: list[Draft], dealt: dict) -> dict[str, list[str]]:
     saw. Neither is visible by reading the email.
 
     `dealt` is the JSON `main.py deal --out` writes: email -> {beat: {id, line}}.
+
+    Two checks, because the id is self-reported. The first compares the reported
+    id against the deal. The second compares the written text against every
+    OTHER line in the same beat: re-voicing the assigned line is the whole
+    design, so near-matching it proves nothing, but reproducing a different
+    line verbatim is unambiguous — the drafter used the wrong line and reported
+    the right id, which leaves the usage counts and the CRM row describing an
+    email nobody received.
     """
     problems: dict[str, list[str]] = {}
+    others: dict[str, dict[str, str]] = {}
+    if bank is not None:
+        for beat in ("identity", "offer", "cta", "ps"):
+            others[beat] = {_normalised(l.line): l.id
+                            for l in getattr(bank, beat)}
+
     for draft in drafts:
         assigned = dealt.get(draft.email)
         if assigned is None:
@@ -184,13 +204,22 @@ def check_dealt(drafts: list[Draft], dealt: dict) -> dict[str, list[str]]:
                 problems.setdefault(draft.slug, []).append(
                     f"{beat} line is {got}, but the deal assigned {want} — "
                     f"the drafter drew its own instead of using the batch's")
+                continue
+
+            written = _normalised((draft.beats or {}).get(beat, ""))
+            match = others.get(beat, {}).get(written)
+            if match and want and match != want:
+                problems.setdefault(draft.slug, []).append(
+                    f"{beat} reports {want} but the text is {match} verbatim — "
+                    f"the reported line and the written line disagree")
     return problems
 
 
 def write_batch(drafts: list[Draft], lint_results: dict, *,
                 out_dir: str | Path = "out", batch: str = "",
                 anchor_shares: dict | None = None,
-                batch_result=None, dealt: dict | None = None) -> dict:
+                batch_result=None, dealt: dict | None = None,
+                bank=None) -> dict:
     """Write leads.csv and preview.txt for the drafts that passed.
 
     A lead whose lint failed is not written, and is listed in the report with
@@ -204,7 +233,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
 
     # `is not None`, not truthiness: an empty deal file means "the deal
     # produced nothing", which must reject every draft, not skip the check.
-    drift = check_dealt(drafts, dealt) if dealt is not None else {}
+    drift = check_dealt(drafts, dealt, bank) if dealt is not None else {}
 
     passed, rejected = [], []
     for draft in drafts:

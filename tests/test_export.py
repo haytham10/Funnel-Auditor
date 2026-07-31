@@ -293,6 +293,40 @@ def test_without_a_deal_the_check_is_skipped_not_failed():
         assert out["written"] == 1
 
 
+def test_a_reported_id_that_disagrees_with_the_written_text_is_caught():
+    """The id is self-reported. A drafter can name the assigned line and write a
+    different one — the email reads fine, and the usage counts plus the CRM row
+    then describe an email nobody received."""
+    with tempfile.TemporaryDirectory() as tmp:
+        bank = anchors.CopyBank.from_csv()
+        assigned, other = bank.offer[0], bank.offer[1]
+        d = draft()
+        d.anchor_ids["offer"] = assigned.id
+        d.beats = dict(d.beats)
+        d.beats["offer"] = other.line          # wrong line, right id
+        d.body = export.assemble_body(d.beats, greeting_name="Sarah")
+        dealt = dealt_for([d])
+        dealt[d.email]["offer"]["id"] = assigned.id
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp,
+                                 dealt=dealt, bank=bank)
+        assert out["written"] == 0, "wrong line shipped"
+        assert "disagree" in Path(tmp, "rejected.txt").read_text()
+
+
+def test_revoicing_the_assigned_line_is_still_allowed():
+    """Re-voicing is the whole design. Only a verbatim match to a DIFFERENT
+    line is evidence of the wrong line."""
+    with tempfile.TemporaryDirectory() as tmp:
+        bank = anchors.CopyBank.from_csv()
+        d = draft()
+        d.anchor_ids["offer"] = bank.offer[0].id
+        dealt = dealt_for([d])
+        dealt[d.email]["offer"]["id"] = bank.offer[0].id
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp,
+                                 dealt=dealt, bank=bank)
+        assert out["written"] == 1, Path(tmp, "rejected.txt").read_text()
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
