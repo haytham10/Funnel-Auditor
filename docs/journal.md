@@ -1,3 +1,34 @@
+## 2026-07-31 (the copy rewrite, second pass) — what a third cold read found
+
+Redrafted Rohit against the rewritten `id-any-6`, since his two holds had the
+same cause and that cause no longer existed. The reader refused him a third time
+— but for **different** reasons, and two of them were structural, which is the
+useful part.
+
+**My own rewrite of `id-any-6` was individuals-flavoured.** It ended "30 of the
+people I picked signed with a coach here this year", which describes people
+hiring a coach. That line lives in the GENERIC pool, so a corporate-facing lead
+draws it — and Rohit sells leadership and sales training to organisations. The
+reader: *"the number lands on a market he does not sell into."* Fixed to "turned
+into signed clients", which is neutral about whether the client is a person or an
+organisation. A generic line has to be.
+
+**`ps-04` has now been convicted by three separate readers.** "if this isn't your
+thing, no hard feelings at all" dodged every banned weak-closer phrasing while
+keeping their exact shape: *"hands him a pre-written way out one line after a
+firm fifteen-minute ask, and presumes a relationship where feelings could be
+hurt."* Rewritten to ask her to take the out rather than offer it. All four ps
+lines now ask for a decision instead of apologising for the ask, which is the
+pattern the readers kept circling.
+
+**Rohit holds after three attempts.** That is the right answer and it is worth
+recording why: corporate-facing, spilled to the generic pool, and an abstract
+hook about a drawing. Three different faults on three attempts is not a drafter
+problem, it is a lead the current copy cannot serve well. The `THIN` report has
+been saying the adjacent thing all along.
+
+394 tests green; the 8-lead file exports clean with a 2/2/2/2 ps spread.
+
 ## 2026-07-31 (the copy rewrite) — three lines the cold reads convicted
 
 Haytham: "rewrite id-any-6, rewrite ps-01 and ps-03, fix all issues you found."
