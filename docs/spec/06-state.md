@@ -85,6 +85,13 @@ So that row gets the thing a rule cannot give it: `doc-check --live` fetches the
 live field config and compares. It is the only check in this repo that leaves the
 machine, and that is the reason it is worth the network call.
 
+**And it runs where the key is.** CI has no `AIRTABLE_API_KEY`, so on the one
+path that runs automatically it cannot look. A Claude Code session has one, and
+a push from that session is what opens or updates the pull request — so
+`.claude/hooks/schema_drift.py` binds the check to the push and blocks it on
+drift. A check that only runs when somebody remembers is the thing this whole
+layer exists to stop relying on.
+
 ## State that is deliberately ephemeral
 
 `out/` and `work/` are gitignored. They hold a single run's artifacts, and the

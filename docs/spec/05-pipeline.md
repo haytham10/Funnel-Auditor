@@ -186,6 +186,11 @@ key. `doc-check --live` makes a missing key **exit 2** instead of a skip, the
 same assertion `copy-sync --live` is. A schema it could not fetch is exit 2, not
 a pass.
 
+That half also runs on its own, without being asked:
+`.claude/hooks/schema_drift.py` fires on a `git push` from a Claude Code session
+— where a key exists and where the pull request is opened — and blocks the push
+on drift.
+
 ## What is unknown
 
 - **The tier-0 fetch rate is unmeasured.** Nobody has published what share of

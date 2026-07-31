@@ -1,3 +1,43 @@
+## 2026-07-31 (the push hook) — running the live check where the key actually is
+
+The schema check shipped an hour earlier had a hole Haytham spotted immediately:
+it needs a key, CI has none, so the only path that runs automatically is the one
+path that cannot look. His observation was that ~99% of his PRs are opened from a
+Claude Code session — and a session has a key.
+
+So `.claude/hooks/schema_drift.py` is a **PreToolUse hook on Bash** that binds the
+check to `git push`, which is what opens or updates the PR and is the last point
+before the mirror leaves the machine.
+
+**It matches by substring, not by the hook's `if:` filter, and that is the whole
+design.** `if:` uses permission-rule syntax, which is prefix-matched:
+`Bash(git push*)` does not match `git add -A && git commit -m ... && git push -u
+origin ...`, which is how a commit-and-push is actually written — it is how the
+push that shipped the schema check was written, three hours earlier in this same
+session. The filter would have been a gate that looked installed and never fired.
+So it matches every Bash call and returns after one `in` test; nothing beyond the
+interpreter is imported until a push is confirmed. Measured at 58ms on the fast
+path.
+
+**It blocks on drift and allows on could-not-run**, which is the opposite of the
+fail-closed rule everywhere else here, and the exception is deliberate. Real
+drift is one line to fix and nothing else catches it. But "Airtable is
+unreachable" would hold every unrelated push in the repo hostage to somebody
+else's outage, and a stale mirror endangers a *batch*, not a merge. That case
+warns where a person sees it — loudly, never silently, or "it would have run if
+it could" is back, which is the thing `--live` exists to kill.
+
+Proved it fires rather than assuming: sentinel prefix on the hook command, a
+harmless Bash call, read the sentinel, strip it. Also pipe-tested all six paths
+(non-push, plain push, compound push, malformed stdin, no key, injected drift)
+before wiring it into settings at all.
+
+**Note for a future session:** writing this file was blocked by the auto-mode
+classifier the first time — a new executable the harness runs automatically is
+exactly the kind of thing that should need a human. Haytham switched auto mode
+off. Do not try to route around that denial; explain and ask, which is what
+worked.
+
 ## 2026-07-31 (schema drift) — the one authority that is not in this repo
 
 Haytham asked where schemas are stored. The answer is that there is no

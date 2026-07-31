@@ -216,6 +216,13 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
 - **The repo's `.claude/skills/` is authoritative** — never a remembered or
   globally-installed copy. A SessionStart hook fingerprints every on-disk
   SKILL.md; if the `v=` differs from what you recall, the file on disk wins.
+- **A push runs the CRM schema check.** `.claude/hooks/schema_drift.py` fires on
+  every Bash call, returns immediately unless the command contains `git push`,
+  and then compares `audit/airtable.py`'s select mirrors against the live base.
+  **Drift blocks the push; a failure to reach Airtable warns and allows it** —
+  opposite defaults, because a stale mirror endangers a batch rather than a
+  merge, and an outage must not hold every unrelated push hostage. It exists
+  because CI has no key and this is where one lives.
 - **Cross-session memory is `docs/journal.md`.** The container is ephemeral.
   When a session does anything worth remembering, add a dated entry at the top
   and commit it.
