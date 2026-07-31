@@ -92,6 +92,14 @@ Four hand-written lines, drawn deterministically for this lead. They are the
 register and the claim set. You may re-voice one so it connects; you may not
 change what it claims.
 
+**The lines come from Airtable's Copy Assets table.** `copy/*.csv` is a cache
+of it. When the live table cannot be read, `anchors` prints a `COPY:` line
+saying so and draws from the cache anyway — this is the single-lead and repair
+path, where one email on a day-old line is a small visible cost, not the whole
+batch `deal` refuses. Repeat that line to Haytham when it appears. If he has
+just edited a line and wants it in this email, `python main.py copy-check`
+says whether the edit is live and shippable.
+
 | Beat | Freedom | Must survive |
 |---|---|---|
 | Hook | yours to write | the cited fact |

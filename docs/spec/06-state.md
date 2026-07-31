@@ -15,7 +15,7 @@ spec doc names a row here rather than copying from it.
 | Value | Authority | Written by | Read by |
 |---|---|---|---|
 | every price, the guarantee, the offer stack | `docs/spec/03-offer.md` | a decision, recorded in `docs/spec/07-decisions.md` | the call |
-| the hand-written lines | Airtable *Copy Assets* → `copy/identity.csv`, `copy/offer.csv`, `copy/cta.csv`, `copy/ps.csv` | `copy-sync`, which validates and refuses | `outbound/anchors.py` |
+| the hand-written lines | Airtable *Copy Assets*. `copy/identity.csv`, `copy/offer.csv`, `copy/cta.csv`, `copy/ps.csv` are a cache of it, never a second opinion | `copy-sync`, which validates and refuses; asserted by `copy-check` | `outbound/anchors.py` |
 | the client-result numbers | `copy/results.csv` | by hand, from `docs/identity-intake-raw.txt` | `outbound/lint.py`, `facts` |
 | who has already been contacted | `data/contacted-before.csv` | `wall-add`, after the upload | `dedupe` |
 | where each lead is right now | Airtable *Leads* | the batch run | the skills |

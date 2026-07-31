@@ -495,6 +495,237 @@ def test_normalize_sorts_regardless_of_input_order():
     assert [l["id"] for l in forward] == [l["id"] for l in backward]
 
 
+# ------------------------------------- the fallback says why, and copy-check
+#
+# The whole point of this block: Airtable's Copy Assets table is the authority
+# on every line, and `copy/` is a cache of it. Before this, all three ways the
+# cache could win — no key, unreachable base, an edit that fails the lint — fell
+# through to the CSVs with the exception swallowed and nothing printed. A batch
+# could be drafted from month-old copy while the operator believed the edit they
+# made that morning was live.
+
+
+def _stubbed(records, *, raises=False, pin=None):
+    """Run a body with `audit.airtable` stubbed. Returns (bank, check_result)."""
+    import os
+    previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+    stub = _StubAirtable(records, raises=raises)
+    original = _with_stub(os.environ, stub)
+    try:
+        if pin:
+            os.environ["OUTBOUND_COPY_SOURCE"] = pin
+        return anchors.CopyBank.load(refresh=True), copy_sync.check()
+    finally:
+        _restore(original, previous)
+
+
+def test_a_dead_airtable_names_itself_instead_of_going_quiet():
+    """The fall-through is fine. The silence was not."""
+    bank, _ = _stubbed(good_set(), raises=True)
+    assert not bank.is_live
+    assert "unreachable" in bank.reason, bank.reason
+    assert "NOT live" in bank.status_line()
+
+
+def test_a_rejected_live_edit_is_drift_rather_than_an_outage():
+    """Airtable answered, somebody's edit is live there, and it is unshippable.
+    That is the one fallback that must stop a batch: the edit LOOKS applied and
+    the emails go out on the previous copy. `deal` exits 1 on a non-empty
+    `rejected`, and there is no override for it."""
+    bad = good_set()
+    bad[0]["fields"]["Line"] = "A health coach closed AED 91,500."
+    bank, _ = _stubbed(bad)
+    assert not bank.is_live
+    assert bank.rejected, "a rejected live edit looked like an ordinary outage"
+    assert "lint" in bank.reason, bank.reason
+
+
+def test_an_unreachable_table_is_not_reported_as_a_rejected_edit():
+    """The two must stay distinguishable: one blocks unconditionally, the other
+    is overridable. Collapsing them would make `--allow-cached-copy` able to
+    ship copy that failed the lint."""
+    bank, _ = _stubbed(good_set(), raises=True)
+    assert bank.rejected == []
+
+
+def test_an_empty_copy_assets_table_is_never_a_quiet_pass():
+    """An authority that answers "nothing" must not read as "the cache is
+    fine" — the same rule as an unreadable dedupe wall never reading as
+    "nobody has been contacted"."""
+    bank, result = _stubbed([])
+    assert bank.rejected, "an empty table fell through silently"
+    assert result.exit_code == 1
+    assert any("no active lines" in p for p in result.problems), result.problems
+
+
+def test_copy_check_passes_when_the_cache_matches_the_table():
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_dir = Path(tmp)
+        copy_sync.sync(good_set(), copy_dir=copy_dir)
+        import os
+        previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+        original = _with_stub(os.environ, _StubAirtable(good_set()))
+        try:
+            result = copy_sync.check(copy_dir=copy_dir)
+        finally:
+            _restore(original, previous)
+        assert result.exit_code == 0, result.report()
+        assert result.live == 6
+
+
+def test_copy_check_catches_an_edited_cached_row():
+    """The scenario the whole command exists for: a line changed in Airtable,
+    nobody ran copy-sync, and the next run without a key ships the old one."""
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_dir = Path(tmp)
+        copy_sync.sync(good_set(), copy_dir=copy_dir)
+        stale = (copy_dir / "cta.csv").open(newline="", encoding="utf-8-sig").read()
+        with (copy_dir / "cta.csv").open("w", newline="", encoding="utf-8") as handle:
+            handle.write(stale.replace("cta-x", "cta-old", 1))
+
+        import os
+        previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+        original = _with_stub(os.environ, _StubAirtable(good_set()))
+        try:
+            result = copy_sync.check(copy_dir=copy_dir)
+        finally:
+            _restore(original, previous)
+        assert result.exit_code == 1
+        assert any("cta.csv" in d and "1 row(s) edited" in d
+                   for d in result.drift), result.drift
+
+
+def test_copy_check_catches_a_row_that_only_exists_in_airtable():
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_dir = Path(tmp)
+        copy_sync.sync(good_set(), copy_dir=copy_dir)
+        added = good_set() + [record("b4-z", "offer",
+                                     "I pulled 10 names before writing this one.",
+                                     weight=25)]
+        import os
+        previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+        original = _with_stub(os.environ, _StubAirtable(added))
+        try:
+            result = copy_sync.check(copy_dir=copy_dir)
+        finally:
+            _restore(original, previous)
+        assert result.exit_code == 1
+        assert any("offer.csv" in d and "2 row(s) cached against 3 live" in d
+                   for d in result.drift), result.drift
+
+
+def test_copy_check_writes_nothing():
+    """A check with a side effect is not a check. `copy-sync` is the writer;
+    this one has to be safe to run at the top of a batch and again after."""
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_dir = Path(tmp)
+        copy_sync.sync(good_set(), copy_dir=copy_dir)
+        before = {p.name: p.read_bytes() for p in copy_dir.iterdir()}
+
+        import os
+        previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+        changed = good_set()
+        changed[2]["fields"]["Line"] = "I pulled 10 names for you, before this."
+        original = _with_stub(os.environ, _StubAirtable(changed))
+        try:
+            copy_sync.check(copy_dir=copy_dir)
+        finally:
+            _restore(original, previous)
+        assert {p.name: p.read_bytes() for p in copy_dir.iterdir()} == before
+
+
+def test_copy_check_reports_the_lint_failure_and_not_the_drift_behind_it():
+    """While the table is unshippable, `copy-sync` would refuse to write anyway,
+    so naming drift too would name a second fix that does not exist."""
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_dir = Path(tmp)
+        copy_sync.sync(good_set(), copy_dir=copy_dir)
+        bad = good_set()
+        bad[0]["fields"]["Line"] = "A health coach closed AED 91,500."
+
+        import os
+        previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+        original = _with_stub(os.environ, _StubAirtable(bad))
+        try:
+            result = copy_sync.check(copy_dir=copy_dir)
+        finally:
+            _restore(original, previous)
+        assert result.problems and not result.drift
+        assert "Fix: correct the line in Airtable" in result.report()
+
+
+def test_copy_check_cannot_run_is_exit_2_not_a_pass():
+    """Both ways it can be blind. Neither is a pass — that is the rule the whole
+    CLI is built on."""
+    import os
+    previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+    original = _with_stub(os.environ, _StubAirtable(good_set()))
+    try:
+        os.environ["OUTBOUND_COPY_SOURCE"] = "csv"
+        pinned = copy_sync.check()
+    finally:
+        _restore(original, previous)
+    assert pinned.exit_code == 2 and "pins the copy bank offline" in pinned.blocked
+
+    class _NoKey:
+        def available(self):
+            return False
+
+        def copy_assets(self):
+            raise AssertionError("asked the table without a key")
+
+    previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+    original = _with_stub(os.environ, _NoKey())
+    try:
+        keyless = copy_sync.check()
+    finally:
+        _restore(original, previous)
+    assert keyless.exit_code == 2 and "AIRTABLE_API_KEY" in keyless.blocked
+
+
+def test_a_missing_snapshot_is_not_drift():
+    """`copy/_airtable.json` is gitignored, so a fresh clone never has one and a
+    keyless run falls to the CSVs — which the file comparison just checked. A
+    check that failed here would fail on every clone, for nothing."""
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_dir = Path(tmp)
+        copy_sync.sync(good_set(), copy_dir=copy_dir)
+        (copy_dir / "_airtable.json").unlink()
+
+        import os
+        previous = os.environ.get("OUTBOUND_COPY_SOURCE")
+        original = _with_stub(os.environ, _StubAirtable(good_set()))
+        try:
+            result = copy_sync.check(copy_dir=copy_dir)
+        finally:
+            _restore(original, previous)
+        assert result.exit_code == 0, result.report()
+        assert result.snapshot is False
+
+
+def test_render_csv_is_byte_identical_to_what_write_csvs_writes():
+    """The trap this pins: `write_csvs` emits CRLF, and reading a committed file
+    back through universal newlines turns it into LF — so the first comparison
+    reported all four beats as drifted with zero rows edited. The check and the
+    writer must produce the same bytes or every run reads as drift."""
+    with tempfile.TemporaryDirectory() as tmp:
+        copy_dir = Path(tmp)
+        lines, _ = copy_sync.normalize_records(good_set())
+        copy_sync.write_csvs(lines, copy_dir)
+        for beat in copy_sync.BEATS:
+            on_disk = (copy_dir / f"{beat}.csv").open(
+                newline="", encoding="utf-8-sig").read()
+            assert on_disk == copy_sync.render_csv(lines, beat), beat
+
+
+# No test here asserts the committed CSVs against the LIVE table, deliberately.
+# The suite does not reach the network — conftest pins `OUTBOUND_COPY_SOURCE=csv`
+# and the journal states the reason: a suite that goes live fails on somebody
+# else's Airtable edit, which is not a code regression. That assertion is
+# `main.py copy-check`, run at the top of a batch, where drift is something a
+# person can act on and a red build is not.
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

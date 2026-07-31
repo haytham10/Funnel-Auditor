@@ -224,10 +224,36 @@ def test_an_empty_batch_does_not_crash_the_deal_report():
     a traceback on a command whose whole output is meant to be quotable."""
     with tempfile.TemporaryDirectory() as tmp:
         empty = write(tmp, "empty.json", [])
-        result = run("deal", empty)
+        # `--allow-cached-copy` because `run` strips the key: an offline deal
+        # now refuses rather than silently drawing from the committed cache.
+        result = run("deal", empty, "--allow-cached-copy")
         assert result.returncode == 0, result.stdout + result.stderr
         assert "Traceback" not in result.stderr
         assert "0 leads" in result.stdout
+
+
+def test_deal_refuses_to_draw_from_the_cache_without_being_told_to():
+    """Airtable owns the lines. Falling back to `copy/*.csv` is legitimate and
+    must never be silent: an unreadable table means nothing just checked that
+    the cache is current, and a whole batch of subtly stale copy is the failure
+    this is here to make impossible."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json",
+                      [{"email": "a@x.ae", "coach_type": "Health",
+                        "sells_to": "individuals"}])
+        result = run("deal", leads)
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "NOT live" in result.stdout
+        assert "--allow-cached-copy" in result.stdout
+        assert "Traceback" not in result.stderr
+
+
+def test_copy_check_without_a_key_is_exit_2_and_says_so():
+    """A check that cannot run is a failure, never a pass."""
+    result = run("copy-check")
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "COPY-CHECK: BLOCKED" in result.stdout
+    assert "Traceback" not in result.stderr
 
 
 def test_wall_add_refuses_a_file_with_the_wrong_columns():

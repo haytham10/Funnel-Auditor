@@ -86,7 +86,10 @@ Fire `outbound-batch` for a whole list, `outbound-draft` for one email.
   reading as "nobody has been contacted".
 - **No line from Airtable that fails the linter.** `copy-sync` is a gate: edit a
   line to cite a number no client result supports and the sync refuses it,
-  writing nothing.
+  writing nothing. **And no batch drafted from stale copy behind your back** —
+  Airtable owns every line, `copy/*.csv` is a cache of it, and `copy-check`
+  fails when the two disagree. `deal` refuses rather than quietly using the
+  cache.
 - **No verdict without a source.** A hard yes/no naming nothing was reasoned,
   not fetched, and the schema rejects it.
 - **No doc naming a command, path or copy line that doesn't exist**, and no

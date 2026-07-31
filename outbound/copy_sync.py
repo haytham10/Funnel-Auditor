@@ -343,20 +343,35 @@ def _row_for(line: dict, beat: str) -> dict:
     }
 
 
+def render_csv(lines: list[dict], beat: str) -> str:
+    """One beat's CSV as text, exactly as `write_csvs` would write it.
+
+    Split out from the writer so `check` can compare a committed file against
+    what Airtable says without writing anything. A comparison that had to write
+    first would be a check with a side effect, which is the one thing a check
+    must not have.
+    """
+    from io import StringIO
+
+    buffer = StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=CSV_COLUMNS[beat],
+                            lineterminator="\r\n")
+    writer.writeheader()
+    for line in [l for l in lines if l["beat"] == beat]:
+        writer.writerow(_row_for(line, beat))
+    return buffer.getvalue()
+
+
 def write_csvs(lines: list[dict], copy_dir: Path | None = None) -> list[str]:
     """Regenerate copy/*.csv so the committed fallback never drifts."""
     copy_dir = copy_dir or COPY_DIR
     written = []
     for beat in BEATS:
-        beat_lines = [l for l in lines if l["beat"] == beat]
-        if not beat_lines:
+        if not [l for l in lines if l["beat"] == beat]:
             continue
         path = copy_dir / f"{beat}.csv"
         with open(path, "w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=CSV_COLUMNS[beat])
-            writer.writeheader()
-            for line in beat_lines:
-                writer.writerow(_row_for(line, beat))
+            handle.write(render_csv(lines, beat))
         written.append(str(path))
     return written
 
@@ -382,6 +397,25 @@ def load_snapshot(path: Path | None = None) -> list[dict] | None:
         return None
 
 
+def snapshot_meta(path: Path | None = None) -> dict | None:
+    """When the snapshot was written, and from which path in.
+
+    Separate from `load_snapshot` because a warning needs the date and the draw
+    needs the lines, and a caller that wanted the date used to have to re-read
+    and re-parse the file itself.
+    """
+    path = path or SNAPSHOT
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    return {"synced_at": payload.get("synced_at", ""),
+            "source": payload.get("source", ""),
+            "lines": len(payload.get("lines") or [])}
+
+
 def sync(records: list[dict], *, source: str = "mcp",
          write: bool = True, copy_dir: Path | None = None) -> SyncResult:
     """Validate, then write. Nothing is written if anything fails."""
@@ -393,3 +427,156 @@ def sync(records: list[dict], *, source: str = "mcp",
         write_snapshot(lines, source, (copy_dir or COPY_DIR) / "_airtable.json")
         write_csvs(lines, copy_dir)
     return result
+
+
+# ------------------------------------------------------------------- the check
+
+
+@dataclass
+class CheckResult:
+    """Whether the copy a batch would draw is the copy Airtable holds."""
+    live: int = 0                       # active lines the table returned
+    problems: list[str] = field(default_factory=list)   # lint failures, live
+    drift: list[str] = field(default_factory=list)      # cache != table
+    blocked: str = ""                   # could not run at all, with the reason
+    snapshot: bool = False              # a snapshot exists and was compared
+
+    @property
+    def exit_code(self) -> int:
+        if self.blocked:
+            return 2
+        return 1 if (self.problems or self.drift) else 0
+
+    def report(self) -> str:
+        if self.blocked:
+            return (f"COPY-CHECK: BLOCKED — {self.blocked}\n"
+                    f"  A check that cannot run is not a pass. Set "
+                    f"AIRTABLE_API_KEY, or accept that this batch draws from "
+                    f"the committed cache and say so.")
+        if self.exit_code == 0:
+            cached = ("copy/*.csv and copy/_airtable.json match it"
+                      if self.snapshot else
+                      "copy/*.csv match it (no snapshot on disk, which is "
+                      "normal — it is gitignored)")
+            return (f"COPY-CHECK: PASS — {self.live} live line(s) from Copy "
+                    f"Assets; {cached}")
+        out = [f"COPY-CHECK: FAIL — {len(self.problems)} lint problem(s), "
+               f"{len(self.drift)} drift(s) against the live table"]
+        for problem in self.problems:
+            out.append(f"  LINT  {problem}")
+        for item in self.drift:
+            out.append(f"  DRIFT {item}")
+        if self.drift and not self.problems:
+            out.append("  Fix: python main.py copy-sync --live, then commit "
+                       "copy/*.csv")
+        if self.problems:
+            out.append("  Fix: correct the line in Airtable. Nothing here can "
+                       "fix it, and nothing should: the table is the authority.")
+        return "\n".join(out)
+
+
+def check(copy_dir: Path | None = None) -> CheckResult:
+    """Assert that Airtable is what a batch would actually draw from.
+
+    The three ways the machine could quietly draft from stale copy, in the order
+    they matter:
+
+    1. **The live lines fail the lint.** Airtable is reachable, somebody's edit
+       is live there, and `anchors.CopyBank.load` refuses it and falls through
+       to the cache. The edit looks applied and is not. Exit 1.
+    2. **The cache disagrees with the table.** Everything works today and the
+       first run without a key silently drafts from month-old lines. Exit 1,
+       fixed by `copy-sync --live`.
+    3. **Nothing could be fetched.** No key, no network, or the bank is pinned
+       offline. Exit 2 — a check that cannot run is a failure, never a pass.
+
+    It never writes. `copy-sync` is the thing that writes; this only reports,
+    so it is safe to run at the top of a batch and again after a fix.
+    """
+    import os
+
+    from audit import airtable
+
+    copy_dir = copy_dir or COPY_DIR
+    result = CheckResult()
+
+    forced = os.environ.get("OUTBOUND_COPY_SOURCE", "").strip().lower()
+    if forced in ("csv", "snapshot"):
+        result.blocked = (f"OUTBOUND_COPY_SOURCE={forced} pins the copy bank "
+                          f"offline, so there is nothing to compare against")
+        return result
+    if not airtable.available():
+        result.blocked = ("no AIRTABLE_API_KEY, so the live Copy Assets table "
+                          "cannot be read")
+        return result
+
+    try:
+        records = airtable.copy_assets()
+    except Exception as exc:
+        result.blocked = f"{type(exc).__name__}: {exc}"
+        return result
+
+    lines, _ = normalize_records(records)
+    result.live = len(lines)
+    if not lines:
+        # Never a pass. An authority that answers "nothing" reading as "the
+        # cache is fine" is the same failure as an unreadable dedupe wall
+        # reading as "nobody has been contacted".
+        result.problems = ["Copy Assets returned no active lines — every row is "
+                           "unchecked, or the table is empty"]
+        return result
+
+    result.problems = validate(lines)
+    if result.problems:
+        # The cache comparison is meaningless while the table is unshippable:
+        # `copy-sync` would refuse to write anyway, so reporting drift here
+        # would name a second fix that does not exist.
+        return result
+
+    for beat in BEATS:
+        path = copy_dir / f"{beat}.csv"
+        expected = render_csv(lines, beat)
+        try:
+            # `newline=""` disables universal-newline translation. Without it
+            # every committed file read back with `\n` against a rendering with
+            # `\r\n` and all four beats reported drift with zero rows edited.
+            with path.open(newline="", encoding="utf-8-sig") as handle:
+                actual = handle.read()
+        except OSError as exc:
+            result.drift.append(f"copy/{beat}.csv: cannot read it ({exc})")
+            continue
+        if actual != expected:
+            result.drift.append(
+                f"copy/{beat}.csv differs from Copy Assets "
+                f"({_row_delta(actual, expected)})")
+
+    # A MISSING snapshot is not drift. It is gitignored, so a fresh clone never
+    # has one and a run with no key falls to the committed CSVs — which the
+    # loop above just proved match the table. Only a snapshot that exists and
+    # disagrees is a problem, because that one is what actually gets drawn from.
+    snapshot = load_snapshot(copy_dir / "_airtable.json")
+    result.snapshot = snapshot is not None
+    if snapshot is not None and snapshot != lines:
+        meta = snapshot_meta(copy_dir / "_airtable.json") or {}
+        result.drift.append(
+            f"copy/_airtable.json differs from Copy Assets (synced "
+            f"{meta.get('synced_at') or 'unknown'}, {len(snapshot)} line(s) "
+            f"against {len(lines)} live)")
+    return result
+
+
+def _row_delta(actual: str, expected: str) -> str:
+    """A one-phrase description of how two renderings of a beat differ.
+
+    Enough to tell "a line was edited" from "a line was added" without printing
+    a diff nobody asked for; `copy-sync --live` is the fix either way.
+    """
+    left = [r for r in actual.splitlines() if r.strip()]
+    right = [r for r in expected.splitlines() if r.strip()]
+    if not left:
+        return "the cached file is empty"
+    if len(left) != len(right):
+        # Row counts exclude the header, which both renderings always carry.
+        return f"{len(left) - 1} row(s) cached against {len(right) - 1} live"
+    changed = sum(1 for a, b in zip(left, right) if a != b)
+    return f"{changed} row(s) edited"
