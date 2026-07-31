@@ -3,6 +3,10 @@
 _Written 2026-07-31, when the funnel auditor and the cold-email system merged.
 If you are lost, read only this page._
 
+_For the whole picture rather than the orientation, `docs/spec/` is the defining
+layer: the business, the market, the money model, the email, the pipeline
+contracts, and the decisions that are closed. Start at `docs/spec/00-index.md`._
+
 ## 1. What this is
 
 A raw list of UAE coaches goes in. A Smartlead upload file comes out: one row
@@ -85,6 +89,9 @@ Fire `outbound-batch` for a whole list, `outbound-draft` for one email.
   writing nothing.
 - **No verdict without a source.** A hard yes/no naming nothing was reasoned,
   not fetched, and the schema rejects it.
+- **No doc naming a command, path or copy line that doesn't exist**, and no
+  defining doc but `docs/spec/03-offer.md` carrying a price. `doc-check` is the
+  gate, and it runs with the test suite.
 
 And two only you can keep: **never log in as yourself anywhere**, and **never
 send from the machine.**

@@ -85,6 +85,10 @@ repair path.
 - **Copy rules, every email:** no em-dashes. No operator jargon (funnel,
   conversion, audit, sequence). No weak closers. Sign off "Haytham". Numbers with
   separators. No gendered pronoun in an identity line.
+- **Change a command, change `docs/spec/05-pipeline.md` in the same commit.**
+  `doc-check` makes that mechanical rather than a thing to remember. The same
+  rule in the other direction: a defining doc never copies a value that code, a
+  CSV or Airtable owns — it names the owner. See `docs/spec/00-index.md`.
 
 ## The gates (all fail closed, all quotable)
 
@@ -115,6 +119,13 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 - `python main.py copy-usage` — reports which lines actually shipped back to
   Copy Assets. Also after uploading. **Additive, not idempotent** — run once
   per batch.
+- `python main.py doc-check` — the docs against the code they describe. Every
+  command a doc names must exist in the parser, every path it backticks must be
+  on disk, every copy-line id must be in the CSV, every `Defers to:` must
+  resolve, and **no defining doc but `docs/spec/03-offer.md` may carry a
+  price**. Exit 1 on drift, exit 2 if it cannot read the docs. It runs with the
+  test suite, not with a batch — a doc typo must never be able to halt a real
+  send file.
 
 ## The ICP
 
@@ -177,6 +188,16 @@ text if left blank and `Word Count` is computed, so neither is something to get
 wrong. **Weight is a relative share on any scale**; blank means an equal share.
 It replaced hand-maintained roll ranges, where adding a fifth line meant
 renumbering the other four to keep the spans contiguous.
+
+**`docs/spec/`** — the defining layer, eight numbered files: the operation, the
+ICP, the money model, the email, the pipeline contracts, who owns which value,
+and the decision log. Its one rule is that **a defining doc states a decision
+and its reason and never holds a value something else owns** — where a value
+lives in code, a CSV or Airtable, the doc names the authority instead of copying
+it. `docs/spec/03-offer.md` is the sole authority on price and the only one
+allowed to carry a number. `doc-check` enforces the mechanical half. Start at
+`docs/spec/00-index.md`, which also records how the previous project's doc set
+rotted, so nobody rebuilds it.
 
 **`data/contacted-before.csv`** — the dedupe wall. In the repo rather than a CRM
 because it is read on every run, never needs a view or a filter, and a network
