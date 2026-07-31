@@ -1,3 +1,59 @@
+## 2026-07-31 (the copy rewrite) — three lines the cold reads convicted
+
+Haytham: "rewrite id-any-6, rewrite ps-01 and ps-03, fix all issues you found."
+All three had been named by independent cold readers, and all three were copy
+faults rather than drafting faults — which is why no amount of redrafting had
+fixed them.
+
+**`id-any-6` had no client result in it.** "I went through about a hundred coach
+sites here before writing to anyone. 6 published a price." It was tagged
+`shape=research`, and that was the problem: every other identity line carries an
+outcome, and this one carried an anecdote. A drafter had nothing to bridge from,
+and it produced BOTH stapled-beat failures in the batch — the only two. Two
+readers said the same thing independently: "the proof beat contains no proof: he
+learns Haytham browsed a hundred websites, not that Haytham produced anything for
+any coach." It also read as a poke at the reader's own unpriced site, and
+"finding who's worth your time is the job" left whose job unclear. The rewrite
+keeps the selection idea, which was the good part, and attaches the real
+aggregate: *"Deciding who is worth your time is most of my job. 30 of the people
+I picked signed with a coach here this year."* Shape is now `selection`.
+
+**`ps-01` denied something two of four offers never raise.** "not a list" only
+makes sense after an offer that mentions one. `b4-01` does — and collided with it
+under `check_echo`, so that pair could never be dealt at all — while `b4-03` and
+`b4-04` never mention a list, leaving the ps answering an objection the reader
+was never given. Now: *"ps: a straight no is a fine answer, and costs you
+nothing."* **All sixteen offer/ps pairs are dealable for the first time**, so
+`deal` no longer prints an ECHO line and `rebalance_ps` has nothing to work
+around. The machinery stays as a net for the next one.
+
+**`ps-03` cancelled the offer's own premise.** "a no here costs you nothing and
+costs me nothing" — a reader put it exactly: *if a no costs him nothing, the ten
+names he pulled by hand were not work.* Dropping that half keeps the costless
+exit for her and stops the email undercutting its own ask.
+
+Both new ps lines are also **firmer**, which was a third thing the readers kept
+flagging: they ask for a decision rather than offering an escape. One called
+`ps-04` "the soft exit the close is supposed to avoid."
+
+**Two drafts of these were too long before one fit.** The firmer phrasings ran
+15–16 words against the old 11–12, and `_check_hook_room` correctly refused the
+set: the longest line in each beat totalled 85, leaving 10 words for a hook
+against a 12-word minimum. Tightened to 12 and 10 words, hook room is back to 14.
+That check earned its place — the failure is invisible on any single row.
+
+**Also fixed: the machine was about to guess at someone's name.** A non-Latin
+surname reaches Smartlead's `last_name` column verbatim — a real lead on this
+batch shipped as Arabic script while his own LinkedIn slug carried the Latin
+spelling. `check_merge_fields` surfaces it rather than transliterating, because
+guessing someone's preferred spelling is the same class of error as inventing
+their address. The first version flagged "José Álvarez", which would have trained
+the reader to ignore the warning; it now decomposes accents and only fires on a
+genuinely different script.
+
+394 tests green. All three copy sources identical; every dealt combination legal
+at n = 8, 11, 25, 60 and 200.
+
 ## 2026-07-31 (the diagnostic pass) — 16 findings, worst-first
 
 Haytham: "full diagnose end-to-end, no more loose ends, we need to ship." Two
