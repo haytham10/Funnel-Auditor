@@ -133,6 +133,97 @@ def test_a_clean_batch_exits_0():
         assert result.returncode == 0, result.stdout + result.stderr
 
 
+# ------------------------------------------------ every command, every bad file
+
+
+BAD_INPUT_CASES = [
+    ("lint",       "bad.json"),
+    ("deal",       "bad.json"),
+    ("export",     "bad.json"),
+    ("dedupe",     "bad.json"),
+    ("qualify",    "bad.json"),
+    ("research",   "bad.json"),
+    ("copy-sync",  "bad.json"),
+]
+
+
+def test_no_command_tracebacks_on_malformed_json():
+    """A JSONDecodeError traceback reads as "the run crashed" when the truth is
+    "that file is not JSON", and a skill quoting a gate cannot tell them apart."""
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = write(tmp, "bad.json", "{not json at all")
+        for command, _ in BAD_INPUT_CASES:
+            args = [command, bad]
+            if command == "export":
+                args += ["--out", str(Path(tmp) / "out")]
+            result = run(*args)
+            assert "Traceback" not in result.stderr, f"{command}: {result.stderr[-300:]}"
+            assert result.returncode == 2, f"{command} exited {result.returncode}"
+
+
+def test_no_command_tracebacks_on_a_missing_file():
+    with tempfile.TemporaryDirectory() as tmp:
+        for command in ("lint", "deal", "dedupe", "qualify", "research",
+                        "copy-sync", "intake", "wall-add", "copy-usage"):
+            args = [command, "/nope/does-not-exist.json"]
+            result = run(*args)
+            assert "Traceback" not in result.stderr, f"{command}: {result.stderr[-300:]}"
+            assert result.returncode == 2, f"{command} exited {result.returncode}"
+
+
+def test_a_json_object_where_an_array_belongs_exits_2():
+    with tempfile.TemporaryDirectory() as tmp:
+        obj = write(tmp, "obj.json", {"a": 1})
+        for command in ("deal", "dedupe"):
+            result = run(command, obj)
+            assert result.returncode == 2, f"{command} exited {result.returncode}"
+            assert "Traceback" not in result.stderr
+
+
+def test_an_empty_batch_does_not_crash_the_deal_report():
+    """`next(iter(...))` on an empty share table raised StopIteration, which is
+    a traceback on a command whose whole output is meant to be quotable."""
+    with tempfile.TemporaryDirectory() as tmp:
+        empty = write(tmp, "empty.json", [])
+        result = run("deal", empty)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "Traceback" not in result.stderr
+        assert "0 leads" in result.stdout
+
+
+def test_wall_add_refuses_a_file_with_the_wrong_columns():
+    """It printed "0 added, 104 -> 104", which reads exactly like "this batch
+    was already walled". Those leads would never enter the wall and would be
+    contacted a second time — the failure the wall exists to prevent, reached
+    through a mistyped path."""
+    with tempfile.TemporaryDirectory() as tmp:
+        wrong = write(tmp, "wrong.csv", "alpha,beta\n1,2\n")
+        result = run("wall-add", wrong)
+        assert result.returncode == 2, result.stdout
+        assert "none of the expected columns" in result.stdout
+        assert "0 added" not in result.stdout
+
+
+def test_copy_usage_refuses_a_file_with_the_wrong_columns():
+    with tempfile.TemporaryDirectory() as tmp:
+        wrong = write(tmp, "wrong.csv", "alpha,beta\n1,2\n")
+        result = run("copy-usage", wrong)
+        assert result.returncode == 2, result.stdout
+        assert "none of the expected columns" in result.stdout
+
+
+def test_piping_a_gate_into_head_does_not_traceback():
+    """Piping a gate's output into head or grep is ordinary, and the default
+    BrokenPipeError handling prints a traceback on exit — which looks exactly
+    like a crash in a command whose job is to be believed."""
+    import subprocess
+    proc = subprocess.run(
+        f"{sys.executable} main.py facts 2>&1 | head -2",
+        cwd=ROOT, shell=True, capture_output=True, text=True)
+    assert "Traceback" not in proc.stdout + proc.stderr
+    assert "BrokenPipe" not in proc.stdout + proc.stderr
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

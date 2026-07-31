@@ -27,6 +27,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
 import argparse
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -44,7 +45,11 @@ def cmd_intake(args) -> None:
     """
     from outbound import normalize
 
-    leads = normalize.load_csv(args.path, source=args.source or args.path)
+    try:
+        leads = normalize.load_csv(args.path, source=args.source or args.path)
+    except OSError as exc:
+        print(f"INTAKE: FAIL — cannot read {args.path}: {type(exc).__name__}.")
+        sys.exit(2)
     shape = normalize.profile(leads)
 
     if args.json:
@@ -80,7 +85,11 @@ def cmd_intake(args) -> None:
 
 def _load_leads(path: str):
     from outbound.normalize import Lead
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    data = _load_json(path, "LEADS")
+    if not isinstance(data, list):
+        print(f"LEADS: FAIL — expected a JSON array of leads in {path}, got "
+              f"{type(data).__name__}.")
+        sys.exit(2)
     known = set(Lead.__dataclass_fields__)
     return [Lead(**{k: v for k, v in row.items() if k in known}) for row in data]
 
@@ -136,6 +145,49 @@ def cmd_dedupe(args) -> None:
 
 
 # -------------------------------------------------------------------- qualify
+
+
+def _load_csv(path: str, label: str, expect: tuple[str, ...]) -> list[dict]:
+    """Rows from a CSV, or a clean exit 2 — never "0 rows" on the wrong file.
+
+    Missing file, unreadable file, or a header carrying none of `expect` all
+    exit 2. The last one matters most: `wall-add` on a mistyped path printed
+    "0 added, 104 -> 104", which reads exactly like "this batch was already
+    walled". It is not. Those leads would never enter the wall and would be
+    contacted a second time, which is the failure this whole file exists to
+    prevent, arrived at through a typo.
+    """
+    try:
+        with open(path, newline="", encoding="utf-8-sig") as handle:
+            reader = csv.DictReader(handle)
+            rows = list(reader)
+            headers = [h.strip().lower() for h in (reader.fieldnames or [])]
+    except OSError as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}.")
+        sys.exit(2)
+    if not any(col in headers for col in expect):
+        print(f"{label}: FAIL — {path} has none of the expected columns "
+              f"({', '.join(expect)}); its header is {headers or 'empty'}. "
+              f"Refusing to report 0 rows on what is probably the wrong file.")
+        sys.exit(2)
+    return rows
+
+
+def _load_json(path: str, label: str):
+    """Any JSON value from a file or stdin, or a clean exit 2.
+
+    `_load_object` insists on an object; this one accepts either shape, for the
+    commands that legitimately take an array. Both exist so that a malformed
+    file is a readable gate line rather than a JSONDecodeError traceback, which
+    reads as "the run crashed" when the truth is "that file is not JSON".
+    """
+    try:
+        raw = sys.stdin.read() if path == "-" else \
+            Path(path).read_text(encoding="utf-8")
+        return json.loads(raw)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}: {exc}")
+        sys.exit(2)
 
 
 def _load_object(path: str, label: str) -> dict:
@@ -262,9 +314,7 @@ def cmd_copy_sync(args) -> None:
             sys.exit(1)
         source = "airtable-api"
     else:
-        raw = sys.stdin.read() if args.input == "-" else \
-            Path(args.input).read_text(encoding="utf-8")
-        payload = json.loads(raw)
+        payload = _load_json(args.input, "COPY-SYNC")
         # Accept a bare list, or the MCP's {"records": [...]} envelope.
         records = payload.get("records", payload) if isinstance(payload, dict) else payload
         source = "mcp"
@@ -292,8 +342,8 @@ def cmd_wall_add(args) -> None:
     wall = dedupe.ContactWall.from_csv()
     before = len(wall)
 
-    with open(args.additions, newline="", encoding="utf-8-sig") as handle:
-        incoming = list(csv.DictReader(handle))
+    incoming = _load_csv(args.additions, "WALL-ADD",
+                         ("name", "email", "domain"))
 
     added = []
     for row in incoming:
@@ -344,7 +394,11 @@ def cmd_deal(args) -> None:
     """
     from outbound import anchors
 
-    leads = json.loads(Path(args.leads).read_text(encoding="utf-8"))
+    leads = _load_json(args.leads, "DEAL")
+    if not isinstance(leads, list):
+        print(f"DEAL: FAIL — expected a JSON array of leads, got "
+              f"{type(leads).__name__}.")
+        sys.exit(2)
     dealt = anchors.deal_batch(leads)
 
     out = {
@@ -386,7 +440,8 @@ def cmd_deal(args) -> None:
               f"the lint will reject them")
     for beat, per_line in shares.items():
         top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
-        flag = "  OVER CAP" if next(iter(per_line.values())) > FIXED_LINE_SHARE_CAP else ""
+        top_share = next(iter(per_line.values()), 0)
+        flag = "  OVER CAP" if top_share > FIXED_LINE_SHARE_CAP else ""
         print(f"  {beat:<9} {top}{flag}")
 
     # Which segments cannot fill their 70% share without repeating a sentence.
@@ -421,8 +476,9 @@ def cmd_copy_usage(args) -> None:
     from datetime import date
     from audit import airtable
 
-    with open(args.usage, newline="", encoding="utf-8-sig") as handle:
-        counts = {r["line_id"]: int(r["count"]) for r in csv.DictReader(handle)}
+    usage_rows = _load_csv(args.usage, "COPY-USAGE", ("line_id", "id", "beat"))
+    counts = {r["line_id"]: int(r["count"]) for r in usage_rows
+              if r.get("line_id") and str(r.get("count", "")).strip().isdigit()}
 
     if not airtable.available():
         print("COPY-USAGE: SKIPPED — no AIRTABLE_API_KEY. Counts are still in "
@@ -491,10 +547,13 @@ def cmd_lint(args) -> None:
     """
     from outbound import anchors, lint
 
-    drafts = json.loads(Path(args.input).read_text(encoding="utf-8")) \
-        if args.input != "-" else json.loads(sys.stdin.read())
+    drafts = _load_json(args.input, "LINT")
     if isinstance(drafts, dict):
         drafts = [drafts]
+    if not isinstance(drafts, list):
+        print(f"LINT: FAIL — expected a JSON array of drafts, got "
+              f"{type(drafts).__name__}.")
+        sys.exit(2)
 
     facts = anchors.load_facts()
     failed = 0
@@ -532,7 +591,11 @@ def cmd_export(args) -> None:
     """
     from outbound import anchors, export, lint
 
-    drafts_raw = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    drafts_raw = _load_json(args.input, "EXPORT")
+    if not isinstance(drafts_raw, list):
+        print(f"EXPORT: FAIL — expected a JSON array of drafts, got "
+              f"{type(drafts_raw).__name__}.")
+        sys.exit(2)
     facts = anchors.load_facts()
 
     drafts, results, for_batch = [], {}, []
@@ -574,7 +637,7 @@ def cmd_export(args) -> None:
 
     dealt = None
     if args.anchors:
-        dealt = json.loads(Path(args.anchors).read_text(encoding="utf-8"))
+        dealt = _load_json(args.anchors, "EXPORT")
 
     batch_result = lint.check_batch(for_batch, shares)
     out = export.write_batch(drafts, results, out_dir=args.out,
@@ -985,7 +1048,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except BrokenPipeError:
+        # `python main.py deal ... | head` closes the pipe mid-print, and the
+        # default handling is a traceback on exit — which looks exactly like a
+        # crash in a gate whose whole job is to be believed. Piping a gate's
+        # output into head or grep is ordinary, so it must be silent.
+        try:
+            sys.stdout.close()
+        finally:
+            os._exit(0)
 
 
 if __name__ == "__main__":
