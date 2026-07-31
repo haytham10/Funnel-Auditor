@@ -224,6 +224,43 @@ def test_piping_a_gate_into_head_does_not_traceback():
     assert "BrokenPipe" not in proc.stdout + proc.stderr
 
 
+def test_qualify_settles_activity_from_the_page_when_no_date_is_given():
+    """The bridge existed only as a library function and the CLI never reached
+    it, so all twelve leads on the first real batch came back `unclear` on
+    activity — the floor doing nothing at all."""
+    with tempfile.TemporaryDirectory() as tmp:
+        lead = write(tmp, "lead.json", {
+            "name": "Test Coach", "city": "Dubai", "domain": "x.ae",
+            "headline": "Life Coach",
+            "site_text": "Coaching in Dubai. Latest article 2026-07-20 on pricing.",
+        })
+        result = run("qualify", lead)
+        assert "activity settled from the page" in result.stdout, result.stdout
+        assert "2026-07-20" in result.stdout
+
+
+def test_qualify_prefers_a_date_the_worker_supplied():
+    with tempfile.TemporaryDirectory() as tmp:
+        lead = write(tmp, "lead.json", {
+            "name": "Test Coach", "city": "Dubai", "headline": "Life Coach",
+            "last_activity": "2026-07-25",
+            "site_text": "Latest article 2020-01-01.",
+        })
+        result = run("qualify", lead)
+        assert "2026-07-25" in result.stdout
+        assert "activity settled from the page" not in result.stdout
+
+
+def test_a_malformed_last_activity_exits_2():
+    with tempfile.TemporaryDirectory() as tmp:
+        lead = write(tmp, "lead.json", {
+            "name": "X", "last_activity": "not-a-date", "site_text": "coach in dubai"})
+        result = run("qualify", lead)
+        assert result.returncode == 2, result.stdout
+        assert "Traceback" not in result.stderr
+        assert "ISO date" in result.stdout
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

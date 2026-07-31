@@ -327,6 +327,19 @@ def latest_activity_date(text: str, *, page_url: str = "",
                          today: date | None = None) -> tuple[date | None, str]:
     """The most recent real date on a fetched page, and where it came from.
 
+    **Measured on the first real batch: a coach's own website almost never
+    carries one.** Across nine sites and about 220,000 characters of body text
+    this found zero usable dates — six raw matches on one site, all of them
+    year-less or in the future. So this settles the floor when a page happens to
+    be dated, and honestly returns `None` the rest of the time, which
+    `check_active` turns into `unclear` and passes.
+
+    The signal that does exist is LinkedIn: the hook stage pulled dated posts
+    for four of twelve leads on that same batch, several inside a week. That is
+    the real evidence for this floor, and it arrives one stage later than the
+    floor runs. Feed the verified hook's date back as `last_activity` rather
+    than expecting a site read to produce it — see the outbound-batch skill.
+
     `check_active` wants a date; a worker reading a page has text. This is the
     bridge, and it is mechanical on purpose — "when did she last post" is a
     question a regex can settle, and a settled question is one fewer thing a
@@ -427,11 +440,6 @@ def classify_sells_to(*, linkedin_text: str = "", site_text: str = "") -> tuple[
             return "individuals", label
 
     return "", ""
-
-
-def latest_date(dates: list[date | None]) -> date | None:
-    real = [d for d in dates if d]
-    return max(real) if real else None
 
 
 def qualify(*, city: str = "", domain: str = "", headline: str = "",

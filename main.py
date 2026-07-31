@@ -223,19 +223,40 @@ def cmd_qualify(args) -> None:
 
     data = _load_object(args.input, "QUALIFY")
 
+    site_text = data.get("site_text", "")
     last = data.get("last_activity")
+    if last:
+        try:
+            last_activity = date.fromisoformat(str(last))
+        except ValueError:
+            print(f"QUALIFY: FAIL — last_activity {last!r} is not an ISO date "
+                  f"(YYYY-MM-DD).")
+            sys.exit(2)
+        activity_source = "worker"
+    else:
+        # No date supplied: derive one from the page text the worker already
+        # fetched, rather than leaving the floor to a judgement call. Without
+        # this the mechanical bridge existed only as a library function and the
+        # CLI never reached it — all twelve leads on the first real batch came
+        # back `unclear` on activity, and that is the floor doing nothing.
+        last_activity, why = q.latest_activity_date(
+            "\n".join([site_text, data.get("linkedin_text", "")]),
+            page_url=data.get("site_url", "") or data.get("domain", ""))
+        activity_source = why
     result = q.qualify(
         city=data.get("city", ""),
         domain=data.get("domain", ""),
         headline=data.get("headline", ""),
-        site_text=data.get("site_text", ""),
+        site_text=site_text,
         linkedin_text=data.get("linkedin_text", ""),
-        last_activity=date.fromisoformat(last) if last else None,
+        last_activity=last_activity,
         audience_size=data.get("audience_size"),
         top_program_price_aed=data.get("top_program_price_aed"),
         solo=data.get("solo", "unclear"),
     )
     print(result.report(data.get("name", "lead")))
+    if not last:
+        print(f"  activity settled from the page: {activity_source}")
     sys.exit(0 if result.passed else 1)
 
 

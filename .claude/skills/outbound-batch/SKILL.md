@@ -101,6 +101,18 @@ in the brief. Do not substitute a weaker hook to keep the count up.
 and show Haytham before spending the rest of the queue. Something is wrong with
 the instructions, not with those two leads.
 
+**The verified hook's date is the activity evidence — write it back.** The
+active-in-30-days floor runs at stage 2 against a site read, and a coach's own
+website almost never carries a date: measured across nine real sites and about
+220,000 characters, zero usable ones, so every lead came back `unclear` and the
+floor did nothing. LinkedIn is where the signal is, and this stage is what
+fetches it. When a hook is VERIFIED with a real date, put that date on the lead
+as `last_activity` before stage 4, so the CRM records when she was last seen
+rather than a shrug. A hook dated outside the window is not a kill — the lead is
+already through the floor — but it is worth a line in the brief, because a coach
+whose newest public thing is five months old is a different prospect from one
+who posted yesterday.
+
 ## Stage 4 — draft
 
 For every lead with a VERIFIED hook at once, deal the anchors:
