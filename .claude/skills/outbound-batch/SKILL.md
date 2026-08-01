@@ -14,6 +14,23 @@ one.
 
 ## Before anything is spent
 
+Name the batch first. It is one command and it is the cheapest thing here:
+
+```
+python main.py ledger batch <YYYY-MM-DD[-qN]>
+```
+
+That writes `work/BATCH`, and every later command and **every subagent** reads
+the label from there. On `2026-08-01-q1` the label was passed by telling twelve
+workers to add a flag that did not exist — `OUTBOUND_BATCH` is a shell variable
+and a subagent is a different process, so it inherits nothing. Fifteen
+retrievals, five of them paid hook rungs, landed in a file named after the date
+instead of the batch, and `ledger report` under-reported the run by 30%. Nobody
+has to be told the label now. Do not tell them.
+
+Run `python main.py ledger batch` with no argument at any point to see which
+label resolves and where it came from.
+
 ```
 python main.py intake <list.csv> --out work/leads.json
 ```

@@ -119,12 +119,64 @@ def clear_context() -> None:
 # --------------------------------------------------------------------- paths
 
 
+# Where a subagent can find the label without being told it. `work/` is
+# gitignored and per-container, which is exactly the lifetime of a batch.
+BATCH_FILE = "work/BATCH"
+
+
+def _batch_file(root: str | Path | None = None) -> Path:
+    base = Path(root or os.environ.get("OUTBOUND_LEDGER_ROOT")
+                or Path(__file__).resolve().parent.parent)
+    return base / BATCH_FILE
+
+
+def batch_source(batch: str | None = None,
+                 root: str | Path | None = None) -> tuple:
+    """The label and where it came from, in resolution order.
+
+    The second half exists because of how the label was lost. Twelve workers
+    were told to pass `--batch` on every `apify` call; the flag did not exist,
+    one of the twelve checked and said so, and 15 retrievals — five of them paid
+    hook rungs — landed in the wrong file. `ledger report` then under-reported
+    the batch by 30% and the wrong number was quoted before anyone noticed.
+
+    A shell's `OUTBOUND_BATCH` does not reach a subagent: it is a different
+    process, started from a different environment. A file does. So the label
+    stops being something an orchestrator remembers to say and becomes something
+    any process can look up — and `ledger batch` with no argument prints this
+    tuple, so "which batch am I in" is answerable rather than assumed.
+    """
+    if batch:
+        return batch, "passed in"
+    if _context.get("batch"):
+        return _context["batch"], "this process's ledger context"
+    if os.environ.get("OUTBOUND_BATCH"):
+        return os.environ["OUTBOUND_BATCH"], "OUTBOUND_BATCH"
+    try:
+        stored = _batch_file(root).read_text(encoding="utf-8").strip()
+    except OSError:
+        stored = ""
+    if stored:
+        return stored, BATCH_FILE
+    # Never an error. A batch that has not named itself still gets a ledger,
+    # because the alternative is a paid fetch whose accounting is dropped for
+    # want of a label — and this module's one rule is that it cannot halt what
+    # it observes.
+    return date.today().isoformat(), "today, because nothing named a batch"
+
+
 def batch_label(batch: str | None = None) -> str:
-    """The batch this run belongs to. `OUTBOUND_BATCH` if set, else today —
-    the same default `export --batch` already uses, so a batch's ledger and its
-    upload file carry the same label without anyone passing it twice."""
-    return (batch or os.environ.get("OUTBOUND_BATCH")
-            or date.today().isoformat())
+    """The batch this run belongs to. See `batch_source` for the order and why
+    the file is in it."""
+    return batch_source(batch)[0]
+
+
+def set_batch(label: str, root: str | Path | None = None) -> Path:
+    """Write the label where every later process can find it."""
+    target = _batch_file(root)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(label.strip() + "\n", encoding="utf-8")
+    return target
 
 
 def path(batch: str | None = None, root: str | Path | None = None) -> Path:

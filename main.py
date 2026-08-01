@@ -1465,7 +1465,8 @@ def cmd_apify(args) -> None:
     # ten signatures that have nothing else to do with it.
     ledger.set_context(lead_key=getattr(args, "lead", "") or "",
                        stage=getattr(args, "stage", "") or "research",
-                       purpose=getattr(args, "purpose", "") or "observe")
+                       purpose=getattr(args, "purpose", "") or "observe",
+                       batch=getattr(args, "batch", "") or "")
     try:
         if cmd == "limits":
             out = apify.account_limits()
@@ -1556,6 +1557,21 @@ def cmd_ledger(args) -> None:
     route around.
     """
     from outbound import ledger
+
+    if args.ledger_command == "batch":
+        if args.label:
+            target = ledger.set_batch(args.label)
+            print(f"LEDGER: batch {args.label} — wrote {target}")
+            print("  every later command and every subagent reads it from "
+                  "there. Nothing else has to be told.")
+            return
+        label, where = ledger.batch_source()
+        print(f"LEDGER: batch {label} (from {where})")
+        if where.startswith("today"):
+            print("  no batch has been named. Run `ledger batch <label>` "
+                  "before anything paid, or this run's cost lands in a file "
+                  "named after the date and not after the batch.")
+        return
 
     if args.ledger_command == "add":
         wrote = ledger.record(
@@ -1937,6 +1953,12 @@ def build_parser() -> argparse.ArgumentParser:
                               help="what each retrieval cost and how long it took")
     ledger_sub = p_ledger.add_subparsers(dest="ledger_command", required=True)
 
+    a = ledger_sub.add_parser(
+        "batch", help="name this batch, or ask which one you are in")
+    a.add_argument("label", nargs="?", default="",
+                   help="the batch label. Omitted, it prints the label that "
+                        "resolves now and where it came from")
+
     a = ledger_sub.add_parser("add", help="record a retrieval Python did not make")
     a.add_argument("--lead", default="", help="the lead this was fetched for")
     a.add_argument("--platform", default="web",
@@ -2022,6 +2044,13 @@ def build_parser() -> argparse.ArgumentParser:
                              choices=["observe", "verify"],
                              help="a second fetch of the same page is only "
                                   "allowed to verify (ledger)")
+        # Twelve workers were told to pass this and it did not exist. One
+        # checked, used OUTBOUND_BATCH instead and said so; the other eleven
+        # did as they were told, and 15 retrievals landed in the wrong file.
+        # `ledger batch` is the answer to not having to pass it at all.
+        parser_.add_argument("--batch", default="",
+                             help="which batch to bill this to (ledger). "
+                                  "Default: `ledger batch` resolves it")
 
     apify_sub.add_parser("limits", help="usage vs plan — check ONCE per batch")
 

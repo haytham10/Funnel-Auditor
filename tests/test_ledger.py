@@ -235,18 +235,73 @@ def test_a_blank_context_value_does_not_erase_one_already_set():
         ledger.clear_context()
 
 
-def test_the_batch_label_defaults_to_the_environment_then_today():
+def test_the_batch_label_resolves_in_order():
     saved = os.environ.pop("OUTBOUND_BATCH", None)
     try:
-        assert ledger.batch_label("explicit") == "explicit"
-        os.environ["OUTBOUND_BATCH"] = "from-env"
-        assert ledger.batch_label() == "from-env"
-        del os.environ["OUTBOUND_BATCH"]
+        with tempfile.TemporaryDirectory() as tmp:
+            assert ledger.batch_label("explicit") == "explicit"
+            os.environ["OUTBOUND_BATCH"] = "from-env"
+            assert ledger.batch_label() == "from-env"
+            del os.environ["OUTBOUND_BATCH"]
+            ledger.set_batch("from-file", root=tmp)
+            assert ledger.batch_source(root=tmp)[0] == "from-file"
         from datetime import date
         assert ledger.batch_label() == date.today().isoformat()
     finally:
         if saved is not None:
             os.environ["OUTBOUND_BATCH"] = saved
+
+
+def test_a_subagent_can_find_the_label_without_being_told_it():
+    """The defect this rung exists for. Twelve workers were told to pass a
+    `--batch` flag that did not exist; `OUTBOUND_BATCH` is a shell variable and
+    a subagent is a different process, so it inherits nothing. Fifteen
+    retrievals landed in the wrong file and the batch under-reported by 30%.
+
+    A file is the one channel a separate process actually shares."""
+    saved = os.environ.pop("OUTBOUND_BATCH", None)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger.set_batch("2026-08-01-q1", root=tmp)
+            label, where = ledger.batch_source(root=tmp)
+            assert label == "2026-08-01-q1"
+            assert where == ledger.BATCH_FILE
+    finally:
+        if saved is not None:
+            os.environ["OUTBOUND_BATCH"] = saved
+
+
+def test_an_unnamed_batch_still_gets_a_ledger_and_says_so():
+    """It never errors. A paid fetch whose accounting is dropped for want of a
+    label is worse than one filed under the date, and this module cannot halt
+    what it observes. But the report has to be able to say which happened."""
+    saved = os.environ.pop("OUTBOUND_BATCH", None)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            label, where = ledger.batch_source(root=tmp)
+            from datetime import date
+            assert label == date.today().isoformat()
+            assert where.startswith("today")
+    finally:
+        if saved is not None:
+            os.environ["OUTBOUND_BATCH"] = saved
+
+
+def test_a_paid_call_bills_the_batch_its_context_names():
+    """`--batch` on every `apify` subcommand, threaded through the ledger
+    context the same way `--lead` and `--stage` already are."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ledger.clear_context()
+        try:
+            ledger.set_context(lead_key="a@x.ae", batch="ctx-batch")
+            assert ledger.batch_label() == "ctx-batch"
+            ledger.record(root=tmp, platform="linkedin", url="https://x/1",
+                          retrieved_by="apify:li_posts", cost_usd=0.02)
+            written = ledger.path(None, tmp)
+            assert written.name == "ctx-batch.jsonl"
+            assert "a@x.ae" in written.read_text(encoding="utf-8")
+        finally:
+            ledger.clear_context()
 
 
 def test_the_ledger_root_can_be_redirected_out_of_the_repo():

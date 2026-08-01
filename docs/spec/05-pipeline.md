@@ -505,6 +505,19 @@ those lines are **reported on trust** and `retrieved_by` keeps them
 distinguishable from the ones the code wrote itself. `ledger report` reads a
 batch back and writes nothing.
 
+**`ledger batch` makes the label discoverable rather than remembered.** With a
+label it writes `work/BATCH`; with no argument it prints the label that resolves
+now and where it came from. The order is the argument, this process's context,
+`OUTBOUND_BATCH`, `work/BATCH`, then today. On `2026-08-01-q1` twelve workers
+were told to pass a `--batch` flag that did not exist, and `OUTBOUND_BATCH` is a
+shell variable a subagent does not inherit — so 15 retrievals, five of them paid
+hook rungs, were billed to a file named after the date and `ledger report`
+under-reported the batch by 30%. Every `apify` subcommand now takes `--batch`
+too, and neither is something a worker has to be told. **An unnamed batch is
+never an error**: the label falls back to the date and the report says which
+happened, because dropping a paid fetch's accounting for want of a label is
+worse than filing it under the wrong name.
+
 **Reporting a duplicate is the job; failing on one is not.** A gate that can
 halt a real send file over an accounting line is a gate people learn to route
 around — the same reason `doc-check` runs with the tests rather than with a

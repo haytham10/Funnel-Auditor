@@ -24,9 +24,14 @@ has LinkedIn actors in the first place.
 So when the citation is login-walled, use the paid rung:
 
 ```
-OUTBOUND_BATCH=<batch> python main.py apify li-profile <url> --lead <email> --stage verify --purpose verify
-OUTBOUND_BATCH=<batch> python main.py apify li-posts   <url> --lead <email> --stage verify --purpose verify
+python main.py apify li-profile <url> --lead <email> --stage verify --purpose verify
+python main.py apify li-posts   <url> --lead <email> --stage verify --purpose verify
 ```
+
+**The batch label is not yours to carry.** It used to be prefixed here as
+`OUTBOUND_BATCH=<batch>`, which meant somebody had to tell you the label and you
+had to remember to type it. `work/BATCH` holds it and every command reads it.
+Run `python main.py ledger batch` if you want to see which one you are in.
 
 **Your fetch carries no window, on purpose.** The ladder makes the retrieving
 stages pass `--since 3months`, because that is an editorial rule about what
