@@ -386,3 +386,112 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------------- the floors, after the batch
+#
+# Every case below is a real row from the 155-lead run that a worker had to
+# hand-override with sourced evidence, or a real false pass nobody caught.
+
+
+def test_is_coach_can_finally_say_no():
+    """It was documented as a hard floor and had three returns, none of which
+    could be NO. It substring-matched the word "coach" and nothing else."""
+    for headline in ("Cabin crew at flydubai",
+                     "Retail Supervisor at Bacardi",
+                     "Lecturer in Business, Middlesex University Dubai"):
+        assert q.check_coach(headline=headline).value == q.NO, headline
+
+
+def test_is_coach_needs_all_three_conditions_to_say_no():
+    """A stated other occupation AND no coach word AND no offer. Plenty of real
+    coaches also have a day job, and a false kill is permanent."""
+    assert q.check_coach(headline="Nurse and wellness coach").value == q.YES
+    assert q.check_coach(
+        headline="Nurse", text="Book a discovery call. My clients get 1:1 sessions."
+    ).value == q.UNCLEAR
+
+
+def test_is_coach_matches_on_word_boundaries():
+    """`"coach" in haystack` fires on coachella, stagecoach, and any URL with
+    the letters in it — which is how a floor comes to pass everything."""
+    assert q.check_coach(text="I went to Coachella last year.").value == q.UNCLEAR
+
+
+def test_a_coaching_offer_with_no_coach_word_is_unclear_not_no():
+    v = q.check_coach(text="Book a session with me. Packages start in September.")
+    assert v.value == q.UNCLEAR and "no coach word" in v.evidence
+
+
+def test_a_hobby_mention_still_passes_and_that_is_deliberate():
+    """The airline CEO whose goalie coaching is a weekend thing. Telling that
+    apart from "I coach founders" needs context this function does not have,
+    and getting it wrong costs a real lead permanently."""
+    assert q.check_coach(headline="CEO",
+                         text="At weekends I do some goalie coaching.").value == q.YES
+
+
+def test_a_location_sentence_about_a_past_employer_does_not_kill():
+    """The real false kill: "based in Singapore" described a former employer."""
+    v = q.check_uae(text="Leadership coach in Dubai. Previously at Acme, "
+                         "based in Singapore.")
+    assert v.value == q.YES
+
+
+def test_a_location_sentence_about_a_client_does_not_kill():
+    assert q.check_uae(
+        text="Our client, based in London, doubled their revenue."
+    ).value != q.NO
+
+
+def test_a_third_person_location_does_not_kill():
+    assert q.check_uae(text="She is based in Toronto and runs the studio."
+                       ).value != q.NO
+
+
+def test_a_plain_bio_line_still_kills():
+    """The default has to stay "this is about them" — "Based in Manchester."
+    with no pronoun is the ordinary bio form, and requiring a first person
+    would spare every one of them."""
+    assert q.check_uae(text="Based in Manchester, working worldwide.").value == q.NO
+
+
+def test_their_own_location_field_outranks_the_page():
+    """Two claims about where one person is. The field is the one that is
+    definitely about them."""
+    assert q.check_uae(city="Dubai", text="Based in Singapore.").value == q.YES
+
+
+def test_a_uae_city_in_a_location_field_settles_it():
+    assert q.check_uae(location="Dubai, United Arab Emirates").value == q.YES
+
+
+def test_the_two_letter_shorthands_are_gone():
+    """`ad` and `ae` carried no signal a real bio would ever intend."""
+    assert "ad" not in q.UAE_SHORTHAND and "ae" not in q.UAE_SHORTHAND
+
+
+def test_scale_alone_no_longer_pulls_a_fitness_coach_into_business():
+    """It did, twice, on the first batch. `\\b` binds only to the first branch
+    of an alternation, so `scale` was matching bare."""
+    kind, _ = q.classify_coach_type(
+        site_text="Strength and fitness coach. I help people scale their training.")
+    assert kind == "Fitness"
+
+
+def test_scaling_a_business_still_reads_as_business():
+    kind, _ = q.classify_coach_type(
+        site_text="I help you scale your business past AED 1m.")
+    assert kind == "Business"
+
+
+def test_wellness_in_passing_no_longer_makes_a_brand_strategist_a_health_coach():
+    kind, _ = q.classify_coach_type(
+        site_text="Brand strategist for the wellness industry.")
+    assert kind == ""
+
+
+def test_a_real_wellness_coach_still_reads_as_health():
+    kind, _ = q.classify_coach_type(
+        site_text="Wellness coach helping women sleep better.")
+    assert kind == "Health"

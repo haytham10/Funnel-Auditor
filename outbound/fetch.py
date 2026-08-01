@@ -95,6 +95,12 @@ class SiteRead:
     social: dict[str, str] = field(default_factory=dict)
     escalate: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # Does this site mention the person the row is about? confirmed | absent |
+    # unknown. About 40 of 151 rows on the first batch pointed at somebody
+    # else entirely — parked domains, name collisions, a coach's training
+    # school, an Ohio retreat house, a Dutch tech-news site — and nothing
+    # checked, so every one was found by hand after the money was spent.
+    owner_match: str = "unknown"
 
     @property
     def ok(self) -> bool:
@@ -296,6 +302,29 @@ def run_plan(plan: dict, *, approved: bool = False) -> list[dict]:
     return apify.crawl_static(urls, approved=approved)
 
 
+def check_owner(read: SiteRead, name: str) -> str:
+    """Does this site mention the person the row says it belongs to?
+
+    `confirmed` when a name token appears, `absent` when the site read fine and
+    none does, `unknown` when there was nothing to look at or no name to look
+    for. Uses the one shared tokenizer, at `min_len=3` so an initial cannot
+    match everything.
+
+    **Advisory, never a kill.** A real coach's site may carry only a brand name,
+    and a false kill here is permanent and invisible. What this buys is that the
+    ~40 bad rows in a 151-lead list surface in one report line before any money
+    is spent, instead of one at a time, by hand, after it.
+    """
+    from audit.email_check import name_tokens
+
+    tokens = name_tokens(name or "", min_len=3)
+    if not tokens or not read.ok:
+        return "unknown"
+    haystack = " ".join(
+        [read.text] + [p.url for p in read.pages] + read.headings).lower()
+    return "confirmed" if any(t in haystack for t in tokens) else "absent"
+
+
 def _read_key(lead) -> str:
     """A key that is unique per LEAD, not per name.
 
@@ -371,8 +400,10 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
                                  "city": getattr(lead, "city", "")})
 
     def read_one(lead):
-        return _read_key(lead), lead, read_site(
-            lead.site_url, max_pages=max_pages, session=_thread_session())
+        read = read_site(lead.site_url, max_pages=max_pages,
+                         session=_thread_session())
+        read.owner_match = check_owner(read, getattr(lead, "name", ""))
+        return _read_key(lead), lead, read
 
     workers = max(1, min(workers, len(targets) or 1))
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -391,6 +422,9 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
 
     attempted = len(reads)
     elapsed = time.monotonic() - started
+    unowned = [{"name": getattr(l, "name", ""), "url": l.site_url}
+               for l in targets
+               if reads.get(_read_key(l)) and reads[_read_key(l)].owner_match == "absent"]
     return {
         "reads": reads,
         "ok": sum(1 for r in reads.values() if r.ok),
@@ -402,12 +436,16 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
         "escalate_plans": plans,
         "needs_search": needs_search,
         "ig_only": ig_only,
+        "unowned": unowned,
         "report": (
             f"TIER 0: {sum(1 for r in reads.values() if r.ok)}/{attempted} sites "
             f"read free in {elapsed:.0f}s on {workers} worker(s). "
             f"{len(dead)} unreachable, {len(thin)} thin. "
             f"{len(plans)} batched Apify run(s) needed. "
             f"{len(needs_search)} lead(s) need a web search, "
-            f"{len(ig_only)} reachable only on Instagram."
+            f"{len(ig_only)} reachable only on Instagram.\n"
+            f"OWNER-CHECK: {len(unowned)}/{attempted} site(s) never mention the "
+            f"lead's name. Advisory, never a kill — resolve each with a source "
+            f"before spending on it."
         ),
     }

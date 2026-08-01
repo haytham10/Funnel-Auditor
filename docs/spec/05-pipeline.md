@@ -111,6 +111,15 @@ rung anybody had planned. The report now prints a `SEARCH` line per lead with
 no site and no social, and an `IG` line per lead reachable only on Instagram.
 That is handed-out work rather than a gap each worker rediscovers.
 
+**And it says which sites never mention the lead.** About 40 of 151 rows on the
+first batch pointed at somebody else — parked domains, name collisions, a
+coach's training school, an Ohio retreat house, a Dutch tech-news site. Nothing
+checked, so each was found by a worker, by hand, after the fetch had been paid
+for. `OWNER-CHECK` is one line naming all of them before any money is spent.
+**Advisory, never a kill**: a real coach's site may carry only a brand name, and
+a false kill here is permanent and invisible. `intake` does the free half of the
+same check on a LinkedIn or Instagram handle, and records it as a note.
+
 ### `qualify`
 **In** a research object. **Out** three verdicts with their evidence, plus the
 captured fields. **Guarantees** `unclear` passes and only a clear `no` drops a

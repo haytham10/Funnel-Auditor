@@ -409,3 +409,29 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+def test_a_profile_handle_that_is_not_the_lead_gets_a_note():
+    """The cheapest half of the ownership check, and it costs no request at
+    all. A note, never a drop: plenty of real people have a handle that is a
+    brand or a nickname."""
+    lead = normalize.map_row({"Name": "Sarah Khan",
+                              "LinkedIn": "https://linkedin.com/in/mikeoconnor"})
+    assert any("does not contain this lead's name" in n for n in lead.notes)
+
+
+def test_a_matching_handle_gets_no_note():
+    lead = normalize.map_row({"Name": "Sarah Khan",
+                              "LinkedIn": "https://linkedin.com/in/sarahkhan"})
+    assert not any("does not contain" in n for n in lead.notes)
+
+
+def test_a_handle_with_digits_still_matches():
+    lead = normalize.map_row({"Name": "Sarah Khan",
+                              "LinkedIn": "https://linkedin.com/in/sarah-khan-8a41b2"})
+    assert not any("does not contain" in n for n in lead.notes)
+
+
+def test_no_name_means_no_ownership_note():
+    lead = normalize.map_row({"LinkedIn": "https://linkedin.com/in/whoever"})
+    assert not any("does not contain" in n for n in lead.notes)

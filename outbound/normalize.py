@@ -306,7 +306,39 @@ def map_row(row: dict, *, source: str = "") -> Lead:
 
     _split_name(lead)
     lead.slug = slugify(lead.name or lead.domain or "lead")
+    lead.notes.extend(_profile_name_notes(lead))
     return lead
+
+
+def _profile_name_notes(lead: "Lead") -> list[str]:
+    """Free ownership check: does a profile URL's own handle contain the name?
+
+    About 40 of 151 rows on the first batch pointed at somebody else — name
+    collisions, a coach's training-school site, an Ohio retreat house. Every one
+    was found by a worker, by hand, after the fetch had already been paid for.
+    A LinkedIn `/in/<slug>` is the cheapest possible tell and costs no request
+    at all.
+
+    **A note, never a drop.** Plenty of real people have a handle that is a
+    brand, a nickname, or their name with digits after it. This exists so the
+    bad rows are visible before the money, not so the machine can act on them.
+    """
+    from audit.email_check import name_tokens
+
+    tokens = name_tokens(lead.name or "", min_len=3)
+    if not tokens:
+        return []
+    notes = []
+    for field_name, label in (("linkedin_url", "LinkedIn"),
+                              ("instagram_url", "Instagram")):
+        url = getattr(lead, field_name, "")
+        if not url:
+            continue
+        handle = re.sub(r"[^a-z]+", "", url.rsplit("/", 1)[-1].lower())
+        if handle and not any(t in handle for t in tokens):
+            notes.append(f"{label} handle does not contain this lead's name "
+                         f"({url}) — confirm it is them before spending on it")
+    return notes
 
 
 def unmapped_headers(path: str) -> list[str]:

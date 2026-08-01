@@ -1112,6 +1112,9 @@ def cmd_fetch(args) -> None:
     # Named work rather than a blind spot. These leads produce no tier-0 read
     # at all, so before this they simply were not in the output and each worker
     # rediscovered the gap on its own.
+    for lead in result["unowned"]:
+        print(f"  OWNER?    {lead['name'] or '(no name)'} — {lead['url']} "
+              f"never mentions them")
     for lead in result["ig_only"]:
         print(f"  IG        {lead['name'] or '(no name)'} — {lead['url']} "
               f"(batch these: `apify ig <url> <url> --mode details`)")

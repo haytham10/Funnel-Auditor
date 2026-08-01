@@ -62,8 +62,14 @@ UAE_MARKERS = (
 # abbreviations were returning a hard NO on genuinely UAE-based coaches,
 # because the "based in X" rule below fired whenever X was not literally in
 # UAE_CITIES. That is the one failure this whole design exists to avoid.
+# `ad` and `ae` were in this list and are not. Both are two letters that occur
+# constantly in ordinary prose, and `_stated_residence` matches on equality with
+# a captured 1-2 word group — so "based in Ae" is not the failure, but the
+# tokens carry no signal a real bio would ever intend and every other entry here
+# is unambiguous. Dropping them costs nothing and removes two ways to be right
+# by accident.
 UAE_SHORTHAND = (
-    "dxb", "auh", "shj", "rak", "uaq", "fjr", "awz", "ad", "ae",
+    "dxb", "auh", "shj", "rak", "uaq", "fjr", "awz",
 )
 # Places that mention the UAE without being in it. "Serving clients across the
 # GCC" from a London address is the exact failure this catches.
@@ -118,6 +124,30 @@ COACH_MARKERS = (
     "coach", "coaching", "mentor", "mentoring", "consultant to founders",
     "therapist", "practitioner", "facilitator",
 )
+# Evidence they SELL it, rather than that the word appears. A hobby, a job
+# title containing "coach", or a page about coaching all match the markers
+# above; a booking page and a programme do not appear by accident.
+COACH_OFFER_MARKERS = (
+    "book a call", "book a session", "discovery call", "free consultation",
+    "1:1", "one-to-one", "one on one", "my clients", "my programme",
+    "my program", "work with me", "packages", "coaching package",
+    "coaching programme", "coaching program", "sessions", "per session",
+    "intake form", "apply to work", "client results", "testimonials",
+)
+# Occupations that are plainly something else. A stated one of these, with no
+# coach marker and no offer anywhere, is the only thing that earns a `no` —
+# see `check_coach`. Every entry was a real row on the first batch or is the
+# same shape as one: a Bacardi retail supervisor, flydubai cabin crew, a
+# Middlesex lecturer, and an airline CEO whose goalie coaching is a hobby.
+NON_COACH_OCCUPATIONS = (
+    "cabin crew", "flight attendant", "pilot", "first officer",
+    "retail supervisor", "store manager", "sales assistant", "cashier",
+    "lecturer", "professor", "phd student", "postdoc", "teaching assistant",
+    "software engineer", "data scientist", "developer", "accountant",
+    "nurse", "surgeon", "dentist", "pharmacist", "lawyer", "solicitor",
+    "estate agent", "real estate agent", "receptionist", "chef", "barista",
+    "driver", "security guard", "warehouse", "logistics coordinator",
+)
 # A coaching *company* with staff is not the solo operator this is written for,
 # but per the ICP decision that is captured, not gated.
 COACH_TYPES = (
@@ -128,9 +158,22 @@ COACH_TYPES = (
 _TYPE_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("Executive", re.compile(r"\bexecutive coach|c-suite|senior leader", re.I)),
     ("Leadership", re.compile(r"\bleadership|team lead|manager development", re.I)),
-    ("Business", re.compile(r"\bbusiness coach|founder coach|entrepreneur coach|scale", re.I)),
-    ("Career", re.compile(r"\bcareer coach|job search|interview|cv\b|resume", re.I)),
-    ("Health", re.compile(r"\bhealth coach|nutrition|wellness|hormone|gut\b", re.I)),
+    # `scale` used to be a bare alternative here — the `\b` binds only to the
+    # first branch — so it matched "scaled", "at scale", and inside "rescale",
+    # and it pulled two fitness coaches into Business on the first batch. A
+    # segment decides which proof line a real email carries, so a false
+    # positive here is a wrong reference group in a stranger's inbox.
+    ("Business", re.compile(
+        r"\bbusiness coach|\bfounder coach|\bentrepreneur coach|"
+        r"\bscal(?:e|ing)\s+(?:your|their|a|my)\s+(?:business|company|agency|team)", re.I)),
+    ("Career", re.compile(
+        r"\bcareer coach|\bjob search|\binterview (?:prep|coach|skills)|"
+        r"\bcv\b|\bresume\b", re.I)),
+    # Same shape: `wellness` alone pulled a brand strategist into Health off a
+    # sentence that had nothing to do with them.
+    ("Health", re.compile(
+        r"\bhealth coach|\bnutrition(?:ist|\s+coach)|\bwellness (?:coach|practice|program|programme)|"
+        r"\bhormone|\bgut\b", re.I)),
     ("Fitness", re.compile(r"\bfitness|personal train|strength|physique", re.I)),
     ("Mindset", re.compile(r"\bmindset|confidence|limiting belief|self.?worth", re.I)),
     ("Life", re.compile(r"\blife coach|transformation|purpose|fulfil", re.I)),
@@ -238,14 +281,27 @@ class Qualification:
 
 
 def check_uae(*, city: str = "", text: str = "", domain: str = "",
-              source: str = "") -> Verdict:
+              source: str = "", headline: str = "", location: str = "") -> Verdict:
     """Based in the UAE, not merely serving it.
 
     The distinction is load-bearing: a coach in London selling to Dubai has a
     different market, a different price ceiling, and no reason to recognise the
     reference group in the identity beat.
+
+    **Two haystacks, not one.** `city`, `headline` and `location` are fields
+    about the SUBJECT — their own stated location — and they settle this either
+    way. `text` is a page of prose that happens to be on their site, and it may
+    only ever produce a `yes`.
+
+    That split is the fix for a real pair of failures on the first batch. The
+    old version joined everything into one blob, so a lead was killed by "based
+    in Singapore" describing a PAST EMPLOYER, and another passed on a "dubai"
+    that came from an unrelated part of the page. A page can say anything about
+    anyone; a location field is about this person. Both errors were invisible,
+    and the kill was permanent.
     """
-    haystack = " ".join([city, text, domain]).lower()
+    subject = " ".join([city, headline, location]).lower()
+    haystack = " ".join([city, headline, location, text, domain]).lower()
     if not haystack.strip():
         return Verdict(UNCLEAR, source or "no data")
 
@@ -254,14 +310,24 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
             return Verdict(UNCLEAR, source or "text",
                            f"claims reach, not residence: {phrase}")
 
-    # An explicit statement of residence is checked FIRST, and settles it either
-    # way. It used to run last, after a loose scan for UAE words — so "I am a
-    # coach based in Toronto. Read my essay at nowhere.aeon.co" returned YES on
-    # ".ae", and "Our client Marina came to us from Manchester" returned YES on
-    # "marina". A coach who has written down where they live outranks a word
-    # that happened to appear in a URL.
-    stated = _stated_residence(text, source)
-    if stated is not None:
+    # A subject-owned field naming a UAE place settles it outright, ahead of
+    # anything in the prose.
+    for marker in UAE_CITIES:
+        if subject and re.search(rf"\b{re.escape(marker)}\b", subject):
+            return Verdict(YES, source or "location field", marker)
+
+    # An explicit statement of residence is checked before the loose scan, and
+    # settles it either way. It used to run last — so "I am a coach based in
+    # Toronto. Read my essay at nowhere.aeon.co" returned YES on ".ae", and "Our
+    # client Marina came to us from Manchester" returned YES on "marina". A
+    # coach who has written down where they live outranks a word that happened
+    # to appear in a URL.
+    stated = _stated_residence(text, source, subject_fields=subject)
+    # An `unclear` from a sentence about somebody else is not an answer, it is
+    # the absence of one — so it falls through to the marker scan below rather
+    # than short-circuiting. "Leadership coach in Dubai. Previously at Acme,
+    # based in Singapore." should read the Dubai.
+    if stated is not None and stated.value != UNCLEAR:
         return stated
 
     for marker in UAE_CITIES:
@@ -288,17 +354,51 @@ def check_uae(*, city: str = "", text: str = "", domain: str = "",
     # lead, and it hard-killed eleven real UAE localities including Al Barsha,
     # Deira and Mirdif. Now an unrecognised place is `unclear` — one research
     # call — because a false kill is permanent and nobody ever sees it.
-    return _stated_residence(text, source) or Verdict(UNCLEAR, source or "text")
+    # The second `_stated_residence` call that used to be here was dead: the
+    # branch above returns for every case it can produce a value in.
+    return Verdict(UNCLEAR, source or "text")
 
 
-def _stated_residence(text: str, source: str = "") -> "Verdict | None":
-    """A "based in X" line, resolved. None when the text has no such line."""
+# Evidence a "based in X" sentence is about SOMEBODY ELSE. On the first batch
+# "based in Singapore" describing a past employer killed a real lead, and a kill
+# is permanent and invisible.
+#
+# Note the direction. The default stays "this is about them", because "Based in
+# Manchester." with no pronoun is the ordinary bio form and requiring a first
+# person would spare every one of those — weakening the only floor that can
+# actually drop a row. So the burden is on the exception: something in the
+# clause just before it has to name a different subject.
+_THIRD_PARTY = re.compile(
+    r"\b(client|clients|customer|employer|company|companies|team|teams|partner|"
+    r"partners|colleague|colleagues|agency|firm|school|studio|brand|"
+    r"headquarters|office|offices|he|she|they|his|her|their|"
+    r"previously|formerly|worked at|worked with|joined|graduated from)\b"
+    r"[^.]{0,60}?\b(?:based|located|living|headquartered)\s+in\b", re.I)
+
+
+def _stated_residence(text: str, source: str = "",
+                      subject_fields: str = "") -> "Verdict | None":
+    """A "based in X" line, resolved. None when the text has no such line.
+
+    A `NO` needs the sentence to be about the SUBJECT, which is the default — a
+    bare "Based in Manchester." is the ordinary bio form. It is spared only when
+    something just before it names a different subject (a past employer, a
+    client, a third-person pronoun), or when the lead's own location field says
+    somewhere else and the two disagree.
+    """
     other = re.search(
         r"\b(?:based|located|living|headquartered)\s+in\s+(?:the\s+)?"
         r"([A-Za-z]+(?:[ -][A-Za-z]+)?)",
         text or "", re.I,
     )
     if other:
+        # Their own location field naming a different place outranks a sentence
+        # in the prose. Two claims about where one person is, and the field is
+        # the one that is definitely about them.
+        contradicted = bool(
+            subject_fields.strip()
+            and other.group(1).strip().lower() not in subject_fields)
+        about_subject = not _THIRD_PARTY.search(text or "") and not contradicted
         where = other.group(1).strip()
         lowered = where.lower()
         if any(m in lowered for m in UAE_CITIES):
@@ -315,26 +415,66 @@ def _stated_residence(text: str, source: str = "") -> "Verdict | None":
         if any(m in lowered or m in whole
                for m in UAE_MARKERS if m != ".ae"):
             return Verdict(YES, source or "text", other.group(0))
-        if lowered in FOREIGN_PLACES:
-            return Verdict(NO, source or "text", other.group(0))
-        # "Based in Manchester, UK" — the regex takes two words, so check the
-        # leading word too before giving up on a place we do know.
+        # "Based in Manchester, UK" — the regex takes two words, so the leading
+        # word counts too before giving up on a place we do know.
         first_word = lowered.split()[0] if lowered.split() else ""
-        if first_word in FOREIGN_PLACES:
+        foreign = lowered in FOREIGN_PLACES or first_word in FOREIGN_PLACES
+        if foreign and about_subject:
             return Verdict(NO, source or "text", other.group(0))
+        if foreign:
+            return Verdict(
+                UNCLEAR, source or "text",
+                f"{other.group(0)} — but that sentence is about somebody else, "
+                f"or their own location field says otherwise")
         return Verdict(UNCLEAR, source or "text",
                        f"{other.group(0)} — place not recognised either way")
     return None
 
 
 def check_coach(*, headline: str = "", text: str = "", source: str = "") -> Verdict:
-    """Actually sells coaching, rather than merely using the word."""
+    """Actually sells coaching, rather than merely using the word.
+
+    The docstring said that and the code did the opposite: it substring-matched
+    "coach" and had three returns, none of which could be `NO`. It was
+    documented as a hard floor and was structurally incapable of rejecting
+    anyone, so workers in five slices of the first batch hand-overrode it with
+    sourced evidence — a Bacardi retail supervisor, flydubai cabin crew, a
+    Middlesex lecturer, an airline CEO whose goalie coaching is a stated hobby.
+
+    Now it can say no, and the bar for that is deliberately high: a stated
+    non-coach occupation AND no coach marker anywhere AND nothing that looks
+    like a coaching offer. All three, because a false kill is permanent and
+    invisible while a false pass costs one research call — and plenty of real
+    coaches also have a day job.
+
+    Matching is word-bounded. `"coach" in haystack` fires on "coachella",
+    "stagecoach" and any URL containing the letters, which is how a floor comes
+    to pass everything.
+    """
     haystack = " ".join([headline, text]).lower()
     if not haystack.strip():
         return Verdict(UNCLEAR, source or "no data")
+
+    # A coach word anywhere is still a `yes`, including the airline CEO whose
+    # goalie coaching is a weekend hobby. Telling that apart from "I coach
+    # founders" needs context this function does not have, and getting it wrong
+    # costs a real lead permanently against one wasted research call. It stays
+    # a false pass on purpose; the research worker overrides it with a source.
     for marker in COACH_MARKERS:
-        if marker in haystack:
+        if re.search(rf"\b{re.escape(marker)}\b", haystack):
             return Verdict(YES, source or "text", marker)
+
+    offer = next((m for m in COACH_OFFER_MARKERS
+                  if re.search(rf"\b{re.escape(m)}\b", haystack)), None)
+    if offer:
+        # No coach word, but something is plainly being sold one-to-one. Not a
+        # `yes` — this is a shape, not a claim — but nowhere near a `no`.
+        return Verdict(UNCLEAR, source or "text", f"no coach word, but: {offer}")
+
+    other = next((o for o in NON_COACH_OCCUPATIONS
+                  if re.search(rf"\b{re.escape(o)}\b", haystack)), None)
+    if other:
+        return Verdict(NO, source or "text", f"states another occupation: {other}")
     return Verdict(UNCLEAR, source or "text")
 
 

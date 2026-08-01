@@ -260,3 +260,52 @@ def test_a_lead_with_a_site_is_neither(monkeypatch):
                         lambda url, **k: fetch.SiteRead(domain=url))
     out = fetch.batch_fetch([_Social("Sited", site="https://a.ae")], workers=2)
     assert out["ig_only"] == [] and out["needs_search"] == []
+
+
+# ------------------------------------------------------- does the site say them
+
+
+def _read_with(text, name_in_page=True, ok=True):
+    read = fetch.SiteRead(domain="x.ae")
+    body = ("Sarah Khan is a leadership coach in Dubai." if name_in_page
+            else "A retreat house in Ohio. Come and stay.")
+    read.pages = [fetch.Page(url="https://x.ae", status=200 if ok else 404,
+                             text=(body + " " + text) * 20)]
+    return read
+
+
+def test_a_site_that_names_the_lead_is_confirmed():
+    assert fetch.check_owner(_read_with(""), "Sarah Khan") == "confirmed"
+
+
+def test_a_site_that_never_names_the_lead_is_absent():
+    """About 40 of 151 rows pointed at somebody else — parked domains, name
+    collisions, a coach's training school, an Ohio retreat house. Nothing
+    checked, so every one was found by hand after the fetch was paid for."""
+    assert fetch.check_owner(_read_with("", name_in_page=False),
+                             "Sarah Khan") == "absent"
+
+
+def test_an_unreadable_site_is_unknown_not_absent():
+    """Absence of evidence. A site that would not load says nothing about who
+    owns it, and reporting that as a mismatch would be a lie."""
+    assert fetch.check_owner(_read_with("", ok=False), "Sarah Khan") == "unknown"
+
+
+def test_no_name_to_check_is_unknown():
+    assert fetch.check_owner(_read_with(""), "") == "unknown"
+
+
+def test_an_initial_is_too_short_to_confirm_ownership():
+    """min_len=3, so "S" cannot match every site on earth."""
+    assert fetch.check_owner(_read_with("", name_in_page=False), "S K") == "unknown"
+
+
+def test_the_owner_check_is_reported_and_never_a_kill(monkeypatch):
+    monkeypatch.setattr(fetch, "read_site",
+                        lambda url, **k: _read_with("", name_in_page=False))
+    out = fetch.batch_fetch([_Social("Nobody Here", site="https://x.ae")], workers=2)
+    assert [u["name"] for u in out["unowned"]] == ["Nobody Here"]
+    assert "OWNER-CHECK" in out["report"]
+    # Still read, still counted, still available to every later stage.
+    assert out["attempted"] == 1

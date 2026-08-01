@@ -78,6 +78,13 @@ A schema violation goes back to the worker once. A worker that returns a
 status-only reply with no work product gets taken over directly, not resumed
 twice.
 
+**A missing output file is not proof a worker is dead.** Confirm it before
+relaunching. On the first batch slice 15 finished with no notification and no
+file, was relaunched on that inference, and then the original returned too — so
+the slice ran twice for one result, at double the cost and with two objects to
+reconcile. Check whether the agent is still running first; a slow slice and a
+dead one look identical from the file system.
+
 Then the late dedupe, now that addresses exist:
 
 ```
