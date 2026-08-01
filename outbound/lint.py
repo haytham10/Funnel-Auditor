@@ -769,6 +769,34 @@ def check_seam(beats: dict[str, str]) -> list[str]:
     return problems
 
 
+def check_ask(cta: str) -> list[str]:
+    """The close asks for the meeting. It does not ask whether to ask.
+
+    `cta-04` opens "Worth 15 minutes?" and two independent cold readers said the
+    same thing about it: the ask is a question that invites "no", and *"the ask
+    itself has become optional, which is the one thing it is not allowed to
+    be."* Paired with a ps that offers an out — which is most of the ps bank,
+    because lowering the cost of saying no is that beat's whole job — the reader
+    gets an exit in the close's first three words and another one at the end.
+
+    Per-line linting cannot see it, because the line is fine in isolation.
+    `docs/hook-rules.md` ban #10 already says a question is a dead end that
+    looks like success and that the close is where the meeting gets asked for;
+    this is that rule applied one beat over.
+
+    **A warning, not a failure.** The line is bank copy Haytham chose, the fix
+    is one edit in Airtable, and a check that blocks a real send file over an
+    editorial judgement nobody has measured is a check people learn to route
+    around. `copy-check` reports it at the source, which is where it can be
+    fixed.
+    """
+    first = (split_sentences(cta) or [""])[0].strip()
+    if first.endswith("?"):
+        return [f'the close opens on a question ("{first}"), which invites "no" '
+                f"— the close is where the meeting is asked for"]
+    return []
+
+
 def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
                 allowed_numbers: set, facts=None, identity_claim=None,
                 hook_quote: str = "") -> Result:
@@ -822,6 +850,7 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
     result.failures.extend(check_seam(beats))
     result.failures.extend(check_bridge(beats.get("identity", "")))
     result.failures.extend(check_identity_pronouns(beats.get("identity", "")))
+    result.warnings.extend(check_ask(beats.get("cta", "")))
 
     hook = beats.get("hook", "")
     if not hook.strip():
@@ -833,6 +862,22 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
 
 
 # ---------------------------------------------------------------- batch checks
+
+
+# Long enough that a shared run is a phrase somebody chose rather than English
+# doing its job. At three, "that you had to" and "and it made me" recur between
+# unrelated hooks and the check reports grammar as a template.
+TEMPLATE_SHINGLE_WORDS = 4
+
+
+def _shingles(text: str, size: int) -> set:
+    """Every run of `size` words, lowercased and stripped of punctuation.
+
+    Punctuation goes so that "most people think," and "most people think" are
+    the same phrase — a template does not stop being one at a comma.
+    """
+    words = re.sub(r"[^a-z0-9\s]+", " ", (text or "").lower()).split()
+    return {" ".join(words[i:i + size]) for i in range(len(words) - size + 1)}
 
 
 def _opening_shape(body: str, words: int = 4) -> str:
@@ -887,6 +932,27 @@ def check_batch(emails: list[dict], anchor_shares: dict | None = None) -> Result
     for shape, count in shapes.items():
         if count / total > FIXED_LINE_SHARE_CAP and count > 1:
             record(f'{count} of {total} emails open on "{shape}"')
+
+    # The hook is the one beat written per lead, and a phrase two of them share
+    # is a template by definition. "Most people [verb]" appeared as the writer's
+    # clause in two drafts on `2026-08-01-q1`; each read fine alone, and only a
+    # batch-level view can see them together.
+    #
+    # Four words, because three catches ordinary function-word runs and reports
+    # a template that is really grammar. A warning rather than a failure:
+    # nobody has measured how often an innocent 4-gram recurs across real hooks,
+    # and a batch-blocking gate calibrated on nothing is one people route around.
+    hooks = {}
+    for index, email in enumerate(emails):
+        hook = (email.get("beats") or {}).get("hook", "")
+        for shingle in _shingles(hook, TEMPLATE_SHINGLE_WORDS):
+            hooks.setdefault(shingle, set()).add(index)
+    for shingle, owners in sorted(hooks.items()):
+        if len(owners) > 1:
+            result.warnings.append(
+                f'{len(owners)} hooks share the phrase "{shingle}" — the hook '
+                f"is the beat that proves per-lead authorship, so a phrase two "
+                f"of them have is a template")
 
     bridges: dict[str, int] = {}
     for email in emails:

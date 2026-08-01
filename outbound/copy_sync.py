@@ -321,6 +321,27 @@ def _check_totaliser(line: dict) -> list[str]:
             f"records is a flourish, and it reads as one"]
 
 
+def advisories(lines: list[dict]) -> list[str]:
+    """Things worth saying about a line that must never block a batch.
+
+    Kept apart from `validate` on purpose, and the separation is the point: a
+    problem there stops a line drawing, so everything in it has to be a rule
+    the machine is willing to halt a send file over. An editorial judgement is
+    not that, and folding one in would either block batches over taste or
+    soften the gate until the real failures stop being believed.
+
+    Reported at the source, because Airtable is where the fix is. The linter
+    raises the same note per email, as a warning.
+    """
+    from outbound import lint
+
+    out = []
+    for line in lines:
+        if line.get("beat") == "cta":
+            out.extend(f"{line['id']}: {m}" for m in lint.check_ask(line["line"]))
+    return out
+
+
 def validate(lines: list[dict], facts=None) -> list[str]:
     """Everything that must hold before a line is allowed to draw."""
     from audit.draft_lint import EM_DASH
@@ -558,6 +579,11 @@ class CheckResult:
     drift: list[str] = field(default_factory=list)      # cache != table
     blocked: str = ""                   # could not run at all, with the reason
     snapshot: bool = False              # a snapshot exists and was compared
+    # Worth saying, never worth blocking. Deliberately not folded into
+    # `problems`: everything there halts a line from drawing, so it has to be a
+    # rule this machine is willing to stop a send file over, and an editorial
+    # judgement is not one.
+    notes: list[str] = field(default_factory=list)
 
     @property
     def exit_code(self) -> int:
@@ -576,14 +602,17 @@ class CheckResult:
                       if self.snapshot else
                       "copy/*.csv match it (no snapshot on disk, which is "
                       "normal — it is gitignored)")
-            return (f"COPY-CHECK: PASS — {self.live} live line(s) from Copy "
-                    f"Assets; {cached}")
+            out = [f"COPY-CHECK: PASS — {self.live} live line(s) from Copy "
+                   f"Assets; {cached}"]
+            out.extend(self._notes())
+            return "\n".join(out)
         out = [f"COPY-CHECK: FAIL — {len(self.problems)} lint problem(s), "
                f"{len(self.drift)} drift(s) against the live table"]
         for problem in self.problems:
             out.append(f"  LINT  {problem}")
         for item in self.drift:
             out.append(f"  DRIFT {item}")
+        out.extend(self._notes())
         if self.drift and not self.problems:
             out.append("  Fix: python main.py copy-sync --live, then commit "
                        "copy/*.csv")
@@ -591,6 +620,11 @@ class CheckResult:
             out.append("  Fix: correct the line in Airtable. Nothing here can "
                        "fix it, and nothing should: the table is the authority.")
         return "\n".join(out)
+
+    def _notes(self) -> list[str]:
+        """Printed on PASS as well as FAIL. A note only visible on a failing run
+        is one nobody sees until something else is already broken."""
+        return [f"  note  {n}" for n in self.notes]
 
 
 def check(copy_dir: Path | None = None) -> CheckResult:
@@ -644,6 +678,7 @@ def check(copy_dir: Path | None = None) -> CheckResult:
                            "unchecked, or the table is empty"]
         return result
 
+    result.notes = advisories(lines)
     result.problems = validate(lines)
     if result.problems:
         # The cache comparison is meaningless while the table is unshippable:

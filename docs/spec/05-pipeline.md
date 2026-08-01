@@ -348,6 +348,16 @@ its words. See the anchor contract in `docs/spec/04-email.md`, which owns that
 decision. A draft with no claim behind it is warned about rather than skipped
 silently, because a PASS line looks identical either way.
 
+**Two checks that only a batch or a beat pair can see.** A four-word phrase
+shared by two hooks is a template — the hook is the beat that proves per-lead
+authorship, and "Most people [verb]" was the writer's clause in two drafts on
+`2026-08-01-q1`, each fine alone. And a close that opens on a question invites
+"no", which is the one thing an ask may not be. Both are **warnings**: nobody
+has measured how often an innocent four-gram recurs, the close is bank copy
+whose fix is one edit in Airtable, and a gate that halts a send file over an
+editorial judgement is one people learn to route around. `copy-check` reports
+the close at the source, on a passing run as well as a failing one.
+
 **Quoting is not claiming.** A figure that is in the hook beat *and* in the
 certified `hook_quote` is the recipient's own fact and is exempt. Without that,
 the rule written to stop us relabelling a client result was instead deleting

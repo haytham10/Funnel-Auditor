@@ -463,6 +463,51 @@ def test_batch_warns_on_a_collapsed_bridge_phrase():
                for w in result.warnings)
 
 
+def test_batch_warns_on_a_writers_clause_template():
+    """"Most people [verb]" appeared as the writer's clause in two drafts on
+    `2026-08-01-q1`. Each read fine alone. The hook is the one beat written per
+    lead, so a phrase two of them share is a template by definition, and only a
+    batch-level view can see them together."""
+    hooks = ["You shut the studio for a week. Most people talk about rest.",
+             "You turned down the retainer. Most people talk about focus."]
+    emails = [{"subject": f"subject {i}", "body": hook,
+               "beats": {"hook": hook, "identity": f"Identity {i}."}}
+              for i, hook in enumerate(hooks)]
+    result = lint.check_batch(emails)
+    assert any("most people talk about" in w for w in result.warnings), \
+        result.warnings
+
+
+def test_two_hooks_about_different_people_do_not_collide():
+    hooks = ["You shut the studio for a week and said why.",
+             "You turned the retainer down in public, which is rare."]
+    emails = [{"subject": f"subject {i}", "body": hook,
+               "beats": {"hook": hook, "identity": f"Identity {i}."}}
+              for i, hook in enumerate(hooks)]
+    assert not lint.check_batch(emails).warnings or not any(
+        "template" in w for w in lint.check_batch(emails).warnings)
+
+
+def test_a_close_that_asks_whether_to_ask_is_flagged():
+    """`cta-04` opens "Worth 15 minutes?" and two independent readers said the
+    same thing: the ask is a question that invites "no", and the ask is the one
+    thing that is not allowed to be optional."""
+    assert lint.check_ask("Worth 15 minutes? You'll have the 10 within a day.")
+    assert not lint.check_ask("15 minutes and they're yours the same day.")
+
+
+def test_the_ask_is_a_warning_and_never_blocks():
+    """The line is bank copy Haytham chose and the fix is one edit in Airtable.
+    A gate that halts a real send file over an editorial judgement is one people
+    learn to route around."""
+    beats = good_beats()
+    beats["cta"] = ("Worth 15 minutes? You'll have the 10 within a day, and "
+                    "I'll show you how I picked them over the other 40.")
+    result = run(beats)
+    assert result.passed, result.failures
+    assert any("invites" in w for w in result.warnings)
+
+
 def test_a_varied_batch_passes():
     identities = [
         "Your next client is the job. A coach here closed AED 78,000.",
