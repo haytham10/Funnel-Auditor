@@ -1,3 +1,145 @@
+## 2026-08-01 (batch 2026-08-01-q1) — the flip is a no, and the reason is specific
+
+Twenty UAE coaches, run end to end as the measurement batch three sessions had
+been waiting for. **`data/runs/2026-08-01-q1.jsonl`**, `-select.json` and
+`-metrics.json` are committed beside this entry.
+
+```
+AGAINST: 12 verified hook(s) — 4 agreed, 0 shortlisted, 3 missed, 5 unobserved
+hook_yield 63%  refute_rate 26%  null_hook_rate 10%
+cost_per_hook $0.0364   wasted_retrieval 47 paid fetch(es), $0.2086
+```
+
+**Five of twelve verified hooks (42%) cited a page no observation carried.**
+That is the fetch selection could not have replaced, and it is too large to flip
+on. Four were LinkedIn posts the hook stage pulled that research's own
+`li_posts` call had not returned — different `--since` windows over one profile
+give different posts — and one (Dana Barto) came off a site nobody had found
+until the hook worker searched for it. **So P3 does not flip.** The fix that
+number actually points at is research fetching deeper, not selection replacing
+the fetch.
+
+**All three MISSED share one cause and it is three lines.** Rory Buck's race
+result, Sanaa Diab's named client project and Bindu Joseph's career pivot were
+each observed, each independently VERIFIED, and each excluded by `select`'s
+`site_prose` ban for being `kind: about`. That ban came from F5's narrowing —
+"no generic site copy" became `kind != about` — and it is too blunt. What the
+verifier refuses is the **generic**, not the location. Fix the ban and reachable
+goes 4/12 to 7/12.
+
+## The correction that cost five leads
+
+I concluded that a hook cited to a `linkedin.com/in/` URL is structurally
+unverifiable, because five verifiers hit the authwall with WebFetch and curl.
+Haytham: *"of course linkedin urls are not fetchable through normal fetchers,
+thats why we use linkedin apify actors."*
+
+Correct, and the evidence was in the same run — research had pulled those exact
+profiles with `apify li-profile` an hour earlier. The verifiers have Bash. The
+rung was theirs the whole time and neither their agent file nor my prompts said
+so. Re-run through the actor, all five produced real verdicts immediately:
+three VERIFIED, two REFUTED on substance (an unsourced "rare adoption curve"
+gloss, and a hook that fused two separate sentences).
+
+`.claude/agents/hook-verifier.md` now says the paid rung is a LIVE fetch that
+satisfies independence completely, that the rule which must never break is
+reading the *stored observation*, and that **an INCONCLUSIVE reached by only
+trying WebFetch is a rung not walked.** Three verifiers had independently found
+that raw curl plus LinkedIn's embedded `application/ld+json` beats the WebFetch
+summariser on post URLs; that is written down now too.
+
+## Four findings the run turned up that nobody was looking for
+
+**The scraper builds LinkedIn URLs that 404.** Maurice Hellemons' hook was
+refuted on a dead citation. The content is real and paid for; the URL harvestapi
+constructed has an empty slug (`/posts/mauricehellemons_-activity-...` against a
+working `/posts/lucycrussell_i-put-my-phone-on-airplane-mode-10-days-ago-...`).
+**This is the sharpest case for R2 yet**: the string was copied correctly, the
+content is genuine, and the citation is still unusable, because an email cannot
+cite a URL the reader cannot open. Only a live fetch finds that.
+
+**The hook is certified before it is linted, and they disagree.** Six of twelve
+drafts had to alter a hook the verifier had certified word-for-word: an em-dash
+and spaced hyphens (`check_voice` refuses absolutely), "touchpoints" (JARGON
+list), and — worse — "70.3", "2023", "11 years", "27 years". `check_numbers` has
+no exemption for a figure that came from the recipient's own cited words, so the
+rule meant to stop us relabelling a client result is instead deleting the
+recipient's own facts from the one beat whose job is to prove we read their
+page. Both drafters moved the figure into the subject line, which is not
+digit-checked. That works and it is backwards. The fix is a scope, not a
+loosening: a figure inside the hook beat that also appears in the certified
+`hook_quote` is quoting, not claiming.
+
+**Re-voicing the identity line is where every draft breaks.** Eight cold reads,
+eight REWRITEs, the same beat every time. Four of five beats are dealt bank
+lines and every reader cleared them explicitly. The identity beat is the one
+written per lead and it is the only one that failed, always the same way — a
+hand-written line that sounds spoken re-voiced into something a database would
+say:
+
+```
+id-any-6  Deciding who is worth your time is most of my job. 30 of the ones
+          I picked turned into signed clients this year.
+drafted   Mine is on people, deciding who is worth your time. 30 of them
+          became clients this year.
+```
+
+Gone: "is most of my job", the only place a stranger learns what Haytham does,
+and "the ones I picked", which is what makes the 30 proof of judgment rather
+than a floating statistic. Elsewhere: colons standing in for verbs, three
+numbers stacked in a sentence, "the last business coach I worked with in Dubai"
+compressed to the noun-stack "a Dubai business coach". One reader checked and
+reported **zero of the 33 lines in `copy/identity.csv` use a colon.**
+
+**The linter cannot see any of it.** Claim preservation survives every one —
+right figures, right segment, nothing invented. What dies is voice, which is
+what D10's chassis exists to protect and what the linter admits it cannot catch.
+The cold read caught it eight times out of eight. Candidate fix: narrow what
+re-voicing may change to what the seam actually needs, keeping the line's verb
+and first-person framing.
+
+## Two dealt lines drew fire, and that is Haytham's call
+
+`cta-04` "Worth 15 minutes?" — two readers independently: the ask is a question
+that invites "no", and *"the ask itself has become optional, which is the one
+thing it is not allowed to be."* `ps-04` "if it's not for you, say so and I'll
+leave it there" — a soft exit handing a one-word out immediately after the ask.
+Both were reproduced faithfully from Copy Assets. Both readers said so. The copy
+lives in Airtable and this is a bank-level question, not a drafting one.
+
+## Smaller, recorded so they are not rediscovered
+
+- **`apify` has no `--batch` flag.** Telling workers to pass one was impossible
+  to follow, which is why 15 retrievals landed in `data/runs/2026-08-01.jsonl`
+  and the batch under-reported its cost by 30%. Folded back, each line carrying
+  `batch_relabelled_from`. The label should be discoverable, not remembered.
+- **cheerio-scraper needed a console permission approval** nobody had clicked —
+  a 403 `full-permission-actor-not-approved`, not the actor-id problem the
+  proposal blamed. Approved mid-run; it then read 2 of 11 URLs.
+- **`observe` graded research objects as observations.** The batch skill has
+  always said to run it on a research file; doing it for real produced fifty
+  violations about ten fine objects. It unwraps now.
+- **The activity floor counted third-party coverage.** A company post naming
+  Lorna King, two days old, made her "active". Fixed: `third_party` is skipped,
+  `unknown` still counts, and dropping an observation can only move a lead
+  toward `unclear`.
+- **`HOMEPAGE-FIRST: 0/20 leads, 0 of 57 page fetches deferrable.** The
+  proposal's −30% would have bought exactly nothing on this list.
+- **`metrics.rung_of` conflates li_profile with li_posts** — LADDER has one
+  LinkedIn rung. The `about 2` figure is right; `li_posts 10` includes three
+  profile-sourced hooks.
+- **83 duplicates, mostly mine.** A `fetch --escalate` retry re-read all 20
+  sites before its 403. D22 pollution, self-inflicted, and an escalate-only CLI
+  path would have avoided it.
+- **Mihaela Nica's blog is serving gambling spam.** Her domain is compromised.
+
+## Where the batch stopped
+
+12 verified hooks drafted, all linted PASS. Cold reads: **1 SEND (Kira Jean),
+8 REWRITE**, rewrites in flight. Nothing exported — no `leads.csv` yet, and
+none of this has been sent. The three leads with no verified hook and the five
+refuted ones hold, which is the machine working.
+
 ## 2026-08-01 (Part 8) — the batch stops being unjudgeable
 
 Haytham: get everything unblocked, wire it up. Three decisions taken first —
