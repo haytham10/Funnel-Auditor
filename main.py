@@ -1735,6 +1735,19 @@ def cmd_ledger(args) -> None:
                   "named after the date and not after the batch.")
         return
 
+    if args.ledger_command == "pass":
+        wrote = ledger.record_pass(
+            batch=args.batch, stage=args.stage, agent=args.agent,
+            model=args.model, count=args.count)
+        if not wrote:
+            print("LEDGER: FAIL — could not append to "
+                  f"{ledger.path(args.batch)}.")
+            sys.exit(2)
+        print(f"LEDGER: {args.count} {args.agent or 'agent'} pass(es) on "
+              f"{args.model or 'an unnamed model'} at stage {args.stage}, "
+              f"REPORTED to {ledger.path(args.batch)}")
+        return
+
     if args.ledger_command == "add":
         wrote = ledger.record(
             batch=args.batch, lead_key=args.lead, stage=args.stage,
@@ -1813,6 +1826,10 @@ def cmd_metrics(args) -> None:
         verified = {(r.get("lead_key") or r.get("email") or "") for r in rows
                     if (r.get("hook_verified") or "").lower() == "verified"}
         metrics.add_ledger(out, records, verified_leads=verified)
+        # The Claude bill. Same file, different authority — those records were
+        # written by code at the moment of a fetch, these were typed by an
+        # orchestrator, and the report says so on every line.
+        metrics.add_passes(out, ledger.read_passes(args.batch))
 
     print(metrics.report(out))
     print(metrics.batches_block(out))
@@ -2144,6 +2161,21 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("label", nargs="?", default="",
                    help="the batch label. Omitted, it prints the label that "
                         "resolves now and where it came from")
+
+    a = ledger_sub.add_parser(
+        "pass", help="record agent passes — the model cost Python cannot see")
+    a.add_argument("--stage", required=True,
+                   help="research | hook | verify | draft | cold-read | "
+                        "orchestrator — which part of the run spent it")
+    a.add_argument("--agent", default="",
+                   help="the agent that ran, e.g. draft-worker")
+    a.add_argument("--model", default="",
+                   help="the tier it ran at, e.g. opus or sonnet. Counts, not "
+                        "dollars: model prices are a value this repo does not "
+                        "own and would go stale in it")
+    a.add_argument("--count", type=int, default=1,
+                   help="how many passes, for a fan-out reported in one line")
+    a.add_argument("--batch", help="batch label (default: `ledger batch` resolves it)")
 
     a = ledger_sub.add_parser("add", help="record a retrieval Python did not make")
     a.add_argument("--lead", default="", help="the lead this was fetched for")

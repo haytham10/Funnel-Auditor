@@ -60,6 +60,10 @@ OUTCOMES = ("ok", "empty", "error", "blocked")
 # an authority over tier 1 it does not have.
 REPORTED_BY = ("websearch", "webfetch")
 
+# Two things live in this file. A line with no `kind` is a Retrieval, which is
+# every line written before 2026-08-01 and every line Python writes itself.
+PASS_KIND = "pass"
+
 _lock = threading.Lock()
 
 # Process-scoped. One CLI invocation is one retrieval context — this is a
@@ -235,6 +239,52 @@ def append(record: Retrieval, *, batch: str | None = None,
         return False
 
 
+def record_pass(*, stage: str, agent: str = "", model: str = "", count: int = 1,
+                batch: str | None = None, root: str | Path | None = None) -> bool:
+    """Record agent passes, on trust. Never raises, same as `append`.
+
+    **This is the Claude bill, and nothing in this repo could see it.** The
+    Apify ledger exists because every cost claim about retrieval had been
+    reconstructed by hand from a journal entry. The model side was in exactly
+    that state one layer up: `2026-08-01-q1` cost about 64 agent passes for 20
+    leads and 5 shipped rows, and the only record of it was a number an
+    orchestrator typed into `metrics --passes` at the end of a long session —
+    one scalar, no stage, no model. "The drafting loop is most of the bill" was
+    a guess nobody could check.
+
+    Reported on trust, exactly like `ledger add`: an agent pass happens in the
+    main loop and Python cannot see one. `kind` keeps these separable from
+    retrievals so a pass can never be counted as a fetch.
+
+    **Counts, not dollars.** Model prices are a value this repo does not own,
+    and the standing rule is that a doc names the authority rather than copying
+    it. A rate table here would be a number going stale in a file nobody
+    remembers to update, printed with two decimal places.
+    """
+    return append_raw({
+        "kind": PASS_KIND, "stage": stage, "agent": agent, "model": model,
+        "count": max(1, int(count or 1)),
+    }, batch=batch, root=root)
+
+
+def append_raw(payload: dict, *, batch: str | None = None,
+               root: str | Path | None = None) -> bool:
+    """One JSON line, stamped. Never raises — the ledger's rule, unchanged."""
+    try:
+        line = dict(payload)
+        line.setdefault(
+            "at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        target = path(batch, root)
+        with _lock:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(line, ensure_ascii=False,
+                                        default=str) + "\n")
+        return True
+    except Exception:
+        return False
+
+
 def record(*, batch: str | None = None, root: str | Path | None = None,
            **values) -> bool:
     """Build a Retrieval from the ambient context plus what the caller knows,
@@ -277,11 +327,55 @@ def read(batch: str | None = None,
         except ValueError:
             malformed += 1
             continue
-        if isinstance(data, dict):
-            records.append(Retrieval.from_dict(data))
-        else:
+        if not isinstance(data, dict):
             malformed += 1
+        elif data.get("kind") == PASS_KIND:
+            # A pass is not a retrieval and must never be counted as one. It
+            # has no url, so `duplicates` would skip it — but `summarise` would
+            # add it to the fetch count and report agent passes as free fetches.
+            continue
+        else:
+            records.append(Retrieval.from_dict(data))
     return records, malformed
+
+
+def read_passes(batch: str | None = None,
+                root: str | Path | None = None) -> list[dict]:
+    """The reported agent passes for a batch. Empty is a real answer.
+
+    Separate from `read` rather than a second return value, so every existing
+    caller keeps meaning what it meant. Raises `LedgerUnreadable` on a missing
+    file for the same reason `read` does: a missing ledger is not a batch that
+    cost nothing.
+    """
+    target = path(batch, root)
+    if not target.is_file():
+        raise LedgerUnreadable(
+            f"no ledger at {target} — a missing ledger is not a zero-cost batch")
+    out = []
+    for line in target.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            data = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(data, dict) and data.get("kind") == PASS_KIND:
+            out.append(data)
+    return out
+
+
+def passes_by(entries: list, key: str) -> dict:
+    """Reported passes totalled by one field, largest first.
+
+    `?` is not this function's business — an empty dict means nothing was
+    reported, and `metrics` is where that becomes a `?` rather than a 0.
+    """
+    totals: dict = {}
+    for entry in entries or []:
+        name = str(entry.get(key) or "").strip() or "unnamed"
+        totals[name] = totals.get(name, 0) + int(entry.get("count") or 1)
+    return dict(sorted(totals.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
 # ------------------------------------------------------------------ analysis

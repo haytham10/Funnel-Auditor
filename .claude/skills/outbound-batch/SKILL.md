@@ -571,7 +571,17 @@ that is the exact habit this command exists to end.
 
 `--passes` is the count of agent passes for the batch. Python cannot see it, so
 it is **reported on trust** and printed as such, the same way `ledger add`
-records a model-side fetch.
+records a model-side fetch. **Prefer `ledger pass` over typing it**: record each
+fan-out as it happens and the total derives itself.
+
+```
+python main.py ledger pass --stage draft --agent draft-worker --model opus --count <n>
+```
+
+One line per fan-out, `--count` for the size of it. `metrics` then prints
+`passes_by_stage` and `passes_by_model`, which is what makes the Claude bill
+readable at all — `2026-08-01-q1` cost about 64 passes for 20 leads and 5
+shipped rows, and the only record was the number 64.
 
 Quote the `METRICS` block into the brief. Two lines matter most:
 
@@ -620,6 +630,34 @@ BATCH <date>: <n> written of <m> raw
 Then say plainly: **read the preview before uploading.** There is no automated
 gate that replaces it. The linter catches invented numbers and lost claims; it
 cannot catch a hook that lands wrong on a specific person. Read ten in full.
+
+## Model tiers, and the passes that are not free
+
+The agent files declare their own tier and it is not yours to raise:
+
+| Agent | Tier | Why |
+|---|---|---|
+| `research-worker` | sonnet | retrieval and typed extraction |
+| `hook-worker` | sonnet | retrieval, and the gate now catches what it used to get wrong |
+| `hook-verifier` | sonnet | one page, one quote, one verdict |
+| `draft-worker` | opus | voice is the product in this beat |
+| `draft-verifier` | opus | it caught 11 of 12 identity beats the linter passed |
+
+**Do not upgrade a fan-out's tier ad hoc**, and do not downgrade the cold read
+to save money. It is the check that found the one failure no linter can see, and
+optimising the verifier is the trade this repo refuses twice in writing.
+
+**The cheapest pass is the one nothing has to run.** Every mechanical gate here
+exists partly for that: `hook` catches before a verifier is spent, `check_batch`
+sees a template no per-email reader can, `crm-rows` replaces a script and the
+audit of it. When something can be checked mechanically, it must not cost an
+agent pass.
+
+**Your own context is the largest single cost in a run.** Work from files and
+quoted gate lines, not inline payloads. The workers return typed objects and
+every gate prints one quotable line — that is what those two designs are for.
+Reading twelve research objects into the main loop to decide something a
+command already answered is the most expensive way to be sure.
 
 ## The rules that do not bend
 

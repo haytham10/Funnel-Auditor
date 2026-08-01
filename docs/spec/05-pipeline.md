@@ -616,6 +616,26 @@ those lines are **reported on trust** and `retrieved_by` keeps them
 distinguishable from the ones the code wrote itself. `ledger report` reads a
 batch back and writes nothing.
 
+**`ledger pass` is the Claude bill, and nothing here could see it.** This module
+exists because every claim about what *retrieval* cost had been reconstructed by
+hand from a journal entry. The model side was in exactly that state one layer
+up: `2026-08-01-q1` cost about 64 agent passes for 20 leads and 5 shipped rows,
+and the only record was a single number an orchestrator typed into `metrics
+--passes` at the end of a long session. No stage, no model. "The drafting loop
+is most of the bill" was a guess nobody could check.
+
+`ledger pass --stage <s> --agent <a> --model <m> [--count n]` writes to the same
+file with `kind: pass`, so a pass can never be counted as a fetch, and `metrics`
+prints `passes_by_stage` and `passes_by_model` labelled **REPORTED, not
+measured** — the same trust `ledger add` carries and for the same reason: an
+agent pass happens in the main loop and Python cannot see one. Nothing reported
+prints `?`, never `0`; a zero would read as "this batch used no agents".
+
+**Counts, not dollars.** Model prices are a value this repo does not own, and
+the standing rule is that a doc names its authority rather than copying it. A
+rate table here would go stale in a file nobody remembers to update and print
+with two decimal places while doing it.
+
 **`ledger batch` makes the label discoverable rather than remembered.** With a
 label it writes `work/BATCH`; with no argument it prints the label that resolves
 now and where it came from. The order is the argument, this process's context,

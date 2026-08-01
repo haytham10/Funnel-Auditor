@@ -315,6 +315,64 @@ def test_the_ledger_root_can_be_redirected_out_of_the_repo():
             os.environ["OUTBOUND_LEDGER_ROOT"] = saved
 
 
+def test_a_reported_pass_is_never_counted_as_a_retrieval():
+    """Two things live in this file and they have different authorities. A
+    retrieval was written by code at the moment of a fetch; a pass was typed by
+    an orchestrator. Counting one as the other would report the Claude bill as
+    free fetches."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ledger.record(batch="b", root=tmp, url="https://x.ae/1",
+                      retrieved_by="tier0")
+        ledger.record_pass(batch="b", root=tmp, stage="draft",
+                           agent="draft-worker", model="opus", count=12)
+        records, malformed = ledger.read("b", tmp)
+        assert len(records) == 1 and malformed == 0
+        assert ledger.summarise(records)["count"] == 1
+        assert len(ledger.read_passes("b", tmp)) == 1
+
+
+def test_passes_total_by_stage_and_by_model():
+    """One scalar could not answer the question anybody actually asks: which
+    stage is the bill, and is it running on the tier it needs. `2026-08-01-q1`
+    cost ~64 passes for 20 leads and 5 rows, recorded as the number 64."""
+    with tempfile.TemporaryDirectory() as tmp:
+        for stage, agent, model, count in (
+                ("draft", "draft-worker", "opus", 12),
+                ("cold-read", "draft-verifier", "opus", 20),
+                ("research", "research-worker", "sonnet", 2)):
+            ledger.record_pass(batch="b", root=tmp, stage=stage, agent=agent,
+                               model=model, count=count)
+        entries = ledger.read_passes("b", tmp)
+        assert ledger.passes_by(entries, "model") == {"opus": 32, "sonnet": 2}
+        # Largest first, so the line reads as a ranking rather than a dump.
+        assert list(ledger.passes_by(entries, "stage")) == [
+            "cold-read", "draft", "research"]
+
+
+def test_nothing_reported_is_an_empty_total_and_not_a_zero():
+    """`metrics` turns this into `?`. A zero would read as "this batch used no
+    agents", which is the wall's asymmetry a fourth time."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ledger.record(batch="b", root=tmp, url="https://x.ae/1")
+        assert ledger.read_passes("b", tmp) == []
+        assert ledger.passes_by([], "model") == {}
+
+
+def test_a_missing_ledger_is_unreadable_for_passes_too():
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            ledger.read_passes("never-ran", tmp)
+        except ledger.LedgerUnreadable:
+            return
+        raise AssertionError("a missing ledger must not read as no passes")
+
+
+def test_recording_a_pass_never_raises():
+    """The ledger's rule, unchanged: an observer that can halt the thing it
+    observes is worse than no observer."""
+    assert ledger.record_pass(stage="draft", root="/nonexistent/\0/x") is False
+
+
 def test_an_unknown_field_in_a_stored_line_is_ignored():
     """The ledger is append-only and lives across versions. A line written by a
     future field must not crash a reader that predates it."""

@@ -119,6 +119,13 @@ class BatchMetrics:
     tier0_rate: object = UNKNOWN
     source_list: object = UNKNOWN
     agent_passes: object = UNKNOWN   # reported on trust, never measured
+    # The same trust, kept per stage and per model, because one scalar could not
+    # answer the question anybody actually asks about the Claude bill: which
+    # stage is it, and is it running on the tier it needs? `2026-08-01-q1` cost
+    # ~64 passes for 20 leads and 5 rows, and "the drafting loop is most of it"
+    # was a guess. Empty means nothing was reported — `?`, never 0.
+    passes_by_stage: dict = field(default_factory=dict)
+    passes_by_model: dict = field(default_factory=dict)
 
     # --- what could not be computed, named rather than left as a zero ------
     gaps: list = field(default_factory=list)
@@ -217,6 +224,26 @@ def from_research(rows: list, *, batch: str = "") -> BatchMetrics:
     return out
 
 
+def add_passes(out: BatchMetrics, entries: list) -> BatchMetrics:
+    """The model-side half, reported on trust and labelled as such.
+
+    Kept out of `add_ledger` because the two have different authorities: those
+    records were written by code at the moment of a fetch, these were typed by
+    an orchestrator. Folding them into one call would make it easy to print them
+    with the same confidence, and the whole point of `REPORTED` is that they do
+    not have it.
+    """
+    from outbound.ledger import passes_by
+
+    out.passes_by_stage = passes_by(entries, "stage")
+    out.passes_by_model = passes_by(entries, "model")
+    if entries and out.agent_passes is UNKNOWN:
+        # A total nobody typed, derived from parts somebody did. Still REPORTED
+        # — the sum of trusted numbers is a trusted number, not a measured one.
+        out.agent_passes = sum(out.passes_by_stage.values())
+    return out
+
+
 def add_ledger(out: BatchMetrics, records: list, *, verified_leads: set) -> BatchMetrics:
     """The cost half, and the one number this whole proposal set out to move.
 
@@ -311,6 +338,21 @@ def report(out: BatchMetrics) -> str:
     lines.append(
         f"  agent_passes      {_num(out.agent_passes)}"
         + ("" if out.agent_passes is UNKNOWN else " — REPORTED, not measured"))
+    # The Claude bill, and the reason it is here at all: retrieval had a ledger
+    # and the model side had one number typed at the end of a long session.
+    if out.passes_by_stage:
+        lines.append("  passes_by_stage   "
+                     + ", ".join(f"{k} {v}" for k, v in out.passes_by_stage.items())
+                     + " — REPORTED, not measured")
+    else:
+        lines.append(f"  passes_by_stage   {UNKNOWN}  nothing reported "
+                     f"(`ledger pass --stage <s> --model <m>`)")
+    if out.passes_by_model:
+        lines.append("  passes_by_model   "
+                     + ", ".join(f"{k} {v}" for k, v in out.passes_by_model.items())
+                     + " — REPORTED, not measured")
+    else:
+        lines.append(f"  passes_by_model   {UNKNOWN}  nothing reported")
     if out.duplicates:
         lines.append(f"  duplicates        {out.duplicates} — quote "
                      f"`ledger report` for which")

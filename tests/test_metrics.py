@@ -223,3 +223,48 @@ def test_the_artifact_round_trips(tmp_path):
     back = json.loads(written.read_text(encoding="utf-8"))
     assert back["batch"] == "demo" and back["verified"] == 1
     assert back["raw"] == metrics.UNKNOWN
+
+
+# ------------------------------------------------------------- the Claude bill
+
+
+def test_passes_print_by_stage_and_by_model_and_say_they_are_reported():
+    """Retrieval had a ledger; the model side had one number typed at the end of
+    a long session. `2026-08-01-q1` cost ~64 agent passes for 20 leads and 5
+    shipped rows, and "the drafting loop is most of it" was a guess nobody could
+    check."""
+    out = metrics.from_research([lead()])
+    metrics.add_passes(out, [
+        {"stage": "draft", "model": "opus", "count": 12},
+        {"stage": "cold-read", "model": "opus", "count": 20},
+        {"stage": "research", "model": "sonnet", "count": 2},
+    ])
+    assert out.passes_by_model == {"opus": 32, "sonnet": 2}
+    text = metrics.report(out)
+    assert "passes_by_model   opus 32, sonnet 2 — REPORTED, not measured" in text
+    assert "passes_by_stage" in text
+
+
+def test_the_total_is_derived_but_still_reported_rather_than_measured():
+    """The sum of trusted numbers is a trusted number, not a measured one."""
+    out = metrics.from_research([lead()])
+    metrics.add_passes(out, [{"stage": "draft", "model": "opus", "count": 5}])
+    assert out.agent_passes == 5
+    assert "REPORTED, not measured" in metrics.report(out)
+
+
+def test_a_total_somebody_typed_is_not_overwritten():
+    out = metrics.from_research([lead()])
+    out.agent_passes = 64
+    metrics.add_passes(out, [{"stage": "draft", "model": "opus", "count": 5}])
+    assert out.agent_passes == 64, "a reported total outranks a derived one"
+
+
+def test_no_passes_reported_prints_a_question_mark_and_never_a_zero():
+    """The wall's asymmetry a fourth time. A `0` would read as "this batch used
+    no agents", which is a measurement — and nobody measured it."""
+    out = metrics.from_research([lead()])
+    metrics.add_passes(out, [])
+    text = metrics.report(out)
+    assert f"passes_by_model   {metrics.UNKNOWN}" in text
+    assert "passes_by_model   0" not in text
