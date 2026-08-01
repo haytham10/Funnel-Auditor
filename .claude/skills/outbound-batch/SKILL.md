@@ -414,6 +414,33 @@ Then write the batch to Airtable: one **Batches** row, and one **Leads** row per
 lead including the ones that held, with their Blockers. A lead that vanished
 with no record is worse than a kill you can read.
 
+**Build the Leads rows, do not assemble them:**
+
+```
+python main.py crm-rows work/clear.json --research work/researched.json \
+  --drafts work/drafts.json --batch <YYYY-MM-DD> --out out/crm-leads.json
+```
+
+Then write `out/crm-leads.json` through the MCP. **Nothing in the repo touches
+the CRM** — the boundary is that a Lead row lands where a human sees it, and
+this command computes rather than writes.
+
+On `2026-08-01-q1` the rows were assembled by hand from `work/researched.json`
+alone, and twenty of them landed with **no First Name, Last Name, Website,
+LinkedIn or City**. Those fields live on the normalized Lead and never have been
+on a research object; a filter dropped every empty key before the request, so
+there was no error. `crm-rows` fails closed on that exact join.
+
+**Read its coverage block, not just its PASS line.** The check that passed those
+rows counted Name, Status, Hook Verified and Blockers, saw 20/20, and called it
+cross-checked — four fields somebody expected to be populated. The block prints
+every field, and a `0/n` is worth one look at the source list before you decide
+it is fine. `Instagram 0/20` was correct on that batch. `First Name 0/20` was
+the bug.
+
+`Batch` is a linked field and is not in the rows; link each to the Batches
+record after you create it.
+
 **Do not compute the Batches numbers yourself.** Run `metrics` (below) and paste
 its `BATCHES ROW` block, field for field. Python does not write this row — the
 boundary in `audit/airtable.py` is that a row lands where a human sees it, and

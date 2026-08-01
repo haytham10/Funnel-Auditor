@@ -18,6 +18,13 @@ Reads are unrestricted. Writes are deliberately narrow: `update_records` exists
 so a finished batch can report usage back to Copy Assets, which is the only way
 the weights ever stop being guesses. Nothing here creates or deletes a table,
 and nothing writes a Lead — that stays in the skill layer where a human sees it.
+
+**`outbound/crm.py` builds the Leads row and still does not write it**, which is
+the same boundary rather than a hole in it. The push that went wrong on
+`2026-08-01-q1` was not wrong because a model did the typing; it was wrong
+because a model did the *join*, from memory, in a script nothing tested, and
+twenty rows landed with five columns empty and no error. Computing in code and
+writing by hand puts each half where it can fail visibly.
 """
 
 from __future__ import annotations

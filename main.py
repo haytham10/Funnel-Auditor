@@ -27,6 +27,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     copy-check  assert Airtable is what a batch would draw from, and not a cache
     lint        the checks that make model-written copy safe
     export      leads.csv + preview.txt, refusing to write a failing email
+    crm-rows    the Airtable Leads rows, joined explicitly and failing closed.
+                Computes only — a human still performs the write
     email-check      address shape: syntax, MX, role and typo flags
     email-verify     deliverability confirm before a send
     email-verify-batch  the same, for a whole slice's addresses in one call
@@ -454,6 +456,58 @@ def cmd_hook(args) -> None:
     proposals = hook.load(data)
     print(hook.report(proposals))
     sys.exit(1 if hook.validate_all(proposals) else 0)
+
+
+# ------------------------------------------------------------------ crm-rows
+
+
+def cmd_crm_rows(args) -> None:
+    """Build the Airtable Leads rows, joined explicitly and failing closed.
+
+    Twenty rows went in on `2026-08-01-q1` with no First Name, Last Name,
+    Website, LinkedIn or City on any of them, because they were built from
+    `work/researched.json` — which has never carried the intake identity fields.
+    Those live on the normalized Lead. A `if v not in (None, "")` filter dropped
+    every empty key before the request, so there was no error and no warning.
+
+    Then the check that "verified" it counted four fields somebody expected to
+    be populated and reported 20/20. A verification that only looks where you
+    expect to find something is the writer certifying its own work with extra
+    steps, and Haytham caught it rather than the machine.
+
+    So: the join is explicit and a research object with no lead behind it is a
+    failure rather than a row with blanks in it, and **coverage is printed for
+    every field** — a field empty on every row is named whether or not it is
+    required, because "nobody has a City" and "the City never got read" print
+    identically otherwise.
+
+    **It writes nothing to the CRM.** `audit/airtable.py`'s boundary is that a
+    Lead row lands where a human sees it, and that stays. This computes the
+    rows; a person still performs the write. What was wrong was never that a
+    model did the typing — it was that a model did the join, from memory, in a
+    script nothing tested.
+    """
+    from outbound import crm
+
+    leads = _load_json(args.leads, "CRM")
+    researches = _load_json(args.research, "CRM")
+    drafts = _load_json(args.drafts, "CRM") if args.drafts else []
+    for name, data in (("leads", leads), ("research", researches),
+                       ("drafts", drafts)):
+        if not isinstance(data, list):
+            print(f"CRM: FAIL — {name} must be a JSON array, got "
+                  f"{type(data).__name__}.")
+            sys.exit(2)
+
+    built = crm.build(leads, researches, drafts, batch=args.batch)
+    print(built.report())
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(
+            json.dumps(built.rows, indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.out} — write these by hand or through the MCP; "
+              f"nothing here touches the CRM")
+    sys.exit(1 if built.problems else 0)
 
 
 # -------------------------------------------------------------------- anchors
@@ -1906,6 +1960,18 @@ def build_parser() -> argparse.ArgumentParser:
                        help="check a proposed hook BEFORE a verifier certifies it")
     p.add_argument("input", help="JSON file (one proposal or a list), or '-' for stdin")
     p.set_defaults(func=cmd_hook)
+
+    p = sub.add_parser("crm-rows",
+                       help="build the Airtable Leads rows, joined and failing closed")
+    p.add_argument("leads", help="normalized Leads from `dedupe --out` (work/clear.json)")
+    p.add_argument("--research", required=True,
+                   help="the research objects (work/researched.json) — the "
+                        "verdicts. They do NOT carry the identity fields, which "
+                        "is the join this command exists to make explicit")
+    p.add_argument("--drafts", help="what actually shipped, for Subject/Body/Hook")
+    p.add_argument("--batch", default="", help="the batch label, for the row")
+    p.add_argument("--out", help="write the rows as JSON (out/crm-leads.json)")
+    p.set_defaults(func=cmd_crm_rows)
 
     p = sub.add_parser("fetch", help="tier 0 site reads, plus one batched Apify plan")
     p.add_argument("leads", help="Leads JSON from `intake --out`")

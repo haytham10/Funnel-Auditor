@@ -440,6 +440,44 @@ fields and are used in a campaign step as template variables. **It is
 successfully and silently lands as an extra custom variable, which is the worst
 kind of wrong.
 
+### `crm-rows`
+**In** the normalized Leads, the research objects, and optionally the drafts
+that shipped. **Out** `out/crm-leads.json`, one Airtable Leads row per
+researched lead. **Guarantees** the join is explicit and fails closed, every
+field is written including the empty ones, and coverage is reported for every
+field rather than the ones anybody expects. **Exit 2** if an input is not an
+array, **exit 1** on any problem. Owned by `outbound/crm.py`.
+
+**It writes nothing to the CRM.** `audit/airtable.py`'s boundary is that a Lead
+row lands where a human sees it, and that stays — this computes, a person
+performs the write. What was wrong on `2026-08-01-q1` was never that a model did
+the typing; it was that a model did the *join*, from memory, in a script nothing
+tested.
+
+Twenty rows went in with **no First Name, Last Name, Website, LinkedIn or City
+on any of them**, built from `work/researched.json` — which has never carried
+the intake identity fields, because those live on the normalized Lead. A filter
+dropped every empty key before the request, so there was no error and no
+warning. A research object with no lead behind it is now a failure naming the
+columns that would have gone in blank.
+
+**Coverage is the other half, and it answers the check that missed it.** The
+verification that passed those rows counted Name, Status, Hook Verified and
+Blockers — four fields somebody expected to be populated — and reported 20/20. A
+check that only looks where you expect to find something is the writer
+certifying its own work with extra steps. So every field is counted and a field
+empty on every row is named, because "nobody has a City" and "the City never got
+read" print identically otherwise, and the report says a zero is not
+automatically wrong rather than implying a verdict.
+
+**Required is `Name`, `Email`, `Status` and nothing else.** Everything else is
+legitimately absent for some real lead. A longer list fails closed on true rows,
+which teaches people to pass a flag that turns the check off.
+
+**`Batch` is deliberately not in a row.** It is a linked-record field whose
+value is a Batches record id that does not exist until that row is created, so
+the label is reported instead.
+
 ### `copy-sync`
 Pulls the hand-written lines out of Airtable and **rejects any that fail the
 linter**, so an edit there cannot break an email. It is a gate, not a copier:
