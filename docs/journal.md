@@ -1,3 +1,119 @@
+## 2026-08-01 (post-mortem, acted on) — both blocking numbers were artefacts
+
+Haytham dropped the post-mortem back in: fix this, make sure the proposal is
+applied and wired, and the Claude usage was a lot for 20 leads.
+
+**The useful thing that fell out of reading it against the stored artifact is
+that the flip's verdict rests on two artefacts, not two findings.**
+`data/runs/2026-08-01-q1-select.json`, read directly:
+
+```
+19 leads   agreed 4   missed 3   unobserved 5   (7 not compared)
+bans: site_prose 21, not_content 5, stale 3, too_short 2, third_party 1
+MISSED: Sanaa Diab, Bindu Joseph, Rory Buck — all three "excluded by site_prose"
+```
+
+**All three MISSED are one ban**, and it is also the largest ban in the corpus
+at 21 of 32 rejections. **Four of the five UNOBSERVED are a flag**:
+`research-worker.md:37` ran `apify li-posts --max 5` with no window while
+`hook-worker.md:88` ran `--since 3months`, so one profile was asked two
+different questions a stage apart and the hook stage kept "discovering" posts
+research had never requested. `docs/hook-rules.md` has declared one owner for
+that window since it was written; the agent files drifted from it and nothing
+could see that, because `.claude/agents/` was outside `doc-check`'s corpus.
+
+So the flip stays off (D26), and the condition to reopen it is one clean batch
+after both fixes with `unobserved` and `missed` read apart.
+
+## The ban fix needed a fourth line, and that is the interesting part
+
+Removing the location ban alone changes nothing. A page somebody wrote about
+themselves has no publication date, so all three would have moved from
+`site_prose` to `no_date`. `docs/hook-rules.md` already granted the exemption in
+prose — *"an evergreen framework **or an About-page line they wrote themselves**
+is fine at any age"* — and the code carried only the first half.
+
+What replaces the location ban is **ban #1's honest mechanical form: the same
+text observed for two different leads.** That is the ban's own test — could this
+be sent unedited to another coach in the segment — settled against the only
+evidence that can settle it. It abstains on an observation nobody could
+attribute, because a ban costs a lead its only observation.
+
+## The re-measurement that could not be run
+
+`work/` does not survive the container, and only the *verdict* was committed.
+So the batch that disproved the ban cannot be re-scored against the correction:
+selections carry a shortlist, and a rejection carries a ban name and a URL,
+neither of which can be ranked again. **`select --batch` now writes the corpus
+beside the verdict.** The expected 3 MISSED → 0 is a derivation from the stored
+bans, not a measurement, and it is stated that way everywhere it appears.
+
+## The Claude bill, which nothing here could see
+
+Haytham is right and the proposal half-knew it: Part 11 says *"the larger waste
+is agent passes, and it is invisible"* and then measures everything except that.
+`2026-08-01-q1` cost ~64 agent passes for 20 leads and 5 rows, and the only
+record was one number typed into `metrics --passes` at the end of a long
+session. No stage, no model. "The drafting loop is most of it" was a guess.
+
+`ledger pass --stage <s> --agent <a> --model <m> --count <n>` writes to the same
+JSONL with `kind: pass`, and `metrics` prints `passes_by_stage` and
+`passes_by_model`, REPORTED and never measured. Nothing reported prints `?` —
+a zero would read as "this batch used no agents", which is the wall's asymmetry
+a fourth time. **Counts, not dollars**: model prices are a value this repo does
+not own and would go stale in it.
+
+**The tiers were already right and are not the lever.** research, hook and
+hook-verifier on sonnet; draft-worker and draft-verifier on opus. Downgrading
+the cold read is the one saving this repo refuses twice in writing — it caught
+11 of 12 identity beats that had passed the linter. The lever is D25: **a check
+that can be mechanical must not cost an agent pass**, and every fix in this
+session is one — `hook` before a verifier is spent, `check_batch` seeing a
+template no per-email reader can, `crm-rows` replacing a script and the audit of
+it, `--escalate-only` replacing a whole stage re-run, `ledger batch` replacing
+telling twelve workers a label.
+
+## Everything else, in the order the post-mortem ranked it
+
+- **`--batch` on every paid subcommand, and `ledger batch` writes `work/BATCH`.**
+  The env var was never going to work: a subagent is a different process. The
+  label is discoverable now, and `ledger batch` with no argument says which one
+  resolves and where it came from.
+- **`fetch --escalate-only <sites.json>`.** The retry that put 52 of the batch's
+  83 duplicate pairs in the ledger re-read every site first. D22 names that risk
+  in advance and it happened anyway, because avoiding it meant calling
+  `fetch.run_plan` by hand.
+- **`main.py hook` closes F4.** Six of twelve drafts had to alter text a
+  verifier had certified word for word. Every finding says *pick a different
+  quote*, never edit theirs — one stage later the drafter has neither the
+  alternatives nor the authority. It also catches the empty-slug LinkedIn URL
+  Maurice's hook died on.
+- **Quoting is not claiming.** A figure in the hook beat that is also in the
+  certified quote is exempt. The first cut spared it by *value*, which spared it
+  in the identity beat too; its own test caught that, and the substitution now
+  happens inside the hook beat's text.
+- **LinkedIn is two rungs.** Different actors, different prices, one batchable
+  and one provably not. `yield_by_rung` reported `li_posts 10` where three came
+  off profiles, in the number that settles F5.
+- **`crm-rows`.** The join is explicit and fails closed, and coverage prints for
+  every field rather than the four somebody expected to be populated.
+- **Two checks a single email cannot see**: a four-word phrase two hooks share,
+  and a close that opens on a question. Both warnings — the second is bank copy
+  and `copy-check` now names `cta-04` at the source, on a passing run.
+- **One `split_sentences`.** It was in `outbound/lint.py` rather than
+  `draft_lint`, in two copies, both with the same bug.
+
+Adding `.claude/agents/` to `doc-check` found a third thing on its first run:
+`draft-worker.md` had been telling every drafter for months to read four
+reference files at paths that resolve from nowhere.
+
+**Not done, and named rather than dropped**: re-hooking Sehar McDermott is
+operational and costs a paid rung; the `cta-04`/`ps-04` re-deal is Haytham's
+edit in Airtable; and `hook-worker` optimising for the most quotable line is a
+judgement, which D25 is explicit about not mechanising.
+
+931 tests (+69), `doc-check` clean at 30 commands.
+
 ## 2026-08-01 (CRM write) — two defects in the Leads push, both mine
 
 Haytham asked for the batch in Airtable. The Batches row was fine. The 20 Leads

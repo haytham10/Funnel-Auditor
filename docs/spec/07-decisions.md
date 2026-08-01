@@ -461,6 +461,61 @@ and the answer is more identity lines per thin segment rather than a return to
 dealing late. Dealing late does not become correct again; it only stops being
 the worse of two problems.
 
+### D25 · A check that can be mechanical must not cost an agent pass
+
+**2026-08-01.** Where a rule can be enforced in Python, it is, and the agent
+stage that used to catch it stops being the place it is caught. `hook` checks a
+proposal before a verifier is spent on it, `check_batch` sees a template that no
+per-email reader can, `crm-rows` replaces a hand-written script and the audit of
+it, `--escalate-only` replaces re-running a whole stage to retry one call, and
+`ledger batch` replaces telling twelve workers to remember a label.
+
+**Why.** Batch `2026-08-01-q1` cost about 64 agent passes for 20 leads and 5
+shipped rows, and until `ledger pass` existed nothing in this repo could say
+which stage that was. That blindness is the same one F12 named for retrieval,
+one layer up — and it is worse, because a fetch at least leaves an Apify
+invoice. The rule matters beyond cost: **a mechanical check runs the same way
+every time**, and an agent asked to remember a rule is an agent that will
+occasionally not. Every gate this repo has was built on that reasoning; this
+entry says the reasoning also applies to what a stage *costs*.
+
+**What it does not license.** Replacing a *judgement* with a check. The cold
+read caught 11 of 12 identity beats that had passed the linter, and every one
+of those drafts was `LINT PASS` — voice is not mechanisable and the proposal
+refuses twice, in writing, to optimise the verifier. The saving comes from
+passes nothing has to run, never from a cheaper reader.
+
+**Reversed by** a mechanical check that starts producing false findings people
+route around. A gate that has to be argued with is worse than the agent pass it
+replaced, because the agent could be told the exception and the gate cannot.
+
+### D26 · The P3 flip stays off, and the batch that would decide it is not this one
+
+**2026-08-01.** `hook-worker` keeps fetching, `plan` keeps declining nothing,
+`select` stays advisory. The proposal's P3 is unchanged and still switched off.
+
+**Why.** The measurement ran and reported 4 agreed, 3 missed, 5 unobserved over
+12 verified hooks — and both halves of it turned out to be artefacts rather than
+findings. **All three MISSED were one ban**, `site_prose`, which was 21 of the
+corpus's 32 rejections and which the same batch disproved: those three
+observations were `kind: about` and each had been independently VERIFIED. **Four
+of the five UNOBSERVED were a flag**, not a capability: research ran `apify
+li-posts --max 5` with no window while the hook stage ran `--since 3months`, so
+the hook stage kept finding posts research had never requested. The `DUPLICATE`
+half was polluted twice over — a retry that re-read every site, and an
+observation nudge in five of twelve worker prompts.
+
+Both causes are fixed (D25's rung flags, and ban #1 narrowed). Neither fix
+produces a number: the corpus it would be scored against lived in `work/`, which
+does not survive the container, so the batch that disproved the ban cannot be
+re-scored against the correction. **`select --batch` now writes the corpus
+alongside the verdict** so that this is the last time.
+
+**Reversed by** one clean batch — run after both fixes, with no observation
+nudge and no re-read retry — reporting `unobserved` and `missed` apart. If
+`unobserved` stays high the fetch is not removable and the answer is research
+fetching deeper, which is what the number pointed at before the flag was found.
+
 ---
 
 ## What is unknown
