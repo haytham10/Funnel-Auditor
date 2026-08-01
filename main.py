@@ -1404,19 +1404,8 @@ def cmd_apify(args) -> None:
             target = args.urls[0] if len(args.urls) == 1 else args.urls
             out = apify.linkedin_profile(target, with_email=args.email, raw=args.raw,
                                          approved=approved)
-        elif cmd == "youtube":
-            out = apify.youtube_channel(args.channel, raw=args.raw, approved=approved)
         elif cmd == "verify-email":
             out = apify.verify_emails(args.addresses, raw=args.raw, approved=approved)
-        elif cmd == "search":
-            out = apify.google_search(args.query, pages=args.pages, site=args.site,
-                                      country=args.country, raw=args.raw,
-                                      approved=approved,
-                                      meta=getattr(args, "meta", False))
-        elif cmd == "footprint":
-            out = apify.footprint_search(args.platform, geo=args.geo, role=args.role,
-                                         country=args.country, raw=args.raw,
-                                         approved=approved)
         else:
             print(json.dumps({"error": f"apify: unknown subcommand {cmd!r}"}))
             sys.exit(2)
@@ -1832,37 +1821,16 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--approve-cost", action="store_true")
     paid(a)
 
-    a = apify_sub.add_parser("youtube", help="channel stats and recent videos")
-    a.add_argument("channel")
-    a.add_argument("--raw", action="store_true")
-    a.add_argument("--approve-cost", action="store_true")
-    paid(a)
-
     a = apify_sub.add_parser("verify-email", help="verify addresses in one batched call")
     a.add_argument("addresses", nargs="+")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
     paid(a)
 
-    a = apify_sub.add_parser("search", help="Google SERP for one query")
-    a.add_argument("query")
-    a.add_argument("--pages", type=int, default=1)
-    a.add_argument("--site")
-    a.add_argument("--country", default="ae")
-    a.add_argument("--meta", action="store_true")
-    a.add_argument("--raw", action="store_true")
-    a.add_argument("--approve-cost", action="store_true")
-    paid(a)
-
-    a = apify_sub.add_parser("footprint", help="platform footprint sourcing")
-    a.add_argument("platform")
-    a.add_argument("--geo", default="Dubai")
-    a.add_argument("--role", default="coach")
-    a.add_argument("--country", default="ae")
-    a.add_argument("--raw", action="store_true")
-    a.add_argument("--approve-cost", action="store_true")
-    paid(a)
-
+    # `youtube`, `search` and `footprint` were retired 2026-08-01 with the two
+    # actors behind them. Sourcing keeps `classify-footprint` below, which never
+    # fetched anything itself and is now fed by the agent's own WebSearch —
+    # which `audit/footprint.py` already called the preferred path.
     p_apify.set_defaults(func=cmd_apify)
 
     p = sub.add_parser("classify-footprint",

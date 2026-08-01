@@ -33,9 +33,14 @@ In order. Stop as soon as the datum is settled.
    them and an `unclear` on every field. Also use it for corroborating UAE
    residence and for finding a LinkedIn or podcast URL the site did not link.
 3. **Apify, and only for what is genuinely login-walled**: LinkedIn posts and
-   profiles, Instagram, YouTube subscriber counts.
+   profiles, and Instagram.
    `python main.py apify li-posts <url> --max 5`, `apify li-profile <url>`,
-   `apify ig <url> --mode details`, `apify youtube <handle>`.
+   `apify ig <url> --mode details`.
+
+   **There is no paid YouTube call any more.** It returned a subscriber count
+   for `audience_size`, which is captured and never gated on, so it bought a
+   number that changed no decision. A YouTube-native coach is read the free way:
+   their channel's /videos page, like any other site.
 
 **An Instagram bio is real evidence, not a consolation prize.** The `fetch`
 report prints an `IG` line for every lead reachable only there, and for those

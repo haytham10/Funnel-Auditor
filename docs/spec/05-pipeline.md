@@ -366,7 +366,17 @@ address asked about — an address the actor did not answer on comes back as
 The no-login third-party fetch layer, and the only paid one. Subcommands:
 `apify limits` (check the budget **once per batch**), `apify actors`,
 `apify ig`, `apify ig-post`, `apify li-posts`, `apify li-profile`,
-`apify youtube`, `apify verify-email`, `apify search`, `apify footprint`.
+`apify verify-email`.
+
+**Two actors were retired 2026-08-01** and their subcommands with them. Neither
+was a large bill; both were surface area, which `audit/apify.py`'s own rule says
+is the thing to count. The YouTube channel actor returned a subscriber count and
+nothing else, and its only consumer was `audience_size` — a field
+`docs/spec/02-icp.md` captures and never gates on, so a paid call was wired to a
+field that by design changes no decision. The Google SERP actor duplicated the
+agent's own free WebSearch, which `audit/footprint.py` already called the
+preferred path and which is what every skill actually used.
+`classify-footprint` is untouched: it never fetched anything itself.
 
 `apify li-profile` and `apify verify-email` take one target or several; several
 is one actor run for the whole batch rather than one per lead (`li-profile`

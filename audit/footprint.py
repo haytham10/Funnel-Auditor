@@ -5,17 +5,21 @@ A hosted-platform footprint hides under two non-overlapping search shapes
 (see PLATFORM_FOOTPRINTS below): the shared platform subdomain, and the
 "Powered by X" footer signature every hosted funnel carries. This module
 owns ONLY the merge/dedupe/noise-filter/tagging logic over hits already
-fetched for both shapes — it never calls a search API itself, so either
-fetch layer can feed it: the agent's own WebSearch (free, and the preferred
-path — it costs nothing beyond what is already running) or Apify's
-google-search-scraper (`apify.footprint_search`, the original path, which draws
-on the small monthly cap shared with LinkedIn and Instagram — the two things
-that have no free substitute). `main.py classify-footprint` is the CLI entry
+fetched for both shapes — it never calls a search API itself, so a fetch
+layer feeds it: the agent's own WebSearch, free and costing nothing beyond
+what is already running. `main.py classify-footprint` is the CLI entry
 point; a hit only needs a "url" key (title/description ride along if present).
 
 _Reworded 2026-07-31. This paragraph named Firecrawl as the free tier. Firecrawl
 is gone; WebSearch took its place, and the argument for preferring free over
 Apify is unchanged._
+
+_Reworded again 2026-08-01. It named an Apify-backed alternative,
+`apify.footprint_search`, and called free search "the preferred path". That
+alternative is retired (P4): the preferred path had been the only path any
+skill invoked, and a duplicate of the agent's own WebSearch is surface area
+with a bill attached. Being fetch-agnostic is what made removing it a
+deletion rather than a rewrite — this module never knew which layer fed it._
 
 Moved out of audit/apify.py 2026-07-17 so the merge logic isn't duplicated
 across fetch layers — `apify.py` re-exports PLATFORM_FOOTPRINTS, _host_of,
@@ -121,8 +125,7 @@ def classify_footprint_hits(
     noise the wider footer-signature net drags in.
 
     Returns {"platform", "geo", "hits": [...], "subdomain_count",
-    "footprint_count", "queries": [...]} — identical shape to
-    `apify.footprint_search`, regardless of which layer did the fetching.
+    "footprint_count", "queries": [...]}, whichever layer did the fetching.
     """
     q = queries_for(platform, geo=geo, role=role)
     key = q["platform"]
