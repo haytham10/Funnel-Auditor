@@ -1,0 +1,44 @@
+{
+  "batch": "2026-08-01-q1",
+  "leads": 19,
+  "attempted": 19,
+  "verified": 12,
+  "refuted": 5,
+  "proposed": 0,
+  "none_found": 2,
+  "hook_yield": 0.632,
+  "refute_rate": 0.263,
+  "null_hook_rate": 0.105,
+  "yield_by_rung": {
+    "li_posts": {
+      "verified": 10
+    },
+    "about": {
+      "verified": 2
+    }
+  },
+  "by_hook_type": {
+    "WORK": 10,
+    "LIFE": 2
+  },
+  "ledger_read": true,
+  "retrievals": 296,
+  "cost_usd": 0.4369,
+  "unpriced": 2,
+  "cost_per_verified_hook": 0.0364,
+  "wasted_retrieval_n": 47,
+  "wasted_retrieval_usd": 0.2086,
+  "duplicates": 83,
+  "raw": 20,
+  "after_dedupe": 20,
+  "warm": 0,
+  "passed_floors": 19,
+  "written": "?",
+  "rejected": "?",
+  "tier0_rate": 0.45,
+  "source_list": "batch_queue_01_of_4_20.csv",
+  "agent_passes": 41,
+  "gaps": [
+    "2 run(s) could not be priced \u2014 compute-billed actors are not a lookup failure, so the cost figures are a floor"
+  ]
+}

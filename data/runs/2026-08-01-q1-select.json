@@ -1,0 +1,575 @@
+{
+  "selections": [
+    {
+      "lead_key": "nighat@mumkin.co",
+      "name": "Nighat Fatima",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "1b036bd7a147",
+          "ban": "site_prose",
+          "url": "https://mumkin.co"
+        },
+        {
+          "obs_id": "b0b0af364ae7",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/coach-nighat"
+        },
+        {
+          "obs_id": "4d45cb1e789e",
+          "ban": "stale",
+          "url": "https://linkedin.com/posts/coach-nighat_happinessgoal-mumkingcoaching-happinesscoachnighat-activity-7012466134096490496-veYu"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/in/coach-nighat",
+        "https://linkedin.com/posts/coach-nighat_happinessgoal-mumkingcoaching-happinesscoachnighat-activity-7012466134096490496-veYu",
+        "https://mumkin.co"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "mirella@prestigeone.ae",
+      "name": "Mirella Frenn",
+      "shortlist": [
+        {
+          "lead_key": "mirella@prestigeone.ae",
+          "obs_id": "1df2954b94d0",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/mirella-j-frenn-9b58775_dubairealestate-stonelnvest-prestigeacademy-activity-7488485414505332736-1wRG",
+          "published_at": "2026-07-30",
+          "author": "self",
+          "kind": "post",
+          "quote": "Making a living vs. changing a life. In the fast-paced Dubai real estate market, the brokers who win are the ones who educate, stay consistent, and put people first.\n\nFeaturing Jordan Bensmihen, CEO of Stone Invest, sharing the ultimate playbook for success with Prestige Academy.\n\nJordan Bensmihen \n\n#DubaiRealEstate #Stonelnvest #PrestigeAcademy #Podcast #Dubai",
+          "words": 52,
+          "rank": 1,
+          "why": "self post on linkedin, 2d old"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "034eac944126",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/mirella-j-frenn-9b58775"
+        },
+        {
+          "obs_id": "08e892fbde95",
+          "ban": "too_short",
+          "url": "https://linkedin.com/posts/mirella-j-frenn-9b58775_realestate-training-luxuryrealestate-activity-7488838484581949441-ieFk"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/in/mirella-j-frenn-9b58775",
+        "https://linkedin.com/posts/mirella-j-frenn-9b58775_dubairealestate-stonelnvest-prestigeacademy-activity-7488485414505332736-1wRG",
+        "https://linkedin.com/posts/mirella-j-frenn-9b58775_realestate-training-luxuryrealestate-activity-7488838484581949441-ieFk"
+      ],
+      "agreement": "agreed",
+      "agreement_note": "the top pick is the page the hook cited",
+      "notes": []
+    },
+    {
+      "lead_key": "lorna.king@pwc.com",
+      "name": "Lorna King",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "eb3906cf690f",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/lornaking"
+        },
+        {
+          "obs_id": "b2fe49c8b4c8",
+          "ban": "third_party",
+          "url": "https://linkedin.com/posts/weareexe_54-of-gcc-employees-are-under-constant-strain-ugcPost-7488564070619611137-PymZ"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/lornaking",
+        "https://linkedin.com/posts/weareexe_54-of-gcc-employees-are-under-constant-strain-ugcPost-7488564070619611137-PymZ"
+      ],
+      "agreement": "unobserved",
+      "agreement_note": "the hook cited a page no observation carries \u2014 this is the fetch selection could not have replaced",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "maury@ibm.com",
+      "name": "Maurice Hellemons",
+      "shortlist": [
+        {
+          "lead_key": "maury@ibm.com",
+          "obs_id": "0b8b7c2980f0",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/mauricehellemons_-activity-7483069345401675778-nVki",
+          "published_at": "2026-07-15",
+          "author": "self",
+          "kind": "post",
+          "quote": "Can AI replace those High-Importance Human Competencies? This was exactly the question I asked myself during one of my last gym sessions when I was catching my breath. Yes, AI can write emails, summarize meetings and it can create presentations, videos, images, business plans, and for sure your next vacation itinerary (it does mine all the time) before you finish your morning drink. These are NOT Presentation Skills. They are EQ Skills. Emotional Intelligence.",
+          "words": 74,
+          "rank": 1,
+          "why": "self post on linkedin, 17d old"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "a8df3ac0b8a3",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/mauricehellemons"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/mauricehellemons",
+        "https://linkedin.com/posts/mauricehellemons_-activity-7483069345401675778-nVki"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "amandah.cotchin@lhh.com",
+      "name": "Amandah Cotchin",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "d05359f53c5c",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/amandah-cotchin-1974b814"
+        },
+        {
+          "obs_id": "1b357dcb559a",
+          "ban": "stale",
+          "url": "https://linkedin.com/posts/activity-7259833194546417664-cocj"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/amandah-cotchin-1974b814",
+        "https://linkedin.com/posts/activity-7259833194546417664-cocj"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "sehar@mindandlifereboot.com",
+      "name": "Sehar Mcdermott",
+      "shortlist": [
+        {
+          "lead_key": "sehar@mindandlifereboot.com",
+          "obs_id": "e98d4b800153",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/sehar-mcdermott_leadershipdevelopment-organisationdevelopment-activity-7489242437383741440-IsF7",
+          "published_at": "2026-08-01",
+          "author": "self",
+          "kind": "post",
+          "quote": "Most organisations don't struggle because they lack talent.\n\nThey struggle because talented people are working in systems that make it difficult to do their best work.\n\nMisaligned priorities. Unclear expectations. Conversations that never happen. Leaders carrying too much. Teams assuming instead of aligning.\n\nThese aren't people problems.\n\nThey're organisational design problems.\n\n#LeadershipDevelopment #OrganisationDevelopment #TeamCoaching #ExecutiveCoaching #Leadership #CultureTransformation #MindAndLifeReboot",
+          "words": 58,
+          "rank": 1,
+          "why": "self post on linkedin, 0d old"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "1f87f3199757",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/sehar-mcdermott"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/sehar-mcdermott",
+        "https://linkedin.com/posts/sehar-mcdermott_leadershipdevelopment-organisationdevelopment-activity-7489242437383741440-IsF7"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "sdiab@sanalogy.com",
+      "name": "Sanaa Diab",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "526d01299db7",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/sanaadiab"
+        },
+        {
+          "obs_id": "9b39a2c4d344",
+          "ban": "stale",
+          "url": "https://linkedin.com/posts/sanaadiab_aimaster-activity-7287415148166701056-VTvl"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/sanaadiab",
+        "https://linkedin.com/posts/sanaadiab_aimaster-activity-7287415148166701056-VTvl"
+      ],
+      "agreement": "missed",
+      "agreement_note": "the hook's page was observed and excluded by site_prose",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "julie@juliekristin.com",
+      "name": "Julie Kristin",
+      "shortlist": [
+        {
+          "lead_key": "julie@juliekristin.com",
+          "obs_id": "0656b6dc6101",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/juliekristinofficial_ive-spent-the-last-11-years-helping-business-activity-7477958791225827330-L20z",
+          "published_at": "2026-07-01",
+          "author": "self",
+          "kind": "post",
+          "quote": "I\u2019ve spent the last 11 years helping business owners behind the scenes. The funny thing is, even some of my clients don\u2019t know everything I actually do... If you\u2019re planning a course, building a membership or launching a new offer and you\u2019re looking for someone to help you make it happen, I\u2019d love to help. Book a discovery call at juliekristin.com.",
+          "words": 67,
+          "rank": 1,
+          "why": "self post on linkedin, 31d old"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "dc5efb11fe60",
+          "ban": "site_prose",
+          "url": "https://juliekristin.com"
+        },
+        {
+          "obs_id": "8828da4fa2da",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/juliekristinofficial"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://juliekristin.com",
+        "https://linkedin.com/in/juliekristinofficial",
+        "https://linkedin.com/posts/juliekristinofficial_ive-spent-the-last-11-years-helping-business-activity-7477958791225827330-L20z"
+      ],
+      "agreement": "agreed",
+      "agreement_note": "the top pick is the page the hook cited",
+      "notes": []
+    },
+    {
+      "lead_key": "bindujoseph@seedse.ae",
+      "name": "Bindu Joseph",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "7984c432b9ca",
+          "ban": "site_prose",
+          "url": "https://seedse.ae/team/bindu-joseph"
+        },
+        {
+          "obs_id": "4291d7294477",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/bindu-joseph-02145686"
+        },
+        {
+          "obs_id": "eede5a1c43e9",
+          "ban": "too_short",
+          "url": "https://linkedin.com/posts/bindu-joseph-02145686_our-team-at-seed-activity-7480375265270099969-wr3p"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/in/bindu-joseph-02145686",
+        "https://linkedin.com/posts/bindu-joseph-02145686_our-team-at-seed-activity-7480375265270099969-wr3p",
+        "https://seedse.ae/team/bindu-joseph"
+      ],
+      "agreement": "missed",
+      "agreement_note": "the hook's page was observed and excluded by site_prose",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "msinimale@transform.com.sa",
+      "name": "Marie-Laure Sinimale",
+      "shortlist": [
+        {
+          "lead_key": "msinimale@transform.com.sa",
+          "obs_id": "ccbdb2aab0fb",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/marielaureclisson_systemiccoaching-paloaltoapproach-leadershipdevelopment-activity-7482403721662980096-X13h",
+          "published_at": "2026-07-13",
+          "author": "self",
+          "kind": "post",
+          "quote": "Who does what? To whom? With which result? And for whom is it a problem?\n\nI recently gave this as a homework exercise to a coaching client, a CEO having collaboration issues with subsidiary team members... #SystemicCoaching #PaloAltoApproach #LeadershipDevelopment #TeamDynamics #ManagementCoaching #RelationalIntelligence",
+          "words": 42,
+          "rank": 1,
+          "why": "self post on linkedin, 19d old"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "5b4c7ba935b1",
+          "ban": "site_prose",
+          "url": "https://linkedin.com/in/marielaureclisson"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/marielaureclisson",
+        "https://linkedin.com/posts/marielaureclisson_systemiccoaching-paloaltoapproach-leadershipdevelopment-activity-7482403721662980096-X13h"
+      ],
+      "agreement": "agreed",
+      "agreement_note": "the top pick is the page the hook cited",
+      "notes": []
+    },
+    {
+      "lead_key": "rory@icanswimfast.com",
+      "name": "Rory Buck",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "d8098703c276",
+          "ban": "site_prose",
+          "url": "https://rorylbuck.com"
+        },
+        {
+          "obs_id": "2664adbcba41",
+          "ban": "not_content",
+          "url": "https://linkedin.com/in/rorybuck"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/rorybuck",
+        "https://rorylbuck.com"
+      ],
+      "agreement": "missed",
+      "agreement_note": "the hook's page was observed and excluded by site_prose",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "dana.barto@zu.ac.ae",
+      "name": "Dana Barto",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "060010607108",
+          "ban": "site_prose",
+          "url": "https://coachingloft.com/coach-profile/danabarto"
+        }
+      ],
+      "observed": 1,
+      "observed_urls": [
+        "https://coachingloft.com/coach-profile/danabarto"
+      ],
+      "agreement": "unobserved",
+      "agreement_note": "the hook cited a page no observation carries \u2014 this is the fetch selection could not have replaced",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "mireia@bareandbrave.com",
+      "name": "Mireia Irusta",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "8f12ed29d11f",
+          "ban": "site_prose",
+          "url": "https://noomii.com/users/mireia-mujika"
+        },
+        {
+          "obs_id": "de043186b1c0",
+          "ban": "site_prose",
+          "url": "https://bareandbrave.com"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://bareandbrave.com",
+        "https://noomii.com/users/mireia-mujika"
+      ],
+      "agreement": "unobserved",
+      "agreement_note": "the hook cited a page no observation carries \u2014 this is the fetch selection could not have replaced",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "kira.jean@hudabeauty.com",
+      "name": "Kira Jean",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "27cf408ef9c5",
+          "ban": "site_prose",
+          "url": "https://mojeh.com/article/kira-jean-dreamwork-collective-region-young-author"
+        },
+        {
+          "obs_id": "483739b0eb20",
+          "ban": "not_content",
+          "url": "https://instagram.com/iamkirajean"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://instagram.com/iamkirajean",
+        "https://mojeh.com/article/kira-jean-dreamwork-collective-region-young-author"
+      ],
+      "agreement": "unobserved",
+      "agreement_note": "the hook cited a page no observation carries \u2014 this is the fetch selection could not have replaced",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "lucy@gaiarises.com",
+      "name": "Lucy Russell",
+      "shortlist": [
+        {
+          "lead_key": "lucy@gaiarises.com",
+          "obs_id": "911d096ce4ef",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/lucycrussell_i-put-my-phone-on-airplane-mode-10-days-ago-activity-7487798768289910786-tkpI",
+          "published_at": "2026-07-28",
+          "author": "self",
+          "kind": "post",
+          "quote": "I put my phone on airplane mode 10 days ago. I wasn\u2019t sure I could actually do it.\n\nI could\u2026 mostly. I used it as I needed. Not too many moments more. I\u2019m still quite surprised by that, as I type this now. \n\n10 days outside. Walking. Talking. Playing. Family get togethers, sunny walks up hills, along canals and actually in rivers. My four-year-old scrambling up Ilkley's Cow and Calf like it was nothing - more physically confident on those rocks than I\u2019ve seen him in a while.\n\nThen three days without him, without my parents, at the other end of the country. Lunch by the river Cam with a friend I\u2019ve known for almost 20 years (and some ambling cows). No notifications. No half-listening. Just two people, actually there.\n\nI noticed something in those first few Yorkshire days. The urge to check had actually gone quiet. Not disciplined away, actually just gone, because there was something far more interesting in front of me than a screen. And, honestly, I felt such peace and calm \ud83d\udc97\n\nToday, I'm back to work - with my phone on airplane mode as much as possible \ud83d\ude4f\ud83c\udffb",
+          "words": 193,
+          "rank": 1,
+          "why": "self post on linkedin, 4d old"
+        },
+        {
+          "lead_key": "lucy@gaiarises.com",
+          "obs_id": "3a4de4f2b2c1",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/lucycrussell_womeninleadership-liberation-gaiarises-activity-7485219563245129728-olRM",
+          "published_at": "2026-07-21",
+          "author": "self",
+          "kind": "post",
+          "quote": "She introduced herself with a story that stopped being true years ago.\n\nThe one about not being quite ready. Not quite experienced enough. Not the kind of woman who does the big, bold thing... not yet.\n\nExcept she was. She had been for a long time. The evidence was everywhere, the track record, the respect she commanded, the people who already looked to her. Everyone could see it.\n\nExcept her.\n\n...The work wasn't building her up. She was already built. The work was helping her notice she'd been describing a woman who no longer existed.\n\nAnd when she updated the story to match who she'd actually become, everything she'd been hesitating over stopped looking so impossible. She hadn't been lacking anything. She'd just been carrying an old map.\n\nIf you're still introducing yourself as a version of you that you left behind years ago, it might be time to check the date on the story.\n\nWhat are you still holding back from, on the strength of something that stopped being true a long time ago?\n\n#womeninleadership #liberation #GAIArises #community",
+          "words": 179,
+          "rank": 2,
+          "why": "self post on linkedin, 11d old"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "dc75ba0f1ff4",
+          "ban": "not_content",
+          "url": "https://linkedin.com/in/lucycrussell"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/in/lucycrussell",
+        "https://linkedin.com/posts/lucycrussell_i-put-my-phone-on-airplane-mode-10-days-ago-activity-7487798768289910786-tkpI",
+        "https://linkedin.com/posts/lucycrussell_womeninleadership-liberation-gaiarises-activity-7485219563245129728-olRM"
+      ],
+      "agreement": "agreed",
+      "agreement_note": "the top pick is the page the hook cited",
+      "notes": [
+        "TIGHT: the top pick is 193 words against 19 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "mihaela@mihaelanica.com",
+      "name": "Mihaela Nica",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "741f93b60ae5",
+          "ban": "site_prose",
+          "url": "https://mihaelanica.com"
+        },
+        {
+          "obs_id": "f38c59028466",
+          "ban": "site_prose",
+          "url": "https://multiplayerteamtraining.com/mihaela-nica-life-leadership-coach"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://mihaelanica.com",
+        "https://multiplayerteamtraining.com/mihaela-nica-life-leadership-coach"
+      ],
+      "agreement": "unobserved",
+      "agreement_note": "the hook cited a page no observation carries \u2014 this is the fetch selection could not have replaced",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "judy@judythomas.me",
+      "name": "Judy Thomas",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "e54167419e58",
+          "ban": "site_prose",
+          "url": "https://judythomas.me"
+        }
+      ],
+      "observed": 1,
+      "observed_urls": [
+        "https://judythomas.me"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "chiraz.jaafar@prestigeadvocates.com",
+      "name": "Chiraz Jaafar",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "bf6ea9b5d44c",
+          "ban": "not_content",
+          "url": "https://linkedin.com/in/chiraz-jaafar-5611903b"
+        }
+      ],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/chiraz-jaafar-5611903b"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "maria@inspirat.us",
+      "name": "Maria Da Luz",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "1325dd6452ed",
+          "ban": "not_content",
+          "url": "https://linkedin.com/in/maria-belen-da-luz-25202a1ba"
+        }
+      ],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/maria-belen-da-luz-25202a1ba"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    }
+  ]
+}
