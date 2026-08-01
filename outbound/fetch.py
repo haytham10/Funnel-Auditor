@@ -4,9 +4,10 @@ Firecrawl is gone. What replaces it is not one tool but an order of preference,
 because the measured cost of the old pipeline was dominated by a rendering mode
 nobody chose on purpose.
 
-    tier 0   local requests + BeautifulSoup            free
+    tier 0   local requests + BeautifulSoup            free, concurrent
     tier 1   the agent's own WebSearch/WebFetch        free, model-side
-    tier 2   ONE batched Apify cheerio run             paid, shared
+    tier 2a  ONE batched apify/cheerio-scraper run     paid, shared, static
+    tier 2b  ONE batched website-content-crawler run   paid, shared, renders
 
 Three findings from the last cost audit shape this module:
 
@@ -36,7 +37,9 @@ rather than trusting that sentence.
 from __future__ import annotations
 
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 
@@ -92,6 +95,12 @@ class SiteRead:
     social: dict[str, str] = field(default_factory=dict)
     escalate: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # Does this site mention the person the row is about? confirmed | absent |
+    # unknown. About 40 of 151 rows on the first batch pointed at somebody
+    # else entirely — parked domains, name collisions, a coach's training
+    # school, an Ohio retreat house, a Dutch tech-news site — and nothing
+    # checked, so every one was found by hand after the money was spent.
+    owner_match: str = "unknown"
 
     @property
     def ok(self) -> bool:
@@ -247,37 +256,73 @@ def _harvest(read: SiteRead, seed_url: str) -> None:
 # ------------------------------------------------------------- tier 2 planning
 
 
-APIFY_SITE_CRAWLER = "apify/website-content-crawler"
-
-
 def apify_batch_plan(urls: list[str], *, render: bool = False,
                      max_pages_per_start: int = 1) -> dict:
-    """Build ONE actor input for every URL tier 0 failed on, across the batch.
+    """Build ONE escalation for every URL tier 0 failed on, across the batch.
 
-    This is the cost lever. Passing fifty leads' URLs in a single `startUrls`
-    array pays one container boot instead of fifty. `crawlerType` is always set
-    explicitly, because leaving it unset is what silently bought full headless
-    Firefox on the run that cost 6x its estimate.
+    This is the cost lever. Passing fifty leads' URLs in a single run pays one
+    container boot instead of fifty.
 
-    `render=True` is only correct for URLs that returned 200 with no text —
-    a genuinely JS-rendered page. Never set it as a default for a batch.
+    The plan names an `actor_key` from `audit.apify.ACTORS` rather than an actor
+    id, which is the difference between a plan and a suggestion. It used to name
+    `apify/website-content-crawler` in the slash form, which was in no ACTORS
+    map — so nothing could run it through the cost gate, it was something the
+    operator executed by hand outside the approval path, and the first real
+    batch skipped it entirely and used free WebSearch instead.
+
+    `render=True` is only correct for URLs that returned 200 with no text — a
+    genuinely JS-rendered page. Never set it as a default for a batch: the
+    browser mode is the most expensive thing this module can ask for.
     """
+    targets = list(dict.fromkeys(urls))
     return {
-        "actor": APIFY_SITE_CRAWLER,
-        "input": {
-            "startUrls": [{"url": url} for url in dict.fromkeys(urls)],
-            "crawlerType": "playwright:adaptive" if render else "cheerio",
-            "maxCrawlDepth": 0,
-            "maxCrawlPages": max(1, len(urls) * max_pages_per_start),
-            "saveHtml": True,
-            "saveMarkdown": False,
-            "proxyConfiguration": {"useApifyProxy": True},
-        },
+        "actor_key": "site_render" if render else "site_static",
+        "urls": targets,
+        "max_pages_per_start": max_pages_per_start,
         "why": (
-            f"{len(urls)} URL(s) in one run: one container boot, "
+            f"{len(targets)} URL(s) in one run: one container boot, "
             f"{'browser render (thin pages only)' if render else 'cheerio (static HTML)'}"
         ),
     }
+
+
+def run_plan(plan: dict, *, approved: bool = False) -> list[dict]:
+    """Execute one escalation plan through the cost gate.
+
+    Deliberately a thin dispatch. Everything about how each actor is called —
+    the input shape, the page function, the explicit `crawlerType` — lives in
+    `audit/apify.py` next to the actor it belongs to, so this module never
+    grows a second, drifting copy of it.
+    """
+    from audit import apify
+
+    urls = plan.get("urls") or []
+    if plan.get("actor_key") == "site_render":
+        return apify.crawl_render(urls, approved=approved)
+    return apify.crawl_static(urls, approved=approved)
+
+
+def check_owner(read: SiteRead, name: str) -> str:
+    """Does this site mention the person the row says it belongs to?
+
+    `confirmed` when a name token appears, `absent` when the site read fine and
+    none does, `unknown` when there was nothing to look at or no name to look
+    for. Uses the one shared tokenizer, at `min_len=3` so an initial cannot
+    match everything.
+
+    **Advisory, never a kill.** A real coach's site may carry only a brand name,
+    and a false kill here is permanent and invisible. What this buys is that the
+    ~40 bad rows in a 151-lead list surface in one report line before any money
+    is spent, instead of one at a time, by hand, after it.
+    """
+    from audit.email_check import name_tokens
+
+    tokens = name_tokens(name or "", min_len=3)
+    if not tokens or not read.ok:
+        return "unknown"
+    haystack = " ".join(
+        [read.text] + [p.url for p in read.pages] + read.headings).lower()
+    return "confirmed" if any(t in haystack for t in tokens) else "absent"
 
 
 def _read_key(lead) -> str:
@@ -293,26 +338,81 @@ def _read_key(lead) -> str:
         f"{getattr(lead, 'slug', '')}|{getattr(lead, 'site_url', '')}"
 
 
-def batch_fetch(leads: list, *, max_pages: int = 5) -> dict:
+DEFAULT_WORKERS = 8
+
+# One session per worker thread. `requests.Session` is not thread-safe — its
+# connection pool and cookie jar are shared mutable state — so the single shared
+# session the serial loop used cannot simply be handed to a pool.
+_local = threading.local()
+
+
+def _thread_session() -> requests.Session:
+    session = getattr(_local, "session", None)
+    if session is None:
+        session = _session()
+        _local.session = session
+    return session
+
+
+def batch_fetch(leads: list, *, max_pages: int = 5,
+                workers: int = DEFAULT_WORKERS) -> dict:
     """Tier 0 across a whole batch, then the plan for what it couldn't read.
 
     Returns the per-lead reads plus a single Apify plan for the failures, so
     the caller pays for at most one actor run no matter how big the batch.
+
+    **Concurrent, because serial did not finish.** This was a plain `for` loop:
+    151 sites, up to five pages each, at a 15-second timeout. It exceeded a
+    120-second ceiling, then a 590-second one, and was killed twice before
+    completing on the first real batch — so the whole stage had to be run in the
+    background and watched. The work is entirely network-bound, which is the
+    case threads are actually good at.
+
+    Politeness is unchanged: one lead is one thread is one host, and the 0.3s
+    pause between pages of a site still happens inside `read_site`. Nothing here
+    makes more requests to any single host than before.
+
+    Results are collected into a dict keyed by `_read_key`, so completion order
+    does not leak into the output.
     """
-    session = _session()
     reads: dict[str, SiteRead] = {}
     dead: list[str] = []
     thin: list[str] = []
+    targets = [l for l in leads if getattr(l, "site_url", "")]
+    started = time.monotonic()
 
+    # The leads this stage cannot help with, named rather than left to be
+    # rediscovered. A lead with no site produced nothing at all here, so the
+    # research worker met it cold and improvised — which is how the last batch
+    # came to use WebSearch and Instagram without either being a rung anybody
+    # had planned. Naming them turns that into handed-out work.
+    needs_search, ig_only = [], []
     for lead in leads:
-        if not getattr(lead, "site_url", ""):
+        if getattr(lead, "site_url", ""):
             continue
-        read = read_site(lead.site_url, max_pages=max_pages, session=session)
-        reads[_read_key(lead)] = read
-        if read.escalate:
-            thin.extend(read.escalate)
-        elif not read.ok:
-            dead.append(lead.site_url)
+        handle = getattr(lead, "instagram_url", "")
+        socials = lead.social_urls() if hasattr(lead, "social_urls") else []
+        if handle and not [s for s in socials if s != handle]:
+            ig_only.append({"name": getattr(lead, "name", ""), "url": handle})
+        elif not socials:
+            needs_search.append({"name": getattr(lead, "name", ""),
+                                 "company": getattr(lead, "company", ""),
+                                 "city": getattr(lead, "city", "")})
+
+    def read_one(lead):
+        read = read_site(lead.site_url, max_pages=max_pages,
+                         session=_thread_session())
+        read.owner_match = check_owner(read, getattr(lead, "name", ""))
+        return _read_key(lead), lead, read
+
+    workers = max(1, min(workers, len(targets) or 1))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for key, lead, read in pool.map(read_one, targets):
+            reads[key] = read
+            if read.escalate:
+                thin.extend(read.escalate)
+            elif not read.ok:
+                dead.append(lead.site_url)
 
     plans = []
     if dead:
@@ -321,16 +421,31 @@ def batch_fetch(leads: list, *, max_pages: int = 5) -> dict:
         plans.append(apify_batch_plan(thin, render=True))
 
     attempted = len(reads)
+    elapsed = time.monotonic() - started
+    unowned = [{"name": getattr(l, "name", ""), "url": l.site_url}
+               for l in targets
+               if reads.get(_read_key(l)) and reads[_read_key(l)].owner_match == "absent"]
     return {
         "reads": reads,
         "ok": sum(1 for r in reads.values() if r.ok),
         "attempted": attempted,
         "tier0_rate": round(sum(1 for r in reads.values() if r.ok) / attempted, 3)
         if attempted else 0.0,
+        "elapsed_secs": round(elapsed, 1),
+        "workers": workers,
         "escalate_plans": plans,
+        "needs_search": needs_search,
+        "ig_only": ig_only,
+        "unowned": unowned,
         "report": (
             f"TIER 0: {sum(1 for r in reads.values() if r.ok)}/{attempted} sites "
-            f"read free. {len(dead)} unreachable, {len(thin)} thin. "
-            f"{len(plans)} batched Apify run(s) needed."
+            f"read free in {elapsed:.0f}s on {workers} worker(s). "
+            f"{len(dead)} unreachable, {len(thin)} thin. "
+            f"{len(plans)} batched Apify run(s) needed. "
+            f"{len(needs_search)} lead(s) need a web search, "
+            f"{len(ig_only)} reachable only on Instagram.\n"
+            f"OWNER-CHECK: {len(unowned)}/{attempted} site(s) never mention the "
+            f"lead's name. Advisory, never a kill — resolve each with a source "
+            f"before spending on it."
         ),
     }

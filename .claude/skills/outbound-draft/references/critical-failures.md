@@ -108,10 +108,15 @@ question about their business as the whole close.**
 The close asks for fifteen minutes, carries a clock on the deliverable, and
 names the one thing only a conversation can answer:
 
-- Good: "15 minutes and they're yours the same day. I'll tell you why these 10
-  and not the other 40."
-- Good: "Give me 15 minutes this week and the 10 are in your inbox before the
-  call ends."
+*(The examples below are written for this page and are deliberately not lines
+from the bank. A manual that quotes its own live copy is a manual that ships:
+the shape is what you are learning, and reproducing an example verbatim is how
+two readers end up with the same close.)*
+
+- Good: "Find me 15 minutes and you have all 10 by the end of the day, along
+  with what put them ahead of the other 40."
+- Good: "15 minutes on Thursday and the list is with you that afternoon, plus
+  the reason each one made it."
 - Bad: "Is that deliberate, or did it just never get built?" *(a question CTA
   selects for replies that are ANSWERS — a conversational dead end that looks
   like success and converts at zero. 4 of 4 openers closed this way; 0 calls.)*

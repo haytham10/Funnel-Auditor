@@ -253,10 +253,24 @@ def test_an_empty_batch_writes_nothing_and_does_not_crash():
 # ------------------------------------------------------- anchor drift
 
 
+def _claim_of(line_id):
+    """The real Claim behind an identity line id, so the fixture deal says what
+    a real one would. `export` re-derives the claim from the DEAL rather than
+    the draft, so a deal with no claim is a deal it cannot check — and that is a
+    rejection, not a skip."""
+    for line in anchors.CopyBank.from_csv().identity:
+        if line.id == line_id:
+            return line.meta.get("claim", "")
+    return ""
+
+
 def dealt_for(drafts):
-    return {d.email: {beat: {"id": d.anchor_ids[beat], "line": "x"}
-                      for beat in ("identity", "offer", "cta", "ps")}
-            for d in drafts}
+    out = {}
+    for d in drafts:
+        out[d.email] = {beat: {"id": d.anchor_ids[beat], "line": "x"}
+                        for beat in ("identity", "offer", "cta", "ps")}
+        out[d.email]["identity"]["claim"] = _claim_of(d.anchor_ids["identity"])
+    return out
 
 
 def test_a_draft_matching_the_deal_is_written():
@@ -471,3 +485,65 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------- the claim, re-checked at export
+#
+# The drafter runs `main.py lint` on itself before returning, and that run
+# resolves the claim from what the drafter reported — the worker checking its
+# own homework against its own answer sheet. These close that loop the same way
+# the anchor-id check does.
+
+
+def test_an_identity_sentence_that_broke_its_claim_is_rejected():
+    with tempfile.TemporaryDirectory() as tmp:
+        # Health's aed_closed is 78,000 over 2 months. Drop the timeframe and
+        # the claim is no longer made.
+        d = draft(identity="My job is finding your next client. A health coach "
+                           "in Dubai closed AED 78,000 from prospects I put in "
+                           "front of them.")
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp,
+                                 dealt=dealt_for([d]))
+        assert out["written"] == 0
+        assert "close_period" in Path(tmp, "rejected.txt").read_text()
+
+
+def test_the_claim_is_taken_from_the_deal_not_the_draft():
+    """A drafter that reports a claim it likes better must not be believed. The
+    deal file is the authority, exactly as it is for the line id."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        dealt = dealt_for([d])
+        # The deal says Health:aed_closed,close_period,city. The draft claims
+        # something much easier to satisfy.
+        d.beats["identity"] = "Your next client is the job. 30 signed this year."
+        d.body = export.assemble_body(d.beats, greeting_name=d.first_name)
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp, dealt=dealt)
+        assert out["written"] == 0
+
+
+def test_a_deal_with_no_claim_is_a_rejection_not_a_skip():
+    """A deal file from before the claim column cannot check anything, and a
+    silent skip looks exactly like a pass on the report line."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft()
+        dealt = dealt_for([d])
+        dealt[d.email]["identity"].pop("claim")
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp, dealt=dealt)
+        assert out["written"] == 0
+        assert "re-run `main.py deal`" in Path(tmp, "rejected.txt").read_text()
+
+
+def test_an_authored_identity_sentence_does_not_trip_the_wrong_line_check():
+    """`check_dealt` compares the written text against every OTHER bank line by
+    exact normalised string. Under authoring an exact match to any bank line
+    becomes vanishingly unlikely, so it becomes a rarely-firing check rather
+    than a wrong one — and it must not fire on a sentence the drafter wrote."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = draft(identity="Your next client is the whole job for me. A health "
+                           "coach here in Dubai took AED 78,000 out of the "
+                           "meetings I set up, over 2 months.")
+        out = export.write_batch([d], lint_all([d]), out_dir=tmp,
+                                 dealt=dealt_for([d]),
+                                 bank=anchors.CopyBank.from_csv())
+        assert out["written"] == 1, Path(tmp, "rejected.txt").read_text()

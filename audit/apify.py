@@ -49,15 +49,28 @@ reason to look before a run that costs real money.
     li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
     li_profile  harvestapi/linkedin-profile-scraper     headline/about/experience; optional email-search mode (finds an address)
     yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number the free tier can't read for YT-native coaches)
-    email       account56/email-verifier                MillionVerifier-backed address verification
-    email_alt   michael.g/email-verifier-validator      fallback verifier, only when `email` errors on an address
+    email       michael.g/email-verifier-validator      address verification (status/technical_status/score)
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
+    site_static apify/cheerio-scraper                   tier-2 static HTML, for a site local requests could not reach
+    site_render apify/website-content-crawler           tier-2 browser render, ONLY for a page that 200s with no text
 
-    (email_alt added 2026-07-31: account56/email-verifier started returning
-    `{"status": "error", "error": "Failed to verify email"}` for every address
-    regardless of validity — an actor-side outage, not a per-address signal.
-    Haytham named this specific actor as the fallback. `verify_emails` below
-    retries only the addresses `email` errored on, and normalizes the result
+    (the two site actors vetted 2026-08-01. `outbound/fetch.py` had been
+    emitting an escalation plan naming website-content-crawler in the slash
+    form, which was in no ACTORS map — so the plan was a suggestion the
+    operator ran by hand, outside the cost gate, and the first real batch
+    skipped it entirely. Haytham named cheerio-scraper for the static half.
+    Both are batched: every URL tier 0 failed on goes into ONE run, because
+    container boot dominates the bill.)
+
+    (email was account56/email-verifier until 2026-08-01. That actor started
+    returning `{"status": "error", "error": "Failed to verify email"}` for
+    every address regardless of validity — an actor-side outage, not a
+    per-address signal — and the first 40 leads of the first real batch came
+    back looking like a run of catch-alls. It was fallen-back-from, then
+    skipped behind a `_PRIMARY_EMAIL_ACTOR_DOWN` flag, and is now gone on
+    Haytham's call: a flag saying "do not call this" is a call site waiting to
+    be switched back on by somebody who does not know why it was switched off.
+    `verify_emails` normalizes michael.g's vocabulary
     (`status`/`technical_status`/`catch_all` -> the `result` token
     `classify_verification` already reads) rather than teaching that function
     a second vocabulary.)
@@ -168,9 +181,10 @@ ACTORS = {
     "li_posts": "harvestapi~linkedin-profile-posts",
     "li_profile": "harvestapi~linkedin-profile-scraper",
     "yt_channel": "apidojo~youtube-channel-information-scraper",
-    "email": "account56~email-verifier",
-    "email_alt": "michael.g~email-verifier-validator",
+    "email": "michael.g~email-verifier-validator",
     "search": "apify~google-search-scraper",
+    "site_static": "apify~cheerio-scraper",
+    "site_render": "apify~website-content-crawler",
 }
 
 # Default sync-run ceiling. run-sync-get-dataset-items holds the HTTP
@@ -351,6 +365,11 @@ def account_limits() -> dict:
 # a cache keyed on the actor alone would price the second call at the first
 # call's rate.
 _pricing_cache: dict[tuple[str, str | None], float | None] = {}
+# Actors the API says have no pricingInfos: Apify's own free actors, billed on
+# platform compute rather than per item. Recorded so an unpriceable run can say
+# WHICH kind of unpriceable it is — the same distinction the email verifier's
+# error/unknown split exists for.
+_compute_billed: set[str] = set()
 _tier_cache: dict[str, str | None] = {"tier": None, "fetched": False}
 
 
@@ -381,8 +400,8 @@ def _actor_primary_event_price_usd(actor_id: str, event_key: str | None = None) 
     actor's Store page) — the actual number Apify will bill, not a
     hardcoded guess that goes stale. Handles the two pricing models the
     vetted actor set uses: flat PRICE_PER_DATASET_ITEM, and PAY_PER_EVENT
-    (reads the event flagged `isPrimaryEvent`; if none is flagged — e.g.
-    account56/email-verifier doesn't flag one — falls back to the sole
+    (reads the event flagged `isPrimaryEvent`; if none is flagged — several
+    verification actors don't — falls back to the sole
     recurring, non-one-time event when there's exactly one, since that's
     unambiguous; tiered by plan if the event has tiers). Returns None if
     pricing can't be read at all (network failure, actor not found, or a
@@ -406,6 +425,15 @@ def _actor_primary_event_price_usd(actor_id: str, event_key: str | None = None) 
         resp = requests.get(f"{APIFY_BASE}/acts/{actor_id}", headers=_auth_headers(), timeout=20)
         if resp.ok:
             infos = (resp.json().get("data") or {}).get("pricingInfos") or []
+            if not infos:
+                # No pricingInfos at all is not a failed lookup. It is Apify's
+                # own free actors — cheerio-scraper, website-content-crawler —
+                # which bill platform compute rather than items. Recorded so
+                # `estimate_cost_usd` can say which of the two states this is;
+                # both still require approval, because a compute-billed run
+                # genuinely cannot be estimated per item, but only one of them
+                # is worth retrying.
+                _compute_billed.add(actor_id)
             if infos:
                 current = infos[-1]  # most recent entry — the one in effect now
                 model = current.get("pricingModel")
@@ -449,6 +477,11 @@ def estimate_cost_usd(actor_id: str, item_count: int,
     can't be read."""
     price = _actor_primary_event_price_usd(actor_id, event_key)
     if price is None:
+        if actor_id in _compute_billed:
+            return None, ("billed on platform compute, not per item — the cost "
+                          "depends on pages and render mode and cannot be "
+                          "estimated here. This is not a lookup failure and "
+                          "retrying will not change it")
         return None, "pricing unavailable (network error or unrecognized pricing model)"
     return round(price * max(item_count, 1), 4), ""
 
@@ -547,15 +580,19 @@ def _ig_username(url_or_handle: str) -> str:
     return s.strip("/")
 
 
-def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
+def instagram(url: str | list[str], mode: str = "posts", newer_than: str | None = None,
               limit: int = 12, skip_pinned: bool = False, include_about: bool = False,
               raw: bool = False, approved: bool = False) -> list[dict]:
     """Instagram profile enrichment, split across two dedicated actors.
 
     mode='details' → apify/instagram-profile-scraper: profile metadata
     (followers, bio, latest posts; `include_about` adds the paid
-    about-account block — country, join date, verification). Gated as 1
-    profile.
+    about-account block — country, join date, verification). **Takes one
+    profile or several.** The actor's input field is `usernames`, an array, so
+    several profiles are one container boot instead of several — the same lever
+    `linkedin_profile` and `verify_emails` already pull. Results are correlated
+    back per username, so one dead profile returns None in its slot rather than
+    blanking the rest. Gated on the number of profiles.
 
     mode='posts' → apify/instagram-post-scraper: recent posts with captions,
     `newer_than` (e.g. '7 days', '2026-07-01') filtering recency,
@@ -563,25 +600,51 @@ def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
     the coach's signature/framework content, i.e. exactly the SMYKM hook).
     Gated on `limit`.
 
+    **`posts` stays one call per profile, deliberately.** `linkedin_posts` was
+    batched, tested, and turned out to share `maxPosts` across every target as
+    a single run-wide budget: two profiles and a cap of ten returned all ten
+    posts from one profile and nothing from the other. Nobody has tested
+    whether this actor's `resultsLimit` behaves the same way, and assuming it
+    does not is how a batch silently loses most of its post data — which reads
+    downstream as "no recent activity", a false kill on the activity floor plus
+    a hook search that never sees what is there. Test it before batching it.
+
     Pass approved=True once Haytham has signed off on an estimate over
     COST_APPROVAL_THRESHOLD_USD — see "Cost approval gate" above."""
     if mode not in IG_RESULT_TYPES:
         raise ApifyError(f"instagram mode must be one of {IG_RESULT_TYPES}, got {mode!r}")
 
     if mode == "details":
-        _require_cost_approval(ACTORS["ig_profile"], 1, approved)
-        username = _ig_username(url)
-        run: dict[str, Any] = {"usernames": [username]}
+        single = isinstance(url, str)
+        targets = [url] if single else list(url)
+        if not targets:
+            raise ApifyError("instagram(mode='details') needs at least one profile")
+        usernames = [_ig_username(u) for u in targets]
+        _require_cost_approval(ACTORS["ig_profile"], len(usernames), approved)
+        run: dict[str, Any] = {"usernames": usernames}
         if include_about:
             run["includeAboutSection"] = True
         items = run_actor(ACTORS["ig_profile"], run, memory_mbytes=1024)
         if raw:
             return items
-        _raise_on_actor_error(items, username)
         keep = ("username", "fullName", "biography", "followersCount",
                 "postsCount", "url", "latestPosts", "about")
-        return [_lean(i, keep) for i in items]
+        if single:
+            _raise_on_actor_error(items, usernames[0])
+            return [_lean(i, keep) for i in items]
+        # Batched: index by username and return one slot per input, so a
+        # profile the actor could not read is a None the caller can see rather
+        # than a silently shorter list.
+        by_name = {(i.get("username") or "").strip().lower(): _lean(i, keep)
+                   for i in items if isinstance(i, dict)}
+        return [by_name.get(name.strip().lower()) for name in usernames]
 
+    if not isinstance(url, str):
+        raise ApifyError(
+            "instagram(mode='posts') takes one profile. The post actor's "
+            "resultsLimit has not been tested as a per-profile cap, and the "
+            "LinkedIn equivalent turned out to be a run-wide budget that "
+            "starved every profile but one.")
     # mode == "posts"
     _require_cost_approval(ACTORS["ig_post"], limit, approved)
     run = {"username": [url], "resultsLimit": limit}
@@ -788,68 +851,148 @@ def youtube_channel(channel: str, raw: bool = False, approved: bool = False) -> 
             for i in items]
 
 
-def _normalize_alt_email_result(item: dict) -> dict:
-    """`email_alt` (michael.g/email-verifier-validator) speaks its own
-    vocabulary — top-level `status`: good/bad, `technical_status`:
-    valid/invalid. Fold it into the `result` token `classify_verification`
-    already reads instead of teaching that function a second vocabulary."""
+def _normalize_email_result(item: dict) -> dict:
+    """michael.g/email-verifier-validator speaks its own vocabulary — top-level
+    `status`: good/risky/bad, `technical_status`: valid/invalid/unknown/
+    catch_all/disposable/error. Fold it into the `result` token
+    `classify_verification` already reads instead of teaching that function a
+    second vocabulary.
+
+    `error` gets its OWN token rather than collapsing into `unknown`. Both
+    classify to WARN, so the verdict is unchanged — but `error` means the actor
+    could not look, where `unknown` means it looked and could not tell. That
+    distinction is what `email_check.batch_health` reads to separate an outage
+    from a run of genuine catch-alls, and collapsing the two is how a dead
+    verifier went unnoticed for 40 leads on the first real batch.
+    """
     if item.get("disposable"):
         token = "disposable"
     elif item.get("catch_all"):
         token = "catch_all"
     else:
         technical = (item.get("technical_status") or "").strip().lower()
-        token = technical if technical in ("valid", "invalid") else "unknown"
+        token = (technical
+                 if technical in ("valid", "invalid", "catch_all", "disposable", "error")
+                 else "unknown")
     out = dict(item)
     out["result"] = token
+    out.setdefault("verified_by", "apify")
     return out
 
 
-# account56/email-verifier has been in an outage since 2026-07-31 (returns
-# `{"status": "error"}` for every address, valid or not — an actor fault, not
-# a per-address signal). Haytham: stop spending calls on it while it's down,
-# it's wasting credits for a guaranteed error. `email_alt` is now the one
-# actually called; flip this back once account56 is confirmed recovered.
-_PRIMARY_EMAIL_ACTOR_DOWN = True
+# What a row looks like for an address the actor was asked about and did not
+# answer on. It used to be dropped, so `verify_emails` could hand back fewer
+# rows than it was given and the caller had no way to tell which address had
+# gone missing — the same class of silence as the outage above.
+def _no_result_row(address: str) -> dict:
+    return {"email": address, "status": "", "result": "no_result",
+            "technical_status": "", "reason": "actor returned no row for this address",
+            "verified_by": "apify"}
+
+
+VERIFY_FIELDS = ("email", "status", "result", "technical_status", "reason",
+                 "score", "catch_all", "free", "role", "disposable", "verified_by")
 
 
 def verify_emails(emails: list[str], raw: bool = False, approved: bool = False) -> list[dict]:
     """Verify one or more addresses. The confirm step before a found/guessed
     address enters the CRM. Cost-gated on len(emails).
 
-    Normally tries `email` (account56/email-verifier, MillionVerifier-backed)
-    first and only falls back to `email_alt` (michael.g/email-verifier-
-    validator, Haytham-named fallback) for addresses that error. While
-    `_PRIMARY_EMAIL_ACTOR_DOWN` is set, `email` is skipped entirely and
-    `email_alt` runs directly — no point paying for a guaranteed error."""
+    One actor, `michael.g/email-verifier-validator`. Its predecessor
+    (account56/email-verifier) went into an outage on 2026-07-31 answering
+    `{"status": "error"}` for every address, valid or not; it was first
+    fallen-back-from, then skipped behind a flag, and is now gone. A flag that
+    says "do not call this" is a call site waiting to be re-enabled by
+    somebody who does not know why it was turned off.
+
+    Returns one row per input address, in input order, always — an address the
+    actor did not answer on comes back as `no_result` rather than vanishing.
+    """
     if not emails:
         raise ApifyError("verify_emails needs at least one address")
 
-    if _PRIMARY_EMAIL_ACTOR_DOWN:
-        _require_cost_approval(ACTORS["email_alt"], len(emails), approved)
-        alt_items = run_actor(ACTORS["email_alt"], {"emails": emails}, memory_mbytes=256)
-        by_email = {alt["email"].strip().lower(): _normalize_alt_email_result(alt)
-                    for alt in alt_items if isinstance(alt, dict) and alt.get("email")}
-    else:
-        _require_cost_approval(ACTORS["email"], len(emails), approved)
-        items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
-        by_email = {(i.get("email") or "").strip().lower(): i
-                    for i in items if isinstance(i, dict) and i.get("email")}
-        errored = [e for e in emails
-                   if (by_email.get(e.strip().lower()) or {}).get("status") == "error"]
-        if errored:
-            _require_cost_approval(ACTORS["email_alt"], len(errored), approved)
-            alt_items = run_actor(ACTORS["email_alt"], {"emails": errored}, memory_mbytes=256)
-            for alt in alt_items:
-                if isinstance(alt, dict) and alt.get("email"):
-                    by_email[alt["email"].strip().lower()] = _normalize_alt_email_result(alt)
+    _require_cost_approval(ACTORS["email"], len(emails), approved)
+    items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
+    by_email = {item["email"].strip().lower(): _normalize_email_result(item)
+                for item in items if isinstance(item, dict) and item.get("email")}
 
-    ordered = [by_email[e.strip().lower()] for e in emails if e.strip().lower() in by_email]
+    ordered = [by_email.get(e.strip().lower()) or _no_result_row(e) for e in emails]
     if raw:
         return ordered
-    return [_lean(i, ("email", "status", "result", "resultCode", "subStatus",
-                      "free", "role", "disposable"))
-            for i in ordered]
+    return [_lean(i, VERIFY_FIELDS) for i in ordered]
+
+
+# What cheerio-scraper runs on each page. Authored once, here, rather than
+# assembled per call: it is the actor's whole contract and a caller that builds
+# its own would be writing a scraper by string concatenation.
+_CHEERIO_PAGE_FUNCTION = """\
+async function pageFunction(context) {
+    const { $, request, response } = context;
+    $('script, style, noscript').remove();
+    return {
+        url: request.url,
+        status: response ? response.statusCode : null,
+        title: ($('title').first().text() || '').trim(),
+        html: $.html(),
+        text: $('body').text().replace(/\\s+/g, ' ').trim(),
+    };
+}"""
+
+
+def crawl_static(urls: list[str], *, approved: bool = False,
+                 raw: bool = False) -> list[dict]:
+    """Tier 2a: static HTML for pages local `requests` could not reach at all.
+
+    ONE run for every URL in the batch. Container boot dominates a
+    compute-billed actor's bill, so fifty separate two-page runs is the worst
+    possible way to use one — a 2-page run and a 200-page run cost nearly the
+    same to start.
+
+    No browser. If a page needs JavaScript this returns the shell, which is what
+    `crawl_render` is for; sending everything through the browser instead is the
+    mistake that once spent 81 seconds on 2 pages and 45% of one lead's bill.
+    """
+    if not urls:
+        raise ApifyError("crawl_static needs at least one URL")
+    targets = list(dict.fromkeys(urls))
+    _require_cost_approval(ACTORS["site_static"], len(targets), approved)
+    items = run_actor(ACTORS["site_static"], {
+        "startUrls": [{"url": u} for u in targets],
+        "pageFunction": _CHEERIO_PAGE_FUNCTION,
+        "maxRequestsPerCrawl": len(targets),
+        "maxRequestRetries": 1,
+        "proxyConfiguration": {"useApifyProxy": True},
+    }, memory_mbytes=1024)
+    if raw:
+        return items
+    return [_lean(i, ("url", "status", "title", "text", "html")) for i in items]
+
+
+def crawl_render(urls: list[str], *, approved: bool = False,
+                 raw: bool = False) -> list[dict]:
+    """Tier 2b: a real browser, ONLY for a page that returned 200 with no text.
+
+    That signature — fetched fine, came back empty — is the one honest reason to
+    pay for rendering. `crawlerType` is always set explicitly here, because
+    leaving it unset is what silently bought full headless Firefox, the most
+    expensive mode the actor has, on a run that cost six times its estimate.
+    """
+    if not urls:
+        raise ApifyError("crawl_render needs at least one URL")
+    targets = list(dict.fromkeys(urls))
+    _require_cost_approval(ACTORS["site_render"], len(targets), approved)
+    items = run_actor(ACTORS["site_render"], {
+        "startUrls": [{"url": u} for u in targets],
+        "crawlerType": "playwright:adaptive",
+        "maxCrawlDepth": 0,
+        "maxCrawlPages": len(targets),
+        "saveHtml": True,
+        "saveMarkdown": False,
+        "proxyConfiguration": {"useApifyProxy": True},
+    }, memory_mbytes=1024)
+    if raw:
+        return items
+    return [_lean(i, ("url", "title", "text", "html")) for i in items]
 
 
 def google_search(query: str, pages: int = 1, site: str | None = None,

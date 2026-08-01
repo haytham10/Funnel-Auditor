@@ -91,9 +91,8 @@ and the agent's own search before it spends anything.
 | Variable | For |
 |---|---|
 | `APIFY_TOKEN` | the paid, no-login fetch layer. Cost-gated, blocks above the ceiling |
-| `ZEROBOUNCE_API_KEY` | email verification fallback when Apify is near cap |
 | `AIRTABLE_API_KEY` | reading the CRM and the copy bank from Python. Airtable owns every line; without a key the machine draws from the cache in `copy/` and says so |
-| `EMAIL_VERIFY_PROVIDER` | force a verifier instead of the default |
+| `EMAIL_VERIFY_PROVIDER` | `apify` (default) or `local`. The local MX check needs no key and never claims a mailbox exists |
 | `OUTBOUND_COPY_SOURCE=csv` | pin the copy bank to the committed CSVs. The test suite sets this |
 
 ## Two rules no code enforces

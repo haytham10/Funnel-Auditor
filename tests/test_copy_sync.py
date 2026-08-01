@@ -30,6 +30,7 @@ def record(line_id, beat, line, **meta):
         "Coach Type": meta.get("coach_type", ""),
         "Sells To": meta.get("sells_to", ""),
         "Shape": meta.get("shape", ""),
+        "Claim": meta.get("claim", ""),
         "Weight": meta.get("weight"),
     })
     return {"id": f"rec{line_id}", "fields": fields}
@@ -40,10 +41,12 @@ def good_set():
     return [
         record("id-health-x", "identity",
                "Your next client is the job. A health coach in Dubai closed AED 78,000.",
-               coach_type="Health", sells_to="any", shape="matched-revenue"),
+               coach_type="Health", sells_to="any", shape="matched-revenue",
+               claim="Health:aed_closed,city"),
         record("id-any-x", "identity",
                "Your next client is the whole job. 67 meetings and 30 signed this year.",
-               coach_type="Any", sells_to="any", shape="aggregate"),
+               coach_type="Any", sells_to="any", shape="aggregate",
+               claim="aggregate:total_meetings,total_clients"),
         record("b4-x", "offer", "I pulled 10 names for you before writing this.",
                weight=50),
         record("b4-y", "offer", "I already found 10 names, picked one at a time.",
@@ -228,7 +231,8 @@ def test_an_identity_line_opening_on_a_bare_stat_is_still_allowed():
     records = good_set() + [record(
         "id-z", "identity",
         "9 meetings in 6 weeks for the last health coach I worked with in Dubai.",
-        coach_type="Health", sells_to="any", weight=10)]
+        coach_type="Health", sells_to="any", weight=10,
+        claim="Health:meetings,period,city")]
     lines, _ = copy_sync.normalize_records(records)
     assert not any("id-z" in p for p in copy_sync.validate(lines))
 
@@ -324,6 +328,7 @@ def test_the_live_copy_files_pass_their_own_gate():
                 coach_type=line.meta.get("coach_type", ""),
                 sells_to=line.meta.get("sells_to", ""),
                 shape=line.meta.get("shape", ""),
+                claim=line.meta.get("claim", ""),
                 weight=line.meta.get("weight", "")))
     lines, _ = copy_sync.normalize_records(records)
     assert copy_sync.validate(lines) == []
@@ -778,3 +783,111 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------- the claim gate on the bank itself
+#
+# A bank line that cannot pass its own claim condemns every email dealt it, and
+# the drafter is then asked to satisfy something impossible with one rewrite
+# pass. So the claim rules run here, at sync time, where a block costs one
+# person one minute with the line in front of them.
+
+
+def _identity(line_id, line, claim, **meta):
+    meta.setdefault("coach_type", "Any")
+    meta.setdefault("sells_to", "any")
+    return record(line_id, "identity", line, claim=claim, **meta)
+
+
+def _problems_for(rec):
+    lines, _ = copy_sync.normalize_records(good_set() + [rec])
+    return [p for p in copy_sync.validate(lines) if p.startswith(rec["fields"]["Line ID"])]
+
+
+def test_an_identity_line_with_no_claim_is_rejected():
+    assert any("no Claim" in p for p in _problems_for(_identity(
+        "id-noclaim", "9 meetings in 6 weeks for a health coach in Dubai.", "",
+        coach_type="Health")))
+
+
+def test_a_claim_naming_a_segment_with_no_row_is_rejected():
+    assert any("has no row in results.csv" in p for p in _problems_for(_identity(
+        "id-nowhere", "12 meetings for a coach here.", "Nowhere:meetings")))
+
+
+def test_the_real_id_fit_2_defect_is_blocked_at_sync():
+    """It shipped for a month. AED 36k "in 6 weeks" against a Fitness row whose
+    close_period is 45 days, passing every check there was because 6 sits in
+    OFFER_NUMBERS. This is the strongest single argument for the whole
+    mechanism, so it gets a test by name."""
+    problems = _problems_for(_identity(
+        "id-fit-2", "I find your next paying client, just like I did with a fitness "
+        "coach in Dubai who closed AED 36k in 6 weeks.",
+        "Fitness:aed_closed,close_period,city", coach_type="Fitness"))
+    assert any("close_period = 45 days" in p for p in problems)
+
+
+def test_a_line_counting_something_the_table_does_not_have_is_blocked():
+    # `id-any-4`: "the last 4 coaches" is not a count of anything. It passed
+    # only because Life's first_meeting_days happens to be 4.
+    assert any('cites "4"' in p for p in _problems_for(_identity(
+        "id-any-4", "On the last 4 coaches I worked with, the first meeting was "
+        "booked inside 10 days.", "Business:first_meeting_days|widened")))
+
+
+def test_an_unbacked_totaliser_is_blocked():
+    """`id-lead-1`'s flourish: "all with prospects ready to say yes". It carries
+    no figure, so the figure rule cannot see it — prospect intent is not a
+    column and never will be."""
+    problems = _problems_for(_identity(
+        "id-lead-1", "I helped the last leadership coach in Dubai book 8 meetings "
+        "in 30 days, all with prospects ready to say yes. 3 of them signed.",
+        "Leadership:meetings,period,clients,city", coach_type="Leadership"))
+    assert any("no qualifier that a column backs" in p for p in problems)
+
+
+def test_a_totaliser_backed_by_a_column_is_allowed():
+    """The reason the rule is a qualifier vocabulary and not a phrase blocklist.
+    Three live lines say "every one with somebody who could sign off", and the
+    naive version of this rule would have killed all of them."""
+    assert _problems_for(_identity(
+        "id-biz-2", "I helped a business coach here book 12 meetings in 60 days, "
+        "every one with somebody who could sign off the spend. 5 signed.",
+        "Business:meetings,period,clients+budget-holder",
+        coach_type="Business", sells_to="corporates")) == []
+
+
+def test_a_qualifier_the_row_contradicts_is_blocked():
+    """`id-lead-4` asserted a corporate decision-maker about the Leadership row,
+    whose buyer is an individual. Declaring the qualifier does not rescue it —
+    the column has to actually say so."""
+    assert any("sells_to == 'corporates'" in p for p in _problems_for(_identity(
+        "id-lead-4", "8 meetings in 30 days for a leadership coach here, every one "
+        "with somebody who could actually sign. 3 became clients.",
+        "Leadership:meetings,period,clients+budget-holder", coach_type="Leadership")))
+
+
+def test_a_claim_on_a_column_the_row_never_measured_is_blocked():
+    # Blank is "nobody measured this", not zero.
+    assert any("no first_client_days recorded" in p for p in _problems_for(_identity(
+        "id-x", "A business coach landed their first client in week 1.",
+        "Business:first_client_days", coach_type="Business")))
+
+
+def test_a_ps_that_proves_effort_instead_of_granting_an_exit_is_allowed():
+    """All four ps lines were the same move because the claim token named only
+    that move — `validate` rejected any ps that did not hand back an exit. A
+    bank monotone by accident of a regex reads as one monotone by choice."""
+    records = good_set()
+    records[5]["fields"]["Line"] = "ps: I read your work before I wrote this one."
+    lines, _ = copy_sync.normalize_records(records)
+    assert copy_sync.validate(lines) == []
+
+
+def test_a_ps_that_makes_no_claim_at_all_is_still_rejected():
+    """Widening the token is not removing it. A ps that answers neither
+    question is a throwaway line, and the beat is not a throwaway."""
+    records = good_set()
+    records[5]["fields"]["Line"] = "ps: hope your week is going well."
+    lines, _ = copy_sync.normalize_records(records)
+    assert any("costless" in p for p in copy_sync.validate(lines))

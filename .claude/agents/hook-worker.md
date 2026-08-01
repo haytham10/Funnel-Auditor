@@ -61,15 +61,28 @@ makes the rest of the email fail even when the hook is technically true.
 
 ## Where to look, in order
 
-1. **LinkedIn posts** — the richest source by a distance.
-   `python main.py apify li-posts <profile-url> --max 5 --since month`
-2. **Their own About page** — free, already fetched by the research stage. A
-   founding story or a named framework they wrote is excellent material.
-3. **Podcasts and YouTube** — `WebSearch` for their name plus "podcast" or
-   "interview", then `WebFetch` the episode page for the description and date.
-4. **Instagram** — `python main.py apify ig <url> --mode posts --newer-than "60 days"`
+**Free first, and this list is now actually in that order.** It used to say
+"free tools first" and then number a paid LinkedIn call at #1, so the sentence
+and the list disagreed and the list won.
 
-Free tools first. Apify only for what is genuinely login-walled.
+1. **Their own About page** — free, already fetched by the research stage. A
+   founding story or a named framework they wrote is excellent material, and an
+   evergreen line they wrote themselves is fine at any age.
+2. **Podcasts and YouTube** — `WebSearch` for their name plus "podcast" or
+   "interview", then `WebFetch` the episode page for the description and date.
+   Free, and it reaches people who do not post.
+3. **LinkedIn posts** — the richest source by a distance, and paid.
+   `python main.py apify li-posts <profile-url> --max 5 --since 3months`
+4. **Instagram** — a real rung, not a last resort. For a coach whose whole
+   presence is Instagram it is the ONLY rung, and on the last batch it produced
+   hooks the open web did not have.
+   `python main.py apify ig <url> --mode posts --newer-than "90 days"`
+
+The orchestrator's `fetch` run prints an `IG` line for every lead reachable
+only on Instagram. That is your work list for rung 4, not a fallback.
+
+**Both paid rungs are worth it when the free two are dry.** What is not worth
+it is reaching for LinkedIn before reading the About page you already have.
 
 ## Labelling
 

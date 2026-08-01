@@ -639,3 +639,47 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------------ a manual quoting its own copy
+
+
+def test_a_reference_doc_may_not_use_a_live_bank_line_as_its_example():
+    """`cta-01` WAS the drafting manual's good example, word for word. Fine on
+    a first send and a tell the moment a reader sees two — and a model shown a
+    line as the exemplar reproduces it, which is what the same page tells it
+    not to do two paragraphs later."""
+    bank = doc_check.load_copy_lines(ROOT)
+    live = next(iter(bank))
+    text = next(k for k, v in bank.items() if v == bank[live])
+    line = f'- Good: "{_readable(ROOT, bank[live])}"'
+    found = doc_check.check_quoted_copy(
+        ".claude/skills/x/references/y.md", [line], bank)
+    assert found and found[0].kind == "QUOTED LIVE COPY"
+    assert bank[live] in found[0].detail or found[0].detail
+
+
+def test_a_spec_may_quote_copy_it_is_reasoning_about():
+    """Only reference docs are scanned. `docs/spec/04-email.md` naming a line it
+    is explaining is a citation, not an example anybody is meant to copy."""
+    bank = doc_check.load_copy_lines(ROOT)
+    line = f'- Good: "{_readable(ROOT, next(iter(bank.values())))}"'
+    assert doc_check.check_quoted_copy("docs/spec/04-email.md", [line], bank) == []
+
+
+def test_an_invented_example_passes():
+    bank = doc_check.load_copy_lines(ROOT)
+    line = '- Good: "Find me 15 minutes and you have all 10 by the end of the day."'
+    assert doc_check.check_quoted_copy(
+        ".claude/skills/x/references/y.md", [line], bank) == []
+
+
+def _readable(root, line_id):
+    """The live text of one bank line, by id."""
+    import csv as _csv
+    for name in ("identity", "offer", "cta", "ps"):
+        with (root / "copy" / f"{name}.csv").open(newline="", encoding="utf-8") as fh:
+            for row in _csv.DictReader(fh):
+                if (row.get("id") or "").strip() == line_id:
+                    return row["line"]
+    raise AssertionError(line_id)

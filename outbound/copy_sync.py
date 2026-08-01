@@ -29,6 +29,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,6 +52,7 @@ FIELD_MAP = {
     "Coach Type": "coach_type",
     "Sells To": "sells_to",
     "Shape": "shape",
+    "Claim": "claim",
     "Weight": "weight",
     "Active": "active",
 }
@@ -137,6 +139,7 @@ def normalize_records(records: list[dict]) -> tuple[list[dict], list[str]]:
                 "coach_type": (row.get("coach_type") or "").strip(),
                 "sells_to": (row.get("sells_to") or "").strip(),
                 "shape": (row.get("shape") or "").strip(),
+                "claim": (row.get("claim") or "").strip(),
                 "weight": str(row.get("weight") or "").strip(),
             },
         })
@@ -239,6 +242,85 @@ def _check_hook_room(lines: list[dict]) -> list[str]:
     return problems
 
 
+def _check_claim(line: dict, facts) -> list[str]:
+    """Rule A: an identity line must declare a Claim, the Claim must resolve,
+    and the line must satisfy it.
+
+    The same `check_identity_claim` the drafted email gets, run against the
+    hand-written line at sync time. That is the point: a bank line that cannot
+    pass its own claim condemns every email dealt it, and the drafter is then
+    asked to satisfy something impossible with one rewrite pass.
+
+    Caught two live lines on its first run. `id-fit-2` said "closed AED 36k in 6
+    weeks" against a Fitness row whose close_period is 45 days, and `id-any-4`
+    counted "the last 4 coaches", which is not a count of anything. Both had
+    been shipping.
+
+    Hard-fail rather than warn. A blocked line costs one person one minute with
+    the line in front of them, which is the cheapest possible place to pay, and
+    copy-sync output is mostly green so a warning here is one nobody reads.
+    """
+    from outbound import anchors, lint
+
+    line_id = line["id"]
+    raw = (line["meta"].get("claim") or "").strip()
+    if not raw:
+        return [f"{line_id}: no Claim. An identity line with no Claim is a line "
+                f"whose figures nothing checks — name the results.csv row and "
+                f"columns it draws from, e.g. Business:meetings,period,clients"]
+    try:
+        spec = anchors.claim_for(anchors.Line(line_id, line["line"], {"claim": raw}), facts)
+    except anchors.ClaimError as exc:
+        return [f"{line_id}: {exc}"]
+    return [f"{line_id}: {problem}" for problem in
+            lint.check_identity_claim(line["line"], spec)]
+
+
+# Rule B. A totaliser governing the meetings asserts a property of ALL of them,
+# and that property has to come from somewhere.
+_TOTALISER_RE = re.compile(
+    r"\b(all|every one|every single|each one|each of them)\b", re.I)
+
+
+def _check_totaliser(line: dict) -> list[str]:
+    """Rule B: a claim about every meeting needs a column behind it.
+
+    `id-lead-1` shipped "8 meetings in 30 days, all with prospects ready to say
+    yes" — a sales-desk flourish asserting prospect intent, which nothing in
+    this operation measures. Rule A cannot see it, because it carries no figure.
+
+    The qualifier vocabulary rather than a phrase blocklist, because the naive
+    version of this rule kills three good lines: `id-biz-2`, `id-exec-1` and
+    `id-lead-4` all said "every one with somebody who could sign off", and two
+    of them are backed by their row's `sells_to = corporates`.
+
+    Be honest about how weak this is. It is a heuristic over English. It will
+    flag a future totaliser backed by evidence not yet in the vocabulary — the
+    fix being one commit adding the entry, or a reword. It will MISS any
+    flourish phrased without a totaliser ("prospects who were already looking").
+    And it cannot judge truth, only sourcing. It is the weakest check in this
+    file and it still earns its place, because the thing it catches went out to
+    real people.
+    """
+    from outbound import anchors
+
+    match = _TOTALISER_RE.search(line["line"])
+    if not match:
+        return []
+    raw = (line["meta"].get("claim") or "").strip()
+    try:
+        qualifier = anchors.parse_claim(raw).qualifier if raw else ""
+    except anchors.ClaimError:
+        return []            # Rule A already reported the unreadable Claim
+    if qualifier:
+        return []
+    return [f'{line["id"]}: "{match.group(0)}" claims something about every '
+            f"meeting, and the Claim names no qualifier that a column backs. "
+            f"Either declare one (+{'/+'.join(sorted(anchors.CLAIM_QUALIFIERS))}) "
+            f"or drop the clause — a property of the meetings that no column "
+            f"records is a flourish, and it reads as one"]
+
+
 def validate(lines: list[dict], facts=None) -> list[str]:
     """Everything that must hold before a line is allowed to draw."""
     from audit.draft_lint import EM_DASH
@@ -304,6 +386,8 @@ def validate(lines: list[dict], facts=None) -> list[str]:
                 problems.append(f"{line_id}: Coach Type {coach_type!r} is not a segment")
             if sells_to not in SELLS_TO:
                 problems.append(f"{line_id}: Sells To {sells_to!r} is not valid")
+            problems.extend(_check_claim(line, facts))
+            problems.extend(_check_totaliser(line))
 
     for beat in BEATS:
         if not [l for l in lines if l["beat"] == beat]:
@@ -337,8 +421,8 @@ def validate(lines: list[dict], facts=None) -> list[str]:
 # depends on which rung of the three-source ladder answered, which is the exact
 # failure the canonical id sort was added to kill.
 CSV_COLUMNS = {
-    "identity": ["id", "coach_type", "sells_to", "shape", "weight", "line",
-                 "word_count"],
+    "identity": ["id", "coach_type", "sells_to", "shape", "claim", "weight",
+                 "line", "word_count"],
     "offer": ["id", "line", "weight", "word_count"],
     "cta": ["id", "line", "weight", "word_count"],
     "ps": ["id", "line", "weight", "word_count"],
@@ -355,11 +439,20 @@ def _row_for(line: dict, beat: str) -> dict:
     meta = line["meta"]
     word_count = str(len(line["line"].split()))
     if beat == "identity":
+        # `weight` is in CSV_COLUMNS above and was NOT being written — the
+        # column was added and the writer was not, so DictWriter filled it with
+        # its blank default on every row. An identity weight set in Airtable
+        # survived into the live bank and the snapshot and vanished from the
+        # CSVs, which is a bank whose draw depends on which rung of the source
+        # ladder answered. That is precisely what the comment above CSV_COLUMNS
+        # says this column was added to stop.
         return {
             "id": line["id"], "coach_type": meta.get("coach_type", ""),
             "sells_to": meta.get("sells_to", "") or "any",
-            "shape": meta.get("shape", ""), "line": line["line"],
-            "word_count": word_count,
+            "shape": meta.get("shape", ""),
+            "claim": meta.get("claim", ""),
+            "weight": str(meta.get("weight", "") or "").strip(),
+            "line": line["line"], "word_count": word_count,
         }
     return {
         "id": line["id"], "line": line["line"],

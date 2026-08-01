@@ -16,6 +16,7 @@ spec doc names a row here rather than copying from it.
 |---|---|---|---|
 | every price, the guarantee, the offer stack | `docs/spec/03-offer.md` | a decision, recorded in `docs/spec/07-decisions.md` | the call |
 | the hand-written lines | Airtable *Copy Assets*. `copy/identity.csv`, `copy/offer.csv`, `copy/cta.csv`, `copy/ps.csv` are a cache of it, never a second opinion | `copy-sync`, which validates and refuses; asserted by `copy-check` | `outbound/anchors.py` |
+| what an identity line CLAIMS | Airtable *Copy Assets*, the `Claim` column. Its grammar and vocabulary are code, in `outbound/anchors.py` | by hand, next to the line it belongs to; refused by `copy-sync` if it names something the fact table has not got | `outbound/anchors.py`, `outbound/lint.py` |
 | the client-result numbers | `copy/results.csv` | by hand, from `docs/identity-intake-raw.txt` | `outbound/lint.py`, `facts` |
 | who has already been contacted | `data/contacted-before.csv` | `wall-add`, after the upload | `dedupe` |
 | where each lead is right now | Airtable *Leads* | the batch run | the skills |
@@ -66,6 +67,18 @@ nothing if anything fails, so an edit in Airtable cannot break an email.
 eight hand-filled intake forms, and they are the thing every number in every
 email traces back to. They should not be casually editable, so they are not in a
 tool that makes editing easy.
+
+**And a blank cell in them is not a zero.** It means nobody measured that, and a
+Claim naming it is refused rather than resolved to nothing. `first_client_days`
+is blank on six of eight rows for exactly that reason: two lines said a client
+signed in week 1 and the table had no column for it, so the column was added
+where the answer is known and left empty where it is not.
+
+**The `Claim` is the other half of the results.** A line's words are voice and
+belong in Airtable; the row and columns it draws its figures from are a
+statement about evidence, and they sit next to the line so the person editing
+it can see both at once. It is refused at sync if it does not resolve, which is
+what keeps the two halves from drifting apart.
 
 ## Why one row in the table needs a check and the rest do not
 

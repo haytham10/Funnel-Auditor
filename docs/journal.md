@@ -1,3 +1,84 @@
+## 2026-08-01 (the fix list, worked) — the copy bank stops being sentences
+
+Haytham: take another look at every problem the first batch produced, engineer
+better fixes for the ones already patched, and finish the rest. Four things
+named outright — one email verifier, a **permanent** copy-bank fix, cheerio as
+a fallback, and actually use Instagram and search.
+
+**The one that mattered.** The post-mortem's own verdict was that every line
+the drafting model wrote passed on its second read, and what killed two of
+three send-ready leads was defects in the hand-written bank and in how its
+lines pair. A drafter cannot touch either, so the lead spent its one rewrite
+pass on a problem it structurally could not fix. The previous fix was editing
+the offending line in Airtable. Per lead. Forever.
+
+So the identity beat is now **claim-scoped**: each line declares which row of
+`results.csv` it draws from, which columns, and whether it may name the
+segment, and the drafter writes the sentence. See `docs/spec/07-decisions.md`
+D19 for the decision and what would reverse it. The thing to know here is that
+this was already two-thirds true — `check_bridge` fails 21 of the 33 bank
+lines, so the model was already composing that sentence on most leads and
+nothing checked what it claimed.
+
+**Filling in 33 claims found four defective lines, three more than the
+post-mortem knew about.** `id-fit-2` had been shipping "closed AED 36k in 6
+weeks" against a Fitness row whose close_period is 45 days — it passed every
+check there was because 6 happens to sit in `OFFER_NUMBERS`. `id-any-4` counted
+"the last 4 coaches", which is not a count of anything. `id-lead-1` kept its
+flourish. And `id-lead-4` asserted a corporate decision-maker about the
+Leadership row, whose buyer is an individual — the same defect as the flourish,
+less obvious. The post-mortem had also named the wrong line: `id-life-1` was
+fixed at `3981108` and the live flourish was `id-lead-1`.
+
+**`results.csv` gained a column.** Two lines said a coach "landed their first
+client in week 1" and the nearest column was `first_meeting_days`, a different
+event. Haytham confirms a client really did sign in week 1, so the table was
+short a column rather than the lines being wrong. `first_client_days` is blank
+on six of eight rows, and blank means nobody measured it — a Claim naming a
+blank cell is refused rather than resolved to zero.
+
+**Open, for a new client result rather than for code:** Leadership has no
+corporate result to point at, so after the `id-lead-4` fix its only
+corporates-facing identity line is a plain matched-meetings one.
+
+### The rest of the register
+
+- **The seam check went in the linter, not the deal.** My first instinct was a
+  deal-time rule and the measurement killed it: `_resolve_echoes` can only swap
+  the ps, identity and offer are both pinned, so it would have been a rule with
+  no legal repair on a fifth of pairs. Because identity is now authored, the
+  drafter always has a repair — and it runs the linter on itself, so a
+  collision costs one word in the first pass and never touches the budget.
+- **The ps bank was monotone because the linter allowed one move.**
+  `CLAIM_TOKENS["ps"]` named "a costless no" and `validate` rejected anything
+  else, so a constraint nobody decided read as a choice somebody made. One
+  candidate line did not survive: a ps promising no follow-up would be false
+  the moment a batch is uploaded, because Smartlead owns the sequence steps.
+- **A verifier outage is a property of the RUN.** `batch_health` exits 2 when a
+  whole batch comes back inconclusive, which is never a real address pattern.
+  That is what would have caught the 40 leads.
+- **The escalation plan now names a vetted actor key**, so `fetch --escalate`
+  runs it through the same gate and the same exit 3 as everything else. Both
+  site actors are compute-billed with no `pricingInfos`, and the gate now says
+  that rather than "pricing unavailable" — one of those is worth retrying.
+- **Tier 0 is concurrent.** It was killed twice by timeouts on 151 sites.
+- **Two floors could not reject anything** and the ICP table did not say so.
+  `is_coach` can now say no, narrowly. `uae_based` reads two haystacks, so a
+  sentence about a past employer stops killing a real lead.
+- **~40 of 151 rows pointed at the wrong person.** `OWNER-CHECK` names them
+  before the money. Advisory, never a kill.
+
+### What is still open
+
+- **The joint hook+identity word budget.** `hook_room` is still measured
+  against the reference line, so the prompt hands the drafter a length range to
+  keep that honest. The clean answer moves `MIN_HOOK_WORDS`,
+  `copy_sync._check_hook_room` and `_resolve_length`, and is a change of its
+  own.
+- **None of this has been run against a real batch yet.** Every check is
+  verified against the lines and rows that actually failed, which is not the
+  same as a batch reaching SEND.
+
 ## 2026-08-01 (first real batch) — 155 leads in, 1 email out, and why that is the honest number
 
 Haytham dropped a 155-row UAE coach list and asked for a clean Smartlead file.

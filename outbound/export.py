@@ -163,6 +163,51 @@ def _normalised(text: str) -> str:
     return re.sub(r"[^a-z0-9 ]", "", (text or "").lower()).strip()
 
 
+def check_identity_claims(drafts: list[Draft], dealt: dict,
+                          facts=None) -> dict[str, list[str]]:
+    """Does each draft's identity sentence still assert what the deal dealt it?
+
+    Kept separate from `check_dealt` on purpose. That one answers *which line*;
+    this answers *what the sentence claims*. One problem, one finding — a
+    combined check would report a claim failure under a heading about line
+    allocation, and the drafter would go looking in the wrong place.
+
+    The authority is the **deal file**, not the draft. A drafting worker runs
+    `main.py lint` on itself before returning, and that run resolves the claim
+    from whatever the worker reported — so it is the worker checking its own
+    homework against its own answer sheet. Re-deriving from the deal here closes
+    that loop exactly as the id check does.
+
+    Returns problems keyed by email, same shape as `check_dealt`, so
+    `write_batch` can treat them identically.
+    """
+    from outbound import anchors, lint
+
+    facts = facts or anchors.load_facts()
+    problems: dict[str, list[str]] = {}
+    for draft in drafts:
+        assigned = (dealt.get(draft.email) or {}).get("identity") or {}
+        raw = (assigned.get("claim") or "").strip()
+        if not raw:
+            # No claim in the deal means the deal predates the claim column, or
+            # the line has none. Either way nothing can be checked, and saying
+            # so is the point — a silent skip looks exactly like a pass.
+            problems.setdefault(draft.email, []).append(
+                "the deal carries no claim for this lead's identity line, so its "
+                "figures cannot be checked — re-run `main.py deal`")
+            continue
+        try:
+            spec = anchors.claim_for(anchors.Line("dealt", "", {"claim": raw}), facts)
+        except anchors.ClaimError as exc:
+            problems.setdefault(draft.email, []).append(
+                f"the dealt claim does not resolve: {exc}")
+            continue
+        found = lint.check_identity_claim((draft.beats or {}).get("identity", ""), spec)
+        if found:
+            problems.setdefault(draft.email, []).extend(found)
+    return problems
+
+
 def check_dealt(drafts: list[Draft], dealt: dict,
                 bank=None) -> dict[str, list[str]]:
     """Did each draft actually use the lines the batch deal assigned it?
@@ -343,6 +388,11 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
     # `is not None`, not truthiness: an empty deal file means "the deal
     # produced nothing", which must reject every draft, not skip the check.
     drift = check_dealt(drafts, dealt, bank) if dealt is not None else {}
+    if dealt is not None:
+        # A rejection, not a warning. A broken claim is a wrong number in a
+        # stranger's inbox, and these coaches compare emails.
+        for email, found in check_identity_claims(drafts, dealt).items():
+            drift.setdefault(email, []).extend(found)
 
     # Keyed by email, never by slug. `slug` comes from the NAME, so two
     # different coaches called "Sarah Ahmed" collapse to one key and whichever

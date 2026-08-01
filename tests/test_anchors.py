@@ -280,3 +280,147 @@ def test_the_corporate_generic_pool_is_deep_enough_to_hold_its_share():
     corporate = [l for l in generic if l.meta.get("sells_to") == "corporates"]
     assert len(corporate) >= int(1 / lint.FIXED_LINE_SHARE_CAP) + 1, \
         [l.id for l in corporate]
+
+
+# ---------------------------------------------------------------- the claim
+#
+# An identity line's WORDS are the drafter's to write; its CLAIM is not. These
+# pin the second half of that sentence.
+
+
+def test_every_identity_line_declares_a_claim():
+    """A line with no Claim is a line whose figures nothing checks — which is
+    the state `id-fit-2` shipped a wrong period in for a month."""
+    bank = anchors.CopyBank.from_csv()
+    missing = [l.id for l in bank.identity if not (l.meta.get("claim") or "").strip()]
+    assert not missing, missing
+
+
+def test_every_live_claim_resolves_against_the_fact_table():
+    bank = anchors.CopyBank.from_csv()
+    facts = anchors.load_facts()
+    for line in bank.identity:
+        assert anchors.claim_for(line, facts) is not None, line.id
+
+
+def test_a_claim_resolves_to_its_own_results_row():
+    facts = anchors.load_facts()
+    spec = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "Business:meetings,period,clients"}), facts)
+    assert spec.figures == {"meetings": 12, "period": "60 days", "clients": 5}
+    assert spec.city == "Dubai"
+    assert spec.names_segment is True
+
+
+def test_a_widened_claim_uses_a_rows_figures_without_naming_it():
+    # Six live `Any`-typed lines do exactly this. It is the one thing `shape`
+    # had no vocabulary for and the reason the Claim column exists.
+    facts = anchors.load_facts()
+    spec = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "Health:meetings,clients|widened"}), facts)
+    assert spec.figures == {"meetings": 9, "clients": 6}
+    assert spec.names_segment is False
+
+
+def test_an_aggregate_claim_cites_no_row_and_cannot_be_widened():
+    facts = anchors.load_facts()
+    spec = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "aggregate:total_meetings,practices"}), facts)
+    assert spec.figures == {"total_meetings": 67, "practices": 8}
+    assert spec.names_segment is False
+    try:
+        anchors.parse_claim("aggregate:total_meetings|widened")
+    except anchors.ClaimError:
+        pass
+    else:
+        raise AssertionError("an aggregate names no segment, so widening is meaningless")
+
+
+def _rejects(raw, fragment):
+    facts = anchors.load_facts()
+    try:
+        anchors.claim_for(anchors.Line("x", "", {"claim": raw}), facts)
+    except anchors.ClaimError as exc:
+        assert fragment in str(exc), f"{raw}: {exc}"
+        return
+    raise AssertionError(f"{raw!r} should not have parsed")
+
+
+def test_a_claim_naming_an_unknown_column_is_an_error():
+    _rejects("Business:revenue", "is not a column")
+
+
+def test_a_claim_naming_a_segment_with_no_row_is_an_error():
+    _rejects("Nowhere:meetings", "has no row in results.csv")
+
+
+def test_a_claim_with_no_columns_is_an_error():
+    _rejects("Business:", "names a row but no columns")
+
+
+def test_a_qualifier_no_column_backs_is_an_error():
+    # The whole point. "all with prospects ready to say yes" describes prospect
+    # intent, and nothing in this operation measures that.
+    _rejects("Business:meetings+ready-to-say-yes", "not backed by a column")
+
+
+def test_a_qualifier_the_row_contradicts_is_an_error():
+    # `id-lead-4` asserted a corporate decision-maker about the Leadership row,
+    # whose buyer is an individual. Same defect as a flourish, less obvious.
+    _rejects("Leadership:meetings+budget-holder", "sells_to == 'corporates'")
+
+
+def test_a_column_the_row_never_measured_cannot_be_claimed():
+    # Blank is "nobody measured this", not zero. Only Life and Mindset carry a
+    # first_client_days; claiming it anywhere else would be inventing a result.
+    _rejects("Business:first_client_days", "has no first_client_days recorded")
+
+
+def test_a_claim_licenses_its_own_figures_and_nothing_else():
+    facts = anchors.load_facts()
+    spec = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "Fitness:aed_closed,close_period"}), facts)
+    licensed = spec.numbers()
+    assert 36000 in licensed and 36 in licensed   # the k form
+    assert 45 in licensed                         # close_period, in days
+    # Deliberately NOT unioned with OFFER_NUMBERS. `id-fit-2` shipped "in 6
+    # weeks" against a 45-day close_period for a month, passing only because
+    # 6 sits in the offer set.
+    assert 6 not in licensed
+    assert 10 not in licensed and 15 not in licensed
+
+
+def test_a_period_is_licensed_in_both_of_its_exact_units():
+    facts = anchors.load_facts()
+    spec = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "Business:period"}), facts)
+    assert {60, 2} <= spec.numbers()   # 60 days is 2 months, same fact
+
+
+def test_a_first_meeting_is_licensed_in_the_week_it_fell_in():
+    # "inside a week" for day 7, "week 2" for day 10. The ceiling is exact
+    # under the "inside" framing, not the rounding this module refuses.
+    facts = anchors.load_facts()
+    lead = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "Leadership:first_meeting_days"}), facts)
+    assert {7, 1} <= lead.numbers()
+    biz = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "Business:first_meeting_days"}), facts)
+    assert {10, 2} <= biz.numbers()
+
+
+def test_a_still_working_flag_is_not_a_number():
+    facts = anchors.load_facts()
+    spec = anchors.claim_for(
+        anchors.Line("x", "", {"claim": "Fitness:meetings,still_working"}), facts)
+    assert spec.figures["still_working"] is True
+    assert spec.numbers() == {7}      # the meetings, and no stray 1 from a bool
+
+
+def test_the_column_vocabulary_comes_from_the_fact_table():
+    """Hand-listing it would let a new results.csv column go uncitable, and a
+    typo in a Claim go unnoticed."""
+    for column in ("meetings", "period", "clients", "aed_closed", "city",
+                   "still_working", "first_client_days"):
+        assert column in anchors.CLAIM_COLUMNS
+    assert "segment" not in anchors.CLAIM_COLUMNS

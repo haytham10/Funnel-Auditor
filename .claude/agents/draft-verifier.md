@@ -39,12 +39,21 @@ Not "is it cited" — the hook-verifier settled that. Whether it lands. A quote
 can be real, correctly attributed and in date, and still read as though someone
 skimmed their feed for anything quotable. Would they recognise themselves in it?
 
-## Two things to look for specifically
+## Three things to look for specifically
 
-- **An anchor re-voiced into blandness.** The hand-written lines have edges.
-  "I pulled 10 names for you before writing this" has a person in it. If it has
-  become "I have identified ten prospects that match your profile", the claim
-  survived and the voice did not. That is a REWRITE.
+- **An identity sentence with the claim and none of the edge.** This beat is
+  written per lead rather than drawn — the drafter is handed the figures it must
+  assert and a reference line for register, and it writes the sentence. The
+  linter can prove the figures are right and can prove nothing about whether it
+  sounds like a person. So this is the beat where the check is you, and it is
+  more load-bearing here than anywhere else in the email. If it reads like a
+  fact sheet with a "your" bolted to the front, that is a REWRITE, even though
+  every number in it is correct.
+- **An anchor re-voiced into blandness.** The offer, close and ps ARE
+  Haytham's sentences, lightly re-voiced. They have edges. "I pulled 10 names
+  for you before writing this" has a person in it. If it has become "I have
+  identified ten prospects that match your profile", the claim survived and the
+  voice did not. That is a REWRITE.
 - **A close that has gone soft.** The ask is fifteen minutes and it is not
   optional. If the close has acquired a hedge, a "if you're interested", or a
   question where the ask should be, say so. A question CTA selects for replies

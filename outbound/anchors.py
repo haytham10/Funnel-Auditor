@@ -33,7 +33,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as dataclass_fields
 from pathlib import Path
 
 COPY_DIR = Path(__file__).resolve().parent.parent / "copy"
@@ -87,6 +87,14 @@ class SegmentResult:
     meetings: int
     period: str
     first_meeting_days: int
+    # When the first client SIGNED, as opposed to when the first meeting
+    # happened. Blank on every row nobody measured it for, and blank is not a
+    # zero — `claim_for` refuses a Claim that names a column this row has not
+    # got, so an unmeasured segment cannot have a speed-to-client line at all.
+    # Added 2026-08-01: two live lines said "landed their first client in week
+    # 1" and the nearest column was `first_meeting_days`, which is a different
+    # event. The lines were right and the table was short a column.
+    first_client_days: int | None
     clients: int
     aed_closed: int
     close_period: str
@@ -105,6 +113,7 @@ class SegmentResult:
         found = {
             self.meetings, self.first_meeting_days, self.clients,
             self.aed_closed, self.client_price_aed,
+            *( (self.first_client_days,) if self.first_client_days else () ),
             # The docstring says every field is citable, and these two were not
             # in the set: a line saying "I wrote to 401 business coaches" was
             # rejected as invented although 401 is this row's own `sent`.
@@ -175,6 +184,8 @@ def load_facts(path: Path | None = None) -> FactTable:
                 meetings=int(row["meetings"]),
                 period=row["period"],
                 first_meeting_days=int(row["first_meeting_days"]),
+                first_client_days=(int(row["first_client_days"])
+                                   if (row.get("first_client_days") or "").strip() else None),
                 clients=int(row["clients"]),
                 aed_closed=int(row["aed_closed"]),
                 close_period=row["close_period"],
@@ -189,6 +200,205 @@ def load_facts(path: Path | None = None) -> FactTable:
 # "15 minutes", "10 names", "the other forty", "about a hundred coach sites,
 # six published a price."
 OFFER_NUMBERS = {10, 15, 40, 50, 100, 6, 1, 24}
+
+
+# ------------------------------------------------------------------ the claim
+#
+# An identity line is the one beat the drafting model AUTHORS rather than
+# reproduces. That is not a new licence, it is a description: `lint.check_bridge`
+# requires a second-person clause before the first digit, and 21 of the live
+# bank's 33 identity lines open on a bare stat, so two-thirds of leads already
+# get a sentence the model wrote. The bank line is its register.
+#
+# What was never checked is what the authored sentence CLAIMS. `check_numbers`
+# admits any figure true of any segment; `check_attribution` catches a number
+# next to the wrong segment noun but only within one sentence and only for
+# numbers. Between them a line could assert a real figure about the wrong
+# result, a city that belongs to another row, or a retention that was never
+# true — and one did: `id-fit-2` shipped "closed AED 36k in 6 weeks" against a
+# Fitness row whose close_period is 45 days, passing only because 6 happens to
+# be in OFFER_NUMBERS.
+#
+# So each identity line declares a Claim: which results.csv row, which of its
+# columns, and whether it may name the segment at all. The line's words are
+# free; its claim is not.
+
+CLAIM_GRAMMAR = "<Segment>:<col>[,<col>...][|widened][+<qualifier>]  or  aggregate:<agg>[,<agg>...]"
+
+# The column vocabulary is derived from the fact table rather than listed here,
+# so a new results.csv column is citable the day it exists and a typo in a
+# Claim is a parse error rather than a silently unchecked assertion.
+CLAIM_COLUMNS = tuple(f.name for f in dataclass_fields(SegmentResult)
+                      if f.name not in ("segment",))
+
+# The aggregate vocabulary is the FactTable's own totals, for the lines that
+# legitimately cite no single row ("67 meetings across 8 practices").
+CLAIM_AGGREGATES = ("total_meetings", "total_clients", "total_aed", "total_sent",
+                    "practices")
+
+# A qualifier names a property of the meetings that a COLUMN backs. It exists
+# so a line can say "every one with somebody who could sign off" and have that
+# be checkable rather than a flourish: budget-holder and decision-maker both
+# rest on the row's `sells_to = corporates`. Anything a column cannot back is
+# not a qualifier, which is the whole point — "all with prospects ready to say
+# yes" describes prospect intent, and nothing in this operation measures that.
+CLAIM_QUALIFIERS = {
+    "budget-holder": ("sells_to", "corporates"),
+    "decision-maker": ("sells_to", "corporates"),
+}
+
+
+class ClaimError(ValueError):
+    """A Claim that does not parse, or names something the fact table has not
+    got. Raised rather than swallowed: a Claim nobody can read is a line whose
+    figures are unchecked, which is the state this whole mechanism replaces."""
+
+
+@dataclass
+class ClaimSpec:
+    """What an identity sentence must assert, and may not assert beyond.
+
+    `figures` is the resolved column -> value map. `widened` means the line uses
+    a real row's numbers WITHOUT naming its segment — legal, and the single most
+    important thing this grammar has to express, because six live `Any`-typed
+    lines do exactly that ("a coach here who closed 6 of the 9 meetings I set
+    up" is Health's row with the label taken off).
+    """
+    segment: str = ""
+    columns: tuple[str, ...] = ()
+    widened: bool = False
+    qualifier: str = ""
+    figures: dict = field(default_factory=dict)
+    city: str = ""
+    raw: str = ""
+
+    @property
+    def aggregate(self) -> bool:
+        return self.segment == "aggregate"
+
+    @property
+    def names_segment(self) -> bool:
+        """May the sentence say "a business coach"? Only when the claim is
+        scoped to a segment and not widened."""
+        return bool(self.segment) and not self.aggregate and not self.widened
+
+    def numbers(self) -> set:
+        """Every value this claim licenses, and nothing else. Deliberately NOT
+        unioned with OFFER_NUMBERS: the offer's ten names and fifteen minutes
+        belong in the offer and close beats, and admitting them here is exactly
+        what let a wrong 6 ride into a proof sentence."""
+        licensed: set = set()
+        for column, value in self.figures.items():
+            if isinstance(value, bool):
+                continue
+            if isinstance(value, (int, float)):
+                licensed.add(value)
+                if column in ("aed_closed", "client_price_aed", "total_aed") and value >= 1000:
+                    licensed.add(value // 1000)
+            elif isinstance(value, str):
+                licensed |= period_numbers(value)
+            if (column in ("first_meeting_days", "first_client_days")
+                    and isinstance(value, int) and value > 0):
+                # "inside a week" for 7 days, "in week 2" for 10. The ceiling is
+                # exact under the "inside" framing rather than the rounding this
+                # module refuses elsewhere: a first meeting on day 10 really did
+                # happen inside week 2. Both columns, because `lint._renderings`
+                # accepts the week form for both — and licensing a rendering the
+                # figure check then rejects is a gate contradicting itself.
+                licensed.add(-(-value // 7))
+        return licensed
+
+
+def parse_claim(raw: str) -> ClaimSpec:
+    """`Business:meetings,period,clients+budget-holder` -> a ClaimSpec.
+
+    Grammar only — this never touches the fact table, so it can be read and
+    tested without one. `claim_for` resolves the figures.
+    """
+    text = (raw or "").strip()
+    if not text:
+        raise ClaimError(f"empty Claim. Expected {CLAIM_GRAMMAR}")
+
+    body, _, qualifier = text.partition("+")
+    qualifier = qualifier.strip()
+    if qualifier and qualifier not in CLAIM_QUALIFIERS:
+        raise ClaimError(
+            f"qualifier {qualifier!r} is not backed by a column. "
+            f"Known: {', '.join(sorted(CLAIM_QUALIFIERS))}")
+
+    body, _, widened_flag = body.partition("|")
+    widened_flag = widened_flag.strip()
+    if widened_flag and widened_flag != "widened":
+        raise ClaimError(f"{widened_flag!r} after | is not a modifier. Only 'widened' is.")
+
+    segment, sep, columns_text = body.partition(":")
+    segment = segment.strip()
+    if not sep:
+        raise ClaimError(f"no ':' in {text!r}. Expected {CLAIM_GRAMMAR}")
+
+    columns = tuple(c.strip() for c in columns_text.split(",") if c.strip())
+    if not columns:
+        raise ClaimError(f"{text!r} names a row but no columns of it")
+
+    allowed = CLAIM_AGGREGATES if segment == "aggregate" else CLAIM_COLUMNS
+    unknown = [c for c in columns if c not in allowed]
+    if unknown:
+        raise ClaimError(
+            f"{', '.join(unknown)} is not a column of {segment}. "
+            f"Known: {', '.join(allowed)}")
+    if segment == "aggregate" and widened_flag:
+        raise ClaimError("an aggregate claim names no segment, so it cannot be widened")
+
+    return ClaimSpec(segment=segment, columns=columns, widened=bool(widened_flag),
+                     qualifier=qualifier, raw=text)
+
+
+def claim_for(line: "Line", facts: FactTable) -> ClaimSpec | None:
+    """The resolved claim behind one identity line, or None for a beat that has
+    none. Raises ClaimError when the line declares a Claim the fact table cannot
+    answer — a segment with no row, or a qualifier the row does not back."""
+    raw = (line.meta or {}).get("claim", "")
+    if not str(raw).strip():
+        return None
+    spec = parse_claim(str(raw))
+
+    if spec.aggregate:
+        totals = {
+            "total_meetings": facts.total_meetings,
+            "total_clients": facts.total_clients,
+            "total_aed": (facts.total_aed // 100_000) * 100_000,
+            "total_sent": facts.total_sent,
+            "practices": len(facts.results),
+        }
+        spec.figures = {c: totals[c] for c in spec.columns}
+        return spec
+
+    result = facts.results.get(spec.segment)
+    if result is None:
+        raise ClaimError(
+            f"{spec.segment} has no row in results.csv. "
+            f"Known: {', '.join(sorted(facts.results))}")
+
+    # A blank cell is "nobody measured this", not zero. Claiming it would be
+    # inventing a result, which is the one thing the fact table exists to stop.
+    unmeasured = [c for c in spec.columns
+                  if getattr(result, c) is None or getattr(result, c) == ""]
+    if unmeasured:
+        raise ClaimError(
+            f"{spec.segment} has no {', '.join(unmeasured)} recorded, so no line "
+            f"may claim it. Measure it into copy/results.csv or drop it from the Claim.")
+
+    spec.figures = {c: getattr(result, c) for c in spec.columns}
+    spec.city = result.city
+
+    if spec.qualifier:
+        column, wanted = CLAIM_QUALIFIERS[spec.qualifier]
+        actual = getattr(result, column)
+        if str(actual).strip().lower() != wanted:
+            raise ClaimError(
+                f"{spec.qualifier} needs {spec.segment}.{column} == {wanted!r}, "
+                f"but it is {actual!r}")
+    return spec
 
 
 # ------------------------------------------------------------------ the lines
@@ -618,20 +828,96 @@ class Anchor:
     # True when the deal had to move a beat to leave room for the hook. Carried
     # so `deal` can report the weight drift it caused rather than absorb it.
     length_repaired: bool = False
+    # What the identity sentence must assert. None only when the line carries no
+    # Claim, which `copy-sync` refuses — so in practice this is always set, and
+    # the drafter's prompt says so rather than quietly dropping the constraint.
+    claim: "ClaimSpec | None" = None
 
     def hook_room(self) -> int:
-        """Words this lead's hook actually has, given the lines it drew."""
+        """Words this lead's hook actually has, given the lines it drew.
+
+        Still measured on the REFERENCE identity line even though the drafter
+        now authors that sentence. The budget is therefore an estimate on one
+        beat, which is why the prompt hands the drafter an identity budget too:
+        stay within a few words of the reference and this number stays true. A
+        joint hook+identity budget is the cleaner answer and it moves
+        MIN_HOOK_WORDS, `copy_sync._check_hook_room` and `_resolve_length`, so
+        it is a change of its own rather than a rider on this one.
+        """
         from outbound.lint import hook_room
 
         return hook_room({"identity": self.identity.line, "offer": self.offer.line,
                           "cta": self.cta.line, "ps": self.ps.line})
 
+    def identity_budget(self) -> tuple[int, int]:
+        """The word range an authored identity sentence has to land in, so
+        `hook_room` above stays honest. Three words either side of the
+        reference: enough to re-shape a sentence, not enough to move the
+        ceiling."""
+        words = len(self.identity.line.split())
+        return max(1, words - 3), words + 3
+
+    def _identity_prompt_lines(self) -> list[str]:
+        """The identity beat, as three things rather than one.
+
+        A sentence to copy would be the old contract, and the old contract is
+        what killed two send-ready leads: the defect was in the line, the
+        drafter was not allowed to touch it, and the lead spent its one rewrite
+        pass on a problem it could not fix. So the CLAIM is the constraint, the
+        REFERENCE is the register, and the words are the drafter's.
+        """
+        low, high = self.identity_budget()
+        out = [f"  identity [{self.identity.id}] — WRITE THIS SENTENCE YOURSELF.",
+               f"    REFERENCE (Haytham's register, not text to reproduce):",
+               f"      {self.identity.line}"]
+        if self.claim is None:
+            out.append("    CLAIM: none declared — do not add a figure this beat "
+                       "does not already carry.")
+        else:
+            out.append("    CLAIM — every one of these must survive, in your words:")
+            for column, value in self.claim.figures.items():
+                out.append(f"      {column} = {value}")
+            if self.claim.names_segment:
+                out.append(f"      say it about a {self.claim.segment.lower()} coach")
+            else:
+                out.append("      do NOT name a segment — these figures are real "
+                           "but the label is not yours to use here")
+            if self.claim.qualifier:
+                out.append(f"      the meetings were with a {self.claim.qualifier}")
+            out.append("    NO OTHER FIGURE may appear in this beat. Licensed here: "
+                       + (", ".join(str(n) for n in sorted(self.claim.numbers())) or "none"))
+        out.append(f"    LENGTH: {low}-{high} words. The hook budget below was "
+                   "measured against the reference.")
+        avoid = self._seam_words()
+        if avoid:
+            # The cheap half of the seam fix. Dodging five words while writing
+            # costs nothing; discovering the collision after the fact used to
+            # cost a lead its only rewrite pass, because neither line was at
+            # fault and the drafter could not touch either of them.
+            out.append("    DO NOT REUSE (the offer beat below already says "
+                       "these): " + ", ".join(avoid))
+        return out
+
+    def _seam_words(self, limit: int = 6) -> list[str]:
+        """Words from the offer line the identity sentence should avoid.
+
+        The offer line is drawn and cannot move; the identity sentence is
+        written. So the repair belongs to whichever of the two is free, which is
+        why this is a prompt line rather than a constraint on the deal.
+        """
+        from outbound.lint import _seam_words
+
+        return sorted(_seam_words(self.offer.line))[:limit]
+
     def as_prompt_block(self) -> str:
         """What the drafting model actually sees."""
         return "\n".join([
-            "ANCHOR LINES (hand-written by Haytham — match their voice; you may",
-            "re-voice for flow, you may not change what they claim):",
-            f"  identity [{self.identity.id}]: {self.identity.line}",
+            "ANCHOR LINES (hand-written by Haytham). Three of these four are his",
+            "sentences: re-voice for flow, never change what they claim. The",
+            "identity beat is different and is spelled out below.",
+            "",
+            *self._identity_prompt_lines(),
+            "",
             f"  offer    [{self.offer.id}]: {self.offer.line}",
             f"  cta      [{self.cta.id}]: {self.cta.line}",
             f"  ps       [{self.ps.id}]: {self.ps.line}",
@@ -707,6 +993,7 @@ def draw(email: str, *, coach_type: str = "", sells_to: str = "",
         segment=segment,
         allowed_numbers=all_numbers(facts),
         length_repaired=bool(repaired),
+        claim=claim_for(identity, facts),
     )
 
 
@@ -850,6 +1137,10 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
     repaired = _resolve_length(fixed, identity, [l["email"] for l in leads], bank)
 
     widened = all_numbers(facts)
+    # Resolved once per LINE rather than once per lead. A 200-lead batch draws
+    # from 33 identity lines, and re-resolving the same claim two hundred times
+    # is the same shape of waste the copy-bank cache was added to stop.
+    claims = {line.id: claim_for(line, facts) for line in bank.identity}
     return {
         lead["email"]: Anchor(
             identity=identity[lead["email"]],
@@ -859,6 +1150,7 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
             segment=segments[lead["email"]],
             allowed_numbers=widened,
             length_repaired=lead["email"] in repaired,
+            claim=claims.get(identity[lead["email"]].id),
         )
         for lead in leads
     }

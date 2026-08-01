@@ -84,6 +84,42 @@ HTTP and BeautifulSoup, then the agent's own WebSearch and WebFetch, then a sing
 batched paid run. **Guarantees** the batch, not the page, is the unit — container
 boot dominates the bill, so every URL goes into one run.
 
+**Tier 0 is concurrent.** It was a serial loop, and on 151 sites at a
+15-second-per-page timeout it exceeded a 120-second ceiling, then a 590-second
+one, and was killed twice before finishing. `--workers` sets the pool; the work
+is network-bound and one lead is one thread is one host, so nothing here makes
+more requests to any single host than the serial version did.
+
+**The escalation runs only when asked.** `--escalate` executes the plan through
+the same cost gate and the same **exit 3** as every other paid call; without it
+the plan is printed and nothing is spent. Two vetted actors sit behind it, one
+static and one that renders, and which one a URL gets is not a preference: a
+browser is only correct for a page that returned 200 with no text. Both are
+Apify's own compute-billed actors, so an estimate is genuinely impossible rather
+than merely unavailable, and the gate says which of those two it is — one is
+worth retrying and the other never will be.
+
+Until 2026-08-01 the plan named an actor id that was in no vetted map, so
+nothing could run it through the gate at all; it was something the operator
+executed by hand outside the approval path, and the first real batch skipped it
+entirely.
+
+**It also names the leads it cannot help with.** A lead with no site produced
+no output here, so every research worker met it cold and improvised — which is
+how the last batch came to use web search and Instagram without either being a
+rung anybody had planned. The report now prints a `SEARCH` line per lead with
+no site and no social, and an `IG` line per lead reachable only on Instagram.
+That is handed-out work rather than a gap each worker rediscovers.
+
+**And it says which sites never mention the lead.** About 40 of 151 rows on the
+first batch pointed at somebody else — parked domains, name collisions, a
+coach's training school, an Ohio retreat house, a Dutch tech-news site. Nothing
+checked, so each was found by a worker, by hand, after the fetch had been paid
+for. `OWNER-CHECK` is one line naming all of them before any money is spent.
+**Advisory, never a kill**: a real coach's site may carry only a brand name, and
+a false kill here is permanent and invisible. `intake` does the free half of the
+same check on a LinkedIn or Instagram handle, and records it as a note.
+
 ### `qualify`
 **In** a research object. **Out** three verdicts with their evidence, plus the
 captured fields. **Guarantees** `unclear` passes and only a clear `no` drops a
@@ -121,6 +157,12 @@ traceability, claim preservation, the bridge, voice, and batch repetition.
 **Exit 1** if any draft or the batch check fails. Everything fails closed — a
 check that cannot run is a FAIL.
 
+The identity beat gets a second, tighter gate on top of the widened number
+check: it is written per lead, so what is fixed about it is its **claim**, not
+its words. See the anchor contract in `docs/spec/04-email.md`, which owns that
+decision. A draft with no claim behind it is warned about rather than skipped
+silently, because a PASS line looks identical either way.
+
 ### `export`
 **In** drafts. **Out** `out/leads.csv`, `out/preview.txt`,
 `out/wall-additions.csv`, `out/line-usage.csv`, `out/rejected.txt`.
@@ -129,6 +171,14 @@ not flagged in it; and that all five outputs are cleared first, so a blocked
 batch cannot leave a stale uploadable file behind. `--anchors` additionally
 checks the drafts really used the lines the batch deal assigned, on both the
 reported id and the written text.
+
+It also re-checks each identity sentence against the claim **in the deal file**,
+which is a separate finding from the line check for a reason: one answers *which
+line*, the other *what the sentence claims*, and a combined message would send a
+drafter looking in the wrong place. The deal is the authority rather than the
+draft, because the drafter's own lint run resolves the claim from what the
+drafter reported — which is the worker checking its homework against its own
+answer sheet. A deal carrying no claim is a rejection, not a skip.
 
 **The eight Smartlead columns:**
 
@@ -146,6 +196,21 @@ kind of wrong.
 Pulls the hand-written lines out of Airtable and **rejects any that fail the
 linter**, so an edit there cannot break an email. It is a gate, not a copier:
 when anything fails it writes nothing at all.
+
+An identity line must also declare a Claim that resolves, and must satisfy it —
+the same check the drafted email gets, run against the hand-written line. A bank
+line that cannot pass its own claim condemns every email dealt it, and the
+drafter is then asked to satisfy something impossible with one rewrite pass. And
+a totalising clause about the meetings needs a qualifier a column backs, which
+is the only thing that separates "every one with somebody who could sign off"
+from "all with prospects ready to say yes". That second rule is a heuristic over
+English and it says so in its docstring: it will miss a flourish phrased without
+a totaliser, and it cannot judge truth, only sourcing.
+
+Both hard-fail rather than warn. A blocked line costs one person one minute with
+the line in front of them, which is the cheapest place in the whole machine to
+pay, and this command's output is mostly green so a warning in it is one nobody
+reads.
 
 ### `copy-check`
 **In** nothing. **Out** whether Airtable is what a batch would actually draw
@@ -173,13 +238,25 @@ no-address fallback on the lead's own branded domain. The fallback converges
 on exactly one address, never auto-passes a catch-all domain, and refuses free
 provider domains.
 
-The Apify-backed verifier normally tries `email` (account56/email-verifier)
-first and falls back to `email_alt` (a second vetted actor) only on the
-addresses `email` errored on. `email` has been in an outage since 2026-07-31
-(errors on every address, not a per-address signal) — see `audit/apify.py`'s
-`_PRIMARY_EMAIL_ACTOR_DOWN`, which skips it entirely while that holds, rather
-than paying for a guaranteed error. Flip it back once `email` is confirmed
-recovered.
+**One paid verifier, one free fallback, and the fallback says what it is.**
+`audit/apify.py` owns which actor `email` names. `EMAIL_VERIFY_PROVIDER` picks
+between it and the local check, and a capped Apify quota switches to the local
+check on its own. The local check reads syntax, the never-send and typo and
+disposable lists, and MX — so it can prove a domain takes mail and never that a
+mailbox exists. Its best answer is a WARN that says so, and it can never clear
+an address for sending by itself. Its FAILs are real.
+
+**`email-verify-batch` is the only place a verifier outage is visible**, because
+an outage is a property of the run rather than of any address in it. Every
+address in a batch coming back inconclusive is not an address pattern; it exits
+2, the code for a gate that could not complete, rather than 1, which would be a
+claim about the addresses. This exists because a dead actor answered "error" for
+40 consecutive leads and read to the operator as a long run of catch-all
+domains.
+
+**Every row names who answered it**, and `verify-email` returns one row per
+address asked about — an address the actor did not answer on comes back as
+`no_result` rather than being dropped from the list.
 
 ### `apify`
 The no-login third-party fetch layer, and the only paid one. Subcommands:

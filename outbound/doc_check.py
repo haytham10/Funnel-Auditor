@@ -648,6 +648,60 @@ def load_copy_ids(root: Path) -> dict:
     return ids
 
 
+def load_copy_lines(root: Path) -> dict:
+    """The live bank text, id by normalised line, for `check_quoted_copy`."""
+    lines = {}
+    for name in ("identity", "offer", "cta", "ps"):
+        path = root / "copy" / f"{name}.csv"
+        try:
+            with path.open(newline="", encoding="utf-8") as handle:
+                for row in csv.DictReader(handle):
+                    text = (row.get("line") or "").strip()
+                    if text:
+                        lines[_normalise_copy(text)] = (row.get("id") or "").strip()
+        except (OSError, UnicodeDecodeError) as exc:
+            raise DocCheckError(f"cannot read copy/{name}.csv: {exc}") from exc
+    return lines
+
+
+def _normalise_copy(text: str) -> str:
+    return re.sub(r"[^a-z0-9 ]", "", text.lower()).strip()
+
+
+# A line in a reference doc offered as an example, e.g. `- Good: "..."`.
+_QUOTED_EXAMPLE = re.compile(r'^\s*[-*]\s*(?:Good|Bad|Better|Worse)\b[^"]*"([^"]+)"',
+                             re.I)
+
+
+def check_quoted_copy(rel: str, lines: list, bank: dict) -> list:
+    """A teaching example may not BE a live bank line.
+
+    `cta-01` was the "good example" in the drafting manual word for word, so the
+    manual was quoting its own live copy. Fine on a first send and a tell the
+    moment a reader sees two, because a model shown a line as the exemplar
+    reproduces it — which is exactly what the manual tells it not to do two
+    paragraphs later.
+
+    Only reference docs are scanned. The specs legitimately quote copy to
+    reason about it, and `docs/spec/04-email.md` naming a line it is explaining
+    is a citation, not an example anybody is meant to copy.
+    """
+    if "/references/" not in rel.replace("\\", "/"):
+        return []
+    out = []
+    for lineno, text in enumerate(lines, start=1):
+        match = _QUOTED_EXAMPLE.match(text)
+        if not match:
+            continue
+        line_id = bank.get(_normalise_copy(match.group(1)))
+        if line_id:
+            out.append(Finding(rel, lineno, "QUOTED LIVE COPY",
+                               f"the example is {line_id} verbatim — write one "
+                               f"for the page instead, or the model ships the "
+                               f"exemplar"))
+    return out
+
+
 def airtable_table_ids(root: Path) -> set:
     """The table ids CLAUDE.md declares. It is the authority on them."""
     path = root / "CLAUDE.md"
@@ -692,6 +746,7 @@ def check_docs(root: Path | None = None, *, parser=None,
 
     tree = command_tree(parser)
     ids = load_copy_ids(root)
+    bank_lines = load_copy_lines(root)
     table_ids = airtable_table_ids(root)
     targets, skipped = scan_targets(root)
 
@@ -720,6 +775,7 @@ def check_docs(root: Path | None = None, *, parser=None,
         result.findings.extend(check_commands(rel, lines, tree))
         result.findings.extend(check_paths(rel, doc, lines, root, header))
         result.findings.extend(check_copy_ids(rel, lines, ids))
+        result.findings.extend(check_quoted_copy(rel, lines, bank_lines))
 
     result.findings.extend(check_documented_commands(
         tree, pipeline_text, "\n".join(corpus), main_docstring(root)))

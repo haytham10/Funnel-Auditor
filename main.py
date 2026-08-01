@@ -555,7 +555,14 @@ def cmd_deal(args) -> None:
 
     out = {
         email: {
-            "identity": {"id": a.identity.id, "line": a.identity.line},
+            # The identity entry carries the CLAIM as well as the line, because
+            # the line is the drafter's register and the claim is the actual
+            # constraint. `export --anchors` re-checks the written sentence
+            # against this, so the authority is the deal file rather than
+            # whatever the drafter copied out of its prompt.
+            "identity": {"id": a.identity.id, "line": a.identity.line,
+                         "claim": a.claim.raw if a.claim else "",
+                         "identity_words": list(a.identity_budget())},
             "offer": {"id": a.offer.id, "line": a.offer.line},
             "cta": {"id": a.cta.id, "line": a.cta.line},
             "ps": {"id": a.ps.id, "line": a.ps.line},
@@ -711,6 +718,33 @@ def cmd_facts(args) -> None:
 # ----------------------------------------------------------------------- lint
 
 
+def _identity_claim_of(draft: dict, facts):
+    """The claim spec behind one draft's identity beat, from whichever of the
+    two things the draft carries.
+
+    A drafting worker is handed the Claim inline in its prompt and reports back
+    the anchor id it used, so the id is the reliable half — it is looked up in
+    the live bank here rather than trusted from the draft, which is the same
+    reason `export --anchors` re-checks the id against the deal. A draft with
+    an explicit `identity_claim` string wins, for a caller linting a beat in
+    isolation with no bank behind it.
+    """
+    from outbound import anchors
+
+    raw = (draft.get("identity_claim") or "").strip()
+    if raw:
+        return anchors.claim_for(anchors.Line("draft", "", {"claim": raw}), facts)
+
+    line_id = (draft.get("anchor_ids") or {}).get("identity", "")
+    if not line_id:
+        return None
+    bank = anchors.CopyBank.load()
+    for line in bank.identity:
+        if line.id == line_id:
+            return anchors.claim_for(line, facts)
+    return None
+
+
 def cmd_lint(args) -> None:
     """The gate on model-written copy. Per email, then across the batch.
 
@@ -760,6 +794,7 @@ def cmd_lint(args) -> None:
             beats=beats,
             allowed_numbers=set(allowed),
             facts=facts,
+            identity_claim=_identity_claim_of(draft, facts),
         )
         print(result.report())
         failed += 0 if result.passed else 1
@@ -908,23 +943,46 @@ def _apify_quota_note() -> tuple[bool, str | None]:
     return False, None
 
 
+class _LocalVerifierError(Exception):
+    """Never raised. `_email_verifier` returns an exception class alongside the
+    verify function so its three callers can have one `except` shape; the local
+    verifier has no failure mode that reaches them, and saying that with a class
+    nothing throws is honester than naming a real one that never fires."""
+
+
 def _email_verifier(approved: bool = False):
-    """Which verifier to use. `EMAIL_VERIFY_PROVIDER` picks (default apify),
-    and a capped Apify quota auto-falls back to ZeroBounce rather than spending
-    an attempt that would just 402."""
+    """Which verifier to use. `EMAIL_VERIFY_PROVIDER` picks — `apify` (default)
+    or `local` — and a capped Apify quota falls back to the local check rather
+    than spending an attempt that would just 402.
+
+    The fallback used to be ZeroBounce. When the Apify actor's outage finally
+    called on it, `getcredits` returned `{"Credits":"0"}` and the machine had no
+    working verifier at all while the docs said it did. It is gone. The local
+    check cannot confirm a mailbox and never claims to, but it is always there,
+    it costs nothing, and its FAILs are real.
+    """
     import os
     import functools
-    from audit import email_verifier
+    from audit import email_check
+    # `verify_local` cannot raise — every DNS path inside `check_email` catches
+    # its own failures and returns a verdict — so the local branch names an
+    # exception class that will never fire rather than pretending otherwise.
+    local_never_raises = _LocalVerifierError
     provider = os.environ.get("EMAIL_VERIFY_PROVIDER", "apify").strip().lower()
-    if provider != "apify":
-        return email_verifier.verify_emails, email_verifier.EmailVerifierError, None
+    if provider == "local":
+        return email_check.verify_local, local_never_raises, "local MX check, no paid verifier"
+
+    note_prefix = ""
+    if provider not in ("apify", ""):
+        note_prefix = f"EMAIL_VERIFY_PROVIDER={provider!r} is not a provider, using apify — "
 
     from audit import apify
     capped, note = _apify_quota_note()
     if capped:
-        return (email_verifier.verify_emails, email_verifier.EmailVerifierError,
-                f"{note} — auto-switched to ZeroBounce for this call")
-    return functools.partial(apify.verify_emails, approved=approved), apify.ApifyError, None
+        return (email_check.verify_local, local_never_raises,
+                f"{note_prefix}{note} — auto-switched to the local MX check for this call")
+    return (functools.partial(apify.verify_emails, approved=approved),
+            apify.ApifyError, note_prefix.rstrip(" —") or None)
 
 
 def cmd_email_verify(args) -> None:
@@ -953,7 +1011,13 @@ def cmd_email_verify_batch(args) -> None:
     one call or ten — batching pays for the run once instead of once per
     lead, same lever as the tier-0 site fetch and `deal`. Prints one
     quotable line per address, same format as the single-address command,
-    so nothing downstream has to tell them apart."""
+    so nothing downstream has to tell them apart.
+
+    This is also the only place that can see a verifier outage, because an
+    outage is a property of the run and not of any address in it. Exit 2 when
+    the batch looks dead: nothing is wrong with these addresses, so exit 1
+    would be a lie about them, and exit 0 is how 40 leads went past a broken
+    verifier looking like catch-alls."""
     from audit import email_check
     from audit.apify import ApifyCostApprovalRequired
     verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
@@ -974,6 +1038,11 @@ def cmd_email_verify_batch(args) -> None:
         code = email_check.print_verify(
             addr, by_email.get(addr.strip().lower()), note=note or "")
         worst = max(worst, code)
+
+    suspect = email_check.batch_health(list(rows) if rows else [])
+    if suspect:
+        print(suspect)
+        sys.exit(2)
     sys.exit(worst)
 
 
@@ -1011,7 +1080,8 @@ def cmd_fetch(args) -> None:
     from outbound import fetch
 
     leads = _load_leads(args.leads)
-    result = fetch.batch_fetch(leads, max_pages=args.max_pages)
+    result = fetch.batch_fetch(leads, max_pages=args.max_pages,
+                               workers=args.workers)
     print(result["report"])
 
     payload = {
@@ -1039,6 +1109,48 @@ def cmd_fetch(args) -> None:
     for plan in result["escalate_plans"]:
         print(f"  ESCALATE  {plan['why']}")
 
+    # Named work rather than a blind spot. These leads produce no tier-0 read
+    # at all, so before this they simply were not in the output and each worker
+    # rediscovered the gap on its own.
+    for lead in result["unowned"]:
+        print(f"  OWNER?    {lead['name'] or '(no name)'} — {lead['url']} "
+              f"never mentions them")
+    for lead in result["ig_only"]:
+        print(f"  IG        {lead['name'] or '(no name)'} — {lead['url']} "
+              f"(batch these: `apify ig <url> <url> --mode details`)")
+    for lead in result["needs_search"]:
+        hint = " ".join(x for x in (lead["name"], lead["company"], lead["city"]) if x)
+        print(f"  SEARCH    {hint or '(nothing to search on)'} "
+              f"— no site and no social, free WebSearch first")
+
+    if not args.escalate:
+        if result["escalate_plans"]:
+            print("  (pass --escalate --approve-cost to run these; they are paid)")
+        return
+
+    # Off by default and gated exactly like every other paid call. Before this
+    # the plan named an actor that was in no ACTORS map, so it could only be run
+    # by hand, outside the approval path — and the first real batch skipped it.
+    from audit.apify import ApifyCostApprovalRequired, ApifyError
+
+    escalated = {}
+    for plan in result["escalate_plans"]:
+        try:
+            escalated[plan["actor_key"]] = fetch.run_plan(
+                plan, approved=args.approve_cost)
+        except ApifyCostApprovalRequired as exc:
+            print(f"FETCH: APPROVAL REQUIRED — {exc}")
+            sys.exit(3)
+        except ApifyError as exc:
+            print(f"FETCH: escalation failed ({exc}) — tier 0 results above stand")
+            sys.exit(1)
+    for key, items in escalated.items():
+        print(f"  ESCALATED {key}: {len(items)} page(s) back")
+    if args.out:
+        payload["escalated"] = escalated
+        Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
+                                  encoding="utf-8")
+
 
 # -------------------------------------------------------------------- fetching
 
@@ -1059,7 +1171,10 @@ def cmd_apify(args) -> None:
         elif cmd == "actors":
             out = apify.discover_actors(args.query, args.limit)
         elif cmd == "ig":
-            out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
+            # One url stays a string so the single-profile path keeps raising on
+            # an actor error instead of returning a None the caller has to spot.
+            target = args.url[0] if len(args.url) == 1 else args.url
+            out = apify.instagram(target, mode=args.mode, newer_than=args.newer_than,
                                   limit=args.limit, skip_pinned=args.skip_pinned,
                                   include_about=args.include_about, raw=args.raw,
                                   approved=approved)
@@ -1167,6 +1282,10 @@ def cmd_doc_check(args) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    # Imported for one default. `doc-check` builds this parser, so anything
+    # heavy at import time here is paid by the test suite too.
+    from outbound import fetch as fetch_defaults
+
     parser = argparse.ArgumentParser(
         prog="main.py",
         description="The outbound machine. Every command is a decision, "
@@ -1202,6 +1321,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-pages", type=int, default=5)
     p.add_argument("--with-text", action="store_true", help="include page text in the output")
     p.add_argument("--out", help="write the reads as JSON")
+    p.add_argument("--workers", type=int, default=fetch_defaults.DEFAULT_WORKERS,
+                   help="concurrent site reads (network-bound; 1 restores the "
+                        "serial loop that could not finish 151 sites)")
+    p.add_argument("--escalate", action="store_true",
+                   help="actually RUN the batched Apify plan, not just print it")
+    p.add_argument("--approve-cost", action="store_true",
+                   help="approve the escalation's cost (see exit 3)")
     p.set_defaults(func=cmd_fetch)
 
     p = sub.add_parser("anchors", help="which hand-written lines a lead draws")
@@ -1306,7 +1432,9 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--limit", type=int, default=6)
 
     a = apify_sub.add_parser("ig", help="Instagram posts or profile details")
-    a.add_argument("url")
+    # Several profiles is one run for `--mode details`, whose input field is an
+    # array. `--mode posts` refuses more than one, on purpose: see `instagram`.
+    a.add_argument("url", nargs="+")
     a.add_argument("--mode", default="posts", choices=["posts", "details"])
     a.add_argument("--newer-than", dest="newer_than")
     a.add_argument("--limit", type=int, default=12)

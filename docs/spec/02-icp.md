@@ -25,6 +25,33 @@ Three, and that is all.
 | **Active in the last 30 days** | something they published, dated, inside the window |
 
 `outbound/qualify.py` owns how each is settled and what counts as evidence.
+**Activity is 30 days and that number lives here**; the hook's own recency
+window is a different question with a different answer, owned by
+`docs/hook-rules.md`.
+
+### What each floor can actually reject
+
+Worth stating, because for a while two of the three could not reject anything
+and the table above did not say so.
+
+- **UAE-based** kills on a stated foreign residence, and only when that
+  sentence is about the lead. A page can say anything about anyone: on the
+  first batch a lead was killed by *"based in Singapore"* describing a former
+  employer, and another passed on a "dubai" from an unrelated paragraph. Their
+  own location field outranks the prose, and prose can produce a `yes` but
+  never a `no`.
+- **Actually a coach** kills only on a stated non-coach occupation with no
+  coach word and no coaching offer anywhere — all three. It used to be
+  incapable of rejecting anyone at all: it matched the substring "coach" and
+  had no path to `no`, so it was documented as a floor while doing nothing, and
+  workers overrode it by hand on cabin crew, a retail supervisor and a
+  lecturer. A coach word anywhere is still a pass, including a weekend hobby,
+  because separating that from a business needs context the check does not have
+  and the error would be the permanent kind.
+- **Active in 30 days** kills on a date older than the window. It is the only
+  floor that rejects on evidence the machine produced itself, and in practice it
+  usually reads `unclear`: on nine real sites and 220,000 characters it found
+  zero usable dates, because a copyright year is not activity.
 
 ## `unclear` passes
 

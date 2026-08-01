@@ -16,6 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import threading
+
 from outbound import fetch
 
 
@@ -109,3 +111,201 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ---------------------------------------------------------- the escalation plan
+
+
+def test_the_plan_names_a_vetted_actor_key():
+    """It used to name `apify/website-content-crawler` in the slash form, which
+    was in no ACTORS map — so nothing could run it through the cost gate, it
+    was something the operator executed by hand outside the approval path, and
+    the first real batch skipped the whole stage."""
+    from audit import apify
+
+    plan = fetch.apify_batch_plan(["https://a.ae"], render=False)
+    assert plan["actor_key"] in apify.ACTORS
+    assert fetch.apify_batch_plan(["https://a.ae"], render=True)["actor_key"] \
+        in apify.ACTORS
+
+
+def test_the_static_and_render_paths_are_different_actors():
+    assert (fetch.apify_batch_plan(["https://a.ae"], render=False)["actor_key"]
+            != fetch.apify_batch_plan(["https://a.ae"], render=True)["actor_key"])
+
+
+def test_the_plan_dedupes_and_keeps_one_run():
+    plan = fetch.apify_batch_plan(["https://a.ae", "https://b.ae", "https://a.ae"])
+    assert plan["urls"] == ["https://a.ae", "https://b.ae"]
+
+
+def test_run_plan_dispatches_to_the_right_crawler(monkeypatch):
+    from audit import apify
+
+    calls = []
+    monkeypatch.setattr(apify, "crawl_static",
+                        lambda urls, **k: calls.append(("static", urls)) or [])
+    monkeypatch.setattr(apify, "crawl_render",
+                        lambda urls, **k: calls.append(("render", urls)) or [])
+    fetch.run_plan(fetch.apify_batch_plan(["https://a.ae"], render=False))
+    fetch.run_plan(fetch.apify_batch_plan(["https://b.ae"], render=True))
+    assert [c[0] for c in calls] == ["static", "render"]
+
+
+# ------------------------------------------------------------- concurrency
+
+
+class _Lead:
+    def __init__(self, i):
+        self.site_url = f"https://site{i}.ae"
+        self.email = f"a{i}@x.ae"
+        self.slug = f"lead{i}"
+
+
+def test_batch_fetch_reads_every_lead_exactly_once(monkeypatch):
+    """Concurrency must not drop or duplicate a lead. Results go into a dict
+    keyed by `_read_key`, so completion order cannot leak into the output."""
+    seen = []
+    lock = threading.Lock()
+
+    def fake_read(url, **kwargs):
+        with lock:
+            seen.append(url)
+        read = fetch.SiteRead(domain=url)
+        read.pages = [fetch.Page(url=url, status=200, text="x" * 500)]
+        return read
+    monkeypatch.setattr(fetch, "read_site", fake_read)
+
+    leads = [_Lead(i) for i in range(20)]
+    out = fetch.batch_fetch(leads, workers=8)
+    assert len(out["reads"]) == 20
+    assert sorted(seen) == sorted(l.site_url for l in leads)
+    assert out["ok"] == 20
+    assert out["workers"] == 8
+
+
+def test_each_worker_gets_its_own_session(monkeypatch):
+    """`requests.Session` is not thread-safe — its connection pool and cookie
+    jar are shared mutable state — so the single shared session the serial loop
+    used could not simply be handed to a pool."""
+    sessions = set()
+    lock = threading.Lock()
+
+    def fake_read(url, *, max_pages=5, session=None, **kwargs):
+        with lock:
+            sessions.add(id(session))
+        return fetch.SiteRead(domain=url)
+    monkeypatch.setattr(fetch, "read_site", fake_read)
+    fetch.batch_fetch([_Lead(i) for i in range(12)], workers=4)
+    assert len(sessions) <= 4 and None not in sessions
+
+
+def test_a_single_worker_still_works(monkeypatch):
+    """`--workers 1` restores the serial loop, which is the fallback if
+    concurrency ever turns out to trip a host."""
+    monkeypatch.setattr(fetch, "read_site",
+                        lambda url, **k: fetch.SiteRead(domain=url))
+    out = fetch.batch_fetch([_Lead(i) for i in range(3)], workers=1)
+    assert len(out["reads"]) == 3 and out["workers"] == 1
+
+
+def test_an_empty_batch_does_not_divide_by_zero(monkeypatch):
+    out = fetch.batch_fetch([], workers=8)
+    assert out["attempted"] == 0 and out["tier0_rate"] == 0.0
+
+
+# ------------------------------------------------ the leads tier 0 cannot help
+
+
+class _Social:
+    def __init__(self, name, site="", instagram="", linkedin=""):
+        self.name, self.site_url = name, site
+        self.instagram_url, self.linkedin_url = instagram, linkedin
+        self.facebook_url = self.youtube_url = ""
+        self.email = f"{name.lower()}@x.ae"
+        self.slug = name.lower()
+        self.company = self.city = ""
+
+    def social_urls(self):
+        return [u for u in (self.linkedin_url, self.instagram_url,
+                            self.facebook_url, self.youtube_url) if u]
+
+
+def test_a_lead_with_no_site_and_no_social_is_named_for_search():
+    """It produced nothing at all before, so each research worker met it cold
+    and improvised — which is how the last batch used WebSearch without it
+    being a rung anybody had planned."""
+    out = fetch.batch_fetch([_Social("Nobody")], workers=2)
+    assert [l["name"] for l in out["needs_search"]] == ["Nobody"]
+    assert out["ig_only"] == []
+
+
+def test_a_lead_reachable_only_on_instagram_is_named_for_ig():
+    out = fetch.batch_fetch(
+        [_Social("Iggy", instagram="https://instagram.com/iggy")], workers=2)
+    assert [l["url"] for l in out["ig_only"]] == ["https://instagram.com/iggy"]
+    assert out["needs_search"] == []
+
+
+def test_a_lead_with_another_social_is_not_ig_only():
+    out = fetch.batch_fetch([_Social("Both",
+                                     instagram="https://instagram.com/b",
+                                     linkedin="https://linkedin.com/in/b")],
+                            workers=2)
+    assert out["ig_only"] == [] and out["needs_search"] == []
+
+
+def test_a_lead_with_a_site_is_neither(monkeypatch):
+    monkeypatch.setattr(fetch, "read_site",
+                        lambda url, **k: fetch.SiteRead(domain=url))
+    out = fetch.batch_fetch([_Social("Sited", site="https://a.ae")], workers=2)
+    assert out["ig_only"] == [] and out["needs_search"] == []
+
+
+# ------------------------------------------------------- does the site say them
+
+
+def _read_with(text, name_in_page=True, ok=True):
+    read = fetch.SiteRead(domain="x.ae")
+    body = ("Sarah Khan is a leadership coach in Dubai." if name_in_page
+            else "A retreat house in Ohio. Come and stay.")
+    read.pages = [fetch.Page(url="https://x.ae", status=200 if ok else 404,
+                             text=(body + " " + text) * 20)]
+    return read
+
+
+def test_a_site_that_names_the_lead_is_confirmed():
+    assert fetch.check_owner(_read_with(""), "Sarah Khan") == "confirmed"
+
+
+def test_a_site_that_never_names_the_lead_is_absent():
+    """About 40 of 151 rows pointed at somebody else — parked domains, name
+    collisions, a coach's training school, an Ohio retreat house. Nothing
+    checked, so every one was found by hand after the fetch was paid for."""
+    assert fetch.check_owner(_read_with("", name_in_page=False),
+                             "Sarah Khan") == "absent"
+
+
+def test_an_unreadable_site_is_unknown_not_absent():
+    """Absence of evidence. A site that would not load says nothing about who
+    owns it, and reporting that as a mismatch would be a lie."""
+    assert fetch.check_owner(_read_with("", ok=False), "Sarah Khan") == "unknown"
+
+
+def test_no_name_to_check_is_unknown():
+    assert fetch.check_owner(_read_with(""), "") == "unknown"
+
+
+def test_an_initial_is_too_short_to_confirm_ownership():
+    """min_len=3, so "S" cannot match every site on earth."""
+    assert fetch.check_owner(_read_with("", name_in_page=False), "S K") == "unknown"
+
+
+def test_the_owner_check_is_reported_and_never_a_kill(monkeypatch):
+    monkeypatch.setattr(fetch, "read_site",
+                        lambda url, **k: _read_with("", name_in_page=False))
+    out = fetch.batch_fetch([_Social("Nobody Here", site="https://x.ae")], workers=2)
+    assert [u["name"] for u in out["unowned"]] == ["Nobody Here"]
+    assert "OWNER-CHECK" in out["report"]
+    # Still read, still counted, still available to every later stage.
+    assert out["attempted"] == 1

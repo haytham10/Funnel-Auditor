@@ -34,6 +34,7 @@ class _FakeResponse:
 
 def _reset_caches():
     apify._pricing_cache.clear()
+    apify._compute_billed.clear()
     apify._tier_cache["tier"] = None
     apify._tier_cache["fetched"] = False
 
@@ -120,7 +121,7 @@ def test_pay_per_event_falls_back_to_free_tier_when_tier_unknown(monkeypatch):
 
 
 def test_pay_per_event_falls_back_to_sole_recurring_event_when_none_flagged_primary(monkeypatch):
-    # account56/email-verifier's real pricing shape: no event is flagged
+    # A verification actor's real pricing shape: no event is flagged
     # isPrimaryEvent, but only one is recurring (email-verified) —
     # actor-start is a one-time flat fee, so it's unambiguous which one bills
     # per item.
@@ -136,7 +137,7 @@ def test_pay_per_event_falls_back_to_sole_recurring_event_when_none_flagged_prim
             }},
         }]}}),
     )
-    assert apify._actor_primary_event_price_usd("account56~email-verifier") == 0.001
+    assert apify._actor_primary_event_price_usd("michael.g~email-verifier-validator") == 0.001
 
 
 def test_pay_per_event_ambiguous_multiple_recurring_no_primary_flag_is_none(monkeypatch):
@@ -327,6 +328,66 @@ def test_verify_emails_runs_when_approved(monkeypatch):
     monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [{"email": "a@b.com", "status": "ok"}])
     out = apify.verify_emails(["a@b.com"], approved=True)
     assert out[0]["email"] == "a@b.com"
+
+
+def test_verify_emails_calls_the_one_vetted_verifier(monkeypatch):
+    # The predecessor spent a guaranteed-useless call per address for a day
+    # while it was down, then sat behind a flag. There is one actor now, and
+    # nothing should be able to reintroduce a second call site quietly.
+    _reset_caches()
+    called = []
+
+    def record(actor_id, run_input, **kwargs):
+        called.append(actor_id)
+        return [{"email": "a@b.com", "technical_status": "valid"}]
+    monkeypatch.setattr(apify, "run_actor", record)
+    apify.verify_emails(["a@b.com"], approved=True)
+    assert called == ["michael.g~email-verifier-validator"]
+    assert "email_alt" not in apify.ACTORS
+
+
+def test_verify_emails_returns_a_row_for_every_address_asked_about(monkeypatch):
+    # It used to drop them. A caller then got back fewer rows than it asked
+    # for with no way to tell which address had gone missing — the same
+    # silence as the outage this actor set was rebuilt around.
+    _reset_caches()
+    monkeypatch.setattr(
+        apify, "run_actor",
+        lambda *a, **k: [{"email": "b@y.ae", "technical_status": "valid"}])
+    out = apify.verify_emails(["a@x.ae", "b@y.ae", "c@z.ae"], approved=True)
+    assert [r["email"] for r in out] == ["a@x.ae", "b@y.ae", "c@z.ae"]
+    assert [r["result"] for r in out] == ["no_result", "valid", "no_result"]
+
+
+def test_verify_emails_keeps_an_actor_error_distinct_from_unknown(monkeypatch):
+    # Both classify to WARN, so the verdict is unchanged — but `error` means
+    # the actor could not look and `unknown` means it looked and could not
+    # tell. Collapsing them is what hid a dead verifier for 40 leads.
+    _reset_caches()
+    monkeypatch.setattr(
+        apify, "run_actor",
+        lambda *a, **k: [{"email": "a@x.ae", "technical_status": "error"},
+                         {"email": "b@y.ae", "technical_status": "unknown"}])
+    out = apify.verify_emails(["a@x.ae", "b@y.ae"], approved=True)
+    assert [r["result"] for r in out] == ["error", "unknown"]
+
+
+def test_verify_emails_reads_catch_all_and_disposable_ahead_of_the_status(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(
+        apify, "run_actor",
+        lambda *a, **k: [{"email": "a@x.ae", "technical_status": "valid", "catch_all": True},
+                         {"email": "b@y.ae", "technical_status": "valid", "disposable": True}])
+    out = apify.verify_emails(["a@x.ae", "b@y.ae"], approved=True)
+    assert [r["result"] for r in out] == ["catch_all", "disposable"]
+
+
+def test_verify_emails_says_who_answered(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(
+        apify, "run_actor",
+        lambda *a, **k: [{"email": "a@x.ae", "technical_status": "valid"}])
+    assert apify.verify_emails(["a@x.ae"], approved=True)[0]["verified_by"] == "apify"
 
 
 def test_instagram_gates_on_limit(monkeypatch):
@@ -548,3 +609,154 @@ if __name__ == "__main__":
             mp.undo()
     print(f"\n{len(fns) - failed}/{len(fns)} passed")
     sys.exit(1 if failed else 0)
+
+
+# --- the two site actors, and the two ways a run can be unpriceable ----------
+
+
+def test_a_compute_billed_actor_says_so_instead_of_looking_broken(monkeypatch):
+    """Apify's own free actors carry no pricingInfos at all. That is a known
+    pricing model, not a failed lookup, and collapsing the two into one message
+    is the same class of bug as an actor outage reading like a catch-all."""
+    _reset_caches()
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+    monkeypatch.setattr(apify.requests, "get",
+                        lambda *a, **k: _FakeResponse({"data": {}}))
+    est, reason = apify.estimate_cost_usd("apify~cheerio-scraper", 40)
+    assert est is None
+    assert "platform compute" in reason
+    assert "retrying will not change it" in reason
+
+
+def test_a_real_lookup_failure_still_reads_as_one(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+
+    def down(*a, **k):
+        raise apify.requests.RequestException("down")
+    monkeypatch.setattr(apify.requests, "get", down)
+    est, reason = apify.estimate_cost_usd("some~actor", 5)
+    assert est is None and "network error" in reason
+
+
+def test_both_site_actors_are_vetted():
+    """The escalation plan used to name an actor id that was in no ACTORS map,
+    so nothing could run it through the cost gate and the first real batch
+    skipped the whole stage."""
+    assert apify.ACTORS["site_static"] == "apify~cheerio-scraper"
+    assert apify.ACTORS["site_render"] == "apify~website-content-crawler"
+
+
+def test_crawl_static_batches_every_url_into_one_run(monkeypatch):
+    """Container boot dominates the bill. Fifty separate runs is the worst
+    possible way to use a compute-billed actor."""
+    _reset_caches()
+    seen = {}
+
+    def record(actor_id, run_input, **kwargs):
+        seen["actor"], seen["input"] = actor_id, run_input
+        return [{"url": "https://a.ae", "text": "hi"}]
+    monkeypatch.setattr(apify, "run_actor", record)
+    apify.crawl_static(["https://a.ae", "https://b.ae", "https://a.ae"],
+                       approved=True)
+    assert seen["actor"] == "apify~cheerio-scraper"
+    assert [s["url"] for s in seen["input"]["startUrls"]] == [
+        "https://a.ae", "https://b.ae"]          # deduped, one run
+    assert "pageFunction" in seen["input"]
+
+
+def test_crawl_render_always_names_its_crawler_type(monkeypatch):
+    """Leaving `crawlerType` unset is what silently bought full headless
+    Firefox on a run that cost six times its estimate. Untested until now."""
+    _reset_caches()
+    seen = {}
+    monkeypatch.setattr(apify, "run_actor",
+                        lambda actor_id, run_input, **k: seen.update(
+                            actor=actor_id, input=run_input) or [])
+    apify.crawl_render(["https://a.ae"], approved=True)
+    assert seen["actor"] == "apify~website-content-crawler"
+    assert seen["input"]["crawlerType"] == "playwright:adaptive"
+
+
+def test_the_site_crawlers_gate_before_running(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 1.0)
+
+    def boom(*a, **k):
+        raise AssertionError("run_actor should not be called when cost-gated")
+    monkeypatch.setattr(apify, "run_actor", boom)
+    for call in (apify.crawl_static, apify.crawl_render):
+        try:
+            call(["https://a.ae"])
+        except apify.ApifyCostApprovalRequired:
+            continue
+        raise AssertionError(f"{call.__name__} should have been gated")
+
+
+def test_instagram_details_batches_several_profiles_into_one_run(monkeypatch):
+    """The profile actor's input field is `usernames`, an array — so batching
+    is free, the same lever li-profile and verify-email already pull."""
+    _reset_caches()
+    seen = {}
+
+    def record(actor_id, run_input, **kwargs):
+        seen["actor"], seen["input"] = actor_id, run_input
+        return [{"username": "b", "biography": "second"},
+                {"username": "a", "biography": "first"}]
+    monkeypatch.setattr(apify, "run_actor", record)
+    out = apify.instagram(["https://instagram.com/a/", "https://instagram.com/b"],
+                          mode="details", approved=True)
+    assert seen["actor"] == apify.ACTORS["ig_profile"]
+    assert seen["input"]["usernames"] == ["a", "b"]
+    # Correlated back to input order, not the order the actor answered in.
+    assert [r["username"] for r in out] == ["a", "b"]
+
+
+def test_a_profile_the_actor_could_not_read_is_a_none_not_a_short_list(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(apify, "run_actor",
+                        lambda *a, **k: [{"username": "a", "biography": "hi"}])
+    out = apify.instagram(["https://instagram.com/a", "https://instagram.com/gone"],
+                          mode="details", approved=True)
+    assert len(out) == 2 and out[1] is None
+
+
+def test_instagram_posts_refuses_a_list(monkeypatch):
+    """li-posts was batched, tested, and turned out to share `maxPosts` across
+    every target as one run-wide budget — two profiles, a cap of ten, all ten
+    posts from one and nothing from the other. Nobody has tested whether this
+    actor's resultsLimit behaves the same, and assuming it does not is how a
+    batch silently loses its post data and reads as "no recent activity"."""
+    _reset_caches()
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [])
+    try:
+        apify.instagram(["https://instagram.com/a", "https://instagram.com/b"],
+                        mode="posts", approved=True)
+    except apify.ApifyError as exc:
+        assert "run-wide budget" in str(exc)
+        return
+    raise AssertionError("mode='posts' must refuse more than one profile")
+
+
+def test_a_single_instagram_profile_still_returns_a_flat_list(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(apify, "run_actor",
+                        lambda *a, **k: [{"username": "a", "biography": "hi"}])
+    out = apify.instagram("https://instagram.com/a", mode="details", approved=True)
+    assert out[0]["username"] == "a"
+
+
+def test_instagram_details_gates_on_the_number_of_profiles(monkeypatch):
+    _reset_caches()
+    seen = {}
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.02)
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: seen.update(ran=True) or [])
+    try:
+        apify.instagram([f"https://instagram.com/u{i}" for i in range(6)],
+                        mode="details")
+    except apify.ApifyCostApprovalRequired:
+        assert not seen.get("ran"), "gated calls must not run"
+        return
+    raise AssertionError("6 profiles at $0.02 is $0.12, over the threshold")

@@ -68,7 +68,7 @@ non sequitur even when every sentence is individually fine.
 | 2 | **Identity** | *who is this and why should I care?* |
 | 3 | **Offer** | *what can you do for me?* |
 | 4 | **Close** | *what happens next?* |
-| 5 | **ps** | *what does saying no cost me?* |
+| 5 | **ps** | *what does this cost me — to decline, or to have read?* |
 
 Assembled as hook, identity, offer, close, sign-off, ps — the order is fixed in
 `outbound/export.py` and changing it changes every email in the campaign at once.
@@ -91,8 +91,19 @@ the reason only a conversation can answer becomes a question, and a question
 selects for replies that are *answers* — which is a dead end that looks like
 success. That is how reply-to-call went zero for nine.
 
-**ps** — a costless no. It is not a throwaway; it is the beat that makes not
-replying cheap, which is what makes replying honest.
+**ps** — a costless no, or a costless read. It is not a throwaway; it is the
+beat that makes not replying cheap, which is what makes replying honest.
+
+**Two moves, not one.** Granting permission to decline is the obvious one.
+Making the email itself cost nothing to have received — no deck behind it,
+nothing to unsubscribe from, evidence it was not bulk — answers the same
+question from the other side. The bank was monotone for a while because the
+linter's claim token named only the first move and rejected anything else, so a
+constraint nobody had decided read as a choice somebody had.
+
+**Neither move may promise what happens next.** Smartlead owns the sequence
+steps, so a ps saying there will be no follow-up is false the moment a batch is
+uploaded.
 
 ## The bridge
 
@@ -127,6 +138,50 @@ drafter used the line it was actually dealt is checked on both the reported id
 **and the written text**, because a drafter that quietly drew its own line ships
 an email that reads perfectly and a CRM row naming a sentence the reader never
 saw.
+
+### Identity is claim-scoped. The other three beats are text-scoped.
+
+Offer, close and ps are Haytham's sentences, lightly re-voiced. **The identity
+beat is written per lead**, and the thing that is fixed about it is not its
+words but what it asserts.
+
+That is a description before it is a decision. The bridge rule below requires a
+second-person clause before the first digit, and most of the bank's identity
+lines open on a bare stat — so on most leads the model was already composing
+that sentence. What was missing was any check on what the composed sentence
+*claimed*, and a wrong figure went out under a real segment's name for a month
+because of it.
+
+So each identity line declares a **Claim**: which row of `copy/results.csv`,
+which of its columns, whether it may name the segment at all, and any property
+of the meetings that a column backs. `outbound/anchors.py` owns the grammar and
+the vocabulary; Airtable *Copy Assets* holds the value, per
+`docs/spec/06-state.md`. The linter checks four things and no more — every
+declared figure present in any honest rendering, the segment noun there when
+the claim is scoped and absent when it is widened, no figure the claim does not
+license, and no city it did not declare.
+
+**What it deliberately does not check is the wording**: no similarity to the
+reference line, no shared-word floor, nothing about order or structure. A
+sentence sharing not one word with the hand-written line passes if it makes the
+same claim. That is the point, and there is a test named after it.
+
+**Why this replaced editing the line.** A defect in a hand-written line — a
+garden-path clause, a flourish with nothing behind it, a word that collides with
+the beat after it — used to be unfixable by the drafter, who is not allowed to
+touch the copy. The lead spent its one rewrite pass on a problem it structurally
+could not solve and held anyway. Two of three send-ready leads died that way on
+the first real batch. Under a claim, the same defect is a sentence the drafter
+can simply write differently.
+
+**What it costs.** A mechanical guarantee that the identity words are Haytham's,
+traded for a mechanical guarantee about the claim plus a human guarantee about
+voice. That makes the cold read materially more load-bearing on this beat than
+on the others, which is why `draft-verifier` watches specifically for an
+identity sentence that carries the claim and none of the reference line's edge.
+
+**What would reverse it:** authored identity sentences reading measurably worse
+on cold reads than the hand-written ones did.
 
 ### A batch is dealt, not rolled
 
@@ -193,6 +248,32 @@ detail is load-bearing: a raw substring test rejected whole emails because the
 lead's own quoted words contained "optimism", "auditorium" or "Detroit". A gate
 that rejects a good email and names a word that was never in it is unfixable by
 the drafter, because the complaint is not true.
+
+## The seam between identity and offer
+
+Each line can be fine and the pair still collide. `id-career-3` ends *"…worked
+with here."* and `b4-02` opens *"Real people here,"* — two sentences in a row
+landing on the same word. Across the bank that is roughly one identity/offer
+pair in five, and on the first real batch nothing saw it until a person read the
+email, by which point the lead had spent its one rewrite pass on a defect
+neither line was at fault for.
+
+**The repair belongs to the drafter, not the allocator.** The deal can swap the
+ps, and the ps and the cta; it cannot move identity or offer, each pinned for a
+stated reason. So a rule at deal time would be a rule with no legal repair on a
+fifth of pairs. The identity sentence is written, so the drafter always has one:
+it is handed the offer line's distinctive words before it writes, and the linter
+it runs on itself catches what slips through. Both happen inside the first pass,
+so the rewrite budget is never touched.
+
+The check knows the copy's own vocabulary and ignores it. Two beats of an email
+about finding a coach their next client will both say *coach* and *client*, and
+a rule that treats the bank's subject matter as a collision is a rule against
+the copy.
+
+**Hook to identity is deliberately not checked.** The identity beat opens by
+picking the hook back up. That clause is the bridge, and reusing a word from the
+hook is often exactly how it works.
 
 ## Batch-level checks
 

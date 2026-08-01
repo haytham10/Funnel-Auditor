@@ -27,13 +27,24 @@ In order. Stop as soon as the datum is settled.
    orchestrator — read its JSON). Free. Carries the About text, the contact
    page, prices, headings, and every social URL found on the site. Most leads
    are fully settled here.
-2. **WebSearch / WebFetch.** Free. Use for a lead with no live site, for
-   corroborating UAE residence, and for finding a LinkedIn or podcast URL the
-   site did not link.
+2. **WebSearch / WebFetch.** Free, and not optional. The `fetch` report prints
+   a `SEARCH` line for every lead with no site and no social — those leads
+   produce no tier-0 read at all, so search is the only thing standing between
+   them and an `unclear` on every field. Also use it for corroborating UAE
+   residence and for finding a LinkedIn or podcast URL the site did not link.
 3. **Apify, and only for what is genuinely login-walled**: LinkedIn posts and
    profiles, Instagram, YouTube subscriber counts.
    `python main.py apify li-posts <url> --max 5`, `apify li-profile <url>`,
    `apify ig <url> --mode details`, `apify youtube <handle>`.
+
+**An Instagram bio is real evidence, not a consolation prize.** The `fetch`
+report prints an `IG` line for every lead reachable only there, and for those
+leads `apify ig <url> --mode details` is the tier-0 read: the bio carries the
+UAE signal ("Dubai" in the location line or the text), the coach_type wording,
+and often the offer. Treat it exactly as you would an About page — a stated
+location in their own bio settles `uae_based` with the profile URL as its
+source. **Batch them**: `--mode details` takes several profiles in one run, so
+pass every IG-only lead in the slice at once rather than one call each.
 
 Never call Apify for something a free tier already answered. The orchestrator
 checks the Apify budget once for the whole batch and tells you if it is tight;

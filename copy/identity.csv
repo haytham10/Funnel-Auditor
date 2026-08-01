@@ -1,34 +1,34 @@
-id,coach_type,sells_to,shape,weight,line,word_count
-id-any-1,Any,any,aggregate,,67 meetings and 30 signed clients across 8 practices here this year. That's what I do.,16
-id-any-2,Any,any,aggregate,,My job is finding your next client. About AED 400k in signed business for the coaches I worked with this year.,21
-id-any-3,Any,any,aggregate,,30 signed clients this year across 8 coaching practices here. That's the whole job.,14
-id-any-4,Any,any,speed,,"On the last 4 coaches I worked with, the first meeting was booked inside 10 days.",16
-id-any-5,Any,any,widened,,"I find your next paying client, just like I did with a coach here who closed 6 of the 9 meetings I set up.",24
-id-any-6,Any,any,selection,,Deciding who is worth your time is most of my job. 30 of the ones I picked turned into signed clients this year.,23
-id-biz-1,Business,any,matched-revenue,,"I find your next paying client, just like I did with a business coach in Dubai who closed AED 120k from meetings I set up.",25
-id-biz-2,Business,corporates,matched-meetings,,"I helped a business coach here book 12 meetings in 60 days, every one with somebody who could sign off the spend. 5 signed.",24
-id-biz-3,Business,any,conversion,,"12 meetings for the last business coach I worked with in Dubai, and 5 of them turned into clients.",19
-id-career-1,Career,any,matched-revenue,,"I find your next paying client, just like I did with a career coach in Dubai who closed AED 77k from meetings I set up for them.",27
-id-career-2,Career,any,conversion,,"I helped a career coach in Dubai book 12 meetings, and 7 of them became paying clients.",17
-id-career-3,Career,any,matched-meetings,,12 meetings in 45 days for the last career coach I worked with here.,14
-id-corp-1,Any,corporates,decision-maker,,I get coaches in front of the people who actually hold the budget. 12 meetings in 60 days on the last run.,22
-id-corp-2,Any,corporates,decision-maker,,"I get coaches to the person who signs, not the person who nods. 12 meetings last run, 5 became clients.",20
-id-corp-3,Any,corporates,matched-revenue,,Your work lands in the room. The budget for it sits somewhere else. AED 120k signed from meetings I set up with the people holding it.,26
-id-exec-1,Executive,corporates,matched-meetings,,"6 meetings for an executive coach in Dubai, every one with somebody who held the budget. 2 signed.",18
-id-exec-2,Executive,any,retention,,"My job is finding your next client. 6 meetings for an executive coach here, and I'm still working with them.",20
-id-exec-3,Executive,individuals,matched-revenue,,The executives worth your time are already paying for help somewhere. AED 44k of that went to an executive coach I found the meetings for.,25
-id-fit-1,Fitness,any,retention,,7 meetings in a month for the last fitness coach in Dubai. Still working with them now.,17
-id-fit-2,Fitness,any,matched-revenue,,"I find your next paying client, just like I did with a fitness coach in Dubai who closed AED 36k in 6 weeks.",23
-id-health-1,Health,any,conversion,,"9 meetings in 6 weeks for a health coach in Dubai, and 6 of them turned into paying clients.",19
-id-health-2,Health,any,matched-revenue,,My job is finding your next client. A health coach in Dubai closed AED 78k over 2 months from prospects I put in front of them.,26
-id-health-3,Health,any,matched-meetings,,9 meetings in 6 weeks for the last health coach I worked with in Dubai.,15
-id-lead-1,Leadership,any,matched-meetings,,"I helped the last leadership coach in Dubai book 8 meetings in 30 days, all with prospects ready to say yes. 3 of them signed.",25
-id-lead-2,Leadership,any,matched-revenue,,My job is finding your next client. One of the leadership coaches in Dubai closed AED 36k from prospects I put in front of them.,25
-id-lead-3,Leadership,any,speed,,The last leadership coach in Dubai had their first meeting on the calendar inside a week. That's the job.,19
-id-lead-4,Leadership,corporates,decision-maker,,"8 meetings in 30 days for a leadership coach here, every one with somebody who could actually sign. 3 became clients.",21
-id-life-1,Life,any,matched-meetings,,"I helped the last life coach I worked with book 8 meetings in 5 weeks, and 3 of them signed.",20
-id-life-2,Life,any,speed,,The last life coach I worked with in Abu Dhabi landed their first client in week 1.,17
-id-life-3,Life,any,matched-revenue,,My job is finding your next client. A life coach in Abu Dhabi closed AED 18k inside a month from prospects I put in front of them.,27
-id-life-4,Life,any,conversion,,I find coaches their next clients. 8 meetings for a life coach in Abu Dhabi and 3 of them signed.,20
-id-mind-1,Mindset,any,speed,,The last mindset coach I worked with landed their first client in week 1. I'm still working with them.,19
-id-mind-2,Mindset,any,retention,,"I find coaches their next clients. 5 meetings for a mindset coach in Dubai, and I'm still working with them.",20
+id,coach_type,sells_to,shape,claim,weight,line,word_count
+id-any-1,Any,any,aggregate,"aggregate:total_meetings,total_clients,practices",,67 meetings and 30 signed clients across 8 practices here this year. That's what I do.,16
+id-any-2,Any,any,aggregate,aggregate:total_aed,,My job is finding your next client. About AED 400k in signed business for the coaches I worked with this year.,21
+id-any-3,Any,any,aggregate,"aggregate:total_clients,practices",,30 signed clients this year across 8 coaching practices here. That's the whole job.,14
+id-any-4,Any,any,speed,Business:first_meeting_days|widened,,The last few coaches I worked with had their first meeting booked inside 10 days.,15
+id-any-5,Any,any,widened,"Health:meetings,clients|widened",,"I find your next paying client, just like I did with a coach here who closed 6 of the 9 meetings I set up.",24
+id-any-6,Any,any,selection,aggregate:total_clients,,Deciding who is worth your time is most of my job. 30 of the ones I picked turned into signed clients this year.,23
+id-biz-1,Business,any,matched-revenue,"Business:aed_closed,city",,"I find your next paying client, just like I did with a business coach in Dubai who closed AED 120k from meetings I set up.",25
+id-biz-2,Business,corporates,matched-meetings,"Business:meetings,period,clients+budget-holder",,"I helped a business coach here book 12 meetings in 60 days, every one with somebody who could sign off the spend. 5 signed.",24
+id-biz-3,Business,any,conversion,"Business:meetings,clients,city",,"12 meetings for the last business coach I worked with in Dubai, and 5 of them turned into clients.",19
+id-career-1,Career,any,matched-revenue,"Career:aed_closed,city",,"I find your next paying client, just like I did with a career coach in Dubai who closed AED 77k from meetings I set up for them.",27
+id-career-2,Career,any,conversion,"Career:meetings,clients,city",,"I helped a career coach in Dubai book 12 meetings, and 7 of them became paying clients.",17
+id-career-3,Career,any,matched-meetings,"Career:meetings,period",,12 meetings in 45 days for the last career coach I worked with here.,14
+id-corp-1,Any,corporates,decision-maker,"Business:meetings,period|widened+budget-holder",,I get coaches in front of the people who actually hold the budget. 12 meetings in 60 days on the last run.,22
+id-corp-2,Any,corporates,decision-maker,"Business:meetings,clients|widened+budget-holder",,"I get coaches to the person who signs, not the person who nods. 12 meetings last run, 5 became clients.",20
+id-corp-3,Any,corporates,matched-revenue,Business:aed_closed|widened+budget-holder,,Your work lands in the room. The budget for it sits somewhere else. AED 120k signed from meetings I set up with the people holding it.,26
+id-exec-1,Executive,corporates,matched-meetings,"Executive:meetings,clients,city+budget-holder",,"6 meetings for an executive coach in Dubai, every one with somebody who held the budget. 2 signed.",18
+id-exec-2,Executive,any,retention,"Executive:meetings,still_working",,"My job is finding your next client. 6 meetings for an executive coach here, and I'm still working with them.",20
+id-exec-3,Executive,individuals,matched-revenue,Executive:aed_closed,,The executives worth your time are already paying for help somewhere. AED 44k of that went to an executive coach I found the meetings for.,25
+id-fit-1,Fitness,any,retention,"Fitness:meetings,period,city,still_working",,7 meetings in a month for the last fitness coach in Dubai. Still working with them now.,17
+id-fit-2,Fitness,any,matched-revenue,"Fitness:aed_closed,close_period,city",,"I find your next paying client, just like I did with a fitness coach in Dubai who closed AED 36k in 45 days.",23
+id-health-1,Health,any,conversion,"Health:meetings,period,clients,city",,"9 meetings in 6 weeks for a health coach in Dubai, and 6 of them turned into paying clients.",19
+id-health-2,Health,any,matched-revenue,"Health:aed_closed,close_period,city",,My job is finding your next client. A health coach in Dubai closed AED 78k over 2 months from prospects I put in front of them.,26
+id-health-3,Health,any,matched-meetings,"Health:meetings,period,city",,9 meetings in 6 weeks for the last health coach I worked with in Dubai.,15
+id-lead-1,Leadership,any,matched-meetings,"Leadership:meetings,period,clients,city",,"I helped the last leadership coach in Dubai book 8 meetings in 30 days, and 3 of them signed.",19
+id-lead-2,Leadership,any,matched-revenue,"Leadership:aed_closed,city",,My job is finding your next client. One of the leadership coaches in Dubai closed AED 36k from prospects I put in front of them.,25
+id-lead-3,Leadership,any,speed,"Leadership:first_meeting_days,city",,The last leadership coach in Dubai had their first meeting on the calendar inside a week. That's the job.,19
+id-lead-4,Leadership,corporates,matched-meetings,"Leadership:meetings,period,clients",,"8 meetings in 30 days for a leadership coach here, and 3 of them became clients.",16
+id-life-1,Life,any,matched-meetings,"Life:meetings,period,clients",,"I helped the last life coach I worked with book 8 meetings in 5 weeks, and 3 of them signed.",20
+id-life-2,Life,any,speed,"Life:first_client_days,city",,The last life coach I worked with in Abu Dhabi landed their first client in week 1.,17
+id-life-3,Life,any,matched-revenue,"Life:aed_closed,close_period,city",,My job is finding your next client. A life coach in Abu Dhabi closed AED 18k inside a month from prospects I put in front of them.,27
+id-life-4,Life,any,conversion,"Life:meetings,clients,city",,I find coaches their next clients. 8 meetings for a life coach in Abu Dhabi and 3 of them signed.,20
+id-mind-1,Mindset,any,speed,"Mindset:first_client_days,still_working",,The last mindset coach I worked with landed their first client in week 1. I'm still working with them.,19
+id-mind-2,Mindset,any,retention,"Mindset:meetings,city,still_working",,"I find coaches their next clients. 5 meetings for a mindset coach in Dubai, and I'm still working with them.",20
