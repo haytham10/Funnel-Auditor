@@ -23,6 +23,8 @@ import dataclasses
 from dataclasses import dataclass, field, asdict
 from datetime import date
 
+MAX_OBSERVATION_PROBLEMS = 6
+
 VERDICTS = ("yes", "no", "unclear")
 SELLS_TO = ("corporates", "individuals", "")
 COACH_TYPES = ("Business", "Leadership", "Life", "Mindset", "Career",
@@ -73,6 +75,13 @@ class Research:
 
     last_activity: str = ""         # ISO date
     notes: list[str] = field(default_factory=list)
+
+    # What was actually fetched, kept verbatim. Additive and unread by any
+    # stage today: the contract exists so evidence stops being discarded one
+    # boolean at a time, and so the duplicate fetch it makes unnecessary can be
+    # removed against a measurement rather than an argument. See
+    # `outbound/observe.py`.
+    observations: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -192,6 +201,21 @@ def validate(research: Research) -> list[str]:
         if address and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", address):
             problems.append(f"malformed address: {address}")
 
+    if research.observations:
+        from outbound import observe
+
+        # Capped. A slice returns ten leads' worth of observations, and one
+        # worker that got the enum wrong would otherwise bury the floor
+        # violations under forty identical lines — which is how a report that
+        # flags everything becomes a report nobody reads.
+        found = observe.validate_all(observe.load(research.observations))
+        problems.extend(found[:MAX_OBSERVATION_PROBLEMS])
+        if len(found) > MAX_OBSERVATION_PROBLEMS:
+            problems.append(
+                f"...and {len(found) - MAX_OBSERVATION_PROBLEMS} more "
+                f"observation problem(s) — run `python main.py observe` on "
+                f"them for the full list")
+
     return problems
 
 
@@ -210,11 +234,13 @@ def schema_help() -> str:
     for f in dataclass_fields(Research):
         kind = getattr(f.type, "__name__", str(f.type))
         rows.append(f"    {f.name:26} {kind}")
+    from outbound import observe
+
     return ("  the schema, one flat object per lead:\n" + "\n".join(rows) +
             "\n  verdict fields take exactly 'yes' | 'no' | 'unclear', and each "
             "carries its own\n  _source naming the page it came from. Fields you "
             "could not settle stay at\n  their defaults; do not invent values to "
-            "look complete.")
+            "look complete.\n\n" + observe.schema_help())
 
 
 def report(research: Research) -> str:

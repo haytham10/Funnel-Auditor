@@ -13,6 +13,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     wall-add    append a shipped batch to the wall, after it is uploaded
     qualify     the three floors, run over a research JSON
     research    validate one worker's returned research object
+    observe     validate the observations a worker says it actually fetched
     fetch       the free-first site read, plus one batched Apify plan
     anchors     which hand-written lines a lead draws, and what it may cite
     deal        the same, for a whole batch, with the weights held exactly
@@ -312,6 +313,43 @@ def cmd_research(args) -> None:
     if len(data) > 1:
         print(f"RESEARCH: {len(data) - failed}/{len(data)} valid")
     sys.exit(1 if failed else 0)
+
+
+def cmd_observe(args) -> None:
+    """Validate what a worker says it actually fetched.
+
+    The research contract answers floors and throws the evidence away — it keeps
+    a `_source` string per verdict, so the post that settled `active_recent`,
+    which is the exact material a hook is made of, is read once, reduced to a
+    boolean, and paid for again one stage later. An observation is that post,
+    kept.
+
+    Additive today: nothing reads observations yet, and the hook stage still
+    does its own fetching. What this gate buys now is that the records being
+    accumulated were schema-checked when they were written, rather than
+    discovered to be unusable by the stage that finally needs them.
+
+    Accepts ONE observation or an array, the same as `lint` — a worker handling
+    a slice returns many.
+    """
+    from outbound import observe
+
+    data = _load_json(args.input, "OBSERVE")
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        print(f"OBSERVE: FAIL — expected an object or an array of them, got "
+              f"{type(data).__name__}.")
+        sys.exit(2)
+    for entry in data:
+        if not isinstance(entry, dict):
+            print(f"OBSERVE: FAIL — array holds a {type(entry).__name__}, "
+                  f"expected one object per observation.")
+            sys.exit(2)
+
+    observations = observe.load(data)
+    print(observe.report(observations))
+    sys.exit(1 if observe.validate_all(observations) else 0)
 
 
 # -------------------------------------------------------------------- anchors
@@ -1380,6 +1418,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("research", help="validate a worker's research object")
     p.add_argument("input", help="JSON file, or '-' for stdin")
     p.set_defaults(func=cmd_research)
+
+    p = sub.add_parser("observe", help="validate what a worker actually fetched")
+    p.add_argument("input", help="JSON file (one observation or a list), or '-' for stdin")
+    p.set_defaults(func=cmd_observe)
 
     p = sub.add_parser("fetch", help="tier 0 site reads, plus one batched Apify plan")
     p.add_argument("leads", help="Leads JSON from `intake --out`")

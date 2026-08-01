@@ -74,6 +74,19 @@ Workers **write nothing**. They return typed research objects. Validate each:
 python main.py research work/research-<slice>.json
 ```
 
+That checks the observations each object carries too — one record per page or
+post the worker actually read, text verbatim. To see only those, or to hand a
+worker back a shorter list to fix:
+
+```
+python main.py observe work/research-<slice>.json
+```
+
+**Nothing consumes observations yet.** They do not change what gets drafted, and
+stage 3 still does its own fetching. They are the evidence this pipeline used to
+throw away — a post read once, reduced to a boolean, and paid for again one
+stage later.
+
 A schema violation goes back to the worker once. A worker that returns a
 status-only reply with no work product gets taken over directly, not resumed
 twice.

@@ -136,6 +136,10 @@ no source named is rejected** — that combination means the answer was reasoned
 rather than fetched. This is the stage with no verifier agent on purpose: a
 schema check is cheaper than an agent and strictly harder to talk around.
 
+The object may also carry the observations behind those verdicts, and they are
+validated here through the same call — capped, so one worker that got an enum
+wrong cannot bury the floor violation that actually drops a row. See `observe`.
+
 ### hook
 Two agents, not a command. `hook-worker` proposes with an exact quote, URL and
 date; `hook-verifier` re-fetches the citation in a context that never saw the
@@ -279,6 +283,31 @@ anything worth that risk.
 
 Every run is cost-gated and **exits 3** above the ceiling rather than spending.
 The ceiling itself lives in `audit/apify.py` and is not restated here.
+
+### `observe`
+**In** one observation or an array of them. **Out** the schema verdict.
+**Guarantees** a record claiming to be something fetched can be checked when it
+is written: platform, kind and author inside their enums, a piece of content
+carrying its text, a publication date that parses and has already happened, and
+a `retrieved_by` naming a rung this machine actually has. **Exit 1** on a
+violation, **exit 2** if the input is not an object or an array of them. Owned
+by `outbound/observe.py`.
+
+**Additive, and nothing consumes it yet.** A research object may carry
+observations alongside its verdicts; no stage reads them, the hook stage still
+does its own fetching, and the duplicate that makes unnecessary is left in place
+on purpose so `ledger report` can price it. What exists now is the contract and
+its gate.
+
+**The point is what research does not do.** Research keeps a `_source` string
+per verdict, so the post that settled `active_recent` — the exact material a
+hook is made of — is read once, reduced to a boolean, discarded, and paid for
+again one stage later.
+
+**`text` is verbatim, and no check can prove it.** That is why it is stated
+rather than assumed: a summarised observation reads fine, ranks fine, and yields
+a hook whose quote is not on the page — the one failure the independent verifier
+exists to catch, arriving through the one door it does not watch.
 
 ### `ledger`
 **In** a retrieval, or a batch label. **Out** one JSON line per fetch, and the

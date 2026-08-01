@@ -1,6 +1,13 @@
 # Proposal: retrieve once, then select
 
-_Written 2026-08-01. A proposal, not a decision. Nothing here is implemented._
+_Written 2026-08-01. A proposal, not a decision._
+
+_**P0 and P1 of Part 9 landed on 2026-08-01**, unchanged in shape: the retrieval
+ledger, and the `Observation` contract with its schema gate. Both are additive
+and neither changes how a hook is found — the duplicate `li_posts` fetch in F1
+is still made on purpose, so it can be removed against a measurement instead of
+an argument. P2 through P4 remain proposal. Everything below is left as written,
+so the reasoning the phases rest on is still readable in its original form._
 
 **The thesis in one line: the hook stage should not retrieve anything.**
 Evidence is fetched once per lead, into a typed record, and every stage after

@@ -84,6 +84,19 @@ only on Instagram. That is your work list for rung 4, not a fallback.
 **Both paid rungs are worth it when the free two are dry.** What is not worth
 it is reaching for LinkedIn before reading the About page you already have.
 
+**Name the lead on every call, and record the free ones.** Pass
+`--lead <email or slug> --stage hook` on each `apify` command, and after a free
+rung that you actually read:
+
+```
+python main.py ledger add --lead <key> --stage hook --platform web --url <what you read> --by websearch
+```
+
+Record it whether or not it produced a hook. **A rung walked for nothing is the
+finding, not the waste to hide** — three leads on the last batch walked the
+whole ladder and returned the correct answer, and nothing anywhere knows it
+happened or what it cost.
+
 ## Labelling
 
 - **WORK** — a framework, a launch, a client result they published.

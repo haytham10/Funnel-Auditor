@@ -24,6 +24,7 @@ spec doc names a row here rather than copying from it.
 | what shipped in a batch | Airtable *Batches* | the batch run | reporting |
 | the three floors, as evaluated | `outbound/qualify.py` | code | `qualify` |
 | the research contract | `outbound/research.py` | code | every worker |
+| the observation contract | `outbound/observe.py` | code | `observe`, and `research` for the ones a research object carries |
 | the Apify cost ceiling | `audit/apify.py` | code | every paid call |
 | the CRM base and table ids | `CLAUDE.md` | by hand, rarely | `audit/airtable.py` |
 | the CRM's select options | Airtable, in the field config | by hand, in the UI | `audit/airtable.py`, `outbound/research.py`, `outbound/copy_sync.py`, all three checked against it by `doc-check --live` |

@@ -1,3 +1,88 @@
+## 2026-08-01 (P0 + P1) — the machine can finally say what a fetch cost
+
+Built the first two phases of `docs/proposals/2026-08-01-hook-retrieval.md`. Both
+are additive, neither changes how a hook is found, and that is on purpose — the
+proposal's own Part 9 argues P3 cannot be judged without a baseline, and there
+was none.
+
+**The two numbers that already existed and were thrown away.**
+`_require_cost_approval` computed the only dollar figure in this repo, compared it
+against the $0.10 threshold, and returned `None`. So the estimate survived *only
+inside the exception raised when the gate refused* — every run cheap enough to be
+allowed went unpriced, which is every ordinary run. And `batch_fetch` computed an
+`elapsed_secs` for a whole batch, printed it in the report line, and dropped it;
+that was the only clock in 18,000 lines.
+
+Both now land in `data/runs/<batch>.jsonl`, one JSON line per fetch, written as
+the run proceeds so a batch that dies in stage 3 still leaves its accounting.
+`run_actor` is where the Apify half goes, being the one chokepoint all ten
+wrappers pass through and the only place a duration can be measured. Failed and
+empty runs are recorded too: a paid run that came back with nothing still paid
+for its container boot, and it is the most interesting line in a batch that
+produced no hooks.
+
+**Three defaults here are the opposite of the rest of this repo.**
+
+- `ledger.append` **never raises.** Everything else fails closed. An observer
+  that can halt the run it observes is worse than no observer.
+- `ledger report` **never exits 1**, not even on a duplicate fetch. Reporting one
+  is the job; blocking belongs to the stage that removes it. A gate that can halt
+  a real send file over an accounting line is a gate people learn to route around
+  — the same reason `doc-check` runs with the tests and not with a batch.
+- A **missing** ledger is exit 2. The wall's asymmetry one stage over: a missing
+  wall must never read as "nobody has been contacted", and a missing ledger must
+  never read as "this batch cost nothing".
+
+**F1 shows up on the very first report.** `research-worker` and `hook-worker`
+both run `li-posts` on the same profile, on the one actor that provably cannot be
+batched, and `purpose` is what makes that checkable — a second fetch of the same
+`(lead, url)` is a DUPLICATE unless it is a verification. The verifier's fetch is
+exempt rather than merely tolerated, because a verifier reading a cache would be
+certifying that we copied a string correctly rather than that the words are on
+the page.
+
+**The duplicate is left in place.** Removing it before there is a number showing
+what it costs removes the proof. That is what P3 is for.
+
+**P1 is the `Observation`.** Research keeps a `_source` *string* per verdict, so
+the post that settled `active_recent` — the exact material a hook is made of — is
+read once, reduced to a boolean, discarded, and paid for again a stage later. An
+observation is that post, kept, verbatim. `python main.py observe` gates it, and
+a `Research` object now carries them through the same call.
+
+The check that turned out to matter most is `retrieved_by`: it is validated
+against the live `ACTORS` map, so an observation cannot claim a rung this machine
+does not have. A record of a fetch that did not happen reads exactly like a real
+one to everything downstream.
+
+**Nothing consumes observations yet**, and `hook-worker` is untouched. What
+exists is the contract and its gate, so the records being accumulated were
+schema-checked when they were written rather than found unusable by the stage
+that finally needs them.
+
+**Two existing tests changed rather than being worked around.** Both pinned that
+`approved=True` short-circuits before estimating — which is precisely the
+property that left the signed-off, expensive runs unpriced. They now pin that it
+still passes and still prices.
+
+**`data/runs/` is committed**, unlike `out/` and `work/`. Those hold one batch's
+artifacts; this is the record of what a run cost, and its whole value is
+comparing one batch against the last. `OUTBOUND_LEDGER_ROOT` redirects it, which
+is what the suite uses, so a test of the plumbing never lands inside the record
+of what a real batch cost.
+
+**And `doc-check` learned about `docs/proposals/`.** The proposal itself had to
+drop the backticks off every command it named to get past the gate, and said so
+in its own preamble. The directory now joins the journal and `docs/claude-docs`
+in `EXCLUDED`, with its reason reported on `skipped`. The cost, stated rather
+than discovered: a proposal citing a module is no longer told when that module
+moves.
+
+**What to do on the next real batch:** run `python main.py ledger report --leads
+<n>` at the end, paste the first line into the journal, and commit the jsonl next
+to the wall. That is the first honest per-batch cost figure this machine has ever
+produced, and the number P3 gets judged against.
+
 ## 2026-08-01 (hook retrieval) — a proposal, and the number that reframes it
 
 Haytham: the hook stage is the bottleneck — expensive, slow, and it searches

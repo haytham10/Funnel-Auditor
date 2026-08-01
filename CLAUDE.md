@@ -100,6 +100,13 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 - `python main.py research <obj.json>` — schema. Catches a verdict outside the
   enum, and a hard yes/no with no source, which means it was reasoned rather
   than fetched.
+- `python main.py observe <obs.json>` — the same treatment for what a worker
+  says it actually fetched: enums, a piece of content that carries its text, a
+  publication date that parses and has already happened, and a `retrieved_by`
+  naming a rung this machine has. **Additive — nothing consumes observations
+  yet**, and the hook stage still does its own fetching. The contract exists so
+  that evidence stops being discarded one boolean at a time, and so the
+  duplicate fetch it makes unnecessary can be removed against a measurement.
 - `python main.py lint <drafts.json>` — traceability, claim preservation, the
   bridge, voice, and batch repetition.
 - `python main.py export --anchors <deal.json>` — the drafts really used the
@@ -186,7 +193,8 @@ Pointers, not manuals. Every module carries a full docstring.
 **`outbound/`** — `normalize` (raw row to Lead, junk classification),
 `dedupe` (the two passes and the Contacted-Before wall), `fetch` (the free-first
 ladder and the batched Apify plan), `qualify` (the three floors, evidence-
-carrying), `research` (the typed contract every worker returns), `anchors` (the
+carrying), `research` (the typed contract every worker returns), `observe` (one
+thing that was actually fetched, kept verbatim), `anchors` (the
 deterministic line draw and the fact table), `lint` (the checks), `export`
 (leads.csv and preview.txt), `ledger` (what every retrieval cost and how long it
 took — the only module here that fails **open**, because an observer that can
