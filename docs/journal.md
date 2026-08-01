@@ -1,3 +1,106 @@
+## 2026-08-01 (Part 8) — the batch stops being unjudgeable
+
+Haytham: get everything unblocked, wire it up. Three decisions taken first —
+metrics live in the repo not the CRM, Python computes the Batches row but does
+not write it, and the Smartlead bridge gets built tolerant rather than waiting
+on a real export.
+
+**The gap this closes is not the flip.** That is still gated on a batch. What
+was missing is everything needed to *judge* that batch when it runs: Part 8
+names seven per-batch numbers and this repo computed zero of them. `ledger
+report` covers what Python can see, because those retrievals pass through code.
+Everything on the hook side happens inside an agent, got narrated into a brief
+from memory, and died with the session. That is why every cost claim in the
+proposal had to be reconstructed from a hand-written journal entry.
+
+`python main.py metrics` now computes `hook_yield`, `refute_rate`,
+`null_hook_rate`, `yield_by_rung`, `wasted_retrieval` and
+`cost_per_verified_hook`, and writes `data/runs/<batch>-metrics.json`.
+
+**The rule that shaped every field: a count nobody supplied prints `?`, never
+`0`.** This is the dedupe wall's asymmetry and the ledger's, a third time. A
+missing wall must never read as "nobody has been contacted"; a missing ledger
+must never read as "this batch cost nothing"; an unsupplied raw count must never
+read as "no leads came in". **A zero is a measurement.** A metrics block that
+quietly zero-fills is worse than no block, because it looks like evidence and
+gets quoted into a brief as though somebody counted.
+
+The cost field needed its own flag to hold that line. A zero cost from an
+unopened ledger and a zero cost from a genuinely free batch are the same number
+and opposite facts, and only one of them belongs in a CRM currency field where
+it will be believed for months. `ledger_read` separates them; without it the
+first cut printed a confident zero into the Batches block and I nearly shipped
+it.
+
+**`yield_by_rung` derives the rung from the hook's source URL rather than
+trusting a worker to report it.** A worker naming its own rung is a worker that
+can mislabel the number judging its rung — the same reasoning that makes
+`select` derive the `obs_id` join instead of trusting a citation. `plan.LADDER`
+and `normalize.classify_site` stay the authorities; nothing is restated (D23).
+
+**`wasted_retrieval` excludes free rungs and verification fetches**, and that is
+not tidiness. Its only use is deciding whether a *purchase* was worth making, so
+counting tier 0 would inflate it with things that cost nothing, and counting a
+verify fetch would count the one duplicate this machine actually wants.
+
+**The Batches row is computed here and written by a human-visible step.**
+`audit/airtable.py` says writes stay narrow and a row lands where somebody sees
+it, and a metrics command is not the place to widen that. The thing that was
+actually wrong was never that a model did the typing — it was that a model did
+the *arithmetic*, from memory, at the end of a long run. Every value in the
+block is measured or `?`, so transcription is all that is left to get wrong.
+
+**`python main.py replies` is Part 8's manual Smartlead bridge**, and the first
+thing in this repo that touches reply data at all. Export a CSV, join on
+`email`, get reply rate by `hook_type` and by rung. `Hook Type` has been a CRM
+select since the beginning, described in the base as *"a testable variable
+against reply rate rather than a detail buried in prose"*. The variable existed.
+Nothing could run the test. Now something can.
+
+Columns are sniffed because nothing here has ever seen a real Smartlead export,
+and a hard-coded name would fail on first contact and fail *silently* if it
+happened to match something else. A column it cannot identify **exits 2 naming
+the headers it saw** rather than reporting a zero reply rate — a zero would read
+as "the campaign did nothing" when the truth is "the question could not be
+asked". Same shape as everything else here.
+
+**`--all-replied` is never inferred, and that is the sharpest edge in the
+module.** Smartlead can export a file already filtered to people who replied,
+with no status column at all. That is *indistinguishable* from a full export
+whose reply column went unrecognised, and the two differ by the whole answer —
+6% against 100%. So it is a flag, and without it the second case is an error.
+
+**A test caught the one real bug.** The first cut read any value in the reply
+column as a reply, reasoning that the column had already been identified. That
+is right for a timestamp column and wrong for a status column, where the
+ordinary contents are `SENT`, `OPENED` and `BOUNCED` — so `SENT` counted, and
+the rate was inflated for whichever hook type happened to sit behind it. My own
+manual run reported 3 of 4 and I read past it; the test asserting 2 of 4 is what
+noticed. The column's **kind** decides now. An unrecognised status counts as
+not-a-reply and is named, because under-counting understates a campaign while
+over-counting makes a hook type look good and drives a real decision on a word
+nobody checked. Ordinary statuses pass silently, so the note only fires on
+something genuinely new — a note that cries wolf every run is a note nobody
+reads by the third one.
+
+**Neither command can fail a batch.** Both are observers, and the ledger's rule
+applies: reporting a bad number is the job, and a gate that can halt a real send
+file over an accounting line is a gate people learn to route around.
+
+**Neither draws a conclusion either.** `replies` prints `NOT A VERDICT` and says
+why: one batch is a handful of samples per bucket, and the difference between
+1 of 1 and 0 of 1 is noise wearing a percentage. It is worth running because it
+accumulates.
+
+**What is left is now exactly the flip, and nothing else.** `hook-worker` stops
+fetching, `plan` starts declining, `select` gets consumed, and F4's
+`HookProposal` arrives with the authored clause. The trigger is unchanged — one
+batch reaching stage 3b, producing `ledger report`'s `DUPLICATE li_posts` count
+and `select --against`'s `AGAINST:` line, with `missed` and `unobserved` read
+apart. What changed is that everything needed to judge that batch now exists.
+
+857 tests (+39), `doc-check` clean at 28 commands.
+
 ## 2026-08-01 (P4 and the rest) — everything the measurement does not gate
 
 Haytham: read the proposal and the journal, then plan the remaining parts. The
