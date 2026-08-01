@@ -613,15 +613,30 @@ def report(identities: list[Identity]) -> str:
     head = "VALID" if not problems else f"INVALID ({len(problems)})"
     channels = [c for i in identities for c in i.channels]
     confirmed = sum(1 for i in identities if i.has_confirmed_channel)
-    absent = sum(1 for c in channels if c.confidence == "absent")
     nothing = [i for i in identities if not i.channels]
+
+    # The number that discriminates, and the reason it is the headline. On the
+    # first list this ran against, 20 of 20 leads had a confirmed channel — not
+    # because the check is generous but because every row arrived from an
+    # enrichment vendor carrying a LinkedIn URL whose slug IS the person's name.
+    # That statistic measures the vendor. What a lead's own site links is the
+    # part nobody chose in advance, and 9 of the 21 channels harvested there
+    # belonged to somebody else: a vendor's YouTube, a charity's Twitter, a
+    # brand account. Those are the paid scrapes `plan` will decline.
+    discovered = [c for c in channels if c.source in ("site", "linkinbio")]
+    found_absent = sum(1 for c in discovered if c.confidence == "absent")
+    found_confirmed = sum(1 for c in discovered if c.confidence == "confirmed")
+    share = f"{found_absent / len(discovered):.0%}" if discovered else "n/a"
 
     lines = [
         f"RESOLVE: {head}, {len(identities)} identity(s), "
         f"{len(channels)} channel(s)",
+        f"  {found_absent}/{len(discovered)} channel(s) linked from their own "
+        f"pages name somebody else ({share}) — {found_confirmed} confirmed, "
+        f"the rest carry no name to check",
         f"  {confirmed}/{len(identities)} lead(s) have at least one confirmed "
-        f"channel, {absent} channel(s) name somebody else, "
-        f"{len(nothing)} lead(s) have no channel at all",
+        f"channel, {len(nothing)} have no channel at all. **A row that arrives "
+        f"with a LinkedIn URL confirms itself**, so read the line above first",
     ]
     for identity in nothing:
         lines.append(f"  NO CHANNEL  {identity.name or '(no name)'} — "
