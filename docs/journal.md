@@ -1,3 +1,74 @@
+## 2026-08-01 (P2, run against real leads) — the headline number was measuring the vendor
+
+Ran `resolve` on 20 real UAE coaches, free, stopping before research. No spend,
+nothing sent, nothing escalated. It works, and the run changed one thing.
+
+```
+TIER 0:  10/20 sites read free in 35s
+OWNER-CHECK: 4/20 sites never mention the lead
+RESOLVE: VALID, 20 identity(s), 49 channel(s)
+LEDGER:  no duplicate fetch: every (lead, url) retrieved once
+```
+
+**D22 holds on real data rather than by assertion.** `resolve` added zero
+retrievals to this batch — the list carried no link-in-bio pages — and the
+ledger says so itself rather than it being a claim in a docstring.
+
+**The finding: `20/20 lead(s) have at least one confirmed channel` was true and
+said nothing.** Every row arrived from an enrichment vendor carrying a LinkedIn
+URL whose slug IS the person's name, so rule 2 fired on all twenty. That
+statistic measures the vendor, not the lead, and it will read 20/20 on every
+Apollo-shaped list this machine is ever given. As the headline it would have
+been quoted into a batch brief as evidence of something.
+
+The number that discriminates is what a lead's **own pages** link, because that
+is the part nobody chose in advance:
+
+```
+channels linked from their own site:  12 confirmed · 9 absent · 8 unknown
+9 of 29 belong to somebody else (31%), or 9 of 21 among the ones we can judge
+```
+
+`report()` now leads with that and keeps the confirmed-lead count one line down,
+labelled with why it flatters. The lesson generalises past this stage: a metric
+computed over data somebody else assembled is measuring their pipeline.
+
+**What the absent verdicts actually caught**, and this is the F7 case exactly:
+
+- **Rory Buck.** Company website `harrisonassessments.eu` — an assessment
+  vendor, not his. Email `rory@icanswimfast.com`, a third domain. Every social
+  the site links is Harrison's corporate account, so his YouTube, Facebook and
+  Twitter all came back `absent` and `/company/harrison-assessments-international`
+  came back `unknown`. Under P3 that is three scrapes not bought.
+- **Lucy Russell.** Same shape against Cancer Support UK, a charity she
+  facilitates for. Instagram, Facebook and Twitter all the charity's.
+- **All six `/company/` pages** were genuinely different entities from the
+  person — mumkincoaching, changeosity, seed-special-education-center,
+  harrison-assessments, iicm, cancer-support-uk. Rule 0 earned its place.
+
+The two ownership signals agree without being wired to each other: 3 of the 4
+leads `OWNER-CHECK` flagged also produced `absent` channels.
+
+**Tier 0 read 10 of 20 (50%)**, against 59% on the first batch. 18 of 58
+retrievals errored. Two lists is not a trend, but this is the first time the
+number has been recorded by the machine rather than by hand.
+
+**Still missing, and it is what P3 is gated on.** This run stopped before
+research, so `data/runs/` has *still* never recorded a `li_posts` fetch. The
+duplicate P3 exists to remove has never been measured, `hook_yield` and
+`null_hook_rate` have no number, and D21's reversal condition is untested —
+nobody knows whether the leads with no confirmed channel are the same leads that
+produce no hook. If they are, declining to spend on them is free. If they are
+not, `plan` should not gate on ownership at all, and that is much better learned
+before it is built.
+
+**What to do next:** build `plan` and `select` additive and switched off, the
+way P0, P1 and P2 all arrived — `hook-worker` keeps fetching, `select` runs
+alongside and its choice is recorded rather than used. Then one real batch
+produces both numbers at once: the current `DUPLICATE li_posts` line, and
+whether `select` would have picked the same hook without fetching. Flipping it
+after that is a one-line change against evidence instead of an argument.
+
 ## 2026-08-01 (P2) — the machine says who a row is actually about
 
 Built P2 of `docs/proposals/2026-08-01-hook-retrieval.md`: `resolve`, plus the

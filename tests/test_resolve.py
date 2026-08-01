@@ -130,6 +130,30 @@ def test_the_report_says_it_drops_nobody():
     assert "Advisory" in text and "never a reason to skip" in text
 
 
+def test_the_report_leads_with_what_their_own_pages_link():
+    """On the first real list, 20 of 20 leads had a confirmed channel — because
+    every row arrived from an enrichment vendor carrying a LinkedIn URL whose
+    slug is the person's name. That number measures the vendor. What their own
+    site links is the part nobody chose in advance, so it goes first."""
+    lead = lead_of(email="sarah@coachsite.ae", website="https://coachsite.ae",
+                   linkedin="https://linkedin.com/in/sarah-khan")
+    read = site_read({"instagram": "https://instagram.com/harrisonassessments",
+                      "facebook": "https://facebook.com/sarahkhancoach"})
+    identities = [resolve.resolve_lead(lead, read)]
+    first, second = resolve.report(identities).splitlines()[1:3]
+
+    assert first.strip().startswith("1/2 channel(s) linked from their own pages")
+    assert "(50%)" in first and "1 confirmed" in first
+    # The vendor-measuring number survives, one line down and labelled.
+    assert "1/1 lead(s) have at least one confirmed" in second
+    assert "confirms itself" in second
+
+
+def test_a_lead_whose_pages_link_nothing_does_not_divide_by_zero():
+    lead = lead_of(linkedin="https://linkedin.com/in/sarah-khan")
+    assert "n/a" in resolve.report(resolve.resolve_all([lead])["identities"])
+
+
 # --------------------------------------------------------------- the join key
 
 
