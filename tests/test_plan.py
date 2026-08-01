@@ -21,6 +21,7 @@ same one `tests/test_resolve.py` pins one stage earlier.
 import os
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -87,12 +88,21 @@ def test_the_ladder_is_in_cost_order():
     assert max(free) < min(paid)
 
 
-def test_the_about_rung_offers_only_a_framework():
-    """F5. The verifier refutes anything sendable to another coach in the
-    segment, and generic About prose is exactly that — so the cheapest rung was
-    producing the observations most likely to be refuted."""
+def test_the_about_rung_offers_the_page_as_well_as_a_framework():
+    """F5's narrowing, reversed on batch evidence. `2026-08-01-q1` MISSED three
+    leads and all three were `kind: about` observations an independent verifier
+    had VERIFIED. What the verifier refuses is the generic, not the location.
+
+    Pinned against `select` rather than restated, so the two cannot drift: the
+    rung offers what the ranker will accept."""
+    from outbound import select
+
     about = next(r for r in plan.LADDER if r.name == "about")
-    assert about.kinds == ("framework",)
+    assert about.kinds == ("framework", "about")
+    assert all(select.ban_for(observe.Observation(
+        lead_key="a@x.ae", platform="site", kind=kind, author="self",
+        text=" ".join(["word"] * 40)), today=date(2026, 8, 1)) == ""
+        for kind in about.kinds)
 
 
 def test_no_rung_claims_to_be_batchable_without_evidence():

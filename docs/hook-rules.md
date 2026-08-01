@@ -41,7 +41,12 @@ The first eight make a hook read as spam. The last four make the rest of the
 email fail even when the hook is technically true.
 
 1. **No generic site copy.** "I saw you help women find their purpose" is the
-   hero section of a thousand coach sites.
+   hero section of a thousand coach sites. **This is a ban on the writing, not
+   on the page it sits on.** `outbound/select.py` spent one batch enforcing it
+   as "nothing from an About page", and every lead it cost had a hook a verifier
+   went on to confirm. The mechanical half is now the same text appearing for
+   two different leads, which is this ban's own test — could it be sent unedited
+   to another coach — settled on evidence.
 2. **No compliment with no object.** "Love your content" names nothing.
 3. **No invented specifics.** If it cannot be cited, it does not exist.
 4. **No inferred emotion.** You do not know they were nervous, proud or

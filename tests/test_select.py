@@ -84,20 +84,72 @@ def test_self_outranks_unknown():
     assert select.sort_key(theirs, today=TODAY) < select.sort_key(maybe, today=TODAY)
 
 
-def test_an_about_page_is_never_offered():
-    """Ban #1 and F5. The hero section of a thousand coach sites is exactly what
-    the verifier refutes as sendable to any coach in the segment, so the
-    cheapest rung was producing the most-refuted material."""
-    assert select.ban_for(obs(platform="site", kind="about"), today=TODAY) \
-        == "site_prose"
+def test_an_about_page_is_offered_and_ranked_last():
+    """F5's narrowing, reversed on batch evidence. All three MISSED leads in
+    `2026-08-01-q1` were `kind: about` observations an independent verifier had
+    VERIFIED, and one ban accounted for 21 of the corpus's 32 rejections.
+
+    What the verifier refuses is the generic, not the location. So an About page
+    is offered — and `KIND_RANK` keeps it behind anything else the lead has,
+    which is the job the ban was doing badly."""
+    about = obs(platform="site", kind="about", published_at="")
+    assert select.ban_for(about, today=TODAY) == ""
+    assert select.sort_key(about, today=TODAY) > select.sort_key(obs(), today=TODAY)
 
 
-def test_only_a_framework_survives_from_a_site():
+def test_an_about_page_carries_the_evergreen_date_exemption():
+    """Removing the location ban alone changes nothing: a page somebody wrote
+    about themselves has no publication date, so those same three leads would
+    have moved from `site_prose` to `no_date`. `docs/hook-rules.md` grants both
+    halves and the code carried only one."""
+    assert "about" in select.EVERGREEN_KINDS
+    assert select.ban_for(obs(platform="site", kind="about", published_at=""),
+                          today=TODAY) == ""
+    assert select.ban_for(obs(platform="site", kind="about",
+                              published_at="2019-03-01"), today=TODAY) == ""
+
+
+def test_a_post_on_their_own_site_is_content():
+    """The other half of the location ban: a blog post somebody published on
+    their own domain was excluded for being on a site, which is a statement
+    about the host and not about the writing."""
     text = "The Four Doors model is how I sequence a founder's first ninety days."
     assert select.ban_for(obs(platform="site", kind="framework", text=text,
                               published_at=""), today=TODAY) == ""
-    assert select.ban_for(obs(platform="site", kind="post"), today=TODAY) \
-        == "site_prose"
+    assert select.ban_for(obs(platform="site", kind="post"), today=TODAY) == ""
+
+
+def test_the_same_text_on_two_leads_pages_is_generic_by_evidence():
+    """Ban #1's mechanical half, and the only proxy for "generic" that is not a
+    guess: the verifier's own test is whether it could be sent unedited to
+    another coach in the segment, and two leads carrying it is that, proven."""
+    shared = "Book a free discovery call and let us start your journey today."
+    mine = obs(lead_key="a@x.ae", platform="site", kind="about", text=shared)
+    theirs = obs(lead_key="b@y.ae", platform="site", kind="about", text=shared)
+    boilerplate = select.boilerplate_of([(o.lead_key, o.text)
+                                         for o in (mine, theirs)])
+    assert select.ban_for(mine, today=TODAY, boilerplate=boilerplate) \
+        == "boilerplate"
+    # And judged alone, with no corpus to compare against, it is not generic —
+    # the test needs evidence and says so rather than guessing from one record.
+    assert select.ban_for(mine, today=TODAY) == ""
+
+
+def test_one_leads_page_fetched_twice_is_not_boilerplate():
+    """A duplicate fetch is the ledger's business. Convicting a lead's only
+    observation of being generic because we retrieved it twice would turn an
+    accounting problem into a lost lead."""
+    text = "I closed the studio's books myself before I ever coached the owner."
+    twice = [("a@x.ae", text), ("a@x.ae", text)]
+    assert select.boilerplate_of(twice) == frozenset()
+
+
+def test_two_anonymous_observations_do_not_convict_each_other():
+    """A blank lead key stands only for itself. Grouping every keyless
+    observation under "" would make one lead's page generic on the strength of
+    another record nobody could attribute."""
+    text = "I closed the studio's books myself before I ever coached the owner."
+    assert select.boilerplate_of([("", text), ("", text)]) == frozenset()
 
 
 def test_a_link_in_bio_button_wall_is_never_offered():

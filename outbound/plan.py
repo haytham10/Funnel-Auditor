@@ -105,19 +105,21 @@ class Rung:
 
 # The ladder, in actual cost order, and this list is the authority on it.
 #
-# `about` yields only `framework`. That is F5, and it is a narrowing rather than
-# a reorder: the verifier REFUTES anything that "could be sent unedited to
-# another coach in the same segment", and generic About prose is exactly that.
-# So the cheapest rung was producing the observations most likely to be refuted,
-# and an agent walking the ladder honestly paid for the round trip and then went
-# to the paid rungs anyway. A named framework or a founding story they wrote
-# survives that test; the hero section does not, so it is not offered at all.
+# `about` yielded only `framework` until 2026-08-01. That was F5's narrowing,
+# and batch `2026-08-01-q1` refuted it: all three of the ranker's MISSED leads
+# were `kind: about` observations an independent verifier had VERIFIED, and the
+# ban excluding them accounted for 21 of the corpus's 32 rejections. What the
+# verifier refuses is the GENERIC, not the location — and a solo coach's own
+# About page is where the most specific thing they will ever publish lives.
+# `outbound/select.py` ranks `about` last and bans repeated text instead, which
+# is the same test settled on evidence rather than on where a page was found.
 #
 # Neither paid rung is batchable, and the two facts are not equally strong.
 LADDER = (
-    Rung("about", ("site",), kinds=("framework",),
-         note="already read free at tier 0 — nothing to buy, and only a named "
-              "framework or a story they wrote survives the specificity test"),
+    Rung("about", ("site",), kinds=("framework", "about"),
+         note="already read free at tier 0 — nothing to buy. Ranked last, never "
+              "declined: the hero section is generic, the founding story is not, "
+              "and only reading them tells you which this one is"),
     Rung("podcast", ("podcast", "youtube"), kinds=("episode", "video"),
          note="free: web search for their name plus 'podcast', then fetch the "
               "episode page. The rung that reaches the coaches who do not post"),
