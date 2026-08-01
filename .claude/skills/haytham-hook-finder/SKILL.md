@@ -1,6 +1,12 @@
 ---
 name: haytham-hook-finder
-description: Pull real public evidence for an Audit Ready UAE lead — LinkedIn posts, podcast appearances, YouTube, their own About page — and find the SMYKM hook, the one line only this person would recognize (their own framework, a real recent post or episode, a personal update), then write just that line to their Notion page in the UAE Lead CRM. Use this skill WHENEVER Haytham says "find the hook," "SMYKM this," "hook Jane," "add a hook," asks for a stronger opener on a lead that's already Audit Ready, or process-lead/batch-audit reports a lead "held — needs haytham-hook-finder." This is a separate, manually-triggered step from haytham-opener-finder — the walk assigns the lane, finding, and innocent explanation; this skill's only job is the hook, and it must come from real, cited public evidence, never fabricated and never from generic site marketing copy. It is a required gate, not an optional upgrade: no lead gets a Gmail draft until this skill resolves the hook line. As of 2026-07-19 it is draft-first: after resolving (and independently verifying) each hook, it carries the lead through to a HELD Gmail draft for review, so Haytham reviews finished drafts, not bare hooks. It never touches the lane, the finding, or the innocent explanation, and it never sends — the system ends at Gmail drafts.
+description: >-
+  Find a real, cited SMYKM hook for an Audit Ready UAE lead. Use when Haytham
+  asks to find, add, strengthen, or batch-process a hook. Pull public evidence
+  from LinkedIn, X, Instagram, podcasts, YouTube, or the lead's About page.
+  Update the Notion hook, independently verify it, and prepare a held Gmail
+  draft. Never fabricate evidence, use generic marketing copy, alter other
+  audit fields, or send email.
 ---
 
 # Haytham Hook Finder — real public evidence → SMYKM hook → one line in Notion
@@ -35,7 +41,10 @@ strength:
    the origin story, the framework name. Weakest of the site sources (it's
    still site copy), but her About-page STORY is hers in a way a headline
    isn't.
-5. **Instagram (read-only, no-login pull only)** — a specific recent post,
+5. **X (read-only, no-login pull only):** a specific recent public post,
+   thread, reply, or launch update. Use the explicit Xquik Actor route only
+   when the lead has a relevant X profile or cited X URL.
+6. **Instagram (read-only, no-login pull only):** a specific recent post,
    a caption, a Reel topic, a personal update she posted publicly. Pull it
    through a no-login third-party actor (username or URL in, public data
    out); never log in, never browse as Haytham, never use his account. Same
@@ -170,6 +179,18 @@ by hand in a single-lead session).
      `python main.py apify ig "<IG URL>" --newer-than "60 days"` for recent
      posts with captions (`--mode details` for follower/bio metadata;
      `python main.py apify ig-post "<post URL>"` to dig into one post).
+   - **X, read-only, via an explicit Xquik Actor route:** use
+     [`xquik/x-tweet-scraper`](https://apify.com/xquik/x-tweet-scraper)
+     when a lead's X profile or cited X post is relevant. Pull a small
+     timeline with `python main.py apify x-tweets "<handle>" --mode
+     profileTweets --max 10 --max-charge 0.10`. Use `tweet`, `thread`,
+     `replies`, or `quotes` mode for a specific post URL. Keep all existing
+     X integrations available.
+   - [`xquik/x-follower-scraper`](https://apify.com/xquik/x-follower-scraper)
+     enumerates public profile relations, list members, community members,
+     and overlap. It does not prove a profile's total follower count. Do not
+     use it for the audience floor. Use it only for an explicitly requested,
+     approved, bounded relation or overlap analysis.
    - **Podcasts / YouTube / About page — Firecrawl:** `firecrawl_search` on
      her name + "podcast" / "interview" / her program name, then
      `firecrawl_scrape` the episode, speaker, YouTube, and About pages that
@@ -316,3 +337,5 @@ resolved line and hands off the hook only.)
 - It does not send email, ever. It creates held Gmail DRAFTS (the draft-first
   step, after each hook is independently verified and the send gate passes) and
   stops there — sending is Haytham's hand, from Gmail.
+
+Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
