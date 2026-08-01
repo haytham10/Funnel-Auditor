@@ -76,6 +76,50 @@ send-ready leads once died because a defect lived in a hand-written line, the
 drafter could not touch it, and the single rewrite pass went on a problem it
 could not fix. That is no longer the situation you are in.
 
+**But you are re-voicing a sentence somebody wrote by hand, and the usual
+failure is making it worse.** On the 2026-08-01 batch, eleven of twelve drafts
+were sent back on a cold read and every one of them failed on this beat. Four of
+the five beats were dealt lines shipped verbatim and every reader cleared them.
+This is the only beat written per lead and it was the only one that broke.
+
+It always broke the same way — a line that sounds spoken re-voiced into
+something a database would say:
+
+```
+reference   Deciding who is worth your time is most of my job. 30 of the ones
+            I picked turned into signed clients this year.
+drafted     Mine is on people, deciding who is worth your time. 30 of them
+            became clients this year.
+```
+
+The claim survived intact, so the linter passed it. What went out was "is most
+of my job" — the only place a stranger learns what Haytham actually does — and
+"the ones I picked", which is what makes the 30 proof of a judgement rather than
+a floating statistic.
+
+Four shapes to keep out, each of which a cold reader named unprompted:
+
+- **A colon standing in for a verb.** "Your job is coaching. Mine: 9 meetings in
+  6 weeks." Zero of the 33 lines in `copy/identity.csv` use a colon. A reader
+  called this "a fact sheet with a possessive bolted to the front".
+- **Numbers stacked as a list.** Three figures in one sentence behind a colon is
+  a spec sheet. One figure carries the point; the rest sit behind it as
+  backdrop. `check_identity_claim` requires every licensed figure to appear — it
+  says nothing about how many sentences you use, and that is where the fix lives.
+- **A noun-stack where the reference had a person.** "a Dubai business coach" for
+  "the last business coach I worked with in Dubai". "5 signed" for "5 of them
+  turned into clients". Both are database labels, not speech.
+- **Telling them what they already know.** "You sell into companies" to somebody
+  whose hook just showed her coaching a CEO. "Your job is coaching" to a PhD
+  candidate, one line after quoting her illness. The bridge must add something,
+  not assert what the hook proved.
+
+**The test, before you return:** read your identity sentence and the reference
+line aloud, one after the other. If yours is the one that sounds written, you
+have not re-voiced it — you have downgraded it, and the linter cannot see the
+difference. Go back to the reference's verb and its first person, and change
+only what this lead's seam actually needs.
+
 **Stay inside the length range.** The hook budget was measured against the
 reference line, so a much longer identity sentence takes the room out of the
 hook and the email gets refused for length.
