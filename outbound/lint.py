@@ -591,30 +591,50 @@ def check_bridge(identity: str) -> list[str]:
     return []
 
 
-def check_voice(body: str) -> tuple[list[str], list[str]]:
-    failures, warnings = [], []
+def check_voice_fragment(text: str) -> list[str]:
+    """The voice rules that are about the WORDS, applicable to one beat.
 
-    if EM_DASH in body:
+    Split out of `check_voice` so the hook stage can run them on a proposal
+    before an independent verifier certifies its exact wording. Six of twelve
+    drafts on `2026-08-01-q1` had to alter text a verifier had confirmed word
+    for word — an em-dash, spaced hyphens, "touchpoints" — because every one of
+    these rules ran three stages after the point where honouring them was free.
+
+    A fragment has no sign-off, no paragraph count and no word budget of its
+    own, so those stay in `check_voice`. Nothing is duplicated: that function
+    calls this one.
+    """
+    failures = []
+
+    if EM_DASH in text:
         failures.append("em-dash present")
 
-    links = bare_links(body)
+    links = bare_links(text)
     if links:
         failures.append(f"bare link or address: {', '.join(links[:3])}")
 
-    lowered = body.lower()
-    for found in sorted({m.group(0).lower() for m in _JARGON_RE.finditer(body)}):
+    lowered = text.lower()
+    for found in sorted({m.group(0).lower() for m in _JARGON_RE.finditer(text)}):
         failures.append(f'operator jargon: "{found}"')
     for closer in WEAK_CLOSERS:
         if closer in lowered:
             failures.append(f'weak closer: "{closer}"')
 
-    if not re.search(rf"^\s*{SIGN_OFF}\s*$", body, re.M):
-        failures.append(f'no "{SIGN_OFF}" sign-off on its own line')
-
-    for match in _UNSEPARATED.finditer(body):
+    for match in _UNSEPARATED.finditer(text):
         failures.append(
             f'unformatted number "{match.group(0)}" reads as a merge field'
         )
+
+    return failures
+
+
+def check_voice(body: str) -> tuple[list[str], list[str]]:
+    failures, warnings = [], []
+
+    failures.extend(check_voice_fragment(body))
+
+    if not re.search(rf"^\s*{SIGN_OFF}\s*$", body, re.M):
+        failures.append(f'no "{SIGN_OFF}" sign-off on its own line')
 
     words = word_count(body)
     if words < WORD_MIN:

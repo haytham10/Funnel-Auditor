@@ -270,6 +270,12 @@ either — that independence is the
 entire mechanism, so do not summarise the worker's reasoning into the verifier's
 prompt.
 
+**Each worker runs `python main.py hook` on its own proposal before returning**,
+the way `draft-worker` runs the linter on itself. That is F4 closed: the hook
+was the only consequential artifact with no mechanical gate, and six of twelve
+drafts on `2026-08-01-q1` had to alter text a verifier had certified word for
+word. A worker that reports a hook with no PASS line has skipped it.
+
 Pipeline these: a hook can be verified while other hooks are still being found.
 Do not wait for all the workers before starting any verifier.
 

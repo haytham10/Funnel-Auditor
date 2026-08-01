@@ -14,6 +14,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     qualify     the three floors, run over a research JSON
     research    validate one worker's returned research object
     observe     validate the observations a worker says it actually fetched
+    hook        check a proposed hook BEFORE a verifier certifies its wording
     fetch       the free-first site read, plus one batched Apify plan
     resolve     which channels are plausibly this lead's own, and on what evidence
     plan        which hook rungs a lead has, and what each would cost
@@ -411,6 +412,48 @@ def cmd_observe(args) -> None:
     observations = observe.load(data)
     print(observe.report(observations))
     sys.exit(1 if observe.validate_all(observations) else 0)
+
+
+# ----------------------------------------------------------------------- hook
+
+
+def cmd_hook(args) -> None:
+    """Check a proposed hook before an independent verifier is spent on it.
+
+    F4: the hook was the only consequential artifact with no mechanical gate.
+    Research has a schema, observations have a schema, and the one sentence a
+    stranger reads first arrived as prose and went straight to certification.
+
+    **The ordering is the whole point.** Six of twelve drafts on
+    `2026-08-01-q1` had to alter text a verifier had confirmed word for word —
+    an em-dash, spaced hyphens, "touchpoints" — because every one of those rules
+    ran three stages later. When a quote breaks a voice rule the honest repair is
+    to pick a different quote, and only the worker can do that: it has the page
+    open and the verifier has not run. The drafter, one stage on, has neither the
+    alternatives nor the authority, so it edits the citation instead.
+
+    **Exit 1 means fix the proposal, never edit their words.** Nothing here
+    rewrites a quote, and nothing here has looked at the page: this is not
+    verification and a PASS is not permission to skip the verifier.
+    """
+    from outbound import hook
+
+    data = _load_json(args.input, "HOOK")
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        print(f"HOOK: FAIL — expected an object or an array of them, got "
+              f"{type(data).__name__}.")
+        sys.exit(2)
+    for entry in data:
+        if not isinstance(entry, dict):
+            print(f"HOOK: FAIL — array holds a {type(entry).__name__}, "
+                  f"expected one object per proposal.")
+            sys.exit(2)
+
+    proposals = hook.load(data)
+    print(hook.report(proposals))
+    sys.exit(1 if hook.validate_all(proposals) else 0)
 
 
 # -------------------------------------------------------------------- anchors
@@ -1858,6 +1901,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("observe", help="validate what a worker actually fetched")
     p.add_argument("input", help="JSON file (one observation or a list), or '-' for stdin")
     p.set_defaults(func=cmd_observe)
+
+    p = sub.add_parser("hook",
+                       help="check a proposed hook BEFORE a verifier certifies it")
+    p.add_argument("input", help="JSON file (one proposal or a list), or '-' for stdin")
+    p.set_defaults(func=cmd_hook)
 
     p = sub.add_parser("fetch", help="tier 0 site reads, plus one batched Apify plan")
     p.add_argument("leads", help="Leads JSON from `intake --out`")

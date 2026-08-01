@@ -127,6 +127,33 @@ hook_date         ISO date of the source
 confidence        high | medium | low
 ```
 
+## Check it before anybody certifies it
+
+Write the proposal to a file and run the gate on yourself, the way
+`draft-worker` runs the linter on its own output:
+
+```
+python main.py hook work/hook-<lead>.json
+```
+
+Fields: `lead_key`, `quote`, `line`, `hook_type`, `source_url`, `published_at`,
+and `observation_id` if the research stage already had the page.
+
+**Fix a finding by picking a different quote. Never by editing their words.**
+Six of twelve drafts on `2026-08-01-q1` had to alter text a verifier had
+certified word for word — an em-dash, spaced hyphens, "touchpoints" — because
+those rules ran three stages later, at a point where the only sentence left to
+change was the one the machine had gone to the most trouble to certify. You have
+the page open and the verifier has not run; the drafter will have neither.
+
+It also catches the citation Maurice Hellemons' hook died on: a LinkedIn post
+URL with an empty slug (`/posts/<name>_-activity-…`) 404s, so the content can be
+real, paid for, and still uncitable.
+
+**A PASS here is not verification.** Nothing in that command has looked at the
+page. The verifier's live re-fetch is unchanged and still the only thing that
+has ever caught a fabricated claim.
+
 **No hook found is a real answer and a good one.** Return `hook: ""` with a note
 on where you looked. A fabricated hook is the worst thing this machine can
 produce: it is unrecoverable on the call, it poisons the identity beat behind

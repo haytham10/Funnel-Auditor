@@ -284,11 +284,42 @@ validated here through the same call — capped, so one worker that got an enum
 wrong cannot bury the floor violation that actually drops a row. See `observe`.
 
 ### hook
-Two agents, not a command. `hook-worker` proposes with an exact quote, URL and
-date; `hook-verifier` re-fetches the citation in a context that never saw the
-search and defaults to refuted. **Three verdicts, not two** — INCONCLUSIVE holds
-the lead where it is rather than killing it. **No hook found is a good answer**:
-the lead holds and gets no row. `docs/hook-rules.md` owns the rest.
+Two agents **and** a command. `hook-worker` proposes with an exact quote, URL
+and date; `hook-verifier` re-fetches the citation in a context that never saw
+the search and defaults to refuted. **Three verdicts, not two** — INCONCLUSIVE
+holds the lead where it is rather than killing it. **No hook found is a good
+answer**: the lead holds and gets no row. `docs/hook-rules.md` owns the rest.
+
+**In** a proposal, or a list of them. **Out** a pass or the list of what has to
+change. **Guarantees** it fetches nothing, rewrites nothing, and never touches
+the quote. **Exit 2** if the input is not proposals, **exit 1** on any finding.
+Owned by `outbound/hook.py`.
+
+This closes **F4**: the hook was the only consequential artifact with no
+mechanical gate, while research and observations both had one. The cost was
+measured — six of twelve drafts on `2026-08-01-q1` had to alter text a verifier
+had certified word for word, over an em-dash, spaced hyphens, "touchpoints" and
+four figures. Every one of those is a rule the linter has always held and the
+hook stage never ran.
+
+**The ordering is the whole point, and it is F11's shape again.** When a quote
+breaks a voice rule the honest repair is to pick a *different* quote, and only
+the worker can do that: it has the page open and the verifier has not run. One
+stage on, the drafter has neither the alternatives nor the authority, so it
+edits the citation — and a hook squeezed after certification is a citation
+drifting from its source. So every finding names the quote as the thing to
+change and nothing here ever offers a repaired string.
+
+It also refuses a **structurally uncitable URL**: a LinkedIn post link with an
+empty slug (`/posts/<name>_-activity-…`) is what harvestapi builds when a post
+has no text to name it, and it 404s. The content can be real, paid for, and
+still impossible to cite — that failure cost a lead and a full verifier pass to
+discover.
+
+**A pass is not verification and says so on every run.** Nothing here has looked
+at the page. `observation_id` may be blank, deliberately: the hook stage still
+fetches, and a hook with no stored observation behind it is exactly what
+`select --against` counts as `unobserved`.
 
 ### `select`
 **In** research objects, which after the hook stage carry both halves — the
