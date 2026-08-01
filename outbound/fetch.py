@@ -123,11 +123,30 @@ class SiteRead:
         return "\n\n".join(page.text for page in self.pages if page.ok)
 
 
+# What a profile URL looks like, per platform. Matched against raw HTML and
+# taken leftmost-first, which is the reason for the exclusions below.
+#
+# **A pattern that matches infrastructure harvests infrastructure.** The
+# facebook and instagram patterns used to be bare `[\w\-.]+` after the host, and
+# on any lead running Meta ads that returned:
+#
+#     facebook   -> https://facebook.com/tr     the pixel, from <head>
+#     instagram  -> https://instagram.com/p     an embedded post's permalink
+#
+# Both beat the real profile because a pixel snippet and an embed sit in the
+# head while the social bar sits in the footer, and `search` takes the first
+# match. Neither is a page anybody owns, so the URL was wrong in `sites.json`,
+# wrong in every worker prompt built from it, and — once ownership became typed
+# — would have scored `absent` and read as a name collision rather than as a
+# tracking script. Exclude the known non-profile paths rather than ranking
+# matches: the list is short, it is stable, and it says what it is doing.
 _SOCIAL_RE = {
     "linkedin": re.compile(r"https?://([a-z]{2,3}\.)?linkedin\.com/(in|company)/[\w\-%.]+", re.I),
-    "instagram": re.compile(r"https?://(www\.)?instagram\.com/[\w\-.]+", re.I),
+    "instagram": re.compile(
+        r"https?://(www\.)?instagram\.com/(?!(?:p|reel|reels|explore|tv|stories|accounts)[/?#]|(?:p|reel|reels|explore|tv|stories|accounts)$)[\w\-.]+", re.I),
     "youtube": re.compile(r"https?://(www\.)?youtube\.com/(@[\w\-.]+|channel/[\w\-]+|c/[\w\-]+)", re.I),
-    "facebook": re.compile(r"https?://(www\.)?facebook\.com/[\w\-.]+", re.I),
+    "facebook": re.compile(
+        r"https?://(www\.)?facebook\.com/(?!(?:tr|sharer|sharer\.php|share|share\.php|plugins|dialog|v\d+\.\d+)[/?#]|(?:tr|sharer|sharer\.php|share|share\.php|plugins|dialog)$)[\w\-.]+", re.I),
     "tiktok": re.compile(r"https?://(www\.)?tiktok\.com/@[\w\-.]+", re.I),
 }
 

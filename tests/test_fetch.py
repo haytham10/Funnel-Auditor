@@ -105,18 +105,47 @@ def test_an_empty_read_harvests_to_nothing():
     assert read.emails == [] and read.headings == [] and read.social == {}
 
 
-if __name__ == "__main__":
-    failures = 0
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print(f"  ok    {name}")
-            except AssertionError as exc:
-                failures += 1
-                print(f"  FAIL  {name}: {exc}")
-    print(f"\n{failures} failure(s)")
-    sys.exit(1 if failures else 0)
+# --------------------------------------------- what is NOT somebody's profile
+
+# A tracking pixel and an embedded post sit in the <head>; the social bar sits
+# in the footer. `_harvest` takes the leftmost match, so the infrastructure won.
+TRACKED_PAGE = """
+<html><head>
+  <script>fbq('init', '123');</script>
+  <img height="1" width="1" src="https://www.facebook.com/tr?id=123&ev=PageView"/>
+  <iframe src="https://www.facebook.com/plugins/page.php?href=x"></iframe>
+  <blockquote class="instagram-media"
+     data-instgrm-permalink="https://www.instagram.com/p/CxYz123/"></blockquote>
+</head><body>
+  <a href="https://www.facebook.com/sharer.php?u=https://coachsite.ae">Share</a>
+  <footer>
+    <a href="https://www.facebook.com/sarahkhancoach">Facebook</a>
+    <a href="https://www.instagram.com/sarahkhancoach/">Instagram</a>
+  </footer>
+</body></html>
+"""
+
+
+def test_the_meta_pixel_is_not_harvested_as_their_facebook_page():
+    """`facebook.com/tr` is the Meta pixel. It was winning on every lead running
+    ads, and once ownership is typed it scores `absent` and reads as a name
+    collision rather than as a tracking script."""
+    read = read_of(("https://coachsite.ae", TRACKED_PAGE))
+    assert read.social.get("facebook") == "https://facebook.com/sarahkhancoach"
+
+
+def test_an_embedded_post_is_not_harvested_as_their_instagram_profile():
+    """`instagram.com/p/<id>` is one post, embedded — usually somebody else's."""
+    read = read_of(("https://coachsite.ae", TRACKED_PAGE))
+    assert read.social.get("instagram") == "https://instagram.com/sarahkhancoach"
+
+
+def test_a_share_link_is_not_harvested_as_a_profile():
+    """A share button names the page being shared, not a page anybody owns."""
+    only_share = ('<html><body><a href="https://www.facebook.com/sharer.php'
+                  '?u=https://coachsite.ae">Share</a></body></html>')
+    read = read_of(("https://coachsite.ae", only_share))
+    assert "facebook" not in read.social
 
 
 # ---------------------------------------------------------- the escalation plan
@@ -394,3 +423,37 @@ def test_get_page_times_itself(monkeypatch):
 
     page = fetch.get_page("https://x.ae", _Session())
     assert page.ok and page.secs >= 0.0 and isinstance(page.secs, float)
+
+
+# --------------------------------------------------------- the standalone path
+
+# This block used to sit at line 108 of a 396-line file, so `python
+# tests/test_fetch.py` defined and ran the first seven tests and exited — every
+# `check_owner`, ledger and escalation-plan test below it was never even
+# reached, and the run printed "0 failure(s)". It has to be last.
+#
+# Eleven of these tests take a pytest fixture (`monkeypatch`, `tmp_path`), which
+# this runner cannot supply. It names them as SKIP rather than calling them and
+# reporting the TypeError as a failure: a runner that lies about coverage is the
+# thing being fixed here, and one that cries wolf is the next version of it.
+
+if __name__ == "__main__":
+    import inspect
+
+    failures, skipped = 0, 0
+    for name, fn in sorted(globals().items()):
+        if not (name.startswith("test_") and callable(fn)):
+            continue
+        if inspect.signature(fn).parameters:
+            skipped += 1
+            print(f"SKIP {name} (needs a pytest fixture)")
+            continue
+        try:
+            fn()
+            print(f"ok   {name}")
+        except Exception as exc:  # noqa: BLE001
+            failures += 1
+            print(f"FAIL {name}: {type(exc).__name__}: {exc}")
+    print(f"\n{failures} failure(s), {skipped} skipped — "
+          f"run under pytest for the fixture-taking ones")
+    sys.exit(1 if failures else 0)
