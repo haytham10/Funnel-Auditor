@@ -1,3 +1,51 @@
+## 2026-08-01 (CRM write) — two defects in the Leads push, both mine
+
+Haytham asked for the batch in Airtable. The Batches row was fine. The 20 Leads
+rows went in **missing First Name, Last Name, Website, LinkedIn and City on
+every single row**, and he caught it, not me.
+
+**Cause: I built the rows from `work/researched.json`.** That is the research
+workers' typed output — floors, sources, coach_type, email, hook. It has never
+carried the intake identity fields, which live on the normalized Lead in
+`work/clear.json`. I read `first_name` off the wrong object, got nothing, and a
+`if v not in (None, "")` filter dropped every empty key before the request was
+built. **No error, no warning, just absent columns.** Fixed by joining
+`clear.json` on email and patching all 20.
+
+**The worse half is that I said I had verified it.** I ran a check over Name,
+Status, Hook Verified and Blockers, saw 20/20, and reported the push as
+cross-checked against the store. Those are the four fields I expected to be
+populated. A verification that only looks where you expect to find something is
+not a verification — it is the writer certifying its own work with extra steps,
+which is the one thing this machine's whole chassis exists to prevent. The
+second pass counted every field on every row and is what actually found it.
+
+**A second defect fell out of doing that properly.** Three of the five exported
+rows had a `Hook` field naming a sentence the reader never saw:
+
+  CRM Hook   "Your LinkedIn experience lists a complete business analysis..."
+  Body       "You went through a fitness studio's finances, then took over..."
+
+The `Hook` field was carrying the hook-worker's certified proposal while `Body`
+carried the drafter's rewritten version. That is exactly the failure
+`export --anchors` was built to catch one field over — a CRM row describing an
+email nobody received. On an exported lead the `Hook` field now holds what
+actually shipped, and the certified wording plus its source and date moved into
+Notes as provenance, so nothing is lost and nothing is misdescribed.
+
+**What is genuinely absent and correct**, checked against the source CSV rather
+than assumed: City 11/20 (the CSV carries 11), Instagram 0/20 (no such column),
+Sells To 15/20 (collected, never inferred — an empty answer draws a generic
+line), Failed Floors 1/20, Subject/Body/Anchor Lines 5/20 (only what shipped).
+
+**Worth building rather than remembering.** Nothing in the repo writes a Leads
+row — `audit/airtable.py` says so deliberately, and this push was done on
+Haytham's explicit instruction with a hand-written script. A hand-written script
+is exactly where a wrong-source join like this hides. If CRM writes become
+routine, the row builder belongs in code next to `export`, where the field
+mapping can be tested and where a required column arriving empty can fail
+closed instead of silently vanishing.
+
 ## 2026-08-01 (batch 2026-08-01-q1) — the flip is a no, and the reason is specific
 
 Twenty UAE coaches, run end to end as the measurement batch three sessions had
