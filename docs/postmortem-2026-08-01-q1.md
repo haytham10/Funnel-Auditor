@@ -102,7 +102,7 @@ not eliminate the concern. **Recorded at the time rather than discovered later.*
 
 ### 1.4 I declared LinkedIn profiles unverifiable, with the actor for it in the map
 
-**What I did.** Five hooks cited `linkedin.com/in/` URLs. Five verifiers hit
+**What I did.** Five hooks cited LinkedIn profile URLs. Five verifiers hit
 LinkedIn's authwall using WebFetch and curl and returned INCONCLUSIVE. I
 concluded — and **wrote into a commit message as a finding** — that such a hook
 is "structurally unverifiable by this machine," and drafted a rule for
