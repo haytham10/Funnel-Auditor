@@ -16,6 +16,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     observe     validate the observations a worker says it actually fetched
     fetch       the free-first site read, plus one batched Apify plan
     resolve     which channels are plausibly this lead's own, and on what evidence
+    plan        which hook rungs a lead has, and what each would cost
+    select      which observation a hook would be made from, without fetching
     anchors     which hand-written lines a lead draws, and what it may cite
     deal        the same, for a whole batch, with the weights held exactly
     facts       the client-result table every number in an email traces to
@@ -1257,6 +1259,108 @@ def cmd_resolve(args) -> None:
     sys.exit(1 if resolve.validate_all(identities) else 0)
 
 
+# ----------------------------------------------------------------------- plan
+
+
+def cmd_plan(args) -> None:
+    """Which rungs this lead has, what each would cost, and what we would decline.
+
+    **It declines nothing, and a decline is never a non-zero exit.** Exit 1 here
+    means this command's own output failed its own schema, which can only be a
+    bug in it. D21 says ownership gates spend and never inclusion; this batch
+    does not gate spend either, because D21's reversal condition — whether
+    declining costs more verified hooks than it saves scrapes — has never been
+    measured, and the gate that produced the data judging it would not be a
+    measurement.
+
+    **Pricing is opt-in.** `estimate_cost_usd` needs a token and the network,
+    and `tests/test_cli_failures.py` shells out with the real environment, so a
+    default-on lookup would reach Apify on a developer machine and not in CI —
+    the whoever-runs-it failure `offline_env` exists to prevent. Without
+    `--price` every paid step reports `None`, which says "not priced" and never
+    "$0.0000".
+    """
+    from outbound import plan as plan_mod, resolve
+
+    identities = resolve.load(_load_json(args.identities, "PLAN"))
+
+    # The one thing an Identity does not carry: their own site. It is not a
+    # channel — nothing harvests a lead's homepage into its own channel list.
+    sites = {}
+    if args.leads:
+        for lead in _load_leads(args.leads):
+            from outbound.fetch import lead_key as _lead_key
+
+            if getattr(lead, "site_url", ""):
+                sites[_lead_key(lead)] = lead.site_url
+
+    budget = None
+    if args.budget:
+        budget, why = plan_mod.budget_note()
+        if why:
+            print(f"  {why} — planning without it")
+
+    result = plan_mod.plan_all(
+        identities, sites=sites, budget=budget,
+        price=plan_mod.apify_price if args.price else None)
+    plans = result["plans"]
+    print(result["report"])
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps({"plans": [p.to_dict() for p in plans]},
+                       indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.json:
+        print(json.dumps([p.to_dict() for p in plans], indent=2, default=str))
+
+    sys.exit(1 if plan_mod.validate_all(plans) else 0)
+
+
+# --------------------------------------------------------------------- select
+
+
+def cmd_select(args) -> None:
+    """Which observation a hook would be made from, chosen without fetching.
+
+    **Nothing consumes this and a disagreement is never a non-zero exit.** It
+    runs alongside the hook stage rather than in place of it: `hook-worker`
+    still fetches, still proposes, and is not edited. Exit 1 means this
+    command's own output failed its own schema.
+
+    `--against` is the measurement the whole phase exists for. It asks whether
+    the ranker would have picked the same evidence the hook stage paid to fetch,
+    and it reports five verdicts rather than two because `missed` and
+    `unobserved` say opposite things about whether that fetch is removable.
+    """
+    from outbound import select
+
+    data = _load_json(args.input, "SELECT")
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        print("SELECT: FAIL — expected a research object or a list of them.")
+        sys.exit(2)
+    if any(not isinstance(row, dict) for row in data):
+        print("SELECT: FAIL — every entry must be a research object.")
+        sys.exit(2)
+
+    result = select.select_all(data, size=args.shortlist,
+                               hook_room=args.hook_room, against=args.against)
+    selections = result["selections"]
+    print(result["report"])
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps({"selections": [s.to_dict() for s in selections]},
+                       indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.json:
+        print(json.dumps([s.to_dict() for s in selections], indent=2, default=str))
+
+    sys.exit(1 if select.validate_all(selections) else 0)
+
+
 # -------------------------------------------------------------------- fetching
 
 
@@ -1454,6 +1558,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Imported for one default. `doc-check` builds this parser, so anything
     # heavy at import time here is paid by the test suite too.
     from outbound import fetch as fetch_defaults
+    from outbound import select as select_defaults
 
     parser = argparse.ArgumentParser(
         prog="main.py",
@@ -1517,6 +1622,35 @@ def build_parser() -> argparse.ArgumentParser:
                    help="concurrent link-in-bio reads")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_resolve)
+
+    p = sub.add_parser("plan",
+                       help="which rungs a lead has, and what each would cost")
+    p.add_argument("identities", help="identity JSON from `resolve --out`")
+    p.add_argument("--leads", help="Leads JSON from `intake --out`, which is "
+                                   "the only place the lead's own site URL is")
+    p.add_argument("--price", action="store_true",
+                   help="look up live Apify prices (needs a token and the "
+                        "network; without it a paid step reports 'not priced')")
+    p.add_argument("--budget", action="store_true",
+                   help="read the monthly Apify cap once and print what is left")
+    p.add_argument("--out", help="write the plans as JSON")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_plan)
+
+    p = sub.add_parser("select",
+                       help="which observation a hook would be made from")
+    p.add_argument("input", help="research JSON (one object or a list), or '-'")
+    p.add_argument("--against", action="store_true",
+                   help="compare the shortlist to the hooks the hook stage "
+                        "actually verified — the measurement P3 is gated on")
+    p.add_argument("--shortlist", type=int, default=select_defaults.SHORTLIST,
+                   help="how many candidates to offer per lead")
+    p.add_argument("--hook-room", type=int, default=0,
+                   help="words the drafter will have. Advisory: `deal` runs "
+                        "after this stage, so 0 means unknown")
+    p.add_argument("--out", help="write the selections as JSON")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_select)
 
     p = sub.add_parser("anchors", help="which hand-written lines a lead draws")
     p.add_argument("email")

@@ -46,8 +46,10 @@ intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced. Advisory
+plan        which hook rungs a lead has, and what each would cost. Advisory
 research    research-worker per slice -> typed objects, schema-validated
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
+select      which observation a hook would come from, without fetching. Advisory
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
 lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
@@ -108,6 +110,21 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   yet**, and the hook stage still does its own fetching. The contract exists so
   that evidence stops being discarded one boolean at a time, and so the
   duplicate fetch it makes unnecessary can be removed against a measurement.
+- `python main.py plan <identity.json>` — which hook rungs a lead actually has,
+  what each would cost, and which paid ones point at somebody else's channel.
+  **It declines nothing.** D21 says an ownership verdict may gate a purchase
+  where it may not gate a kill, and carries the reversal condition; nobody has
+  measured whether the leads with no confirmed channel are the leads that
+  produce no hook, and a gate shipped beside its own measurement would generate
+  the data judging it. `unknown` is never declined. Pricing is opt-in.
+- `python main.py select <research.json>` — ranks the observations already
+  retrieved and says which one a hook would come from, fetching nothing. Four of
+  the twelve bans become mechanical here. **`--against` is the measurement**: it
+  reports whether the ranker reaches the hook the stage paid to fetch, and
+  splits `missed` (observed, ranked out — fixable) from `unobserved` (never
+  fetched — the call that cannot be removed). **Additive; nothing consumes it
+  and `hook-worker` still fetches.** A quote it finds is in the text we stored,
+  never verified on the page.
 - `python main.py lint <drafts.json>` — traceability, claim preservation, the
   bridge, voice, and batch repetition.
 - `python main.py export --anchors <deal.json>` — the drafts really used the
@@ -196,8 +213,12 @@ Pointers, not manuals. Every module carries a full docstring.
 ladder and the batched Apify plan), `resolve` (which channels are plausibly this
 lead's own, and on what evidence — advisory, and it gates spend rather than
 inclusion), `qualify` (the three floors, evidence-
-carrying), `research` (the typed contract every worker returns), `observe` (one
-thing that was actually fetched, kept verbatim), `anchors` (the
+carrying), `plan` (the hook ladder as data, per lead and priced — **the
+authority on which rungs exist and in what order**, which `docs/hook-rules.md`
+now names instead of listing), `research` (the typed contract every worker
+returns), `observe` (one thing that was actually fetched, kept verbatim),
+`select` (ranking over observations, and the measurement that says whether the
+hook stage's fetch bought anything), `anchors` (the
 deterministic line draw and the fact table), `lint` (the checks), `export`
 (leads.csv and preview.txt), `ledger` (what every retrieval cost and how long it
 took — the only module here that fails **open**, because an observer that can

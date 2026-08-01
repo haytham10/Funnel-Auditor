@@ -2,12 +2,33 @@
 
 _Written 2026-08-01. A proposal, not a decision._
 
-_**P0, P1 and P2 of Part 9 landed on 2026-08-01**: the retrieval ledger, the
-`Observation` contract with its schema gate, and `resolve` — a typed Identity
-per lead, link-in-bio pages finally read, and podcast hosts recognised. All
-three are additive and none changes how a hook is found; the duplicate
-`li_posts` fetch in F1 is still made on purpose, so it can be removed against a
-measurement instead of an argument. P3 and P4 remain proposal._
+_**P0 through P3 of Part 9 landed on 2026-08-01**: the retrieval ledger, the
+`Observation` contract with its schema gate, `resolve` — a typed Identity per
+lead, link-in-bio pages finally read, podcast hosts recognised — and then `plan`
+and `select`. All four are additive and none changes how a hook is found; the
+duplicate `li_posts` fetch in F1 is still made on purpose, so it can be removed
+against a measurement instead of an argument. P4 remains proposal._
+
+_**P3 landed switched off, which is a departure from this document and the more
+important note on the page.** Part 9 describes P3 as the one real behaviour
+change — hook-worker stops fetching — and gates it on before-and-after numbers.
+Those numbers do not exist: `data/runs/` has never recorded a `li_posts` fetch,
+so the duplicate this phase exists to remove has never been measured,
+`hook_yield` and `null_hook_rate` have no baseline, and D21's reversal condition
+is untested. So `plan` computes which paid rungs it would decline and declines
+none of them, and `select` ranks the observations already retrieved and records
+its choice rather than using it. `hook-worker` and `hook-verifier` are not
+edited. `deal` does not move, so F11 is still open, and F4 with it — nothing
+authors a hook clause yet, so there is no `HookProposal`._
+
+_What that buys is the one thing an argument cannot: `select --against` reports,
+per verified hook, whether the ranker would have reached the same page —
+splitting **missed** (observed and ranked out) from **unobserved** (never
+fetched at all). Those are the fetches that can and cannot be removed, and one
+batch produces both alongside the ledger's `DUPLICATE` line. F5 and F6 did close
+on the way: the ladder is `outbound/plan.py`'s `LADDER` rather than prose in two
+files that had already drifted twice (D23), and four of the twelve bans are
+mechanical in `outbound/select.py`._
 
 _**One departure from Part 5, recorded rather than quietly made.** `resolve`
 runs after `fetch`, not before it. Part 5's ordering has no `fetch` stage at all

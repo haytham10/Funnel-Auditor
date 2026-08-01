@@ -60,21 +60,25 @@ email fail even when the hook is technically true.
     Peer to peer, not fan to celebrity.
 12. **No restating their offer back to them.** They know what they sell.
 
+**Four of these are now mechanical**, in `outbound/select.py`: #1 is a `kind`
+that is not `about` (and from a site, only a named framework survives), #6 is a
+date comparison, #7 is `author == "third_party"`, and #3 is the `obs_id` join —
+a candidate names the observation it came from, so a hook citing a page nothing
+retrieved cannot be built. The other eight are still judgement, and this file is
+still the authority on all twelve.
+
 ## Where hooks come from, in cost order
 
-Actual cost order. This list used to open with the paid rung under a heading
-that said cost order, which is how a batch reaches for LinkedIn before reading
-an About page it already has on disk.
+**`outbound/plan.py` owns the ladder.** The rungs, their order, which are free,
+which are paid and which actor each names live there as `LADDER`, and
+`python main.py plan` prints the ones a particular lead actually has. This file
+does not list them, because it used to and the list drifted: it once opened with
+the **paid** rung under a heading that said cost order, so the sentence and the
+list disagreed and the list won. That is D23 in `docs/spec/07-decisions.md`.
 
-1. **Their own About page** — free, already fetched by the research stage.
-2. **Podcasts and YouTube** — web search for their name plus "podcast", then
-   fetch the episode page for the description and date. Free, and it reaches
-   the coaches who do not post.
-3. **LinkedIn posts** — the richest source by a distance, and paid.
-   `python main.py apify li-posts <url> --max 5 --since 3months`
-4. **Instagram** — `python main.py apify ig <url> --mode posts --newer-than "90 days"`
-
-**Instagram is a rung, not a fallback.** For a coach whose whole presence is
+What stays here is the judgement the code cannot hold. **Free before paid,
+always** — an About page already on disk is read before anything is bought.
+**Instagram is a rung, not a fallback**: for a coach whose whole presence is
 Instagram it is the only one there is, and `python main.py fetch` names those
 leads in its report so they are handed out rather than discovered.
 
@@ -90,9 +94,11 @@ days"` in another.
 
 - **Activity, 30 days.** Owned by `docs/spec/02-icp.md` and evaluated in
   `outbound/qualify.py`. It is a floor: is this person still working?
-- **Hook recency, 90 days.** Owned by this file. It is an editorial judgement:
-  would they recognise this as something they recently did? The flags above are
-  set to match, and an evergreen line they wrote themselves is exempt from both.
+- **Hook recency, 90 days.** Owned by this file, enforced in
+  `outbound/select.py` as `HOOK_RECENCY_DAYS` and matched by the `--since` and
+  `--newer-than` flags the rungs pass. It is an editorial judgement: would they
+  recognise this as something they recently did? An evergreen framework or a
+  line they wrote themselves is exempt from both.
 
 They are different questions, so they get different answers. What they may not
 be is different answers to the same question in four places.

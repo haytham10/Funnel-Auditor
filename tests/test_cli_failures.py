@@ -424,6 +424,105 @@ def test_resolve_exits_2_when_the_sites_file_is_not_what_fetch_writes():
         assert "RESOLVE: FAIL" in out.stdout
 
 
+# ---------------------------------------------------------------------- plan
+
+
+def test_plan_exits_0_when_every_paid_rung_would_be_declined():
+    """D21 in code, one stage after `resolve` pins the same rule. A decline is
+    about a purchase and never about a lead, so exit 1 here would turn an
+    ownership verdict into the inclusion gate the decision forbids."""
+    with tempfile.TemporaryDirectory() as tmp:
+        identities = {"identities": [{
+            "lead_key": "rory@x.ae", "name": "Rory Buck",
+            "owner_verdict": "absent",
+            "channels": [{"platform": "linkedin",
+                          "url": "https://linkedin.com/in/harrisonassessments",
+                          "handle": "harrisonassessments", "confidence": "absent",
+                          "evidence": "handle contains no part of their name",
+                          "source": "site"}]}]}
+        path = write(tmp, "identity.json", json.dumps(identities))
+        out = run("plan", path)
+        assert out.returncode == 0, out.stdout
+        assert "would decline" in out.stdout and "ADVISORY" in out.stdout
+
+
+def test_plan_does_not_price_a_paid_rung_unless_asked():
+    """Pricing needs a token and the network, and this helper does not strip
+    APIFY_TOKEN — so a default-on lookup would reach Apify on a developer
+    machine and not in CI, which is the failure `offline_env` exists to stop.
+    An unpriced batch must never report as a free one."""
+    with tempfile.TemporaryDirectory() as tmp:
+        identities = {"identities": [{
+            "lead_key": "a@x.ae", "name": "A Coach",
+            "channels": [{"platform": "linkedin",
+                          "url": "https://linkedin.com/in/acoach",
+                          "handle": "acoach", "confidence": "confirmed",
+                          "evidence": "handle 'acoach' contains 'coach'",
+                          "source": "row"}]}]}
+        path = write(tmp, "identity.json", json.dumps(identities))
+        out = run("plan", path)
+        assert out.returncode == 0, out.stdout
+        assert "NO ESTIMATE" in out.stdout
+        assert "$0.0000" not in out.stdout
+
+
+def test_plan_exits_2_when_the_identity_file_is_not_what_resolve_writes():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "identity.json", "a string")
+        out = run("plan", path)
+        assert out.returncode == 2, out.stdout
+        assert "PLAN: FAIL" in out.stdout
+
+
+# -------------------------------------------------------------------- select
+
+
+def test_select_exits_0_when_it_would_pick_nothing():
+    """No hook found is a good answer. The lead holds; it does not fail."""
+    with tempfile.TemporaryDirectory() as tmp:
+        rows = [{"name": "A", "email": "a@x.ae", "observations": [{
+            "lead_key": "a@x.ae", "platform": "web", "url": "https://news/1",
+            "fetched_at": "2026-08-01T09:00:00", "published_at": "2026-07-20",
+            "author": "third_party", "kind": "post",
+            "text": "Gulf News profiles the coach helping women return to work.",
+            "retrieved_by": "websearch"}]}]
+        path = write(tmp, "researched.json", json.dumps(rows))
+        out = run("select", path)
+        assert out.returncode == 0, out.stdout
+        assert "third_party" in out.stdout
+
+
+def test_select_disagreeing_with_a_verified_hook_is_never_a_failure():
+    """A measurement that can fail a batch is a measurement people route
+    around — the ledger's own rule, one stage over."""
+    with tempfile.TemporaryDirectory() as tmp:
+        rows = [{"name": "A", "email": "a@x.ae", "hook_verified": "verified",
+                 "hook_source_url": "https://linkedin.com/posts/never-fetched",
+                 "observations": []}]
+        path = write(tmp, "researched.json", json.dumps(rows))
+        out = run("select", path, "--against")
+        assert out.returncode == 0, out.stdout
+        assert "AGAINST:" in out.stdout
+
+
+def test_select_never_calls_a_stored_quote_verified():
+    """R2. The verifier's live re-fetch is the only thing that has ever caught
+    a fabricated claim, and a report that reads as verification retires it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "researched.json", json.dumps([{"email": "a@x.ae"}]))
+        out = run("select", path)
+        assert out.returncode == 0, out.stdout
+        assert "not verified on the page" in out.stdout
+
+
+def test_select_exits_2_on_something_that_is_not_a_research_object():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "researched.json", json.dumps(["a string"]))
+        out = run("select", path)
+        assert out.returncode == 2, out.stdout
+        assert "SELECT: FAIL" in out.stdout
+
+
 # -------------------------------------------------------------------- ledger
 
 

@@ -8,9 +8,10 @@ docstring, which is where someone reading the code will actually find it._
 **Owns:** the stage boundaries, the exit-code contract, and the orderings that
 are load-bearing.
 **Defers to:** `outbound/normalize.py`, `outbound/dedupe.py`, `outbound/fetch.py`,
-`outbound/resolve.py`, `outbound/qualify.py`, `outbound/research.py`,
-`outbound/anchors.py`, `outbound/lint.py`, `outbound/export.py` — the nine stages
-as implemented;
+`outbound/resolve.py`, `outbound/plan.py`, `outbound/select.py`,
+`outbound/qualify.py`, `outbound/research.py`,
+`outbound/anchors.py`, `outbound/lint.py`, `outbound/export.py` — the eleven
+stages as implemented;
 `outbound/copy_sync.py` and `outbound/doc_check.py` — the two checkers that are
 commands but not stages; `audit/apify.py` — the paid fetch layer and its cost
 gate; `docs/agent-orchestration.md` — the worker/verifier pattern the agent
@@ -41,8 +42,10 @@ intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced. Advisory
+plan        which hook rungs a lead has, and what each would cost. Advisory
 research    research-worker per slice -> typed objects, schema-validated
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
+select      which observation a hook would come from, without fetching. Advisory
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
 lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
@@ -165,6 +168,34 @@ reading each homepage and then reading it again in `fetch`. See D22 in
 **Nothing consumes an Identity yet.** Additive, in the posture the ledger and the
 observation contract shipped in.
 
+### `plan`
+**In** the identities from `resolve --out`, and optionally the Leads, which are
+the only place a lead's own site URL lives. **Out** one `LeadPlan` per lead: the
+rungs that are populated for that person, what each would cost, and which paid
+ones would be declined. **Guarantees** every lead gets a plan, including a lead
+with no rung at all and a lead whose every paid rung would be declined; it
+fetches nothing and runs no actor. **Exit 2** if the identity file cannot be read,
+**exit 1** only if its own output fails its own schema. Owned by
+`outbound/plan.py`.
+
+**The ladder is here rather than in prose, and that is D23.** Where a hook comes
+from was two markdown files kept in agreement by hand, and the agreement failed
+twice on record. `LADDER` is now the authority; `docs/hook-rules.md` keeps what a
+hook is and names this module.
+
+**It declines nothing.** A step whose channel is `absent` is labelled `decline`
+and taken anyway. D21 says an ownership verdict may gate a purchase where it may
+not gate a kill, and it carries the reversal condition — whether declining costs
+more verified hooks than it saves scrapes. That has never been measured, and a
+gate shipped alongside its own measurement would generate the data judging it.
+`unknown` is never declined: it means no tell was available, not that the tell
+said no.
+
+**Pricing is opt-in.** `--price` needs a token and the network. Without it a paid
+step reports "not priced", which is a different answer from an estimate of zero
+and a different answer again from the cost gate's own "cannot be priced" — and a
+batch nobody looked at must never report as a free one.
+
 ### `qualify`
 **In** a research object. **Out** three verdicts with their evidence, plus the
 captured fields. **Guarantees** `unclear` passes and only a clear `no` drops a
@@ -188,6 +219,30 @@ date; `hook-verifier` re-fetches the citation in a context that never saw the
 search and defaults to refuted. **Three verdicts, not two** — INCONCLUSIVE holds
 the lead where it is rather than killing it. **No hook found is a good answer**:
 the lead holds and gets no row. `docs/hook-rules.md` owns the rest.
+
+### `select`
+**In** research objects, which after the hook stage carry both halves — the
+observations the research workers kept, and the hook fields the hook stage wrote
+back. **Out** one `LeadSelection` per lead: a ranked shortlist of three
+candidates and the ban that excluded everything else. **Guarantees** it fetches
+nothing, writes no hook, and never changes which lead is drafted; every lead gets
+a selection, including one with no observations. **Exit 2** if the input is not
+research objects, **exit 1** only if its own output fails its own schema — a
+disagreement is never a failure. Owned by `outbound/select.py`.
+
+**It runs alongside the hook stage, not in place of it.** `hook-worker` still
+fetches and is not edited. `--against` is the measurement the phase exists for:
+it asks whether the ranker would have picked the same evidence the hook stage
+paid for, and reports five verdicts because `missed` and `unobserved` say
+opposite things about whether that fetch can be removed.
+
+**Four of the twelve bans stop being something an agent must remember** —
+third-party coverage, stale news, generic site copy, and invented specifics,
+the last through the `obs_id` join. `docs/hook-rules.md` still owns all twelve.
+
+**A quote found here is not a verified quote.** It is in the text we stored,
+which is a different claim from being on the page. The verifier's live re-fetch
+is the only mechanism that has caught a fabricated claim, and it stays.
 
 ### draft
 `draft-worker` writes against the four dealt anchor lines and runs the linter on

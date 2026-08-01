@@ -1,3 +1,98 @@
+## 2026-08-01 (P3) — the machine can say which fetch it could have skipped
+
+Built P3 of `docs/proposals/2026-08-01-hook-retrieval.md`: `outbound/plan.py` and
+`outbound/select.py`. **Switched off, exactly as the previous entry asked** —
+`hook-worker` still fetches, still proposes, and is not edited. Neither module is
+read by anything.
+
+The last entry's brief was that P3 could not be judged, because `data/runs/` had
+never recorded a `li_posts` fetch. So the deliverable here is not a saving. It is
+**one line on the next batch**:
+
+```
+AGAINST: <n> verified hook(s) — <n> agreed, <n> shortlisted, <n> missed,
+         <n> unobserved, <n> no_pool
+```
+
+**`missed` and `unobserved` are the whole design, and they mean opposite
+things.** `missed` says the hook's page *was* observed and the ranker passed it
+over, and it names the ban that dropped it — a wrong ban is a three-line fix.
+`unobserved` says the hook cited a page no observation carries, which is
+precisely the fetch that selection could not have replaced. Collapsing them
+yields a percentage nobody can act on. That distinction also caught a real bug
+in the first cut: an observation that survived every ban and merely ranked fourth
+was being reported as `unobserved` — the same word used for a page nothing ever
+fetched — which inflates the number arguing *for* keeping the fetch. Pinned by a
+test now.
+
+Read that line next to the ledger's `DUPLICATE li_posts` count. One says what the
+second fetch cost, the other says whether it bought anything. Flipping the hook
+stage over is then a change against evidence.
+
+**`plan` declines nothing, and that needed no new decision.** D21 already says
+ownership gates a purchase and never a kill, and already carries the reversal
+condition: *"a batch where declining to spend on low-confidence channels costs
+more verified hooks than it saves scrapes."* Nobody has measured it. So a step
+whose channel is `absent` is labelled `decline` and taken anyway, and the label
+is there to be correlated against the leads that produced no hook. Shipping the
+gate beside its own measurement would have the gate generate the data judging it.
+`unknown` is never declined — that is `resolve`'s rule one stage over, and
+declining it would be the false-negative surface R3 names.
+
+**D23: the ladder is code now.** The four rungs lived in `docs/hook-rules.md` and
+`.claude/agents/hook-worker.md`, kept in agreement by hand, and the agreement had
+already failed twice — the paid rung once sat at #1 under a heading that said
+"cost order", and the recency window existed as four numbers in four files.
+`plan.LADDER` is the authority; `hook-rules.md` names it and keeps what it
+actually owns. **The agent file still carries its own copy, deliberately**: the
+hook stage keeps fetching this phase, and rewriting its routing would be the
+behaviour change this phase avoids. So there are two copies today, not one, and
+the second is implementation-layer prose. It goes when the fetch does.
+
+**Four of the twelve bans are mechanical**, not three as the proposal counted —
+it missed that the `observation_id` join it proposed one paragraph later *is*
+ban #3. A candidate names the observation it came from, so a hook citing a page
+nothing retrieved cannot be built here at all.
+
+Three corrections to the proposal, each because the code had moved under it:
+
+- **`author == "self"` was the wrong filter.** `AUTHORS` is three-valued and
+  `unknown` is the default, so filtering on `self` rejects most of a real pool
+  for a field nobody was required to fill. `third_party` is excluded, `unknown`
+  ranks second, and authorship stays the live verifier's call.
+- **`kind != "about"` was incomplete.** `KINDS` grew `bio` and `result` when
+  `resolve` shipped, and `resolve` writes a `bio` per linktree — without the
+  wider rule, every link-in-bio lead's top pick is its own wall of buttons.
+- **`MIN_HOOK_WORDS` is not the hook room.** It is a *floor on the hook*, used
+  that way in three places; reusing 12 as a ceiling would be one number wearing
+  two meanings in two stages, which is the drift that gave this stage four
+  recency windows. `deal` still runs after the hook stage, so `select` says
+  "hook room unknown" rather than assuming it, and length is a floor on the
+  observation and nothing else.
+
+**No score.** `resolve` states the rule — *"nothing in this repo carries a
+numeric confidence, and one batch of 151 leads cannot calibrate a scale"* — so
+the ranking is a lexicographic sort key of enum positions, printable in words.
+Platform order is borrowed from `observe.PLATFORMS` rather than restated.
+
+**Pricing is opt-in, and that is not fussiness.** `tests/test_cli_failures.py`
+shells out with the real environment and only strips `AIRTABLE_API_KEY`, so a
+default-on price lookup would reach Apify on a developer machine and not in CI —
+the exact whoever-runs-it failure `offline_env` exists to prevent. Without
+`--price` a paid step reports "not priced", which is a different answer from an
+estimate of zero and different again from the cost gate's own "cannot be priced".
+A first cut sniffed those apart out of the decision string, and a decline
+overwrote it; `cost_note` is now its own field.
+
+**Found and not fixed:** `fetch.run_plan` dispatches on `actor_key` and falls
+through to `crawl_static` for anything that is not `site_render`. Nothing reaches
+it with a non-site actor today — `plan` emits no run dicts — but a future caller
+handing it a `li_profile` batch would run cheerio against LinkedIn URLs, paid,
+silently, with plausible-looking empty results. Worth two lines and a test in its
+own commit.
+
+806 tests (77 new), `doc-check` clean at 26 commands.
+
 ## 2026-08-01 (P2, run against real leads) — the headline number was measuring the vendor
 
 Ran `resolve` on 20 real UAE coaches, free, stopping before research. No spend,
