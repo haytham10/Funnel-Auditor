@@ -140,6 +140,20 @@ def test_an_embedded_post_is_not_harvested_as_their_instagram_profile():
     assert read.social.get("instagram") == "https://instagram.com/sarahkhancoach"
 
 
+def test_a_podcast_and_an_x_handle_are_harvested():
+    """Rung 2 of the hook ladder — the one that reaches the coaches who do not
+    post — had no host pattern at all, so it was served entirely by an agent
+    improvising a web search, which is the most expensive way to find a URL."""
+    page = ('<html><body>'
+            '<a href="https://twitter.com/intent/tweet?text=hi">Tweet this</a>'
+            '<a href="https://open.spotify.com/show/4abcXYZ">The podcast</a>'
+            '<a href="https://x.com/sarahkhancoach">X</a>'
+            '</body></html>')
+    read = read_of(("https://coachsite.ae", page))
+    assert read.social.get("podcast") == "https://open.spotify.com/show/4abcXYZ"
+    assert read.social.get("twitter") == "https://x.com/sarahkhancoach"
+
+
 def test_a_share_link_is_not_harvested_as_a_profile():
     """A share button names the page being shared, not a page anybody owns."""
     only_share = ('<html><body><a href="https://www.facebook.com/sharer.php'

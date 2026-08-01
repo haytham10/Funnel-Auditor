@@ -43,6 +43,26 @@ def test_a_linktree_is_a_platform_too():
     assert normalize.classify_site("https://linktr.ee/sarahcoach").platform == "linkinbio"
 
 
+def test_a_podcast_show_is_a_platform():
+    """Rung 2 of the hook ladder had no host list at all, so a Spotify show in
+    the website column was fetched as an own site — a JS app that returns 200
+    with no text, which routes it into the render escalation, the most expensive
+    rung there is, on a page that can never yield anything."""
+    for url in ("https://open.spotify.com/show/4abcXYZ",
+                "https://anchor.fm/sarahcoach",
+                "https://podcasts.apple.com/ae/podcast/the-coach/id1234"):
+        assert normalize.classify_site(url).platform == "podcast", url
+
+
+def test_apple_is_not_a_podcast_host_but_apple_podcasts_is():
+    """`registrable_domain("podcasts.apple.com")` is `apple.com`. Keying the map
+    on the registrable domain alone would have labelled every Apple URL a
+    podcast, so `classify_site` matches the host too."""
+    assert normalize.classify_site("https://apple.com/store").verdict == "own_site"
+    assert normalize.classify_site(
+        "https://podcasts.apple.com/us/podcast/x/id9").platform == "podcast"
+
+
 def test_a_bare_platform_root_is_junk():
     """instagram.com with no handle tells us nothing about anyone."""
     assert normalize.classify_site("https://instagram.com").verdict == "junk"

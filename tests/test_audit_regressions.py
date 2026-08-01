@@ -58,6 +58,16 @@ def test_a_shared_link_in_bio_host_is_not_an_identity():
     assert dedupe.domain_key("https://sarahcoaching.ae") == "sarahcoaching.ae"
 
 
+def test_a_podcast_host_is_not_an_identity_either():
+    """The same collision, latent on a second host list. `spotify.com` was not
+    in the set, so `domain_key` of a Spotify show URL WAS indexed and two
+    coaches with podcasts collided on the wall exactly as linktr.ee did."""
+    for shared in ("https://open.spotify.com/show/abc",
+                   "https://podcasts.apple.com/ae/podcast/x/id1",
+                   "https://anchor.fm/sarah"):
+        assert dedupe.domain_key(shared) == "", shared
+
+
 def test_the_live_wall_indexes_no_shared_host():
     wall = dedupe.ContactWall.from_csv()
     for host in ("stan.store", "linktr.ee", "beacons.ai"):

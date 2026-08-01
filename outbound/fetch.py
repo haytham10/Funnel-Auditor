@@ -148,6 +148,21 @@ _SOCIAL_RE = {
     "facebook": re.compile(
         r"https?://(www\.)?facebook\.com/(?!(?:tr|sharer|sharer\.php|share|share\.php|plugins|dialog|v\d+\.\d+)[/?#]|(?:tr|sharer|sharer\.php|share|share\.php|plugins|dialog)$)[\w\-.]+", re.I),
     "tiktok": re.compile(r"https?://(www\.)?tiktok\.com/@[\w\-.]+", re.I),
+    # Written with the non-profile paths excluded from the start rather than
+    # discovered later: `twitter.com/intent/tweet` and `/share` are the same
+    # class of bug the two patterns above shipped for months.
+    "twitter": re.compile(
+        r"https?://(www\.)?(twitter\.com|x\.com)/(?!(?:intent|share|home|i|hashtag|search|privacy|tos)[/?#]|(?:intent|share|home|i|hashtag|search|privacy|tos)$)[\w\-.]+", re.I),
+    # Rung 2 of the hook ladder, which had no host list at all. A show or
+    # episode URL, not a host root — a bare `open.spotify.com` says nothing.
+    "podcast": re.compile(
+        r"https?://("
+        r"(open|podcasters)\.spotify\.com/(show|episode)/[\w\-]+"
+        r"|podcasts\.apple\.com/[\w\-/]*(podcast|id\d)[\w\-/]*"
+        r"|(www\.)?(anchor\.fm|buzzsprout\.com|podbean\.com|libsyn\.com"
+        r"|simplecast\.com|transistor\.fm|captivate\.fm|redcircle\.com"
+        r"|castbox\.fm|spreaker\.com)/[\w\-./]+"
+        r")", re.I),
 }
 
 
