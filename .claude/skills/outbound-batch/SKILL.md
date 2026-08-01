@@ -360,6 +360,17 @@ Then write the batch to Airtable: one **Batches** row, and one **Leads** row per
 lead including the ones that held, with their Blockers. A lead that vanished
 with no record is worse than a kill you can read.
 
+**Do not compute the Batches numbers yourself.** Run `metrics` (below) and paste
+its `BATCHES ROW` block, field for field. Python does not write this row — the
+boundary in `audit/airtable.py` is that a row lands where a human sees it, and
+that stays. What was wrong was never that a model did the typing; it was that a
+model did the *arithmetic*, from memory, at the end of a long run. Every value in
+that block is measured or `?`.
+
+**A `?` is not a zero and must not be typed as one.** Leave the cell empty. A
+`0` in `Apify Cost USD` from a batch nobody costed is a wrong number that stays
+in the CRM and gets believed for months.
+
 ## Stage 6 — after Haytham uploads
 
 ```
@@ -387,6 +398,35 @@ Copy `work/select.json` to `data/runs/<batch>-select.json` and commit that too.
 It is the other half of the same baseline — what the retrieval cost, and whether
 a ranker over what was already retrieved would have reached the same hook.
 `work/` does not survive the container.
+
+### Later, when replies exist
+
+Not part of the run. Whenever Haytham exports a replies CSV from Smartlead:
+
+```
+python main.py replies <smartlead-export.csv> --leads work/draftable.json \
+  --batch <YYYY-MM-DD>
+```
+
+This is the only path this repo has to reply data — Smartlead owns replies and
+there is no API key here — and it is what makes `hook_type` testable against
+reply rate, which is the reason `Hook Type` is a select in the CRM at all. Its
+own field description calls it *"a testable variable against reply rate rather
+than a detail buried in prose"*. The variable has existed since the beginning
+and the test has never been run.
+
+It sniffs the export's columns. If it cannot identify one it **exits 2 naming
+the headers it saw** rather than reporting a zero reply rate, because a zero
+would read as "the campaign did nothing" when the truth is "the question could
+not be asked". Pass `--email-column` / `--replied-column` to name them, or
+`--all-replied` if the export is already filtered to people who replied. **Never
+pass `--all-replied` to make an error go away** — a pre-filtered file and an
+unrecognised column look identical and differ by the whole answer.
+
+Read its `NOT A VERDICT` line and mean it. One batch is a handful of samples per
+bucket, and the difference between 1 of 1 and 0 of 1 is noise wearing a
+percentage. Commit `data/runs/<batch>-replies.json`; the point is that it
+accumulates.
 
 ## What the run cost
 
@@ -426,6 +466,45 @@ records its own with `python main.py ledger add`, and those lines carry
 `websearch` or `webfetch` so a reader can tell what was measured from what was
 reported.
 
+## What the run yielded
+
+The ledger covers what Python can see. Everything on the hook side happens
+inside an agent, so it used to be narrated into the brief from memory and lost
+when the session ended — which is why every cost claim in the proposal had to be
+reconstructed from a hand-written journal entry. Run this instead:
+
+```
+python main.py metrics work/draftable.json --batch <YYYY-MM-DD> \
+  --raw <n> --after-dedupe <n> --warm <n> --passed-floors <n> \
+  --written <n> --rejected <n> --tier0-rate <0.59> \
+  --source-list <the raw list's name> --passes <n>
+```
+
+Every flag is a number an earlier stage already printed. **Pass the ones you
+have and leave out the ones you do not** — an unsupplied count prints `?`, never
+`0`, because a zero is a measurement and `?` is the honest word for a thing
+nobody measured. Do not fill one in from memory to make the block look complete;
+that is the exact habit this command exists to end.
+
+`--passes` is the count of agent passes for the batch. Python cannot see it, so
+it is **reported on trust** and printed as such, the same way `ledger add`
+records a model-side fetch.
+
+Quote the `METRICS` block into the brief. Two lines matter most:
+
+- **`yield_by_rung`** — which rung the verified hooks actually came from. If
+  rung `about` yields near zero after verification, F5 is proven rather than
+  argued, and narrowing it is a three-line change against evidence.
+- **`wasted_retrieval`** — paid fetches on leads that produced no verified hook.
+  **This is the number the whole retrieve-once effort is trying to move**, so a
+  run without it is not a judged batch.
+
+It writes `data/runs/<batch>-metrics.json`. Commit that alongside the ledger.
+
+**It never fails a batch.** Same rule as the ledger: reporting a bad number is
+the job, and a gate that can halt a send file over an accounting line is a gate
+people learn to route around.
+
 ## The brief
 
 One message at the end. Never a per-lead narration.
@@ -448,6 +527,9 @@ BATCH <date>: <n> written of <m> raw
   copy       live from Airtable | cached (say which, always)
   cost       $<x> Apify this run, $<x>/lead (quote `ledger report`)
   retrieval  <n> fetch(es), <n> duplicate, <n> blocked by the cost gate
+  yield      hook_yield <n>%, null <n>%, refuted <n>% (quote `metrics`)
+  by rung    <rung> <n> verified, ... — the number that settles F5
+  wasted     <n> paid fetch(es), $<x> on leads that produced no hook
   → out/leads.csv   READ out/preview.txt BEFORE UPLOADING
   then       wall-add + copy-usage, once it is actually uploaded
 ```

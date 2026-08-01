@@ -358,6 +358,60 @@ def test_a_stale_observation_set_qualifies_exactly_like_no_observations():
     assert "too old to settle the floor, and never a kill" in stale.stdout
 
 
+def test_metrics_exits_2_on_a_ledger_it_could_not_read():
+    """A batch whose cost could not be computed must not report as a batch that
+    cost nothing — the wall's asymmetry, two stages over."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "b.json", [{"lead_key": "a@x.ae", "hook": "x",
+                                       "hook_verified": "verified"}])
+        result = run("metrics", leads, "--batch", "no-such-batch-at-all")
+    assert result.returncode == 2, result.stdout
+    assert "not a zero-cost batch" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_metrics_never_fails_a_batch_over_a_number():
+    """It is an observer. A gate that can halt a send file over an accounting
+    line is a gate people learn to route around."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "b.json", [{"lead_key": "a@x.ae", "hook": "",
+                                       "hook_verified": "none"}])
+        result = run("metrics", leads, "--no-ledger", "--out",
+                     str(Path(tmp) / "m.json"))
+    assert result.returncode == 0, result.stdout
+    assert "null_hook_rate    100%" in result.stdout
+    # Nothing was supplied, so nothing may print as a zero.
+    assert "Raw Count        ?" in result.stdout
+    assert "Apify Cost USD   ?" in result.stdout
+
+
+def test_replies_exits_2_naming_the_headers_rather_than_reporting_no_replies():
+    """A zero reply rate from a column it failed to find would read as "the
+    campaign did nothing" when the truth is "the question could not be asked"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        export = write(tmp, "e.csv", "prospect,outcome_code\na@x.ae,7\n")
+        leads = write(tmp, "l.json", [{"email": "a@x.ae", "hook_type": "WORK"}])
+        result = run("replies", export, "--leads", leads)
+    assert result.returncode == 2, result.stdout
+    assert "prospect" in result.stdout and "outcome_code" in result.stdout
+    assert "--email-column" in result.stdout
+
+
+def test_replies_refuses_to_guess_a_prefiltered_export():
+    """A pre-filtered file and an unrecognised reply column look identical and
+    differ by the whole answer."""
+    with tempfile.TemporaryDirectory() as tmp:
+        export = write(tmp, "e.csv", "email,first_name\na@x.ae,Amina\n")
+        leads = write(tmp, "l.json", [{"email": "a@x.ae", "hook_type": "WORK"}])
+        result = run("replies", export, "--leads", leads)
+        assert result.returncode == 2, result.stdout
+        assert "--all-replied" in result.stdout
+
+        ok = run("replies", export, "--leads", leads, "--all-replied")
+        assert ok.returncode == 0, ok.stdout
+        assert "NOT A VERDICT" in ok.stdout
+
+
 def test_a_malformed_last_activity_exits_2():
     with tempfile.TemporaryDirectory() as tmp:
         lead = write(tmp, "lead.json", {

@@ -31,6 +31,10 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     email-verify-batch  the same, for a whole slice's addresses in one call
     email-enrich     the no-address fallback on the lead's own domain
     ledger      what each retrieval cost and how long it took
+    metrics     what the hook stage yielded, and what the leads that yielded
+                nothing cost. `?` for a count nobody supplied, never 0
+    replies     join a Smartlead replies export on email — reply rate by hook
+                type and by the rung the hook came from
     apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
     classify-footprint   merge pre-fetched search hits into sourcing candidates
     doc-check   the docs against the code they describe
@@ -202,6 +206,22 @@ def _load_json(path: str, label: str):
             Path(path).read_text(encoding="utf-8")
         return json.loads(raw)
     except (OSError, json.JSONDecodeError) as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}: {exc}")
+        sys.exit(2)
+
+
+def _read_text(path: str, label: str) -> str:
+    """Raw text from a file or stdin, or a clean exit 2.
+
+    The CSV sibling of `_load_json`. A Smartlead export is not JSON, and an
+    unreadable one must produce a gate line rather than a traceback for exactly
+    the same reason: "that file is not there" and "the run crashed" are
+    different answers and only one of them is true.
+    """
+    try:
+        return sys.stdin.read() if path == "-" else \
+            Path(path).read_text(encoding="utf-8-sig")
+    except OSError as exc:
         print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}: {exc}")
         sys.exit(2)
 
@@ -1512,6 +1532,109 @@ def cmd_ledger(args) -> None:
                         leads=args.leads))
 
 
+def cmd_metrics(args) -> None:
+    """What the hook stage yielded, and what the leads that yielded nothing cost.
+
+    `ledger report` covers what Python can see. Everything on the hook side
+    happens inside an agent, so it was narrated into a batch brief and lost when
+    the session ended — which is why every cost claim in the proposal had to be
+    reconstructed from a hand-written journal entry.
+
+    **A count this was not given prints `?`, never 0.** The wall's asymmetry and
+    the ledger's, a third time: an unsupplied raw count must not read as "no
+    leads came in". So the flags below are how a number gets in, and nothing
+    here reaches back into a stage to guess one.
+
+    **It never exits 1.** Reporting a bad number is the job. Exit 2 is for an
+    input it could not read at all — a batch whose metrics could not be computed
+    must not report as a batch with no findings.
+    """
+    from outbound import ledger, metrics
+
+    rows = _load_json(args.input, "METRICS")
+    if isinstance(rows, dict):
+        rows = [rows]
+    if not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
+        print("METRICS: FAIL — expected a research object or a list of them.")
+        sys.exit(2)
+
+    out = metrics.from_research(rows, batch=args.batch or "")
+
+    # Supplied, never derived. Each of these belongs to a stage that already
+    # printed it, and inventing one here would be the zero-fill this module
+    # exists to refuse.
+    for attr, value in (("raw", args.raw), ("after_dedupe", args.after_dedupe),
+                        ("warm", args.warm), ("passed_floors", args.passed_floors),
+                        ("written", args.written), ("rejected", args.rejected),
+                        ("tier0_rate", args.tier0_rate),
+                        ("source_list", args.source_list),
+                        ("agent_passes", args.passes)):
+        if value is not None:
+            setattr(out, attr, value)
+
+    if not args.no_ledger:
+        try:
+            records, _ = ledger.read(args.batch)
+        except ledger.LedgerUnreadable as exc:
+            print(f"METRICS: FAIL — {exc}. Refusing to report a batch's cost "
+                  f"it could not read; pass --no-ledger to report the hook "
+                  f"side alone.")
+            sys.exit(2)
+        verified = {(r.get("lead_key") or r.get("email") or "") for r in rows
+                    if (r.get("hook_verified") or "").lower() == "verified"}
+        metrics.add_ledger(out, records, verified_leads=verified)
+
+    print(metrics.report(out))
+    print(metrics.batches_block(out))
+
+    target = args.out or (f"data/runs/{args.batch}-metrics.json" if args.batch else "")
+    if target:
+        print(f"  wrote {metrics.write_artifact(out, target)}")
+    sys.exit(0)
+
+
+def cmd_replies(args) -> None:
+    """Join a Smartlead replies export to the batch, on email.
+
+    The one gap no retrieval architecture closes. Smartlead owns replies and
+    there is no API key here, so this is the manual bridge Part 8 describes:
+    Haytham exports a CSV, this attributes each reply to the hook type and the
+    rung that earned it. `Hook Type` has been a CRM select since the beginning,
+    described in the base as a testable variable against reply rate. This is the
+    first thing that can run the test.
+
+    **Exit 2 when it cannot identify the columns**, naming the headers it saw.
+    A zero reply rate from a column it failed to find would read as "the
+    campaign did nothing" when the truth is "the question could not be asked".
+    """
+    from outbound import replies as rep
+
+    text = _read_text(args.export, "REPLIES")
+    leads = _load_json(args.leads, "REPLIES")
+    if isinstance(leads, dict):
+        leads = [leads]
+    if not isinstance(leads, list) or any(not isinstance(r, dict) for r in leads):
+        print("REPLIES: FAIL — --leads must be a research object or a list.")
+        sys.exit(2)
+
+    try:
+        export = rep.load_export(text, email_column=args.email_column,
+                                 replied_column=args.replied_column,
+                                 all_replied=args.all_replied)
+    except rep.RepliesUnreadable as exc:
+        print(f"REPLIES: FAIL — {exc}")
+        sys.exit(2)
+
+    out = rep.join(leads, export, batch=args.batch or "")
+    print(rep.report(out))
+
+    target = args.out or (f"data/runs/{args.batch}-replies.json" if args.batch else "")
+    if target:
+        from outbound.metrics import write_artifact
+        print(f"  wrote {write_artifact(out, target)}")
+    sys.exit(0)
+
+
 # ------------------------------------------------------------------- doc-check
 
 
@@ -1773,6 +1896,50 @@ def build_parser() -> argparse.ArgumentParser:
                         "computed over only the leads that needed a fetch")
 
     p_ledger.set_defaults(func=cmd_ledger)
+
+    p = sub.add_parser("metrics",
+                       help="what the hook stage yielded, and what the leads "
+                            "that yielded nothing cost")
+    p.add_argument("input", help="the batch's research/draft objects, or '-'")
+    p.add_argument("--batch", help="batch label (default OUTBOUND_BATCH, then today)")
+    p.add_argument("--no-ledger", action="store_true",
+                   help="report the hook side alone, without reading a ledger")
+    p.add_argument("--out", help="where to write the JSON artifact "
+                                 "(default data/runs/<batch>-metrics.json)")
+    # Supplied, never derived. Anything not passed prints `?` rather than 0 —
+    # an unsupplied count is not a measurement of zero.
+    p.add_argument("--raw", type=int, help="rows in the source list (intake)")
+    p.add_argument("--after-dedupe", type=int, help="rows the early dedupe cleared")
+    p.add_argument("--warm", type=int, help="warm-thread hits")
+    p.add_argument("--passed-floors", type=int, help="leads through the three floors")
+    p.add_argument("--written", type=int, help="rows in leads.csv (export)")
+    p.add_argument("--rejected", type=int, help="rows in rejected.txt (export)")
+    p.add_argument("--tier0-rate", type=float, help="tier 0 rate as a fraction, e.g. 0.59")
+    p.add_argument("--source-list", help="what the raw list was called")
+    p.add_argument("--passes", type=int,
+                   help="agent passes for the batch. REPORTED on trust — Python "
+                        "cannot see them, the same blind spot as `ledger add`")
+    p.set_defaults(func=cmd_metrics)
+
+    p = sub.add_parser("replies",
+                       help="join a Smartlead replies export to the batch, "
+                            "on email — reply rate by hook type and rung")
+    p.add_argument("export", help="the Smartlead CSV, or '-' for stdin")
+    p.add_argument("--leads", required=True,
+                   help="the batch's research/draft objects, carrying hook_type")
+    p.add_argument("--batch", help="batch label, for the artifact name")
+    p.add_argument("--email-column", default="",
+                   help="name the address column instead of sniffing it")
+    p.add_argument("--replied-column", default="",
+                   help="name the reply column instead of sniffing it")
+    p.add_argument("--all-replied", action="store_true",
+                   help="the export is already filtered to people who replied, "
+                        "so it carries no reply column. Never inferred: a "
+                        "pre-filtered file and an unrecognised column look the "
+                        "same and differ by the whole answer")
+    p.add_argument("--out", help="where to write the JSON artifact "
+                                 "(default data/runs/<batch>-replies.json)")
+    p.set_defaults(func=cmd_replies)
 
     p_apify = sub.add_parser("apify", help="no-login LinkedIn / Instagram / YouTube / SERP fetch")
     apify_sub = p_apify.add_subparsers(dest="apify_command", required=True)

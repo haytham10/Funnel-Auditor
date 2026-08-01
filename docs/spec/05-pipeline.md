@@ -495,6 +495,78 @@ run-sync-get-dataset-items, which collapses a run to its output, so the billed
 `usageTotalUsd` on the run object is never fetched. A ledger implying otherwise
 would be worse than none.
 
+### `metrics`
+**In** the batch's research objects, plus the counts earlier stages printed.
+**Out** what the hook stage yielded and what the leads that yielded nothing
+cost, and the Batches row as a paste-ready block. **Guarantees** a count nobody
+supplied prints `?` rather than `0`. **Exit 2** on a ledger it could not read.
+**Never exit 1.** Owned by `outbound/metrics.py`.
+
+**`?` is not zero, and that is the whole design.** The dedupe wall's asymmetry
+and the ledger's, a third time: a missing wall must never read as "nobody has
+been contacted", a missing ledger must never read as "this batch cost nothing",
+and an unsupplied raw count must never read as "no leads came in". A zero is a
+measurement. A metrics block that quietly zero-fills is worse than no block,
+because it looks like evidence. The cost field is the sharpest case — a zero
+cost from an unopened ledger and a zero cost from a genuinely free batch are the
+same number and opposite facts, so the first prints `?` and only the second
+prints the figure.
+
+**`yield_by_rung` is the number that settles F5**, which says the cheapest rung
+produces the observations most likely to be refuted. The rung is derived from
+the hook's source URL rather than reported, so a worker cannot mislabel the
+number judging its own rung. `plan.LADDER` owns the rungs and
+`normalize.classify_site` owns the platforms; neither is restated (D23).
+
+**`wasted_retrieval` is what the retrieve-once work is trying to move** — paid
+fetches on leads that produced no verified hook. Free rungs are excluded, since
+the figure's use is deciding whether a *purchase* was worth making, and a
+verification fetch is excluded because it is spent on a hook that exists.
+
+**It prints the Batches row and does not write it.** `audit/airtable.py` states
+the boundary — writes stay narrow, a row lands where a human sees it — and a
+metrics command is not the place to widen it. What was wrong was never that a
+model did the typing; it was that a model did the arithmetic, from memory, at
+the end of a long run.
+
+`agent_passes` is **reported on trust** and labelled so. Python cannot see an
+agent pass, the same blind spot that makes a worker's own WebSearch invisible to
+the ledger, and `ledger add`'s answer applies here too: record it, keep it
+distinguishable from what was measured.
+
+### `replies`
+**In** a Smartlead replies export and the batch's leads. **Out** reply rate
+overall, by `hook_type`, and by the rung the hook came from. **Guarantees** a
+column it could not identify is an error and never a zero reply rate. **Exit 2**
+when it cannot read the file or name the columns. Owned by
+`outbound/replies.py`.
+
+**This is the one gap no retrieval architecture closes**, and it is a manual
+bridge on purpose. Smartlead owns replies, there is no API key in this repo, and
+`docs/spec/06-state.md` records that handover as a CSV. So Haytham exports and
+this joins on `email`. It is what finally makes `Hook Type` testable against
+reply rate — the CRM field's own description calls it *"a testable variable
+against reply rate rather than a detail buried in prose"*, and the test has
+never been run.
+
+**The columns are sniffed because nothing here has ever seen a real export.** A
+hard-coded name would fail on first contact, and fail silently if it happened to
+match something else. An unfindable column names the headers it did see;
+`--email-column` and `--replied-column` override the sniff.
+
+**A pre-filtered export is never inferred.** A file where every row is a reply
+and a file whose reply column went unrecognised look identical and differ by the
+whole answer, so `--all-replied` says which, and without it the second is an
+error. In a status column an unrecognised value counts as **not** a reply and is
+named: under-counting understates a campaign, while over-counting makes a hook
+type look good and drives a real decision on a word nobody checked. Ordinary
+statuses (`SENT`, `OPENED`, `BOUNCED`) pass silently, so the note only fires on
+something genuinely new.
+
+**It draws no conclusion.** One batch is a handful of samples per bucket. The
+report says so in a line, because a percentage over three leads reads as a
+finding to anybody skimming.
+
 ### `classify-footprint`
 Merges pre-fetched search hits into sourcing candidates. Fetch-agnostic by
 design — it never calls a search API itself.

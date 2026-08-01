@@ -164,6 +164,23 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   not a zero-cost batch, the same asymmetry as the wall. **Never exit 1**, not
   even on a duplicate: reporting one is the job, and a gate that can halt a send
   file over an accounting line is a gate people learn to route around.
+- `python main.py metrics <research.json>` — what the hook stage yielded and
+  what the leads that yielded nothing cost: `hook_yield`, `refute_rate`,
+  `null_hook_rate`, `yield_by_rung`, `wasted_retrieval`,
+  `cost_per_verified_hook`. **A count nobody supplied prints `?`, never `0`** —
+  the wall's asymmetry a third time, because a zero is a measurement and a block
+  that zero-fills looks like evidence. `yield_by_rung` is the number that
+  settles F5; `wasted_retrieval` is the one the retrieve-once work is trying to
+  move. It also prints the Batches row as a paste-ready block and **does not
+  write it** — Python computes, a human still sees the row land. Exit 2 on an
+  unreadable ledger, **never exit 1**, same rule as the ledger.
+- `python main.py replies <export.csv> --leads <research.json>` — the manual
+  Smartlead bridge, the only path here to reply data. Reply rate by `hook_type`
+  and by rung, which is what `Hook Type` has been a CRM select for since the
+  beginning. Columns are sniffed because nothing here has seen a real export; a
+  column it cannot identify is **exit 2 naming the headers it saw**, never a
+  zero reply rate. `--all-replied` is never inferred: a pre-filtered file and an
+  unrecognised column look identical and differ by the whole answer.
 - `python main.py doc-check` — the docs against the code they describe. Every
   command a doc names must exist in the parser, every path it backticks must be
   on disk, every copy-line id must be in the CSV, every `Defers to:` must
@@ -236,7 +253,10 @@ hook stage's fetch bought anything), `anchors` (the
 deterministic line draw and the fact table), `lint` (the checks), `export`
 (leads.csv and preview.txt), `ledger` (what every retrieval cost and how long it
 took — the only module here that fails **open**, because an observer that can
-halt the run it observes is worse than no observer).
+halt the run it observes is worse than no observer), `metrics` (what the hook
+stage yielded and what the leads that yielded nothing cost — the same
+fail-open rule, and `?` wherever a count was not supplied), `replies` (the
+manual Smartlead join, and the only thing here that touches reply data).
 
 **`audit/`** — what survived the pivot: `email_check`, `email_verifier`,
 `email_enrich`, `apify` (cost-gated), `extract`, `urls`, `draft_lint`,
