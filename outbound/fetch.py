@@ -342,13 +342,28 @@ def run_plan(plan: dict, *, approved: bool = False) -> list[dict]:
     the input shape, the page function, the explicit `crawlerType` — lives in
     `audit/apify.py` next to the actor it belongs to, so this module never
     grows a second, drifting copy of it.
+
+    **It dispatches on the two site actors and refuses everything else.** This
+    used to fall through to `crawl_static` for any unrecognised `actor_key`,
+    which is the wrong default for a function that spends money: a caller
+    handing it an `li_profile` batch would have run cheerio against LinkedIn
+    URLs, paid, silently, and got back plausible-looking empty results. Nothing
+    reaches it that way today — `plan` emits no run dicts — so the refusal costs
+    nothing now and is here because the shape that made it possible was the
+    defaulting, not the caller.
     """
     from audit import apify
 
     urls = plan.get("urls") or []
-    if plan.get("actor_key") == "site_render":
+    key = plan.get("actor_key")
+    if key == "site_render":
         return apify.crawl_render(urls, approved=approved)
-    return apify.crawl_static(urls, approved=approved)
+    if key == "site_static":
+        return apify.crawl_static(urls, approved=approved)
+    raise ValueError(
+        f"run_plan: actor_key {key!r} is not a site crawler. This runs "
+        f"site_static or site_render and nothing else; call the actor's own "
+        f"wrapper in audit/apify.py instead.")
 
 
 def check_owner(read: SiteRead, name: str) -> str:

@@ -24,6 +24,8 @@ os.environ.setdefault("OUTBOUND_LEDGER_ROOT",
 
 import threading
 
+import pytest
+
 from outbound import fetch, ledger
 
 
@@ -199,6 +201,29 @@ def test_run_plan_dispatches_to_the_right_crawler(monkeypatch):
     fetch.run_plan(fetch.apify_batch_plan(["https://a.ae"], render=False))
     fetch.run_plan(fetch.apify_batch_plan(["https://b.ae"], render=True))
     assert [c[0] for c in calls] == ["static", "render"]
+
+
+def test_run_plan_refuses_a_non_site_actor_and_spends_nothing(monkeypatch):
+    """A `li_profile` batch must not quietly become a cheerio run.
+
+    This used to fall through to `crawl_static`, which would have paid to run a
+    static HTML scraper against LinkedIn URLs and returned empty items that look
+    like a lead with nothing on their profile.
+    """
+    from audit import apify
+
+    calls = []
+    monkeypatch.setattr(apify, "crawl_static",
+                        lambda urls, **k: calls.append(("static", urls)) or [])
+    monkeypatch.setattr(apify, "crawl_render",
+                        lambda urls, **k: calls.append(("render", urls)) or [])
+
+    for key in ("li_profile", "li_posts", "", None):
+        with pytest.raises(ValueError) as exc:
+            fetch.run_plan({"actor_key": key,
+                            "urls": ["https://linkedin.com/in/someone"]})
+        assert repr(key) in str(exc.value)
+    assert calls == []
 
 
 # ------------------------------------------------------------- concurrency
