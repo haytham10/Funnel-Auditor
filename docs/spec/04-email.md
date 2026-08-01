@@ -68,7 +68,7 @@ non sequitur even when every sentence is individually fine.
 | 2 | **Identity** | *who is this and why should I care?* |
 | 3 | **Offer** | *what can you do for me?* |
 | 4 | **Close** | *what happens next?* |
-| 5 | **ps** | *what does saying no cost me?* |
+| 5 | **ps** | *what does this cost me — to decline, or to have read?* |
 
 Assembled as hook, identity, offer, close, sign-off, ps — the order is fixed in
 `outbound/export.py` and changing it changes every email in the campaign at once.
@@ -91,8 +91,19 @@ the reason only a conversation can answer becomes a question, and a question
 selects for replies that are *answers* — which is a dead end that looks like
 success. That is how reply-to-call went zero for nine.
 
-**ps** — a costless no. It is not a throwaway; it is the beat that makes not
-replying cheap, which is what makes replying honest.
+**ps** — a costless no, or a costless read. It is not a throwaway; it is the
+beat that makes not replying cheap, which is what makes replying honest.
+
+**Two moves, not one.** Granting permission to decline is the obvious one.
+Making the email itself cost nothing to have received — no deck behind it,
+nothing to unsubscribe from, evidence it was not bulk — answers the same
+question from the other side. The bank was monotone for a while because the
+linter's claim token named only the first move and rejected anything else, so a
+constraint nobody had decided read as a choice somebody had.
+
+**Neither move may promise what happens next.** Smartlead owns the sequence
+steps, so a ps saying there will be no follow-up is false the moment a batch is
+uploaded.
 
 ## The bridge
 

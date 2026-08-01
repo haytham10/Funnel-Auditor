@@ -135,10 +135,26 @@ CLAIM_TOKENS: dict[str, list[tuple[str, re.Pattern]]] = {
             r"why these|not the other|how i picked|ruled the other|"
             r"what ruled|why those", re.I)),
     ],
+    # ONE entry, matching either of two moves, because every entry in a beat's
+    # list has to match and these are alternatives rather than requirements.
+    #
+    # It used to name one move, and that is why all four ps lines were the same
+    # move: the token permitted nothing else, so `copy_sync.validate` rejected
+    # any ps that did not hand back an exit. A bank monotone by accident of a
+    # regex reads as a bank monotone by choice, and nobody looking at the four
+    # lines could tell which it was.
+    #
+    # The beat's job is unchanged — make not replying cheap, which is what makes
+    # replying honest. What widened is HOW: granting permission to decline is
+    # one way, and making the email itself cost nothing to have received is
+    # another. Both answer the reader's question. Neither is a promise about
+    # what happens next, which matters: Smartlead owns the sequence steps, so a
+    # ps promising no follow-up would be false the moment a batch is uploaded.
     "ps": [
-        ("a costless no", re.compile(
+        ("a costless no or a costless read", re.compile(
             r"costs? you nothing|fine answer|no hard feelings|nothing to "
-            r"unsubscribe|not a list|leave it there|a no here", re.I)),
+            r"unsubscribe|not a list|leave it there|a no here|"
+            r"no pitch deck|read your work|before i wrote|before writing", re.I)),
     ],
 }
 

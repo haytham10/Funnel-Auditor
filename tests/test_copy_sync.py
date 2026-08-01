@@ -872,3 +872,22 @@ def test_a_claim_on_a_column_the_row_never_measured_is_blocked():
     assert any("no first_client_days recorded" in p for p in _problems_for(_identity(
         "id-x", "A business coach landed their first client in week 1.",
         "Business:first_client_days", coach_type="Business")))
+
+
+def test_a_ps_that_proves_effort_instead_of_granting_an_exit_is_allowed():
+    """All four ps lines were the same move because the claim token named only
+    that move — `validate` rejected any ps that did not hand back an exit. A
+    bank monotone by accident of a regex reads as one monotone by choice."""
+    records = good_set()
+    records[5]["fields"]["Line"] = "ps: I read your work before I wrote this one."
+    lines, _ = copy_sync.normalize_records(records)
+    assert copy_sync.validate(lines) == []
+
+
+def test_a_ps_that_makes_no_claim_at_all_is_still_rejected():
+    """Widening the token is not removing it. A ps that answers neither
+    question is a throwaway line, and the beat is not a throwaway."""
+    records = good_set()
+    records[5]["fields"]["Line"] = "ps: hope your week is going well."
+    lines, _ = copy_sync.normalize_records(records)
+    assert any("costless" in p for p in copy_sync.validate(lines))
