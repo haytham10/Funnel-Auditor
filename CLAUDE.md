@@ -45,6 +45,7 @@ and a deterministic linter made that safe.**
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
+resolve     which channels are plausibly theirs, typed and evidenced. Advisory
 research    research-worker per slice -> typed objects, schema-validated
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
@@ -192,7 +193,9 @@ Pointers, not manuals. Every module carries a full docstring.
 
 **`outbound/`** — `normalize` (raw row to Lead, junk classification),
 `dedupe` (the two passes and the Contacted-Before wall), `fetch` (the free-first
-ladder and the batched Apify plan), `qualify` (the three floors, evidence-
+ladder and the batched Apify plan), `resolve` (which channels are plausibly this
+lead's own, and on what evidence — advisory, and it gates spend rather than
+inclusion), `qualify` (the three floors, evidence-
 carrying), `research` (the typed contract every worker returns), `observe` (one
 thing that was actually fetched, kept verbatim), `anchors` (the
 deterministic line draw and the fact table), `lint` (the checks), `export`

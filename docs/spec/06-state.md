@@ -25,6 +25,8 @@ spec doc names a row here rather than copying from it.
 | the three floors, as evaluated | `outbound/qualify.py` | code | `qualify` |
 | the research contract | `outbound/research.py` | code | every worker |
 | the observation contract | `outbound/observe.py` | code | `observe`, and `research` for the ones a research object carries |
+| which channels are plausibly a lead's own | `outbound/resolve.py` | `resolve`, from the row, the site read and any link-in-bio page | nothing yet — the batch brief, and `plan` when it exists |
+| which lead a fetch, an observation or an identity belongs to | `outbound/fetch.py`, `lead_key` | code | `outbound/ledger.py`, `outbound/observe.py`, `outbound/resolve.py` |
 | the Apify cost ceiling | `audit/apify.py` | code | every paid call |
 | the CRM base and table ids | `CLAUDE.md` | by hand, rarely | `audit/airtable.py` |
 | the CRM's select options | Airtable, in the field config | by hand, in the UI | `audit/airtable.py`, `outbound/research.py`, `outbound/copy_sync.py`, all three checked against it by `doc-check --live` |

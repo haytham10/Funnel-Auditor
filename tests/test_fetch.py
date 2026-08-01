@@ -213,7 +213,7 @@ class _Lead:
 
 def test_batch_fetch_reads_every_lead_exactly_once(monkeypatch):
     """Concurrency must not drop or duplicate a lead. Results go into a dict
-    keyed by `_read_key`, so completion order cannot leak into the output."""
+    keyed by `lead_key`, so completion order cannot leak into the output."""
     seen = []
     lock = threading.Lock()
 
@@ -386,7 +386,7 @@ def test_every_page_read_free_lands_in_the_ledger(monkeypatch, tmp_path):
 
 def test_the_ledger_line_is_keyed_to_the_lead_not_the_site(monkeypatch, tmp_path):
     """Two rows from a directory can share a company site. Keying on the site
-    would merge their spend, which is the same bug `_read_key` exists for."""
+    would merge their spend, which is the same bug `lead_key` exists for."""
     monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
     monkeypatch.setattr(fetch, "read_site",
                         lambda url, **k: read_of(("https://shared.ae", PAGE)))

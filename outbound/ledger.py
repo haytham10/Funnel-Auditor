@@ -78,8 +78,8 @@ class Retrieval:
     """One fetch. The unit is (lead, source), not lead."""
 
     lead_key: str = ""
-    stage: str = ""              # fetch | research | hook | verify | email
-    platform: str = ""           # site | linkedin | instagram | youtube | web | email
+    stage: str = ""              # fetch | resolve | research | hook | verify | email
+    platform: str = ""           # site | linkedin | instagram | youtube | linkinbio | web | email
     url: str = ""
     retrieved_by: str = ""       # tier0 | websearch | webfetch | apify:<actor_key>
     cost_usd: float | None = 0.0  # None when the actor could not be priced

@@ -359,20 +359,28 @@ def _profile_name_notes(lead: "Lead") -> list[str]:
     **A note, never a drop.** Plenty of real people have a handle that is a
     brand, a nickname, or their name with digits after it. This exists so the
     bad rows are visible before the money, not so the machine can act on them.
+
+    The handle extraction and the match are `outbound/resolve.py`'s, not a
+    second copy: this is the prose presentation of the same rule `resolve`
+    returns a verdict for. Its `handle_of` also returns "" for an id that cannot
+    carry a name, which the local version could not — it did
+    `url.rsplit("/", 1)[-1]` and would have reported `youtube.com/channel/UC1a2b3c`
+    as a name mismatch. Two presentations of one rule; not three implementations.
     """
     from audit.email_check import name_tokens
+    from outbound.resolve import handle_of, handle_matches
 
     tokens = name_tokens(lead.name or "", min_len=3)
     if not tokens:
         return []
     notes = []
-    for field_name, label in (("linkedin_url", "LinkedIn"),
-                              ("instagram_url", "Instagram")):
+    for field_name, label, platform in (("linkedin_url", "LinkedIn", "linkedin"),
+                                        ("instagram_url", "Instagram", "instagram")):
         url = getattr(lead, field_name, "")
         if not url:
             continue
-        handle = re.sub(r"[^a-z]+", "", url.rsplit("/", 1)[-1].lower())
-        if handle and not any(t in handle for t in tokens):
+        handle = handle_of(url, platform)
+        if handle and not handle_matches(handle, tokens):
             notes.append(f"{label} handle does not contain this lead's name "
                          f"({url}) — confirm it is them before spending on it")
     return notes

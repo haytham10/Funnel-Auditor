@@ -222,11 +222,11 @@ def test_two_leads_sharing_a_company_site_get_separate_reads():
     """`batch_fetch` keyed on slug, which comes from the name and falls back to
     the domain; `partition` never dedupes on domain, so nameless rows survive
     to here and one lead's page text fed the other's qualify and hook."""
-    from outbound.fetch import _read_key
+    from outbound.fetch import lead_key
     a = normalize.map_row({"Website": "https://thecoachhub.ae", "Email": "sara@x.ae"})
     b = normalize.map_row({"Website": "https://thecoachhub.ae", "Email": "mona@x.ae"})
     assert a.slug == b.slug, "the collision this test is about"
-    assert _read_key(a) != _read_key(b)
+    assert lead_key(a) != lead_key(b)
 
 
 # ---------------------------------------------------------------------- dead

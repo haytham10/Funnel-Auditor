@@ -42,8 +42,12 @@ import hashlib
 from dataclasses import dataclass, field, asdict
 from datetime import date, datetime
 
+# Widened rather than mapped when `resolve` arrived. Widening an enum
+# invalidates no record already written; a translation table between two
+# platform vocabularies is a value copied out of its authority, and it goes
+# stale the first time either side moves.
 PLATFORMS = ("linkedin", "instagram", "youtube", "podcast", "facebook",
-             "tiktok", "site", "web")
+             "tiktok", "twitter", "linkinbio", "site", "web")
 KINDS = ("post", "episode", "video", "about", "framework", "result", "bio")
 AUTHORS = ("self", "third_party", "unknown")
 

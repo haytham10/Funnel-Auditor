@@ -63,6 +63,7 @@ a linter made that safe.
 | `intake` | raw CSV to Leads, junk stripped, platform URLs routed to social |
 | `dedupe` | name/domain **before any paid call**, email again after research |
 | `fetch` | free local HTTP first, one batched Apify run for the rest |
+| `resolve` | which channels are plausibly theirs, with evidence. Never a kill |
 | research | `research-worker` per slice, objects schema-validated |
 | hook | `hook-worker` proposes, `hook-verifier` re-fetches the citation |
 | draft | `draft-worker` writes against the anchors, `draft-verifier` reads cold |
