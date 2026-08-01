@@ -24,6 +24,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     export      leads.csv + preview.txt, refusing to write a failing email
     email-check      address shape: syntax, MX, role and typo flags
     email-verify     deliverability confirm before a send
+    email-verify-batch  the same, for a whole slice's addresses in one call
     email-enrich     the no-address fallback on the lead's own domain
     apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
     classify-footprint   merge pre-fetched search hits into sourcing candidates
@@ -946,6 +947,36 @@ def cmd_email_verify(args) -> None:
                                       note=note or ""))
 
 
+def cmd_email_verify_batch(args) -> None:
+    """Same gate as `email-verify`, one call for the whole list. A verifier
+    run is priced per address regardless of whether the addresses arrive in
+    one call or ten — batching pays for the run once instead of once per
+    lead, same lever as the tier-0 site fetch and `deal`. Prints one
+    quotable line per address, same format as the single-address command,
+    so nothing downstream has to tell them apart."""
+    from audit import email_check
+    from audit.apify import ApifyCostApprovalRequired
+    verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
+    try:
+        rows = verify_fn(args.addresses)
+    except ApifyCostApprovalRequired as exc:
+        print(f"EMAIL VERIFY: APPROVAL REQUIRED — {exc}")
+        sys.exit(3)
+    except error_cls as exc:
+        for addr in args.addresses:
+            print(f"EMAIL VERIFY: WARN — {addr}: verifier unavailable "
+                  f"({exc}) — inconclusive, could not confirm deliverability")
+        sys.exit(0)
+    by_email = {(r.get("email") or "").strip().lower(): r
+                for r in rows if isinstance(r, dict)}
+    worst = 0
+    for addr in args.addresses:
+        code = email_check.print_verify(
+            addr, by_email.get(addr.strip().lower()), note=note or "")
+        worst = max(worst, code)
+    sys.exit(worst)
+
+
 def cmd_email_enrich(args) -> None:
     """The no-address fallback: derive name-based candidates on the lead's OWN
     branded domain, verify them in one batched call, adopt at most one. Never
@@ -1038,7 +1069,8 @@ def cmd_apify(args) -> None:
             out = apify.linkedin_posts(args.url, max_posts=args.max, since=args.since,
                                        raw=args.raw, approved=approved)
         elif cmd == "li-profile":
-            out = apify.linkedin_profile(args.url, with_email=args.email, raw=args.raw,
+            target = args.urls[0] if len(args.urls) == 1 else args.urls
+            out = apify.linkedin_profile(target, with_email=args.email, raw=args.raw,
                                          approved=approved)
         elif cmd == "youtube":
             out = apify.youtube_channel(args.channel, raw=args.raw, approved=approved)
@@ -1252,6 +1284,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_verify)
 
+    p = sub.add_parser("email-verify-batch",
+                       help="deliverability confirm for a whole slice, one call")
+    p.add_argument("addresses", nargs="+")
+    p.add_argument("--approve-cost", action="store_true")
+    p.set_defaults(func=cmd_email_verify_batch)
+
     p = sub.add_parser("email-enrich", help="no-address fallback on the lead's own domain")
     p.add_argument("name")
     p.add_argument("domain", help="domain or site URL")
@@ -1291,7 +1329,8 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--approve-cost", action="store_true")
 
     a = apify_sub.add_parser("li-profile", help="LinkedIn headline / about / experience")
-    a.add_argument("url")
+    a.add_argument("urls", nargs="+",
+                   help="one URL, or several to batch into one actor run")
     a.add_argument("--email", action="store_true", help="use the pricier email-search mode")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")

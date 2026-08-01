@@ -146,6 +146,7 @@ does. A missing token fails closed with a clear message, never a guess.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 import requests
@@ -619,7 +620,16 @@ def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
                    raw: bool = False, approved: bool = False) -> list[dict]:
     """Recent LinkedIn posts (no cookies) — the primary hook source. `since`
     is one of LI_POSTED_LIMITS (e.g. 'week', 'month'). Reactions/comments
-    stay off by default to keep the run cheap. Cost-gated on `max_posts`."""
+    stay off by default to keep the run cheap. Cost-gated on `max_posts`.
+
+    Stays single-URL on purpose, unlike `linkedin_profile`: this actor's
+    `maxPosts` is a budget shared across every `targetUrls` entry in the run,
+    not a per-profile cap — verified directly (two target URLs, maxPosts=10,
+    all 10 posts came back from the SAME profile, zero from the other).
+    Batching leads into one call would silently starve most of them of any
+    post data, which reads as "no recent activity" — a false `active_recent`
+    kill and a hook search that never finds what's actually there. That is a
+    worse failure than one container boot per lead."""
     if since and since not in LI_POSTED_LIMITS:
         raise ApifyError(f"since must be one of {LI_POSTED_LIMITS}, got {since!r}")
     _require_cost_approval(ACTORS["li_posts"], max_posts, approved)
@@ -652,62 +662,93 @@ def _li_best_email(emails: list) -> str | None:
     return (valid or entries[0])["email"]
 
 
-def linkedin_profile(url: str, with_email: bool = False, raw: bool = False,
-                     approved: bool = False) -> list[dict]:
+def _format_li_profile(i: dict) -> dict:
+    location = i.get("location") or {}
+    current = (i.get("currentPosition") or [{}])[0]
+    experience = []
+    for e in i.get("experience") or []:
+        end = e.get("endDate") or {}
+        rec_e = {
+            "title": e.get("position"),
+            "company": e.get("companyName"),
+            "location": e.get("location"),
+            "duration": e.get("duration"),
+            "description": e.get("description"),
+            # harvestapi has no is_current flag; a position still running
+            # reads "Present" as its end date, which is the same fact.
+            "is_current": str(end.get("text", "")).strip().lower() == "present" or None,
+        }
+        experience.append({k: v for k, v in rec_e.items() if v not in (None, "", [])})
+    websites = [w for w in (i.get("websites") or []) if isinstance(w, str)]
+    name = " ".join(p for p in (i.get("firstName"), i.get("lastName")) if p)
+    rec = {
+        "linkedinUrl": i.get("linkedinUrl"),
+        "publicIdentifier": i.get("publicIdentifier"),
+        "fullName": name,
+        "headline": i.get("headline"),
+        "about": i.get("about"),
+        "location": location.get("linkedinText"),
+        "currentCompany": current.get("companyName"),
+        "followerCount": i.get("followerCount"),
+        "website": websites[0] if websites else None,
+        "email": _li_best_email(i.get("emails")),
+        "experience": experience,
+    }
+    return {k: v for k, v in rec.items() if v not in (None, "", [])}
+
+
+def _li_identifier(url: str) -> str:
+    """The `/in/<public-identifier>` segment, lowercased — the stable key
+    for correlating a batched query back to which lead asked for it. This
+    actor's output rows don't echo the input string on a success, only
+    `publicIdentifier`/`linkedinUrl`, so matching has to go through this."""
+    m = re.search(r"/in/([^/?#]+)", url)
+    return (m.group(1) if m else url).strip().strip("/").lower()
+
+
+def linkedin_profile(urls: str | list[str], with_email: bool = False,
+                     raw: bool = False, approved: bool = False):
     """LinkedIn profile enrichment (headline, about, experience). Pass
     with_email=True ONLY when hunting an address for a no-email lead — it
     switches the actor to its email-search mode, which bills 2.5x the plain
-    one. Takes a profile URL or bare public identifier. Cost-gated (1 item, at
-    the price of whichever mode is being run)."""
+    one.
+
+    `urls` is a single profile URL/identifier (returns a list, as before,
+    raising if it didn't resolve) OR a list of them — a list is ONE actor
+    run for the whole batch (`queries` already takes an array; ten profiles
+    in one call is one container boot instead of ten, and this actor DOES
+    key its output per query rather than sharing a budget across them, unlike
+    `linkedin_posts`'s `maxPosts` — see the note there on why that one stays
+    single-URL). Batched mode returns one row per input url, in input order,
+    `None` for a url that didn't resolve rather than raising — one bad
+    profile in a batch of ten should not blank out the other nine."""
+    single = isinstance(urls, str)
+    url_list = [urls] if single else list(urls)
+    if not url_list:
+        raise ApifyError("linkedin_profile needs at least one URL")
     event = LI_PROFILE_EVENTS[bool(with_email)]
-    _require_cost_approval(ACTORS["li_profile"], 1, approved, event_key=event)
+    _require_cost_approval(ACTORS["li_profile"], len(url_list), approved, event_key=event)
     items = run_actor(
         ACTORS["li_profile"],
         # `queries` takes profile URLs or bare public identifiers
         # interchangeably, which is the one input field that accepts both —
         # the more specific `urls`/`publicIdentifiers` fields would make the
         # caller decide which of the two it holds.
-        {"queries": [url], "profileScraperMode": LI_PROFILE_MODES[bool(with_email)]},
+        {"queries": url_list, "profileScraperMode": LI_PROFILE_MODES[bool(with_email)]},
         memory_mbytes=256,
     )
     if raw:
         return items
-    _raise_on_actor_error(items, url)
-    out = []
+
+    if single:
+        _raise_on_actor_error(items, url_list[0])
+        return [_format_li_profile(i) for i in items]
+
+    by_ident = {}
     for i in items:
-        location = i.get("location") or {}
-        current = (i.get("currentPosition") or [{}])[0]
-        experience = []
-        for e in i.get("experience") or []:
-            end = e.get("endDate") or {}
-            rec_e = {
-                "title": e.get("position"),
-                "company": e.get("companyName"),
-                "location": e.get("location"),
-                "duration": e.get("duration"),
-                "description": e.get("description"),
-                # harvestapi has no is_current flag; a position still running
-                # reads "Present" as its end date, which is the same fact.
-                "is_current": str(end.get("text", "")).strip().lower() == "present" or None,
-            }
-            experience.append({k: v for k, v in rec_e.items() if v not in (None, "", [])})
-        websites = [w for w in (i.get("websites") or []) if isinstance(w, str)]
-        name = " ".join(p for p in (i.get("firstName"), i.get("lastName")) if p)
-        rec = {
-            "linkedinUrl": i.get("linkedinUrl"),
-            "publicIdentifier": i.get("publicIdentifier"),
-            "fullName": name,
-            "headline": i.get("headline"),
-            "about": i.get("about"),
-            "location": location.get("linkedinText"),
-            "currentCompany": current.get("companyName"),
-            "followerCount": i.get("followerCount"),
-            "website": websites[0] if websites else None,
-            "email": _li_best_email(i.get("emails")),
-            "experience": experience,
-        }
-        out.append({k: v for k, v in rec.items() if v not in (None, "", [])})
-    return out
+        if isinstance(i, dict) and i.get("publicIdentifier") and not i.get("error"):
+            by_ident[i["publicIdentifier"].strip().lower()] = _format_li_profile(i)
+    return [by_ident.get(_li_identifier(u)) for u in url_list]
 
 
 def _yt_run_input(channel: str) -> dict:
