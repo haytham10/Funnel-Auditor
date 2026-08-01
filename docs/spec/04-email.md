@@ -238,6 +238,32 @@ lead's own quoted words contained "optimism", "auditorium" or "Detroit". A gate
 that rejects a good email and names a word that was never in it is unfixable by
 the drafter, because the complaint is not true.
 
+## The seam between identity and offer
+
+Each line can be fine and the pair still collide. `id-career-3` ends *"…worked
+with here."* and `b4-02` opens *"Real people here,"* — two sentences in a row
+landing on the same word. Across the bank that is roughly one identity/offer
+pair in five, and on the first real batch nothing saw it until a person read the
+email, by which point the lead had spent its one rewrite pass on a defect
+neither line was at fault for.
+
+**The repair belongs to the drafter, not the allocator.** The deal can swap the
+ps, and the ps and the cta; it cannot move identity or offer, each pinned for a
+stated reason. So a rule at deal time would be a rule with no legal repair on a
+fifth of pairs. The identity sentence is written, so the drafter always has one:
+it is handed the offer line's distinctive words before it writes, and the linter
+it runs on itself catches what slips through. Both happen inside the first pass,
+so the rewrite budget is never touched.
+
+The check knows the copy's own vocabulary and ignores it. Two beats of an email
+about finding a coach their next client will both say *coach* and *client*, and
+a rule that treats the bank's subject matter as a collision is a rule against
+the copy.
+
+**Hook to identity is deliberately not checked.** The identity beat opens by
+picking the hook back up. That clause is the bridge, and reusing a word from the
+hook is often exactly how it works.
+
 ## Batch-level checks
 
 Some failures are invisible one email at a time. Three of the five beats come

@@ -585,3 +585,69 @@ def test_every_live_bank_line_satisfies_its_own_claim():
         for line in bank.identity
     }
     assert not {k: v for k, v in broken.items() if v}
+
+
+# ------------------------------------------------------------------ the seam
+#
+# 24 of the bank's 132 identity/offer pairs repeat a word across the seam. Each
+# line is fine alone; nothing saw the pair until a person read the email, and by
+# then the lead had spent its single rewrite pass on a defect it could not fix.
+
+
+def test_the_real_career_offer_collision_is_caught():
+    """`id-career-3` ends "...worked with here." and `b4-02` opens "Real people
+    here," — two sentences in a row landing on the same word."""
+    problems = lint.check_seam({
+        "identity": "12 meetings in 45 days for the last career coach I worked with here.",
+        "offer": "I've already got 10 names for you. Real people here, picked one at a time.",
+    })
+    assert any('"here"' in p for p in problems)
+
+
+def test_the_copys_own_vocabulary_may_repeat():
+    """Two beats of an email about finding a coach their next client will both
+    say "coach" and "client". A rule that treats the bank's own subject matter
+    as a collision is a rule against the copy."""
+    assert lint.check_seam({
+        "identity": "Your next client is the job. I booked a coach 12 meetings.",
+        "offer": "I have 10 names of clients worth the meeting for a coach like you.",
+    }) == []
+
+
+def test_function_words_are_not_collisions():
+    # Nobody hears "and" twice. The check has to be about words a reader would
+    # actually notice, or it fires on every email ever written.
+    assert lint.check_seam({
+        "identity": "I did this for you and it was over in a month.",
+        "offer": "I did this for you and it is ready when you are.",
+    }) == []
+
+
+def test_the_hook_and_identity_seam_is_deliberately_not_checked():
+    """The identity beat opens with a clause picking the hook back up. That
+    clause is the bridge, the most load-bearing rule in the email, and reusing
+    a word from the hook is often exactly how it works."""
+    assert lint.check_seam({
+        "hook": "You wrote that nobody teaches founders how to delegate.",
+        "identity": "Delegate is the word I would use too. Your next client is my job.",
+    }) == []
+
+
+def test_an_authored_identity_that_dodges_the_word_passes():
+    """The whole reason this is a linter check and not a deal-time rule: the
+    identity sentence is written, so the drafter fixes it in its first pass and
+    the rewrite budget is never touched."""
+    offer = "I've already got 10 names for you. Real people here, picked one at a time."
+    assert lint.check_seam({
+        "identity": "12 meetings in 45 days for the last career coach I worked with.",
+        "offer": offer,
+    }) == []
+
+
+def test_the_seam_check_runs_inside_check_email():
+    result = lint.check_email(
+        name="x", subject="A real subject",
+        body="body", beats={"identity": "we did this in Sharjah",
+                            "offer": "Sharjah is where I found them"},
+        allowed_numbers=set())
+    assert any("both say" in f for f in result.failures)

@@ -888,7 +888,26 @@ class Anchor:
                        + (", ".join(str(n) for n in sorted(self.claim.numbers())) or "none"))
         out.append(f"    LENGTH: {low}-{high} words. The hook budget below was "
                    "measured against the reference.")
+        avoid = self._seam_words()
+        if avoid:
+            # The cheap half of the seam fix. Dodging five words while writing
+            # costs nothing; discovering the collision after the fact used to
+            # cost a lead its only rewrite pass, because neither line was at
+            # fault and the drafter could not touch either of them.
+            out.append("    DO NOT REUSE (the offer beat below already says "
+                       "these): " + ", ".join(avoid))
         return out
+
+    def _seam_words(self, limit: int = 6) -> list[str]:
+        """Words from the offer line the identity sentence should avoid.
+
+        The offer line is drawn and cannot move; the identity sentence is
+        written. So the repair belongs to whichever of the two is free, which is
+        why this is a prompt line rather than a constraint on the deal.
+        """
+        from outbound.lint import _seam_words
+
+        return sorted(_seam_words(self.offer.line))[:limit]
 
     def as_prompt_block(self) -> str:
         """What the drafting model actually sees."""

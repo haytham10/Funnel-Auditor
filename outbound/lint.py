@@ -600,6 +600,78 @@ def check_echo(beats: dict[str, str]) -> list[str]:
     return problems
 
 
+# Function words. A repeat of one of these is not a repeat anybody hears.
+_SEAM_STOPWORDS = frozenset("""
+a an the and or but if then so as at by for from in into of on to with without
+this that these those it its they them their there we us our you your yours
+i me my mine he she him his her hers who whom whose which what when where why how
+is are was were be been being am do does did done doing have has had having
+will would can could shall should may might must
+not no nor than too very just also only about over under out up down off again once
+all any both each few more most other some such own same one two
+i'm i've i'd it's that's what's who's you're you'll you've they're we're
+""".split())
+
+# The copy's own subject matter. Two beats of an email about finding a coach
+# their next client will both say "coach" and "client", and a rule that treats
+# the bank's own vocabulary as a collision is a rule against the copy.
+_SEAM_VOCABULARY = frozenset("""
+coach coaches coaching client clients meeting meetings name names call calls
+sign signs signed signing minute minutes day days week weeks month months year
+years work worked working
+""".split())
+
+
+def _seam_words(text: str) -> set[str]:
+    """The words in one beat that a reader would notice repeating."""
+    return {w for w in re.findall(r"[a-z']+", (text or "").lower())
+            if len(w) > 2 and w not in _SEAM_STOPWORDS and w not in _SEAM_VOCABULARY}
+
+
+# Which beats sit close enough together that a repeated word is audible. The
+# identity->offer seam is the one the first real batch tripped over: a line
+# ending "...worked with here." landing on one opening "Real people here,".
+#
+# hook->identity is deliberately NOT here, and that is not an oversight. The
+# identity beat opens with a clause that picks the hook back up — that clause is
+# the bridge, it is the single most load-bearing rule in the email, and reusing
+# a word from the hook is often exactly how it works. A rule against repetition
+# across that seam would fight the rule that matters most.
+_SEAMS = (("identity", "offer"),)
+
+
+def check_seam(beats: dict[str, str]) -> list[str]:
+    """A distinctive word repeated across the seam between two adjacent beats.
+
+    This is the check the first 155-lead batch went without. Roughly one pair in
+    nine of the identity/offer bank repeats a word across that seam, each line
+    fine on its own, and nothing saw it until a person read the email — by which
+    time the lead had spent its single rewrite pass.
+
+    **It runs on the AUTHORED text, not on the bank pair.** That is the whole
+    design, and it is only available because the identity beat is now written
+    rather than drawn. A bank pair that would have collided is fine as long as
+    the drafter's sentence does not, and the drafter runs this linter on itself
+    before returning — so a collision costs it one word in its first pass and
+    never reaches the verifier or the rewrite budget.
+
+    It deliberately does NOT run at deal time. `_resolve_echoes` can only swap
+    the ps and `_resolve_length` only the cta and ps; identity and offer are
+    both pinned, identity by the segment match the 70/30 ratio exists to buy and
+    offer because it carries the beat the whole email is for. So a deal-time
+    rule on this seam would be a rule with no legal repair, on a fifth of pairs.
+    The drafter always has a repair. The allocator does not.
+    """
+    problems = []
+    for first, second in _SEAMS:
+        shared = _seam_words(beats.get(first, "")) & _seam_words(beats.get(second, ""))
+        for word in sorted(shared):
+            problems.append(
+                f'the {first} and {second} beats both say "{word}" — they run '
+                f"together, so change one of them")
+    return problems
+
+
 def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
                 allowed_numbers: set, facts=None, identity_claim=None) -> Result:
     """Everything, for one email. This is the gate `export` refuses to skip.
@@ -637,6 +709,7 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
         result.warnings.append("no fact table passed, relabelling not checked")
     result.failures.extend(check_claims(beats))
     result.failures.extend(check_echo(beats))
+    result.failures.extend(check_seam(beats))
     result.failures.extend(check_bridge(beats.get("identity", "")))
     result.failures.extend(check_identity_pronouns(beats.get("identity", "")))
 
