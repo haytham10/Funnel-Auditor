@@ -84,21 +84,32 @@ Leave `obs_id` blank — it generates from the content.
 wrote it. A magazine's profile of them is `third_party`, and getting that wrong
 is how a coach ends up quoted saying something a journalist wrote.
 
-Nothing consumes observations yet, so this is not extra work in service of a
-guess — it is the evidence that stops being thrown away, one boolean at a time,
-and re-fetched a stage later at full price.
+**The activity floor now reads them**, so `published_at` is not bookkeeping —
+it is what settles one of the three floors. Everything else here is still the
+evidence that used to be thrown away one boolean at a time and re-fetched a
+stage later at full price.
 
 ## The floors
 
 Run `python main.py qualify <lead.json>` rather than judging by eye. Feed it
-the text you gathered; quote its output line back verbatim.
+the text you gathered **and the `observations` you just built**, in the same
+object; quote its output line back verbatim.
+
+Passing the observations is not optional. Their dates are the only real
+evidence the activity floor has ever had: a coach's own website almost never
+carries one — measured at zero usable dates across nine sites and about 220,000
+characters — while a LinkedIn post is dated by construction. A stale
+observation set changes nothing and never kills a lead; it simply falls back to
+the page text, and the report says what it saw.
 
 - **UAE-based** — based here, not merely serving here. "Serving the UAE and the
   wider GCC" from a London address is `unclear`, never `yes`. A clearly stated
   other country is the only thing that earns a `no`.
 - **Is a coach** — sells coaching, not merely uses the word.
-- **Active in 30 days** — a dated post, episode, or published page. No dated
-  activity found is `unclear`, never `no`: plenty of working coaches do not post.
+- **Active in 30 days** — a dated post, episode, or published page, taken from
+  the newest observation you returned. No dated activity found is `unclear`,
+  never `no`: plenty of working coaches do not post. Nor is an old one — a lead
+  whose observations are all stale reads exactly like a lead with none.
 
 ## What you capture but never gate on
 

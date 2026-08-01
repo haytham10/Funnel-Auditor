@@ -127,6 +127,71 @@ def test_a_future_date_is_unclear():
     assert q.check_active(last_seen=TODAY + timedelta(days=5), today=TODAY).value == q.UNCLEAR
 
 
+# ----------------------------------- the bridge from observations to the floor
+
+
+def _obs(days_ago, url="https://linkedin.com/posts/x"):
+    return {"url": url,
+            "published_at": (TODAY - timedelta(days=days_ago)).isoformat()}
+
+
+def test_a_fresh_observation_settles_the_floor():
+    """F3: the floor's evidence has existed since P1 and nothing read it. A
+    research worker returns dated observations before it calls this floor."""
+    seen, why = q.activity_from_observations([_obs(40), _obs(6)], today=TODAY)
+    assert seen == TODAY - timedelta(days=6)
+    assert "linkedin.com/posts/x" in why
+    assert q.check_active(last_seen=seen, today=TODAY).value == q.YES
+
+
+def test_a_stale_observation_set_is_indistinguishable_from_none():
+    """**The safety property of the whole change.** `check_active` returns NO
+    for a stale date, so handing it the newest of an old set would open a brand
+    new kill surface at the one floor built not to have one — on the weakest
+    possible evidence, that the pages we happened to retrieve were old. D4 says
+    a false kill is permanent and invisible; better evidence is not a reason to
+    weaken that."""
+    stale, why = q.activity_from_observations([_obs(200), _obs(400)], today=TODAY)
+    none_at_all, _ = q.activity_from_observations([], today=TODAY)
+    assert stale is none_at_all is None
+    assert q.check_active(last_seen=stale, today=TODAY).value == q.UNCLEAR
+    # It still says what it saw, because that is worth reading in a report.
+    assert "too old to settle the floor, and never a kill" in why
+
+
+def test_the_window_boundary_holds_for_observations_too():
+    seen, _ = q.activity_from_observations([_obs(30)], today=TODAY)
+    assert seen == TODAY - timedelta(days=30)
+    assert q.activity_from_observations([_obs(31)], today=TODAY)[0] is None
+
+
+def test_a_malformed_published_at_is_skipped_not_fatal():
+    """The schema gate's job, not this one's. A worker writing `null` is being
+    honest and must not surface here as a crash."""
+    seen, _ = q.activity_from_observations(
+        [{"url": "u", "published_at": "last Tuesday"},
+         {"url": "u", "published_at": None},
+         {"url": "u"},
+         _obs(3)], today=TODAY)
+    assert seen == TODAY - timedelta(days=3)
+
+
+def test_a_future_observation_is_ignored():
+    """A date nobody could have read is a date nobody fetched. It must not
+    become the newest and settle the floor."""
+    future = {"url": "u", "published_at": (TODAY + timedelta(days=5)).isoformat()}
+    assert q.activity_from_observations([future], today=TODAY)[0] is None
+    seen, _ = q.activity_from_observations([future, _obs(4)], today=TODAY)
+    assert seen == TODAY - timedelta(days=4)
+
+
+def test_observations_may_be_objects_as_well_as_dicts():
+    from outbound.observe import Observation
+    obs = Observation(url="https://x.ae/post", published_at=(TODAY - timedelta(days=2)).isoformat())
+    seen, _ = q.activity_from_observations([obs], today=TODAY)
+    assert seen == TODAY - timedelta(days=2)
+
+
 # ------------------------------------- the mechanical bridge from page to date
 
 

@@ -213,10 +213,29 @@ and a different answer again from the cost gate's own "cannot be priced" — and
 batch nobody looked at must never report as a free one.
 
 ### `qualify`
-**In** a research object. **Out** three verdicts with their evidence, plus the
-captured fields. **Guarantees** `unclear` passes and only a clear `no` drops a
-row. **Exit 1** on a clear `no`. **Exit 2** if the input is not an object or a
-date will not parse. Owned by `docs/spec/02-icp.md`.
+**In** a research object, including the `observations` behind it. **Out** three
+verdicts with their evidence, plus the captured fields. **Guarantees** `unclear`
+passes and only a clear `no` drops a row. **Exit 1** on a clear `no`. **Exit 2**
+if the input is not an object or a date will not parse. Owned by
+`docs/spec/02-icp.md`.
+
+**The activity floor settles from the observations, and only upward.** The
+newest `published_at` inside the window makes it a `yes`. Outside the window it
+settles nothing: a lead whose observations are all stale comes back exactly as a
+lead with no observations does, and falls through to the page-text rung
+unchanged. That restriction lives in `activity_from_observations` rather than in
+a caller's discipline, because `check_active` answers `no` to a stale date — so
+passing one through would open a new kill surface at the one floor built not to
+have one, on the weakest evidence there is: that the pages we happened to
+retrieve were old. Better evidence is a reason to settle a floor, not a reason
+to weaken `unclear` passes.
+
+Until 2026-08-01 the floor had no evidence at all. A coach's own website almost
+never carries a date — zero usable ones across nine sites and about 220,000
+characters — so every lead read `unclear` and the floor did nothing, and the
+repair was a write-back from the hook stage that an orchestrator had to
+remember. The dates existed one line earlier: research workers have returned
+schema-checked observations since the contract landed.
 
 ### `research`
 **In** a worker's returned object, or an array of them. **Out** a schema verdict.
@@ -416,16 +435,17 @@ a `retrieved_by` naming a rung this machine actually has. **Exit 1** on a
 violation, **exit 2** if the input is not an object or an array of them. Owned
 by `outbound/observe.py`.
 
-**Additive, and nothing consumes it yet.** A research object may carry
-observations alongside its verdicts; no stage reads them, the hook stage still
-does its own fetching, and the duplicate that makes unnecessary is left in place
-on purpose so `ledger report` can price it. What exists now is the contract and
-its gate.
+**One stage consumes it: `qualify`'s activity floor.** The newest
+`published_at` settles `active_recent`, which is the first dated evidence that
+floor has ever had. Nothing else reads observations — the hook stage still does
+its own fetching, and the duplicate that makes unnecessary is left in place on
+purpose so `ledger report` can price it.
 
 **The point is what research does not do.** Research keeps a `_source` string
 per verdict, so the post that settled `active_recent` — the exact material a
-hook is made of — is read once, reduced to a boolean, discarded, and paid for
-again one stage later.
+hook is made of — was read once, reduced to a boolean, discarded, and paid for
+again one stage later. The floor is the first half of that undone: the boolean
+now comes from a record that kept the post.
 
 **`text` is verbatim, and no check can prove it.** That is why it is stated
 rather than assumed: a summarised observation reads fine, ranks fine, and yields

@@ -127,10 +127,12 @@ worker back a shorter list to fix:
 python main.py observe work/research-<slice>.json
 ```
 
-**Nothing consumes observations yet.** They do not change what gets drafted, and
-stage 3 still does its own fetching. They are the evidence this pipeline used to
-throw away — a post read once, reduced to a boolean, and paid for again one
-stage later.
+**The activity floor consumes them; nothing else does yet.** `qualify` settles
+`active_recent` from the newest observation date, which is the first real
+evidence that floor has ever had. They still do not change what gets drafted,
+and stage 3 still does its own fetching. They are the evidence this pipeline
+used to throw away — a post read once, reduced to a boolean, and paid for again
+one stage later.
 
 A schema violation goes back to the worker once. A worker that returns a
 status-only reply with no work product gets taken over directly, not resumed
@@ -166,17 +168,21 @@ in the brief. Do not substitute a weaker hook to keep the count up.
 and show Haytham before spending the rest of the queue. Something is wrong with
 the instructions, not with those two leads.
 
-**The verified hook's date is the activity evidence — write it back.** The
-active-in-30-days floor runs at stage 2 against a site read, and a coach's own
-website almost never carries a date: measured across nine real sites and about
-220,000 characters, zero usable ones, so every lead came back `unclear` and the
-floor did nothing. LinkedIn is where the signal is, and this stage is what
-fetches it. When a hook is VERIFIED with a real date, put that date on the lead
-as `last_activity` before stage 4, so the CRM records when they were last seen
-rather than a shrug. A hook dated outside the window is not a kill — the lead is
-already through the floor — but it is worth a line in the brief, because a coach
-whose newest public thing is five months old is a different prospect from one
-who posted yesterday.
+**Write the verified hook's date back, for the CRM.** When a hook is VERIFIED
+with a real date newer than the lead's `last_activity`, put it on the lead
+before stage 4, so the row records when they were last seen. A hook dated
+outside the window is not a kill — the lead is already through the floor — but
+it is worth a line in the brief, because a coach whose newest public thing is
+five months old is a different prospect from one who posted yesterday.
+
+**This used to be the floor's only evidence and is not any more.** The
+active-in-30-days floor ran at stage 2 against a site read, and a coach's own
+website almost never carries a date — zero usable ones across nine real sites
+and about 220,000 characters — so every lead came back `unclear` and the floor
+did nothing, and the repair was a write-back somebody had to remember. `qualify`
+now settles it from the observations the research worker already returned, at
+the stage where the floor actually runs. What is left here is accuracy on one
+CRM field, not a stage-2 gate being patched from stage 3.
 
 ## Stage 3b — would a ranker have found it without fetching
 

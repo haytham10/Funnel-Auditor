@@ -241,6 +241,7 @@ def cmd_qualify(args) -> None:
 
     site_text = data.get("site_text", "")
     last = data.get("last_activity")
+    activity_source = ""
     if last:
         try:
             last_activity = date.fromisoformat(str(last))
@@ -250,14 +251,25 @@ def cmd_qualify(args) -> None:
             sys.exit(2)
         activity_source = "worker"
     else:
-        # No date supplied: derive one from the page text the worker already
-        # fetched, rather than leaving the floor to a judgement call. Without
-        # this the mechanical bridge existed only as a library function and the
-        # CLI never reached it — all twelve leads on the first real batch came
-        # back `unclear` on activity, and that is the floor doing nothing.
-        last_activity, why = q.latest_activity_date(
-            "\n".join([site_text, data.get("linkedin_text", "")]),
-            page_url=data.get("site_url", "") or data.get("domain", ""))
+        # The observations the worker already retrieved come first: they carry
+        # real publication dates, which is the evidence this floor has never
+        # had. They can only ever settle it as a `yes` — see
+        # `activity_from_observations`, which returns None for a stale set
+        # rather than handing `check_active` a date it would answer `no` to.
+        last_activity, why = q.activity_from_observations(
+            data.get("observations") or [])
+        # Then the page text the worker fetched, rather than leaving the floor
+        # to a judgement call. Without this the mechanical bridge existed only
+        # as a library function and the CLI never reached it — all twelve leads
+        # on the first real batch came back `unclear` on activity, and that is
+        # the floor doing nothing.
+        if last_activity is None:
+            page_why = why
+            last_activity, why = q.latest_activity_date(
+                "\n".join([site_text, data.get("linkedin_text", "")]),
+                page_url=data.get("site_url", "") or data.get("domain", ""))
+            if data.get("observations"):
+                why = f"{page_why}; {why}"
         activity_source = why
     result = q.qualify(
         city=data.get("city", ""),
@@ -272,7 +284,7 @@ def cmd_qualify(args) -> None:
     )
     print(result.report(data.get("name", "lead")))
     if not last:
-        print(f"  activity settled from the page: {activity_source}")
+        print(f"  activity settled from: {activity_source}")
     sys.exit(0 if result.passed else 1)
 
 
@@ -1572,7 +1584,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_dedupe)
 
     p = sub.add_parser("qualify", help="the three floors (unclear passes)")
-    p.add_argument("input", help="JSON file, or '-' for stdin")
+    p.add_argument("input", help="JSON file, or '-' for stdin. Pass the lead's "
+                                 "`observations` alongside its text and the "
+                                 "activity floor settles from a real date")
     p.set_defaults(func=cmd_qualify)
 
     p = sub.add_parser("research", help="validate a worker's research object")

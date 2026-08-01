@@ -300,7 +300,7 @@ def test_qualify_settles_activity_from_the_page_when_no_date_is_given():
             "site_text": "Coaching in Dubai. Latest article 2026-07-20 on pricing.",
         })
         result = run("qualify", lead)
-        assert "activity settled from the page" in result.stdout, result.stdout
+        assert "activity settled from" in result.stdout, result.stdout
         assert "2026-07-20" in result.stdout
 
 
@@ -313,7 +313,49 @@ def test_qualify_prefers_a_date_the_worker_supplied():
         })
         result = run("qualify", lead)
         assert "2026-07-25" in result.stdout
-        assert "activity settled from the page" not in result.stdout
+        assert "activity settled from" not in result.stdout
+
+
+def _days_ago(n: int) -> str:
+    from datetime import date, timedelta
+    return (date.today() - timedelta(days=n)).isoformat()
+
+
+def test_qualify_settles_activity_from_a_fresh_observation():
+    """F3, end to end. The dated evidence this floor never had has existed
+    since P1; nothing read it until now."""
+    with tempfile.TemporaryDirectory() as tmp:
+        lead = write(tmp, "lead.json", {
+            "name": "Test Coach", "city": "Dubai", "headline": "Life Coach",
+            "site_text": "I help leaders find their edge. Book a call.",
+            "observations": [{"url": "https://linkedin.com/posts/abc",
+                              "published_at": _days_ago(4)}],
+        })
+        result = run("qualify", lead)
+        assert result.returncode == 0, result.stdout
+        assert "linkedin.com/posts/abc" in result.stdout, result.stdout
+        assert "active in 30 days" in result.stdout
+
+
+def test_a_stale_observation_set_qualifies_exactly_like_no_observations():
+    """**The safety property, checked through the CLI and not only the
+    library.** A lead whose retrieved pages are all old must come back the same
+    as a lead with nothing retrieved. Otherwise giving this floor better
+    evidence has quietly given it a kill it was built not to have."""
+    payload = {"name": "Test Coach", "city": "Dubai", "headline": "Life Coach",
+               "site_text": "I help leaders find their edge. Book a call."}
+    with tempfile.TemporaryDirectory() as tmp:
+        bare = run("qualify", write(tmp, "bare.json", dict(payload)))
+        stale = run("qualify", write(tmp, "stale.json", dict(
+            payload, observations=[{"url": "https://linkedin.com/posts/abc",
+                                    "published_at": _days_ago(200)}])))
+    assert stale.returncode == bare.returncode == 0, stale.stdout
+    assert "active in 30 days: UNCLEAR" in stale.stdout, stale.stdout
+    # The verdict lines are identical; only the provenance note differs, and it
+    # says what it saw rather than pretending it saw nothing.
+    verdicts = lambda out: [l for l in out.splitlines() if ":" in l and "settled" not in l]
+    assert verdicts(stale.stdout) == verdicts(bare.stdout)
+    assert "too old to settle the floor, and never a kill" in stale.stdout
 
 
 def test_a_malformed_last_activity_exits_2():
