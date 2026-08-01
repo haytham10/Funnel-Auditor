@@ -8,8 +8,9 @@ docstring, which is where someone reading the code will actually find it._
 **Owns:** the stage boundaries, the exit-code contract, and the orderings that
 are load-bearing.
 **Defers to:** `outbound/normalize.py`, `outbound/dedupe.py`, `outbound/fetch.py`,
-`outbound/qualify.py`, `outbound/research.py`, `outbound/anchors.py`,
-`outbound/lint.py`, `outbound/export.py` — the eight stages as implemented;
+`outbound/resolve.py`, `outbound/qualify.py`, `outbound/research.py`,
+`outbound/anchors.py`, `outbound/lint.py`, `outbound/export.py` — the nine stages
+as implemented;
 `outbound/copy_sync.py` and `outbound/doc_check.py` — the two checkers that are
 commands but not stages; `audit/apify.py` — the paid fetch layer and its cost
 gate; `docs/agent-orchestration.md` — the worker/verifier pattern the agent
@@ -39,6 +40,7 @@ Every gate fails closed: a check that cannot run is a failure, never a pass.
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
+resolve     which channels are plausibly theirs, typed and evidenced. Advisory
 research    research-worker per slice -> typed objects, schema-validated
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
@@ -121,7 +123,47 @@ checked, so each was found by a worker, by hand, after the fetch had been paid
 for. `OWNER-CHECK` is one line naming all of them before any money is spent.
 **Advisory, never a kill**: a real coach's site may carry only a brand name, and
 a false kill here is permanent and invisible. `intake` does the free half of the
-same check on a LinkedIn or Instagram handle, and records it as a note.
+same check on a LinkedIn or Instagram handle, and records it as a note. Both are
+the prose presentation of the rule `resolve` returns a verdict for; the handle
+extraction and the match live in `outbound/resolve.py` and are called from
+`intake`, not copied into it.
+
+**A lead whose only URL is a platform produces nothing here.** `fetch` targets
+the site column, and a podcast show or a link-in-bio page is routed to social
+research rather than treated as an own site, so such a lead is in neither the
+`IG` nor the `SEARCH` line. `resolve` is where it reappears: it emits an Identity
+for every lead and names the ones free retrieval cannot help with.
+
+### `resolve`
+**In** Leads, plus the site read from `fetch --out`. **Out** one `Identity` per
+lead: its channels, each with a `confirmed | absent | unknown` verdict and the
+evidence that settled it, and the site's own owner verdict passed straight
+through. **Guarantees** every lead gets an Identity, including a lead with no
+channels at all. **Exit 2** if the leads or the sites file cannot be read,
+**exit 1** only if its own output fails its own schema. Owned by
+`outbound/resolve.py`.
+
+**It gates spend, never inclusion.** Being advisory is right for a *kill* — a
+false kill is permanent and invisible — and wrong for a *purchase*. About 40 of
+151 rows on the first batch pointed at somebody else, and nothing stopped the
+machine paying to scrape a different person with the same name. Nothing here
+declines anything yet; a run where every channel is `absent` exits 0, and it
+always will. The ownership verdict must never become a reason to skip a lead.
+
+**`unknown` never means the tell said no.** It means no tell was available. A
+handle mismatch is the only path to `absent`, so an opaque channel id —
+`youtube.com/channel/UC1a2b3c` — is `unknown`, not a bad row. Without that rule
+the report fills with false negatives and becomes the line people scroll past,
+which is the failure `OWNER-CHECK` was built to fix.
+
+**It runs after `fetch`, and that is a decision.** The proposal's diagram puts it
+first, but that diagram has no `fetch` stage at all — tier 0 is absorbed into a
+later phase there. In the machine as it stands, resolving first would mean
+reading each homepage and then reading it again in `fetch`. See D22 in
+`docs/spec/07-decisions.md`.
+
+**Nothing consumes an Identity yet.** Additive, in the posture the ledger and the
+observation contract shipped in.
 
 ### `qualify`
 **In** a research object. **Out** three verdicts with their evidence, plus the

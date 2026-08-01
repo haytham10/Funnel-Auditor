@@ -58,6 +58,16 @@ def test_a_shared_link_in_bio_host_is_not_an_identity():
     assert dedupe.domain_key("https://sarahcoaching.ae") == "sarahcoaching.ae"
 
 
+def test_a_podcast_host_is_not_an_identity_either():
+    """The same collision, latent on a second host list. `spotify.com` was not
+    in the set, so `domain_key` of a Spotify show URL WAS indexed and two
+    coaches with podcasts collided on the wall exactly as linktr.ee did."""
+    for shared in ("https://open.spotify.com/show/abc",
+                   "https://podcasts.apple.com/ae/podcast/x/id1",
+                   "https://anchor.fm/sarah"):
+        assert dedupe.domain_key(shared) == "", shared
+
+
 def test_the_live_wall_indexes_no_shared_host():
     wall = dedupe.ContactWall.from_csv()
     for host in ("stan.store", "linktr.ee", "beacons.ai"):
@@ -212,11 +222,11 @@ def test_two_leads_sharing_a_company_site_get_separate_reads():
     """`batch_fetch` keyed on slug, which comes from the name and falls back to
     the domain; `partition` never dedupes on domain, so nameless rows survive
     to here and one lead's page text fed the other's qualify and hook."""
-    from outbound.fetch import _read_key
+    from outbound.fetch import lead_key
     a = normalize.map_row({"Website": "https://thecoachhub.ae", "Email": "sara@x.ae"})
     b = normalize.map_row({"Website": "https://thecoachhub.ae", "Email": "mona@x.ae"})
     assert a.slug == b.slug, "the collision this test is about"
-    assert _read_key(a) != _read_key(b)
+    assert lead_key(a) != lead_key(b)
 
 
 # ---------------------------------------------------------------------- dead

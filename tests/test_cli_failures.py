@@ -398,6 +398,32 @@ def test_observe_exits_2_on_something_that_is_not_an_object():
         assert "OBSERVE: FAIL" in out.stdout
 
 
+# ------------------------------------------------------------------- resolve
+
+
+def test_resolve_exits_0_when_every_channel_names_somebody_else():
+    """R3 of the hook-retrieval proposal, in code. Ownership gates *spend*,
+    never inclusion — a false kill is permanent and invisible, and exit 1 on an
+    `absent` verdict is the natural mistake that would make one."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = [{"name": "Sarah Khan", "email": "sarah@x.ae",
+                  "slug": "sarah-khan",
+                  "instagram_url": "https://instagram.com/themindsetlab"}]
+        path = write(tmp, "leads.json", json.dumps(leads))
+        out = run("resolve", path)
+        assert out.returncode == 0, out.stdout
+        assert "RESOLVE:" in out.stdout and "Advisory" in out.stdout
+
+
+def test_resolve_exits_2_when_the_sites_file_is_not_what_fetch_writes():
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json", json.dumps([{"name": "A", "email": "a@x.ae"}]))
+        sites = write(tmp, "sites.json", json.dumps({"sites": "not an object"}))
+        out = run("resolve", leads, "--sites", sites)
+        assert out.returncode == 2, out.stdout
+        assert "RESOLVE: FAIL" in out.stdout
+
+
 # -------------------------------------------------------------------- ledger
 
 

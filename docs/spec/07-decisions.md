@@ -332,6 +332,61 @@ before it matters.
 
 ---
 
+### D21 · Ownership is typed, and it gates spend, never inclusion
+
+**2026-08-01.** Every channel a lead has carries a `confirmed | absent |
+unknown` verdict and the evidence that settled it. Nothing drops a lead on it,
+and nothing ever will. What it will gate, when `plan` exists, is whether the
+machine pays to scrape that channel.
+
+**Why.** About 40 of 151 rows on the first real batch pointed at somebody else,
+and three separate checks noticed — a note at intake, a report line after the
+site read, and each agent improvising. All three were advisory prose that no
+data structure carried forward, so every bad row was found by hand, one at a
+time, after the money was spent.
+
+Advisory is the correct posture for a *kill*: a false kill is permanent and
+invisible, which is the same asymmetry that makes `unclear` pass the floors. It
+is the wrong posture for a *purchase*, where a false pass costs one call and is
+recoverable. Typing the verdict is what lets those two be separated at all.
+
+The same asymmetry sets which way the rules lean. A URL harvested from a page
+that names the lead is `confirmed` even though the page could be linking
+somebody else, because in the gating direction a false `confirmed` costs one
+scrape and a false `absent` costs a whole channel.
+
+**And `unknown` never means the tell said no.** A handle mismatch is the only
+path to `absent`. An opaque channel id carries no name to check, and calling
+that a mismatch would fill the report with false negatives — which is how a
+check becomes the line everybody scrolls past.
+
+**Reversed by** a batch where declining to spend on low-confidence channels
+costs more verified hooks than it saves scrapes.
+
+---
+
+### D22 · A stage never re-fetches what an earlier stage read free
+
+**2026-08-01.** `resolve` runs after `fetch`, consuming its site read, and the
+only thing it fetches itself is the link-in-bio page that nothing else reads.
+The retrieval proposal's own architecture diagram puts `resolve` first; this is
+a deliberate departure from it, not an oversight.
+
+**Why.** That diagram has no `fetch` stage at all — tier 0 has been absorbed
+into a later phase there. Read as an instruction for the machine as it stands,
+it means reading each homepage to harvest socials and then reading it again in
+`fetch` seconds later: one duplicate `(lead, url)` per lead with a site, 89 of
+151 on the first batch. The ledger would name every one of them, and the single
+duplicate it was built to expose — the same LinkedIn profile scraped by two
+different agents — would be buried in the noise. A signal people are trained to
+scroll past is worse than no signal.
+
+**Reversed by** tier 0 moving into the retrieval stage, at which point
+`resolve`'s source for socials changes and the ordering follows it. The rule
+itself does not reverse; only the stage that satisfies it does.
+
+---
+
 ## What is unknown
 
 - **Nothing here has been reversed yet.** The reversal conditions are untested,

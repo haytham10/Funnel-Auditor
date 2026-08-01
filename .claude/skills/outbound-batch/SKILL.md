@@ -62,6 +62,27 @@ If it emits an escalation plan, that is ONE batched Apify run for every failed
 URL, not one per lead. Run it that way or not at all; fifty separate two-page
 runs is the worst possible way to use a compute-billed actor.
 
+## Stage 1b — whose channels are these
+
+```
+python main.py resolve work/clear.json --sites work/sites.json --out work/identity.json
+```
+
+Free, and the only thing it fetches is the link-in-bio page — a linktree lists
+every channel a coach has and no stage has ever read one. Quote the `RESOLVE:`
+line. The number that matters is how many leads have **no confirmed channel**:
+about 40 of 151 rows on the first batch pointed at somebody else entirely, and
+every one was found by a worker, by hand, after the fetch had been paid for.
+
+**It drops nobody, and you must not either.** A channel that names somebody else
+is a thing not to spend on. It is never a reason to skip a lead, and there is no
+exit code here that says otherwise — a false kill is permanent and invisible.
+
+**Nothing downstream consumes `work/identity.json` yet.** Do not hand it to the
+research workers and do not let a verdict in it change what they are told. It is
+here to be read and measured for a batch before anything is built on it, which
+is the same way the ledger and the observation contract arrived.
+
 ## Stage 2 — research
 
 Fan out `research-worker`, one per slice of ~10 leads, at most 5 at a time.

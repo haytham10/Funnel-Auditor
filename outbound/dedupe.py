@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from audit.urls import registrable_domain
+from outbound.normalize import PODCAST_HOSTS
 
 # The wall lives in the repo, not a CRM. Read on every run, appended to by
 # commit, and diffable — see `ContactWall.from_csv` for why.
@@ -115,6 +116,12 @@ def email_key(address: str) -> str:
 # matched Lee Harris and was reported "already present", so they were emailed and
 # then never walled; and any lead carrying `stan.store` hit Ben Pringle's warm
 # row and halted the whole batch.
+#
+# The podcast hosts are unioned in from `normalize.PODCAST_HOSTS` rather than
+# typed again, because that incident was latent here on a second host list: a
+# Spotify show URL keyed to `spotify.com` and WAS indexed, so two coaches with
+# podcasts collided on the wall in exactly the way linktr.ee did. One list, so
+# adding a host cannot fix half the problem.
 _NON_IDENTIFYING_HOSTS = frozenset({
     "linktr.ee", "beacons.ai", "bio.link", "stan.store", "milkshake.app",
     "taplink.cc", "linkin.bio", "carrd.co", "about.me", "solo.to", "many.link",
@@ -123,7 +130,13 @@ _NON_IDENTIFYING_HOSTS = frozenset({
     "wixsite.com", "squarespace.com", "wordpress.com", "blogspot.com",
     "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "yahoo.com",
     "icloud.com", "me.com", "proton.me", "protonmail.com",
-})
+} | {registrable_domain(host) for host in PODCAST_HOSTS})
+
+# Reduced through `registrable_domain` on the way in, because that is what
+# `domain_key` compares against: `open.spotify.com` arrives as `spotify.com`,
+# and `podcasts.apple.com` as `apple.com`. Blocking `apple.com` is a
+# consequence, and the right one — it is a host thousands of people share,
+# which is the whole test this set applies.
 
 
 def domain_key(url_or_domain: str) -> str:

@@ -15,6 +15,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     research    validate one worker's returned research object
     observe     validate the observations a worker says it actually fetched
     fetch       the free-first site read, plus one batched Apify plan
+    resolve     which channels are plausibly this lead's own, and on what evidence
     anchors     which hand-written lines a lead draws, and what it may cite
     deal        the same, for a whole batch, with the weights held exactly
     facts       the client-result table every number in an email traces to
@@ -1126,8 +1127,12 @@ def cmd_fetch(args) -> None:
     payload = {
         "tier0_rate": result["tier0_rate"],
         "escalate_plans": result["escalate_plans"],
+        # Keyed by `fetch.lead_key` — an email, else `slug|site_url`. The
+        # variable was called `slug` for months and it never was one; `resolve`
+        # joins on this key, and a join on the actual slug would have missed
+        # every lead that has an address, quietly.
         "sites": {
-            slug: {
+            key: {
                 "ok": read.ok,
                 "pages": [{"url": p.url, "status": p.status, "chars": len(p.text)}
                           for p in read.pages],
@@ -1136,9 +1141,13 @@ def cmd_fetch(args) -> None:
                 "prices": read.prices[:10],
                 "headings": read.headings[:20],
                 "notes": read.notes,
+                # Until now this existed only inside the printed OWNER-CHECK
+                # line, so the one ownership fact the machine had computed died
+                # with the terminal it was printed to.
+                "owner_match": read.owner_match,
                 "text": read.text if args.with_text else "",
             }
-            for slug, read in result["reads"].items()
+            for key, read in result["reads"].items()
         },
     }
     if args.out:
@@ -1189,6 +1198,63 @@ def cmd_fetch(args) -> None:
         payload["escalated"] = escalated
         Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
                                   encoding="utf-8")
+
+
+# -------------------------------------------------------------------- resolve
+
+
+def cmd_resolve(args) -> None:
+    """Which channels are plausibly this lead's own, and on what evidence.
+
+    ~40 of 151 rows on the first real batch pointed at somebody else, and the
+    two free checks that could have said so were a note and a printed line that
+    nothing carried forward. This is those two checks with a type on them.
+
+    **An `absent` verdict is never a non-zero exit.** Exit 1 here means this
+    command's own output failed its own schema, which can only be a bug in it.
+    Ownership gates spend, never inclusion — a lead whose every channel names
+    somebody else still gets researched, still gets drafted, and still gets a
+    row. Exit 1 on a bad verdict is the natural mistake, and it would be R3 of
+    the proposal violated in code.
+    """
+    from outbound import fetch as fetch_mod, ledger, resolve
+
+    leads = _load_leads(args.leads)
+    reads = {}
+    if args.sites:
+        data = _load_object(args.sites, "RESOLVE")
+        sites = data.get("sites") or {}
+        if not isinstance(sites, dict):
+            print("RESOLVE: FAIL — --sites must carry a 'sites' object, as "
+                  "`fetch --out` writes it.")
+            sys.exit(2)
+        for key, site in sites.items():
+            if not isinstance(site, dict):
+                continue
+            read = fetch_mod.SiteRead(domain=key)
+            read.social = site.get("social") or {}
+            read.owner_match = site.get("owner_match") or "unknown"
+            reads[key] = read
+
+    # The only thing this stage fetches is the link-in-bio page, which no stage
+    # has ever read even though intake has been discovering them since it was
+    # written. `--no-fetch` makes that skippable without making it invisible.
+    ledger.set_context(stage="resolve")
+    result = resolve.resolve_all(
+        leads, reads, workers=args.workers,
+        fetch_page=None if args.no_fetch else resolve.page_reader())
+    identities = result["identities"]
+    print(result["report"])
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps({"identities": [i.to_dict() for i in identities]},
+                       indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.json:
+        print(json.dumps([i.to_dict() for i in identities], indent=2, default=str))
+
+    sys.exit(1 if resolve.validate_all(identities) else 0)
 
 
 # -------------------------------------------------------------------- fetching
@@ -1436,6 +1502,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--approve-cost", action="store_true",
                    help="approve the escalation's cost (see exit 3)")
     p.set_defaults(func=cmd_fetch)
+
+    p = sub.add_parser("resolve",
+                       help="which channels are plausibly this lead's own")
+    p.add_argument("leads", help="Leads JSON from `intake --out`")
+    p.add_argument("--sites", help="sites.json from `fetch --out`, so a site "
+                                   "that names the lead can vouch for the "
+                                   "channels it links")
+    p.add_argument("--out", help="write the identities as JSON")
+    p.add_argument("--no-fetch", action="store_true",
+                   help="skip the link-in-bio pages — every verdict then comes "
+                        "from the row and the site read alone")
+    p.add_argument("--workers", type=int, default=fetch_defaults.DEFAULT_WORKERS,
+                   help="concurrent link-in-bio reads")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_resolve)
 
     p = sub.add_parser("anchors", help="which hand-written lines a lead draws")
     p.add_argument("email")

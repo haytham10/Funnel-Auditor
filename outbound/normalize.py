@@ -87,6 +87,38 @@ def _canon_header(header: str) -> str:
 
 # ------------------------------------------------------------ site classifying
 
+# Podcast hosts. Rung 2 of the hook ladder is "podcasts and YouTube" — the rung
+# that exists for the coaches who do not post — and until now no podcast host
+# was recognised anywhere in this repo, so that rung was served entirely by an
+# agent improvising a web search.
+#
+# **A podcast host is never a coach's own site**, which is what makes routing
+# them here safe. `linkin.bio`, `carrd.co`, `about.me` and `solo.to` are NOT in
+# this map for the opposite reason: a real coach's website can be
+# `sarah.carrd.co`, and classifying it as a platform would stop tier 0 reading
+# it and take its text out of `sites.json`, which every research worker
+# consumes. They stay in `dedupe._NON_IDENTIFYING_HOSTS`, which is the other
+# half of this list and has drifted from it; the two reconcile when `observe`
+# owns both paths.
+#
+# `podcasts.apple.com` is a full host, not a registrable domain — Apple's is
+# `apple.com`, and claiming that would label every Apple URL a podcast.
+# `classify_site` matches on either, which is why it can sit here.
+PODCAST_HOSTS: dict[str, str] = {
+    "spotify.com": "podcast",
+    "podcasts.apple.com": "podcast",
+    "anchor.fm": "podcast",
+    "buzzsprout.com": "podcast",
+    "podbean.com": "podcast",
+    "libsyn.com": "podcast",
+    "simplecast.com": "podcast",
+    "transistor.fm": "podcast",
+    "captivate.fm": "podcast",
+    "redcircle.com": "podcast",
+    "castbox.fm": "podcast",
+    "spreaker.com": "podcast",
+}
+
 # Social and link-in-bio hosts. A URL here is a research target, never junk.
 PLATFORM_HOSTS: dict[str, str] = {
     "instagram.com": "instagram",
@@ -104,6 +136,7 @@ PLATFORM_HOSTS: dict[str, str] = {
     "stan.store": "linkinbio",
     "milkshake.app": "linkinbio",
     "taplink.cc": "linkinbio",
+    **PODCAST_HOSTS,
 }
 
 # Domain-for-sale parkers and registrar holding pages.
@@ -167,7 +200,11 @@ def classify_site(raw: str) -> SiteVerdict:
     domain = registrable_domain(host)
 
     for platform_host, label in PLATFORM_HOSTS.items():
-        if domain == platform_host:
+        # Host OR registrable domain. Every other key here IS a registrable
+        # domain, so matching the host too is strictly additive — and it is
+        # what lets `podcasts.apple.com` be a key without `apple.com` becoming
+        # one, which would label every Apple URL a podcast.
+        if domain == platform_host or host == platform_host:
             # A bare platform root with no profile path tells us nothing.
             path = urlparse(url).path.strip("/")
             if not path:
@@ -322,20 +359,28 @@ def _profile_name_notes(lead: "Lead") -> list[str]:
     **A note, never a drop.** Plenty of real people have a handle that is a
     brand, a nickname, or their name with digits after it. This exists so the
     bad rows are visible before the money, not so the machine can act on them.
+
+    The handle extraction and the match are `outbound/resolve.py`'s, not a
+    second copy: this is the prose presentation of the same rule `resolve`
+    returns a verdict for. Its `handle_of` also returns "" for an id that cannot
+    carry a name, which the local version could not — it did
+    `url.rsplit("/", 1)[-1]` and would have reported `youtube.com/channel/UC1a2b3c`
+    as a name mismatch. Two presentations of one rule; not three implementations.
     """
     from audit.email_check import name_tokens
+    from outbound.resolve import handle_of, handle_matches
 
     tokens = name_tokens(lead.name or "", min_len=3)
     if not tokens:
         return []
     notes = []
-    for field_name, label in (("linkedin_url", "LinkedIn"),
-                              ("instagram_url", "Instagram")):
+    for field_name, label, platform in (("linkedin_url", "LinkedIn", "linkedin"),
+                                        ("instagram_url", "Instagram", "instagram")):
         url = getattr(lead, field_name, "")
         if not url:
             continue
-        handle = re.sub(r"[^a-z]+", "", url.rsplit("/", 1)[-1].lower())
-        if handle and not any(t in handle for t in tokens):
+        handle = handle_of(url, platform)
+        if handle and not handle_matches(handle, tokens):
             notes.append(f"{label} handle does not contain this lead's name "
                          f"({url}) — confirm it is them before spending on it")
     return notes

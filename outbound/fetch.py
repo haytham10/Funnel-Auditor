@@ -123,12 +123,46 @@ class SiteRead:
         return "\n\n".join(page.text for page in self.pages if page.ok)
 
 
+# What a profile URL looks like, per platform. Matched against raw HTML and
+# taken leftmost-first, which is the reason for the exclusions below.
+#
+# **A pattern that matches infrastructure harvests infrastructure.** The
+# facebook and instagram patterns used to be bare `[\w\-.]+` after the host, and
+# on any lead running Meta ads that returned:
+#
+#     facebook   -> https://facebook.com/tr     the pixel, from <head>
+#     instagram  -> https://instagram.com/p     an embedded post's permalink
+#
+# Both beat the real profile because a pixel snippet and an embed sit in the
+# head while the social bar sits in the footer, and `search` takes the first
+# match. Neither is a page anybody owns, so the URL was wrong in `sites.json`,
+# wrong in every worker prompt built from it, and — once ownership became typed
+# — would have scored `absent` and read as a name collision rather than as a
+# tracking script. Exclude the known non-profile paths rather than ranking
+# matches: the list is short, it is stable, and it says what it is doing.
 _SOCIAL_RE = {
     "linkedin": re.compile(r"https?://([a-z]{2,3}\.)?linkedin\.com/(in|company)/[\w\-%.]+", re.I),
-    "instagram": re.compile(r"https?://(www\.)?instagram\.com/[\w\-.]+", re.I),
+    "instagram": re.compile(
+        r"https?://(www\.)?instagram\.com/(?!(?:p|reel|reels|explore|tv|stories|accounts)[/?#]|(?:p|reel|reels|explore|tv|stories|accounts)$)[\w\-.]+", re.I),
     "youtube": re.compile(r"https?://(www\.)?youtube\.com/(@[\w\-.]+|channel/[\w\-]+|c/[\w\-]+)", re.I),
-    "facebook": re.compile(r"https?://(www\.)?facebook\.com/[\w\-.]+", re.I),
+    "facebook": re.compile(
+        r"https?://(www\.)?facebook\.com/(?!(?:tr|sharer|sharer\.php|share|share\.php|plugins|dialog|v\d+\.\d+)[/?#]|(?:tr|sharer|sharer\.php|share|share\.php|plugins|dialog)$)[\w\-.]+", re.I),
     "tiktok": re.compile(r"https?://(www\.)?tiktok\.com/@[\w\-.]+", re.I),
+    # Written with the non-profile paths excluded from the start rather than
+    # discovered later: `twitter.com/intent/tweet` and `/share` are the same
+    # class of bug the two patterns above shipped for months.
+    "twitter": re.compile(
+        r"https?://(www\.)?(twitter\.com|x\.com)/(?!(?:intent|share|home|i|hashtag|search|privacy|tos)[/?#]|(?:intent|share|home|i|hashtag|search|privacy|tos)$)[\w\-.]+", re.I),
+    # Rung 2 of the hook ladder, which had no host list at all. A show or
+    # episode URL, not a host root — a bare `open.spotify.com` says nothing.
+    "podcast": re.compile(
+        r"https?://("
+        r"(open|podcasters)\.spotify\.com/(show|episode)/[\w\-]+"
+        r"|podcasts\.apple\.com/[\w\-/]*(podcast|id\d)[\w\-/]*"
+        r"|(www\.)?(anchor\.fm|buzzsprout\.com|podbean\.com|libsyn\.com"
+        r"|simplecast\.com|transistor\.fm|captivate\.fm|redcircle\.com"
+        r"|castbox\.fm|spreaker\.com)/[\w\-./]+"
+        r")", re.I),
 }
 
 
@@ -340,7 +374,7 @@ def check_owner(read: SiteRead, name: str) -> str:
     return "confirmed" if any(t in haystack for t in tokens) else "absent"
 
 
-def _read_key(lead) -> str:
+def lead_key(lead) -> str:
     """A key that is unique per LEAD, not per name.
 
     `slug` comes from the name and falls back to the domain, so two rows from a
@@ -348,6 +382,12 @@ def _read_key(lead) -> str:
     collapsed into one entry. `partition` dedupes on name and email but never on
     domain, so nameless rows survive to here. The survivor's page text is then
     the other person's, and it feeds qualify and the hook.
+
+    **Public, and the one definition.** `ledger.Retrieval.lead_key` and
+    `observe.Observation.lead_key` already assume this key, `resolve` joins its
+    identities to `sites.json` on it, and `plan` will need it next. It was
+    private while `fetch` was the only caller; a second copy of "which lead is
+    this" is the drift `docs/spec/06-state.md` exists to prevent.
     """
     return (getattr(lead, "email", "") or "").strip().lower() or \
         f"{getattr(lead, 'slug', '')}|{getattr(lead, 'site_url', '')}"
@@ -387,7 +427,7 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
     pause between pages of a site still happens inside `read_site`. Nothing here
     makes more requests to any single host than before.
 
-    Results are collected into a dict keyed by `_read_key`, so completion order
+    Results are collected into a dict keyed by `lead_key`, so completion order
     does not leak into the output.
     """
     reads: dict[str, SiteRead] = {}
@@ -418,7 +458,7 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
         read = read_site(lead.site_url, max_pages=max_pages,
                          session=_thread_session())
         read.owner_match = check_owner(read, getattr(lead, "name", ""))
-        return _read_key(lead), lead, read
+        return lead_key(lead), lead, read
 
     # The ledger is written from this loop rather than from `read_site`, for
     # two reasons: only here is the lead known (`read_site` takes a URL), and
@@ -450,7 +490,7 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
     elapsed = time.monotonic() - started
     unowned = [{"name": getattr(l, "name", ""), "url": l.site_url}
                for l in targets
-               if reads.get(_read_key(l)) and reads[_read_key(l)].owner_match == "absent"]
+               if reads.get(lead_key(l)) and reads[lead_key(l)].owner_match == "absent"]
     return {
         "reads": reads,
         "ok": sum(1 for r in reads.values() if r.ok),

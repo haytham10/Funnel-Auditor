@@ -1,3 +1,104 @@
+## 2026-08-01 (P2) — the machine says who a row is actually about
+
+Built P2 of `docs/proposals/2026-08-01-hook-retrieval.md`: `resolve`, plus the
+two bugs found sitting underneath it. Additive like P0 and P1 — nothing consumes
+an Identity yet, the batch skill runs it and quotes it and hands it to nobody.
+
+**The number this is for: ~40 of 151 rows on the first real batch pointed at the
+wrong person.** Parked domains, name collisions, a coach's training school, an
+Ohio retreat house, a Dutch tech-news site. Three separate things noticed — a
+note at intake, an OWNER-CHECK line after the site read, and each agent
+improvising — and all three were advisory prose that no data structure carried
+forward. So every bad row was found by a worker, one at a time, after the money
+had been spent. `outbound/resolve.py` is those same two free checks with a type
+on them: one `Identity` per lead, one `Channel` per place they might be
+reachable, each carrying `confirmed | absent | unknown` and the evidence that
+settled it.
+
+**Advisory is right for a kill and wrong for a purchase.** That distinction is
+the whole stage. A false kill is permanent and invisible, which is why `unclear`
+passes the floors and why nothing here drops a lead. A false *purchase* costs
+one call and is recoverable, so that is what a verdict may gate — in P3, when
+`plan` exists. Recorded as D21, and there is a CLI test asserting exit 0 when
+every channel is `absent`, because exit 1 there is the natural mistake.
+
+**`unknown` never means the tell said no.** A handle mismatch is the only path
+to `absent`. `handle_of` returns `""` for an id that cannot carry a name, so
+`youtube.com/channel/UC1a2b3c` is `unknown` rather than a false negative — it
+folds to `ucabc`, and a naive port of the intake note would have called that a
+name mismatch and filled the report with them. `_profile_name_notes` now
+delegates to it and inherited the guard it never had.
+
+**Two bugs found on the way in, both fixed first, in their own commits.**
+
+- **`_SOCIAL_RE` was harvesting the Meta pixel.** The facebook and instagram
+  patterns were bare `[\w\-.]+` after the host and `_harvest` takes the
+  leftmost match on raw HTML. A pixel snippet and an embed sit in the `<head>`;
+  the social bar sits in the footer. Measured on real markup:
+
+  ```
+  facebook   -> https://facebook.com/tr     the pixel
+  instagram  -> https://instagram.com/p     an embedded post's permalink
+  ```
+
+  Wrong in `sites.json` and wrong in every worker prompt built from it, on any
+  lead running ads. Building a typed ownership verdict on that input would have
+  scored `facebook.com/tr` as `absent` and read it as a name collision.
+
+- **`dedupe` was indexing podcast hosts on the wall.** `spotify.com` was not in
+  `_NON_IDENTIFYING_HOSTS`, so two coaches with Spotify shows collided — the
+  exact linktr.ee incident documented three lines above that frozenset, latent
+  on a second host list. The two lists are now one.
+
+**And `tests/test_fetch.py` was running seven of its thirty tests.** The
+`if __name__ == "__main__"` block sat at line 108 of a 396-line file, so a
+standalone run defined and ran the first seven, exited, and printed
+`0 failure(s)`. Every `check_owner`, ledger and escalation-plan test below it
+was never reached. Moved to the bottom; eleven tests take a pytest fixture the
+runner cannot supply and are now named as SKIP rather than silently absent.
+
+**Podcast hosts are a platform now (F9).** A Spotify show in the website column
+used to be treated as an own site — a JS app that returns 200 with no text,
+which routes it into the *render* escalation, the most expensive rung there is,
+on a page that can never yield anything. `classify_site` matches host or
+registrable domain, because `registrable_domain("podcasts.apple.com")` is
+`apple.com` and keying on the domain alone would have labelled every Apple URL a
+podcast. Deliberately excluded: `carrd.co`, `about.me`, `solo.to`, `linkin.bio`,
+`many.link`. A real coach's website can be `sarah.carrd.co`, and calling it a
+platform would take its text out of `sites.json`, which every research worker
+reads. A podcast host is never somebody's own site; those are.
+
+**Link-in-bio pages are read at last (F8).** `normalize` has been routing
+linktr.ee into `other_urls` since intake was written, with a comment recording
+that dropping them was a real bug — and `batch_fetch` targets `site_url` and
+nothing else, so no stage ever read one. A linktree that names the coach vouches
+for every channel it lists, which is the cheapest attribution in the machine.
+The page is kept verbatim as an `Observation`, because once retrieve-once holds
+nothing reads it again and reducing it to a list of links would be F2 committed
+fresh by the stage written to end it.
+
+**`resolve` runs after `fetch`, and that is D22.** The proposal's Part 5 diagram
+puts it first. That diagram has no `fetch` stage at all — tier 0 is absorbed
+into a later phase there — so resolving first in the machine as it stands means
+reading each homepage and then reading it again seconds later: 89 duplicate
+`(lead, url)` pairs on the first batch. `ledger.duplicates` would name every one
+and bury the single `DUPLICATE li_posts` line P0 exists to expose. A signal
+people are trained to scroll past is worse than no signal. Written as a pure
+function with an injected fetcher, so when tier 0 moves into `observe` the
+caller changes and none of the logic does.
+
+Also promoted `fetch._read_key` to public `fetch.lead_key`, and put
+`owner_match` into `sites.json` — it existed only inside a printed line, so the
+one ownership fact the machine computed died with the terminal. The sites.json
+loop variable was called `slug` and never was one; a `resolve` joining on the
+actual slug would have missed every lead with an email address, quietly.
+
+**What to do on the next real batch:** run `resolve` after `fetch` and read the
+`RESOLVE:` line against `OWNER-CHECK`. The question P3 needs answered is whether
+the leads with no confirmed channel are the same leads that produce no hook. If
+they are, declining to spend on them is free. If they are not, D21's reversal
+condition has already fired and `plan` should not gate on this at all.
+
 ## 2026-08-01 (P0 + P1) — the machine can finally say what a fetch cost
 
 Built the first two phases of `docs/proposals/2026-08-01-hook-retrieval.md`. Both
