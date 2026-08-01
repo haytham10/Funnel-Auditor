@@ -137,6 +137,22 @@ research rather than treated as an own site, so such a lead is in neither the
 `IG` nor the `SEARCH` line. `resolve` is where it reappears: it emits an Identity
 for every lead and names the ones free retrieval cannot help with.
 
+**And it counts what reading the homepage first would have saved, without
+saving it.** `HOMEPAGE-FIRST` names how many leads were already a clear `no` on
+page 1 and how many page fetches past that page were therefore avoidable. Every
+page is still read; this is a number, the same way `plan` and `select` shipped
+computing an answer nothing consumes.
+
+It is a measurement rather than a change because **the −30% the proposal
+estimated does not survive contact with the code.** That figure reasons from 106
+of 151 leads passing the floors, but those failures were settled with everything
+a research worker gathered across several sources, and the floors pass on
+`unclear`. Skipping anything here needs a clear `no` from one page, and the two
+floors only reach `no` on positive contrary evidence — a named non-UAE location,
+or a named non-coach occupation. The honest claim is that nobody knows how often
+that happens, and one batch says. The floors themselves are not restated here:
+`fetch` calls `outbound/qualify.py`'s, which own them.
+
 ### `resolve`
 **In** Leads, plus the site read from `fetch --out`. **Out** one `Identity` per
 lead: its channels, each with a `confirmed | absent | unknown` verdict and the
