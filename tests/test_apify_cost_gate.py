@@ -627,18 +627,6 @@ def test_linkedin_profile_surfaces_actor_side_failure(monkeypatch):
         raise AssertionError("expected ApifyError on an actor-side failure")
 
 
-def test_footprint_search_forwards_approved_to_both_google_search_calls(monkeypatch):
-    _reset_caches()
-    calls = []
-
-    def fake_google_search(query, **kw):
-        calls.append(kw.get("approved"))
-        return []
-    monkeypatch.setattr(apify, "google_search", fake_google_search)
-    apify.footprint_search("kajabi", approved=True)
-    assert calls and all(calls)
-
-
 # --- the two site actors, and the two ways a run can be unpriceable ----------
 
 
@@ -863,14 +851,14 @@ def test_the_ledger_names_the_actor_key_not_the_rest_api_id(monkeypatch, tmp_pat
     monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
                         lambda actor_id, event_key=None: 0.0005)
     monkeypatch.setattr(apify.requests, "post",
-                        lambda *a, **k: _FakeResponse([{"name": "a channel"}]))
+                        lambda *a, **k: _FakeResponse([{"content": "a post"}]))
     monkeypatch.setattr(apify, "_auth_headers", lambda: {})
 
-    apify.youtube_channel("@somebody")
+    apify.linkedin_posts("https://linkedin.com/in/somebody", max_posts=1)
 
     records, _ = ledger.read(None, tmp_path)
-    assert records[0].retrieved_by == "apify:yt_channel"
-    assert records[0].platform == "youtube"
+    assert records[0].retrieved_by == "apify:li_posts"
+    assert records[0].platform == "linkedin"
 
 
 def test_every_actor_key_survives_the_round_trip():

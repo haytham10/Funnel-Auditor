@@ -113,6 +113,9 @@ class SiteRead:
     # school, an Ohio retreat house, a Dutch tech-news site — and nothing
     # checked, so every one was found by hand after the money was spent.
     owner_match: str = "unknown"
+    # Would page 1 alone have settled the floors as a clear `no`?
+    # no | pass | unknown. Measured and never acted on — see `homepage_verdict`.
+    homepage_floors: str = "unknown"
 
     @property
     def ok(self) -> bool:
@@ -342,13 +345,70 @@ def run_plan(plan: dict, *, approved: bool = False) -> list[dict]:
     the input shape, the page function, the explicit `crawlerType` — lives in
     `audit/apify.py` next to the actor it belongs to, so this module never
     grows a second, drifting copy of it.
+
+    **It dispatches on the two site actors and refuses everything else.** This
+    used to fall through to `crawl_static` for any unrecognised `actor_key`,
+    which is the wrong default for a function that spends money: a caller
+    handing it an `li_profile` batch would have run cheerio against LinkedIn
+    URLs, paid, silently, and got back plausible-looking empty results. Nothing
+    reaches it that way today — `plan` emits no run dicts — so the refusal costs
+    nothing now and is here because the shape that made it possible was the
+    defaulting, not the caller.
     """
     from audit import apify
 
     urls = plan.get("urls") or []
-    if plan.get("actor_key") == "site_render":
+    key = plan.get("actor_key")
+    if key == "site_render":
         return apify.crawl_render(urls, approved=approved)
-    return apify.crawl_static(urls, approved=approved)
+    if key == "site_static":
+        return apify.crawl_static(urls, approved=approved)
+    raise ValueError(
+        f"run_plan: actor_key {key!r} is not a site crawler. This runs "
+        f"site_static or site_render and nothing else; call the actor's own "
+        f"wrapper in audit/apify.py instead.")
+
+
+def homepage_verdict(read: SiteRead, lead) -> str:
+    """Would page 1 alone have settled this lead as a clear `no`?
+
+    P4 of docs/proposals/2026-08-01-hook-retrieval.md asks whether tier 0
+    should read the homepage, run the floors, and only read the remaining pages
+    for survivors. **This computes the answer and changes nothing** — every page
+    is still fetched, the same way `plan` and `select` shipped switched off.
+
+    It is computed rather than acted on because **the proposal's −30% does not
+    survive contact with the code, and guessing which way it is wrong is the
+    thing this repo keeps refusing to do.** That figure reasons from 106 of 151
+    leads passing the floors on the first batch — but those 45 failures were
+    settled with everything a research worker gathered across WebSearch,
+    LinkedIn and several pages, and the floors pass on `unclear`. To skip
+    anything here a lead has to be a clear `no` on one page, and `check_uae` and
+    `check_coach` only reach `no` on positive contrary evidence: a named
+    non-UAE location, or a named non-coach occupation. That will fire far less
+    often than 45 in 151. How much less is a number, and this prints it.
+
+    Deliberately reuses the two floor functions rather than restating them.
+    A second copy of "is this a coach" living in the fetch layer is exactly the
+    drift that put four recency windows in four files.
+
+    The activity floor is not consulted. It is settled from dated observations
+    one stage later, and a homepage has already been measured at zero usable
+    dates across nine sites — asking it here would only ever return `unclear`.
+    """
+    from outbound.qualify import NO, check_coach, check_uae
+
+    home = read.pages[0] if read.pages else None
+    text = home.text if home and home.ok else ""
+    if not text:
+        return "unknown"
+    if check_uae(city=getattr(lead, "city", ""), text=text,
+                 domain=getattr(lead, "domain", "")).value == NO:
+        return "no"
+    if check_coach(headline=getattr(lead, "headline", ""),
+                   text=text).value == NO:
+        return "no"
+    return "pass"
 
 
 def check_owner(read: SiteRead, name: str) -> str:
@@ -458,6 +518,7 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
         read = read_site(lead.site_url, max_pages=max_pages,
                          session=_thread_session())
         read.owner_match = check_owner(read, getattr(lead, "name", ""))
+        read.homepage_floors = homepage_verdict(read, lead)
         return lead_key(lead), lead, read
 
     # The ledger is written from this loop rather than from `read_site`, for
@@ -491,6 +552,13 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
     unowned = [{"name": getattr(l, "name", ""), "url": l.site_url}
                for l in targets
                if reads.get(lead_key(l)) and reads[lead_key(l)].owner_match == "absent"]
+
+    # What homepage-first WOULD have saved, had it been switched on. Every page
+    # above was fetched; this only counts. `deferrable` is the pages we read
+    # past the homepage for a lead the homepage alone had already rejected.
+    homepage_no = [r for r in reads.values() if r.homepage_floors == "no"]
+    deferrable = sum(max(0, len(r.pages) - 1) for r in homepage_no)
+    pages_read = sum(len(r.pages) for r in reads.values())
     return {
         "reads": reads,
         "ok": sum(1 for r in reads.values() if r.ok),
@@ -503,6 +571,9 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
         "needs_search": needs_search,
         "ig_only": ig_only,
         "unowned": unowned,
+        "homepage_no": len(homepage_no),
+        "pages_read": pages_read,
+        "deferrable_pages": deferrable,
         "report": (
             f"TIER 0: {sum(1 for r in reads.values() if r.ok)}/{attempted} sites "
             f"read free in {elapsed:.0f}s on {workers} worker(s). "
@@ -512,6 +583,9 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
             f"{len(ig_only)} reachable only on Instagram.\n"
             f"OWNER-CHECK: {len(unowned)}/{attempted} site(s) never mention the "
             f"lead's name. Advisory, never a kill — resolve each with a source "
-            f"before spending on it."
+            f"before spending on it.\n"
+            f"HOMEPAGE-FIRST: {len(homepage_no)}/{attempted} lead(s) already a "
+            f"clear no on page 1, {deferrable} of {pages_read} page fetch(es) "
+            f"deferrable. Measured only — every page above was read."
         ),
     }

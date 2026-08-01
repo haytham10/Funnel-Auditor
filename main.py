@@ -31,6 +31,10 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     email-verify-batch  the same, for a whole slice's addresses in one call
     email-enrich     the no-address fallback on the lead's own domain
     ledger      what each retrieval cost and how long it took
+    metrics     what the hook stage yielded, and what the leads that yielded
+                nothing cost. `?` for a count nobody supplied, never 0
+    replies     join a Smartlead replies export on email — reply rate by hook
+                type and by the rung the hook came from
     apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
     classify-footprint   merge pre-fetched search hits into sourcing candidates
     doc-check   the docs against the code they describe
@@ -206,6 +210,22 @@ def _load_json(path: str, label: str):
         sys.exit(2)
 
 
+def _read_text(path: str, label: str) -> str:
+    """Raw text from a file or stdin, or a clean exit 2.
+
+    The CSV sibling of `_load_json`. A Smartlead export is not JSON, and an
+    unreadable one must produce a gate line rather than a traceback for exactly
+    the same reason: "that file is not there" and "the run crashed" are
+    different answers and only one of them is true.
+    """
+    try:
+        return sys.stdin.read() if path == "-" else \
+            Path(path).read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        print(f"{label}: FAIL — cannot read {path}: {type(exc).__name__}: {exc}")
+        sys.exit(2)
+
+
 def _load_object(path: str, label: str) -> dict:
     """One JSON object from a file or stdin, or a clean failure.
 
@@ -241,6 +261,7 @@ def cmd_qualify(args) -> None:
 
     site_text = data.get("site_text", "")
     last = data.get("last_activity")
+    activity_source = ""
     if last:
         try:
             last_activity = date.fromisoformat(str(last))
@@ -250,14 +271,25 @@ def cmd_qualify(args) -> None:
             sys.exit(2)
         activity_source = "worker"
     else:
-        # No date supplied: derive one from the page text the worker already
-        # fetched, rather than leaving the floor to a judgement call. Without
-        # this the mechanical bridge existed only as a library function and the
-        # CLI never reached it — all twelve leads on the first real batch came
-        # back `unclear` on activity, and that is the floor doing nothing.
-        last_activity, why = q.latest_activity_date(
-            "\n".join([site_text, data.get("linkedin_text", "")]),
-            page_url=data.get("site_url", "") or data.get("domain", ""))
+        # The observations the worker already retrieved come first: they carry
+        # real publication dates, which is the evidence this floor has never
+        # had. They can only ever settle it as a `yes` — see
+        # `activity_from_observations`, which returns None for a stale set
+        # rather than handing `check_active` a date it would answer `no` to.
+        last_activity, why = q.activity_from_observations(
+            data.get("observations") or [])
+        # Then the page text the worker fetched, rather than leaving the floor
+        # to a judgement call. Without this the mechanical bridge existed only
+        # as a library function and the CLI never reached it — all twelve leads
+        # on the first real batch came back `unclear` on activity, and that is
+        # the floor doing nothing.
+        if last_activity is None:
+            page_why = why
+            last_activity, why = q.latest_activity_date(
+                "\n".join([site_text, data.get("linkedin_text", "")]),
+                page_url=data.get("site_url", "") or data.get("domain", ""))
+            if data.get("observations"):
+                why = f"{page_why}; {why}"
         activity_source = why
     result = q.qualify(
         city=data.get("city", ""),
@@ -272,7 +304,7 @@ def cmd_qualify(args) -> None:
     )
     print(result.report(data.get("name", "lead")))
     if not last:
-        print(f"  activity settled from the page: {activity_source}")
+        print(f"  activity settled from: {activity_source}")
     sys.exit(0 if result.passed else 1)
 
 
@@ -334,6 +366,16 @@ def cmd_observe(args) -> None:
 
     Accepts ONE observation or an array, the same as `lint` — a worker handling
     a slice returns many.
+
+    **It also accepts a research file and unwraps it.** The batch skill has
+    always said to run this on `work/research-<slice>.json`, and until the first
+    batch actually did, nobody noticed that a research object is not an
+    observation: every one of them validated as a malformed observation with no
+    platform, no kind and no url, producing fifty violations about ten objects
+    that were in fact fine. `research` was checking the nested list correctly
+    the whole time, so the gate was never the thing broken — the documented way
+    to look at it was. Unwrapping here is the fix that keeps the documented
+    command working rather than deleting it from the skill.
     """
     from outbound import observe
 
@@ -344,6 +386,22 @@ def cmd_observe(args) -> None:
         print(f"OBSERVE: FAIL — expected an object or an array of them, got "
               f"{type(data).__name__}.")
         sys.exit(2)
+
+    # A research object carries its observations under a key; an observation is
+    # one itself. Detected rather than flagged, because the two files are both
+    # legitimate inputs and asking a caller to say which is a question the shape
+    # already answers.
+    if any(isinstance(e, dict) and "observations" in e for e in data):
+        unwrapped, carriers = [], 0
+        for entry in data:
+            if isinstance(entry, dict) and "observations" in entry:
+                carriers += 1
+                unwrapped.extend(entry.get("observations") or [])
+            else:
+                unwrapped.append(entry)
+        print(f"OBSERVE: unwrapped {len(unwrapped)} observation(s) from "
+              f"{carriers} research object(s)")
+        data = unwrapped
     for entry in data:
         if not isinstance(entry, dict):
             print(f"OBSERVE: FAIL — array holds a {type(entry).__name__}, "
@@ -1404,19 +1462,8 @@ def cmd_apify(args) -> None:
             target = args.urls[0] if len(args.urls) == 1 else args.urls
             out = apify.linkedin_profile(target, with_email=args.email, raw=args.raw,
                                          approved=approved)
-        elif cmd == "youtube":
-            out = apify.youtube_channel(args.channel, raw=args.raw, approved=approved)
         elif cmd == "verify-email":
             out = apify.verify_emails(args.addresses, raw=args.raw, approved=approved)
-        elif cmd == "search":
-            out = apify.google_search(args.query, pages=args.pages, site=args.site,
-                                      country=args.country, raw=args.raw,
-                                      approved=approved,
-                                      meta=getattr(args, "meta", False))
-        elif cmd == "footprint":
-            out = apify.footprint_search(args.platform, geo=args.geo, role=args.role,
-                                         country=args.country, raw=args.raw,
-                                         approved=approved)
         else:
             print(json.dumps({"error": f"apify: unknown subcommand {cmd!r}"}))
             sys.exit(2)
@@ -1511,6 +1558,109 @@ def cmd_ledger(args) -> None:
                         leads=args.leads))
 
 
+def cmd_metrics(args) -> None:
+    """What the hook stage yielded, and what the leads that yielded nothing cost.
+
+    `ledger report` covers what Python can see. Everything on the hook side
+    happens inside an agent, so it was narrated into a batch brief and lost when
+    the session ended — which is why every cost claim in the proposal had to be
+    reconstructed from a hand-written journal entry.
+
+    **A count this was not given prints `?`, never 0.** The wall's asymmetry and
+    the ledger's, a third time: an unsupplied raw count must not read as "no
+    leads came in". So the flags below are how a number gets in, and nothing
+    here reaches back into a stage to guess one.
+
+    **It never exits 1.** Reporting a bad number is the job. Exit 2 is for an
+    input it could not read at all — a batch whose metrics could not be computed
+    must not report as a batch with no findings.
+    """
+    from outbound import ledger, metrics
+
+    rows = _load_json(args.input, "METRICS")
+    if isinstance(rows, dict):
+        rows = [rows]
+    if not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
+        print("METRICS: FAIL — expected a research object or a list of them.")
+        sys.exit(2)
+
+    out = metrics.from_research(rows, batch=args.batch or "")
+
+    # Supplied, never derived. Each of these belongs to a stage that already
+    # printed it, and inventing one here would be the zero-fill this module
+    # exists to refuse.
+    for attr, value in (("raw", args.raw), ("after_dedupe", args.after_dedupe),
+                        ("warm", args.warm), ("passed_floors", args.passed_floors),
+                        ("written", args.written), ("rejected", args.rejected),
+                        ("tier0_rate", args.tier0_rate),
+                        ("source_list", args.source_list),
+                        ("agent_passes", args.passes)):
+        if value is not None:
+            setattr(out, attr, value)
+
+    if not args.no_ledger:
+        try:
+            records, _ = ledger.read(args.batch)
+        except ledger.LedgerUnreadable as exc:
+            print(f"METRICS: FAIL — {exc}. Refusing to report a batch's cost "
+                  f"it could not read; pass --no-ledger to report the hook "
+                  f"side alone.")
+            sys.exit(2)
+        verified = {(r.get("lead_key") or r.get("email") or "") for r in rows
+                    if (r.get("hook_verified") or "").lower() == "verified"}
+        metrics.add_ledger(out, records, verified_leads=verified)
+
+    print(metrics.report(out))
+    print(metrics.batches_block(out))
+
+    target = args.out or (f"data/runs/{args.batch}-metrics.json" if args.batch else "")
+    if target:
+        print(f"  wrote {metrics.write_artifact(out, target)}")
+    sys.exit(0)
+
+
+def cmd_replies(args) -> None:
+    """Join a Smartlead replies export to the batch, on email.
+
+    The one gap no retrieval architecture closes. Smartlead owns replies and
+    there is no API key here, so this is the manual bridge Part 8 describes:
+    Haytham exports a CSV, this attributes each reply to the hook type and the
+    rung that earned it. `Hook Type` has been a CRM select since the beginning,
+    described in the base as a testable variable against reply rate. This is the
+    first thing that can run the test.
+
+    **Exit 2 when it cannot identify the columns**, naming the headers it saw.
+    A zero reply rate from a column it failed to find would read as "the
+    campaign did nothing" when the truth is "the question could not be asked".
+    """
+    from outbound import replies as rep
+
+    text = _read_text(args.export, "REPLIES")
+    leads = _load_json(args.leads, "REPLIES")
+    if isinstance(leads, dict):
+        leads = [leads]
+    if not isinstance(leads, list) or any(not isinstance(r, dict) for r in leads):
+        print("REPLIES: FAIL — --leads must be a research object or a list.")
+        sys.exit(2)
+
+    try:
+        export = rep.load_export(text, email_column=args.email_column,
+                                 replied_column=args.replied_column,
+                                 all_replied=args.all_replied)
+    except rep.RepliesUnreadable as exc:
+        print(f"REPLIES: FAIL — {exc}")
+        sys.exit(2)
+
+    out = rep.join(leads, export, batch=args.batch or "")
+    print(rep.report(out))
+
+    target = args.out or (f"data/runs/{args.batch}-replies.json" if args.batch else "")
+    if target:
+        from outbound.metrics import write_artifact
+        print(f"  wrote {write_artifact(out, target)}")
+    sys.exit(0)
+
+
 # ------------------------------------------------------------------- doc-check
 
 
@@ -1583,7 +1733,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_dedupe)
 
     p = sub.add_parser("qualify", help="the three floors (unclear passes)")
-    p.add_argument("input", help="JSON file, or '-' for stdin")
+    p.add_argument("input", help="JSON file, or '-' for stdin. Pass the lead's "
+                                 "`observations` alongside its text and the "
+                                 "activity floor settles from a real date")
     p.set_defaults(func=cmd_qualify)
 
     p = sub.add_parser("research", help="validate a worker's research object")
@@ -1646,8 +1798,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--shortlist", type=int, default=select_defaults.SHORTLIST,
                    help="how many candidates to offer per lead")
     p.add_argument("--hook-room", type=int, default=0,
-                   help="words the drafter will have. Advisory: `deal` runs "
-                        "after this stage, so 0 means unknown")
+                   help="words the drafter will have — the low end of the range "
+                        "`deal` prints. Advisory; 0 means not given")
     p.add_argument("--out", help="write the selections as JSON")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_select)
@@ -1771,6 +1923,50 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ledger.set_defaults(func=cmd_ledger)
 
+    p = sub.add_parser("metrics",
+                       help="what the hook stage yielded, and what the leads "
+                            "that yielded nothing cost")
+    p.add_argument("input", help="the batch's research/draft objects, or '-'")
+    p.add_argument("--batch", help="batch label (default OUTBOUND_BATCH, then today)")
+    p.add_argument("--no-ledger", action="store_true",
+                   help="report the hook side alone, without reading a ledger")
+    p.add_argument("--out", help="where to write the JSON artifact "
+                                 "(default data/runs/<batch>-metrics.json)")
+    # Supplied, never derived. Anything not passed prints `?` rather than 0 —
+    # an unsupplied count is not a measurement of zero.
+    p.add_argument("--raw", type=int, help="rows in the source list (intake)")
+    p.add_argument("--after-dedupe", type=int, help="rows the early dedupe cleared")
+    p.add_argument("--warm", type=int, help="warm-thread hits")
+    p.add_argument("--passed-floors", type=int, help="leads through the three floors")
+    p.add_argument("--written", type=int, help="rows in leads.csv (export)")
+    p.add_argument("--rejected", type=int, help="rows in rejected.txt (export)")
+    p.add_argument("--tier0-rate", type=float, help="tier 0 rate as a fraction, e.g. 0.59")
+    p.add_argument("--source-list", help="what the raw list was called")
+    p.add_argument("--passes", type=int,
+                   help="agent passes for the batch. REPORTED on trust — Python "
+                        "cannot see them, the same blind spot as `ledger add`")
+    p.set_defaults(func=cmd_metrics)
+
+    p = sub.add_parser("replies",
+                       help="join a Smartlead replies export to the batch, "
+                            "on email — reply rate by hook type and rung")
+    p.add_argument("export", help="the Smartlead CSV, or '-' for stdin")
+    p.add_argument("--leads", required=True,
+                   help="the batch's research/draft objects, carrying hook_type")
+    p.add_argument("--batch", help="batch label, for the artifact name")
+    p.add_argument("--email-column", default="",
+                   help="name the address column instead of sniffing it")
+    p.add_argument("--replied-column", default="",
+                   help="name the reply column instead of sniffing it")
+    p.add_argument("--all-replied", action="store_true",
+                   help="the export is already filtered to people who replied, "
+                        "so it carries no reply column. Never inferred: a "
+                        "pre-filtered file and an unrecognised column look the "
+                        "same and differ by the whole answer")
+    p.add_argument("--out", help="where to write the JSON artifact "
+                                 "(default data/runs/<batch>-replies.json)")
+    p.set_defaults(func=cmd_replies)
+
     p_apify = sub.add_parser("apify", help="no-login LinkedIn / Instagram / YouTube / SERP fetch")
     apify_sub = p_apify.add_subparsers(dest="apify_command", required=True)
 
@@ -1832,37 +2028,16 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--approve-cost", action="store_true")
     paid(a)
 
-    a = apify_sub.add_parser("youtube", help="channel stats and recent videos")
-    a.add_argument("channel")
-    a.add_argument("--raw", action="store_true")
-    a.add_argument("--approve-cost", action="store_true")
-    paid(a)
-
     a = apify_sub.add_parser("verify-email", help="verify addresses in one batched call")
     a.add_argument("addresses", nargs="+")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
     paid(a)
 
-    a = apify_sub.add_parser("search", help="Google SERP for one query")
-    a.add_argument("query")
-    a.add_argument("--pages", type=int, default=1)
-    a.add_argument("--site")
-    a.add_argument("--country", default="ae")
-    a.add_argument("--meta", action="store_true")
-    a.add_argument("--raw", action="store_true")
-    a.add_argument("--approve-cost", action="store_true")
-    paid(a)
-
-    a = apify_sub.add_parser("footprint", help="platform footprint sourcing")
-    a.add_argument("platform")
-    a.add_argument("--geo", default="Dubai")
-    a.add_argument("--role", default="coach")
-    a.add_argument("--country", default="ae")
-    a.add_argument("--raw", action="store_true")
-    a.add_argument("--approve-cost", action="store_true")
-    paid(a)
-
+    # `youtube`, `search` and `footprint` were retired 2026-08-01 with the two
+    # actors behind them. Sourcing keeps `classify-footprint` below, which never
+    # fetched anything itself and is now fed by the agent's own WebSearch —
+    # which `audit/footprint.py` already called the preferred path.
     p_apify.set_defaults(func=cmd_apify)
 
     p = sub.add_parser("classify-footprint",

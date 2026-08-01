@@ -24,6 +24,8 @@ os.environ.setdefault("OUTBOUND_LEDGER_ROOT",
 
 import threading
 
+import pytest
+
 from outbound import fetch, ledger
 
 
@@ -201,6 +203,29 @@ def test_run_plan_dispatches_to_the_right_crawler(monkeypatch):
     assert [c[0] for c in calls] == ["static", "render"]
 
 
+def test_run_plan_refuses_a_non_site_actor_and_spends_nothing(monkeypatch):
+    """A `li_profile` batch must not quietly become a cheerio run.
+
+    This used to fall through to `crawl_static`, which would have paid to run a
+    static HTML scraper against LinkedIn URLs and returned empty items that look
+    like a lead with nothing on their profile.
+    """
+    from audit import apify
+
+    calls = []
+    monkeypatch.setattr(apify, "crawl_static",
+                        lambda urls, **k: calls.append(("static", urls)) or [])
+    monkeypatch.setattr(apify, "crawl_render",
+                        lambda urls, **k: calls.append(("render", urls)) or [])
+
+    for key in ("li_profile", "li_posts", "", None):
+        with pytest.raises(ValueError) as exc:
+            fetch.run_plan({"actor_key": key,
+                            "urls": ["https://linkedin.com/in/someone"]})
+        assert repr(key) in str(exc.value)
+    assert calls == []
+
+
 # ------------------------------------------------------------- concurrency
 
 
@@ -261,6 +286,98 @@ def test_a_single_worker_still_works(monkeypatch):
 def test_an_empty_batch_does_not_divide_by_zero(monkeypatch):
     out = fetch.batch_fetch([], workers=8)
     assert out["attempted"] == 0 and out["tier0_rate"] == 0.0
+
+
+# ----------------------------------------------------- homepage-first (P4b)
+
+
+class _FloorLead:
+    """A lead carrying the row fields the floors read for free, alongside the
+    page text. A `.com` domain on purpose: a `.ae` one settles `uae_based` YES
+    off the row alone, which would mask what the homepage said."""
+
+    def __init__(self, i, city="", headline=""):
+        self.site_url = f"https://site{i}.com"
+        self.email = f"a{i}@x.com"
+        self.slug = f"lead{i}"
+        self.name = f"Lead {i}"
+        self.city, self.headline = city, headline
+
+    @property
+    def domain(self):
+        return f"site{self.slug[-1]}.com"
+
+
+# Filler with no marker in it. "testimonials" is a COACH_OFFER_MARKER and
+# turned every page below into an `unclear`, which is the floors working.
+_PAD = " The rest of the page is a photograph and a phone number." * 5
+
+
+def _read(url, *page_texts):
+    """Pages long enough to count as read — under MIN_USEFUL_TEXT a page is a
+    shell that tier 0 escalates rather than reads."""
+    read = fetch.SiteRead(domain=url)
+    read.pages = [fetch.Page(url=f"{url}/{n}", status=200, text=t + _PAD)
+                  for n, t in enumerate(page_texts)]
+    return read
+
+
+def test_homepage_verdict_reuses_the_real_floors():
+    """A clear `no` on page 1, from either floor. Not a second copy of "is this
+    a coach" living in the fetch layer — that is the drift that put four
+    recency windows in four files."""
+    lead = _FloorLead(1)
+    not_a_coach = _read(lead.site_url, "I am a pilot flying long haul.")
+    elsewhere = _read(lead.site_url,
+                      "A leadership practice based in Manchester, United Kingdom.")
+    a_coach = _read(lead.site_url, "Executive coach in Dubai. I work with founders.")
+
+    assert fetch.homepage_verdict(not_a_coach, lead) == "no"
+    assert fetch.homepage_verdict(elsewhere, lead) == "no"
+    assert fetch.homepage_verdict(a_coach, lead) == "pass"
+
+
+def test_an_unreadable_homepage_is_unknown_not_no():
+    """Same asymmetry as everywhere else: nothing to read is not evidence
+    against anybody, and this counter must never imply otherwise."""
+    lead = _FloorLead(1)
+    assert fetch.homepage_verdict(fetch.SiteRead(), lead) == "unknown"
+    dead = fetch.SiteRead(domain="x")
+    dead.pages = [fetch.Page(url=lead.site_url, status=500, text="")]
+    assert fetch.homepage_verdict(dead, lead) == "unknown"
+
+
+def test_only_page_one_decides_it():
+    """The whole question is whether page 1 alone was enough, so a `no` that
+    only appears on page 2 must not count as one — otherwise the deferrable
+    number counts the very pages the pre-pass would have had to read."""
+    lead = _FloorLead(1)
+    late = _read(lead.site_url,
+                 "Welcome to our practice.",
+                 "I am a pilot flying long haul.")
+    assert fetch.homepage_verdict(late, lead) == "pass"
+
+
+def test_batch_fetch_counts_the_deferrable_pages_and_reads_them_anyway(monkeypatch):
+    """Measured only, exactly as `plan` and `select` shipped. The saving is the
+    pages read PAST the homepage for a lead the homepage had already rejected —
+    every one of which is still fetched here."""
+    fetched = []
+
+    def fake_read(url, **kwargs):
+        fetched.append(url)
+        if url.endswith("0.com"):       # a clear no, with 4 pages read anyway
+            return _read(url, "I am a pilot flying long haul.", "b", "c", "d")
+        return _read(url, "Executive coach in Dubai.", "b")
+    monkeypatch.setattr(fetch, "read_site", fake_read)
+
+    out = fetch.batch_fetch([_FloorLead(i) for i in range(3)], workers=2)
+    assert len(fetched) == 3                 # nothing was skipped
+    assert out["homepage_no"] == 1
+    assert out["pages_read"] == 4 + 2 + 2
+    assert out["deferrable_pages"] == 3      # pages 2-4 of the rejected lead
+    assert "HOMEPAGE-FIRST: 1/3 lead(s)" in out["report"]
+    assert "3 of 8 page fetch(es) deferrable" in out["report"]
 
 
 # ------------------------------------------------ the leads tier 0 cannot help

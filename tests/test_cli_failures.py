@@ -300,7 +300,7 @@ def test_qualify_settles_activity_from_the_page_when_no_date_is_given():
             "site_text": "Coaching in Dubai. Latest article 2026-07-20 on pricing.",
         })
         result = run("qualify", lead)
-        assert "activity settled from the page" in result.stdout, result.stdout
+        assert "activity settled from" in result.stdout, result.stdout
         assert "2026-07-20" in result.stdout
 
 
@@ -313,7 +313,136 @@ def test_qualify_prefers_a_date_the_worker_supplied():
         })
         result = run("qualify", lead)
         assert "2026-07-25" in result.stdout
-        assert "activity settled from the page" not in result.stdout
+        assert "activity settled from" not in result.stdout
+
+
+def _days_ago(n: int) -> str:
+    from datetime import date, timedelta
+    return (date.today() - timedelta(days=n)).isoformat()
+
+
+def test_qualify_settles_activity_from_a_fresh_observation():
+    """F3, end to end. The dated evidence this floor never had has existed
+    since P1; nothing read it until now."""
+    with tempfile.TemporaryDirectory() as tmp:
+        lead = write(tmp, "lead.json", {
+            "name": "Test Coach", "city": "Dubai", "headline": "Life Coach",
+            "site_text": "I help leaders find their edge. Book a call.",
+            "observations": [{"url": "https://linkedin.com/posts/abc",
+                              "published_at": _days_ago(4)}],
+        })
+        result = run("qualify", lead)
+        assert result.returncode == 0, result.stdout
+        assert "linkedin.com/posts/abc" in result.stdout, result.stdout
+        assert "active in 30 days" in result.stdout
+
+
+def test_a_stale_observation_set_qualifies_exactly_like_no_observations():
+    """**The safety property, checked through the CLI and not only the
+    library.** A lead whose retrieved pages are all old must come back the same
+    as a lead with nothing retrieved. Otherwise giving this floor better
+    evidence has quietly given it a kill it was built not to have."""
+    payload = {"name": "Test Coach", "city": "Dubai", "headline": "Life Coach",
+               "site_text": "I help leaders find their edge. Book a call."}
+    with tempfile.TemporaryDirectory() as tmp:
+        bare = run("qualify", write(tmp, "bare.json", dict(payload)))
+        stale = run("qualify", write(tmp, "stale.json", dict(
+            payload, observations=[{"url": "https://linkedin.com/posts/abc",
+                                    "published_at": _days_ago(200)}])))
+    assert stale.returncode == bare.returncode == 0, stale.stdout
+    assert "active in 30 days: UNCLEAR" in stale.stdout, stale.stdout
+    # The verdict lines are identical; only the provenance note differs, and it
+    # says what it saw rather than pretending it saw nothing.
+    verdicts = lambda out: [l for l in out.splitlines() if ":" in l and "settled" not in l]
+    assert verdicts(stale.stdout) == verdicts(bare.stdout)
+    assert "too old to settle the floor, and never a kill" in stale.stdout
+
+
+def test_observe_unwraps_a_research_file():
+    """The batch skill has always said to run this on a research file, and until
+    a real batch did, nobody noticed a research object is not an observation:
+    ten fine objects produced fifty violations about missing platforms and urls.
+    `research` was checking the nested list correctly all along — the documented
+    way to LOOK at it was what was broken."""
+    obs = {"lead_key": "a@x.ae", "platform": "linkedin", "url": "https://li/p/1",
+           "fetched_at": "2026-08-01T09:00:00", "published_at": "2026-07-30",
+           "author": "self", "kind": "post", "text": "a real post",
+           "retrieved_by": "apify:li_posts"}
+    with tempfile.TemporaryDirectory() as tmp:
+        research = write(tmp, "r.json", [
+            {"name": "A", "email": "a@x.ae", "observations": [obs]},
+            {"name": "B", "email": "b@x.ae", "observations": [dict(obs, lead_key="b@x.ae")]},
+        ])
+        result = run("observe", research)
+    assert result.returncode == 0, result.stdout
+    assert "unwrapped 2 observation(s) from 2 research object(s)" in result.stdout
+    assert "VALID" in result.stdout
+
+
+def test_observe_still_takes_bare_observations():
+    """The two shapes are both legitimate inputs, and which one it is is a
+    question the file already answers."""
+    obs = {"lead_key": "a@x.ae", "platform": "site", "url": "https://x.ae",
+           "fetched_at": "2026-08-01T09:00:00", "author": "self",
+           "kind": "bio", "text": "coach", "retrieved_by": "tier0"}
+    with tempfile.TemporaryDirectory() as tmp:
+        result = run("observe", write(tmp, "o.json", [obs]))
+    assert result.returncode == 0, result.stdout
+    assert "unwrapped" not in result.stdout
+
+
+def test_metrics_exits_2_on_a_ledger_it_could_not_read():
+    """A batch whose cost could not be computed must not report as a batch that
+    cost nothing — the wall's asymmetry, two stages over."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "b.json", [{"lead_key": "a@x.ae", "hook": "x",
+                                       "hook_verified": "verified"}])
+        result = run("metrics", leads, "--batch", "no-such-batch-at-all")
+    assert result.returncode == 2, result.stdout
+    assert "not a zero-cost batch" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_metrics_never_fails_a_batch_over_a_number():
+    """It is an observer. A gate that can halt a send file over an accounting
+    line is a gate people learn to route around."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "b.json", [{"lead_key": "a@x.ae", "hook": "",
+                                       "hook_verified": "none"}])
+        result = run("metrics", leads, "--no-ledger", "--out",
+                     str(Path(tmp) / "m.json"))
+    assert result.returncode == 0, result.stdout
+    assert "null_hook_rate    100%" in result.stdout
+    # Nothing was supplied, so nothing may print as a zero.
+    assert "Raw Count        ?" in result.stdout
+    assert "Apify Cost USD   ?" in result.stdout
+
+
+def test_replies_exits_2_naming_the_headers_rather_than_reporting_no_replies():
+    """A zero reply rate from a column it failed to find would read as "the
+    campaign did nothing" when the truth is "the question could not be asked"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        export = write(tmp, "e.csv", "prospect,outcome_code\na@x.ae,7\n")
+        leads = write(tmp, "l.json", [{"email": "a@x.ae", "hook_type": "WORK"}])
+        result = run("replies", export, "--leads", leads)
+    assert result.returncode == 2, result.stdout
+    assert "prospect" in result.stdout and "outcome_code" in result.stdout
+    assert "--email-column" in result.stdout
+
+
+def test_replies_refuses_to_guess_a_prefiltered_export():
+    """A pre-filtered file and an unrecognised reply column look identical and
+    differ by the whole answer."""
+    with tempfile.TemporaryDirectory() as tmp:
+        export = write(tmp, "e.csv", "email,first_name\na@x.ae,Amina\n")
+        leads = write(tmp, "l.json", [{"email": "a@x.ae", "hook_type": "WORK"}])
+        result = run("replies", export, "--leads", leads)
+        assert result.returncode == 2, result.stdout
+        assert "--all-replied" in result.stdout
+
+        ok = run("replies", export, "--leads", leads, "--all-replied")
+        assert ok.returncode == 0, ok.stdout
+        assert "NOT A VERDICT" in ok.stdout
 
 
 def test_a_malformed_last_activity_exits_2():

@@ -120,17 +120,28 @@ python main.py research work/research-<slice>.json
 ```
 
 That checks the observations each object carries too — one record per page or
-post the worker actually read, text verbatim. To see only those, or to hand a
-worker back a shorter list to fix:
+post the worker actually read, text verbatim. **`research` is the gate; the
+command below is the magnifying glass.** To see the observations alone, or to
+hand a worker back a shorter list to fix:
 
 ```
 python main.py observe work/research-<slice>.json
 ```
 
-**Nothing consumes observations yet.** They do not change what gets drafted, and
-stage 3 still does its own fetching. They are the evidence this pipeline used to
-throw away — a post read once, reduced to a boolean, and paid for again one
-stage later.
+It unwraps the research objects and validates what is nested inside them,
+reporting how many it found over how many leads. Until the 2026-08-01 batch it
+did not unwrap, so it graded ten perfectly good research objects *as*
+observations and printed fifty violations about missing platforms and urls that
+were never missing. If you ever see that shape again, read the count line
+first: `unwrapped <n> observation(s) from <n> research object(s)` is what a
+research file should produce.
+
+**The activity floor consumes them; nothing else does yet.** `qualify` settles
+`active_recent` from the newest observation date, which is the first real
+evidence that floor has ever had. They still do not change what gets drafted,
+and stage 3 still does its own fetching. They are the evidence this pipeline
+used to throw away — a post read once, reduced to a boolean, and paid for again
+one stage later.
 
 A schema violation goes back to the worker once. A worker that returns a
 status-only reply with no work product gets taken over directly, not resumed
@@ -149,12 +160,83 @@ Then the late dedupe, now that addresses exist:
 python main.py dedupe work/researched.json --stage late
 ```
 
+Write the survivors to `work/draftable.json` — every lead that passed the floors
+and has a verified address. That is the set the next three stages work on.
+
+## Stage 2b — the lines, before the hook is written
+
+**Deal here, not after the hook.** The bank leaves between 12 and 36 words for a
+hook depending on the draw, and dealing afterwards meant a hook could be found,
+verified against a verbatim quote, and then handed to a drafter with 12 words of
+room — so the drafter compressed a sentence an independent verifier had just
+certified. The four lines are never available to it to cut instead. Knowing the
+room first is what makes that impossible rather than merely discouraged.
+
+**Airtable's Copy Assets table owns every line.** `copy/*.csv` is a cache of it,
+not a second opinion. Check that first:
+
+```
+python main.py copy-check
+```
+
+Quote its line. `PASS` means the live table is what this batch will draw from
+and the cache matches it. `FAIL` names either a live line that fails the linter
+— fix it in Airtable, nothing here can — or a cache that drifted, fixed with
+`python main.py copy-sync --live` and a commit of `copy/*.csv`. `BLOCKED`
+(exit 2) means there is no key or no network, so the check could not look.
+
+Then deal the whole draftable set at once:
+
+```
+python main.py deal work/draftable.json --out work/anchors.json
+```
+
+`deal` re-enforces the same thing rather than trusting you ran the check. It
+prints a `COPY:` line naming where the lines came from, exits 1 if the live
+table answered with lines that fail the linter, and exits 1 if the table could
+not be read at all unless you pass `--allow-cached-copy`. Use that flag only
+when Airtable is genuinely unreachable and the batch has to go out anyway; it
+means anything edited since the cache was written is not in these emails.
+**Say which happened in the brief either way.** The bank is cached once per
+process, so a big batch makes one request rather than one per lead.
+
+**Deal, do not loop `anchors`.** That command is the single-lead path for
+`outbound-draft`. Per-lead hashing is unbiased only in the limit: at 50 leads it
+missed a declared 20% weight by 12 points and broke the repetition cap. Dealing
+the batch hits the weights as closely as whole leads allow.
+
+Read the `THIN` lines it prints. They name a segment with too few identity lines
+to hold its share without repeating a sentence, and the fix is writing one more
+line for that segment in Airtable, not anything in code.
+
+**The cost of dealing here: lines get allocated to leads that later hold.** A
+refuted hook means that lead's four lines went unused, so the shipped batch
+drifts from the declared weights. That is what `export --rebalance-ps` exists
+for and the skill already tells you to pass it whenever any lead held — it will
+now fire on most batches rather than some. Quote the drift it reports in the
+brief. Do not re-run `deal` after the hooks to tidy it up: the drafts and the
+CRM rows are written against this file, and a second allocation makes them
+disagree.
+
+Note the `hook room <lo> to <hi> words` line. The room is **per lead** — it
+depends on how long that lead's four lines came out — and each lead's own number
+is the `hook_room` field on its entry in `work/anchors.json`. Stage 3 hands each
+hook-worker its lead's number. Stage 3b takes one number for the batch, and the
+low end is the one to pass: its check is a warning about a pick that will not
+fit, so the tighter figure is the honest input.
+
 ## Stage 3 — hooks
 
 For every lead that passed the floors and has a verified address, fan out
-`hook-worker`, then `hook-verifier` on each proposal. The verifier never sees
-the worker's search — that independence is the entire mechanism, so do not
-summarise the worker's reasoning into the verifier's prompt.
+`hook-worker`, then `hook-verifier` on each proposal. **Give each worker the
+`hook_room` on its lead's entry in `work/anchors.json`** and tell it to land
+inside it, so a quote is chosen to fit rather than compressed after a verifier
+has certified its exact wording. The verifier does not get it and must not: its
+job is whether the words are on the page, and a length note is a reason to be
+lenient about one that nearly fits. The verifier never sees the worker's search
+either — that independence is the
+entire mechanism, so do not summarise the worker's reasoning into the verifier's
+prompt.
 
 Pipeline these: a hook can be verified while other hooks are still being found.
 Do not wait for all the workers before starting any verifier.
@@ -166,17 +248,21 @@ in the brief. Do not substitute a weaker hook to keep the count up.
 and show Haytham before spending the rest of the queue. Something is wrong with
 the instructions, not with those two leads.
 
-**The verified hook's date is the activity evidence — write it back.** The
-active-in-30-days floor runs at stage 2 against a site read, and a coach's own
-website almost never carries a date: measured across nine real sites and about
-220,000 characters, zero usable ones, so every lead came back `unclear` and the
-floor did nothing. LinkedIn is where the signal is, and this stage is what
-fetches it. When a hook is VERIFIED with a real date, put that date on the lead
-as `last_activity` before stage 4, so the CRM records when they were last seen
-rather than a shrug. A hook dated outside the window is not a kill — the lead is
-already through the floor — but it is worth a line in the brief, because a coach
-whose newest public thing is five months old is a different prospect from one
-who posted yesterday.
+**Write the verified hook's date back, for the CRM.** When a hook is VERIFIED
+with a real date newer than the lead's `last_activity`, put it on the lead
+before stage 4, so the row records when they were last seen. A hook dated
+outside the window is not a kill — the lead is already through the floor — but
+it is worth a line in the brief, because a coach whose newest public thing is
+five months old is a different prospect from one who posted yesterday.
+
+**This used to be the floor's only evidence and is not any more.** The
+active-in-30-days floor ran at stage 2 against a site read, and a coach's own
+website almost never carries a date — zero usable ones across nine real sites
+and about 220,000 characters — so every lead came back `unclear` and the floor
+did nothing, and the repair was a write-back somebody had to remember. `qualify`
+now settles it from the observations the research worker already returned, at
+the stage where the floor actually runs. What is left here is accuracy on one
+CRM field, not a stage-2 gate being patched from stage 3.
 
 ## Stage 3b — would a ranker have found it without fetching
 
@@ -184,8 +270,12 @@ Once every hook has been verified or refuted, and the hook fields are written
 back onto the research objects:
 
 ```
-python main.py select work/draftable.json --against --out work/select.json
+python main.py select work/draftable.json --against --hook-room <n> \
+  --out work/select.json
 ```
+
+`<n>` is the **low** end of the hook-room range `deal` printed at stage 2b. It
+used to be unknowable here, because `deal` ran a stage later.
 
 No fetching, no model, no clause. It ranks the observations the research workers
 already returned and reports how its choice relates to the hook the stage
@@ -212,44 +302,9 @@ quietly retired.
 
 ## Stage 4 — draft
 
-**Airtable's Copy Assets table owns every line.** `copy/*.csv` is a cache of it,
-not a second opinion. Check that first:
+The lines were dealt at stage 2b. Read `work/anchors.json`; do not deal again.
 
-```
-python main.py copy-check
-```
-
-Quote its line. `PASS` means the live table is what this batch will draw from
-and the cache matches it. `FAIL` names either a live line that fails the linter
-— fix it in Airtable, nothing here can — or a cache that drifted, fixed with
-`python main.py copy-sync --live` and a commit of `copy/*.csv`. `BLOCKED`
-(exit 2) means there is no key or no network, so the check could not look.
-
-Then, for every lead with a VERIFIED hook at once, deal the anchors:
-
-```
-python main.py deal work/draftable.json --out work/anchors.json
-```
-
-`deal` re-enforces the same thing rather than trusting you ran the check. It
-prints a `COPY:` line naming where the lines came from, exits 1 if the live
-table answered with lines that fail the linter, and exits 1 if the table could
-not be read at all unless you pass `--allow-cached-copy`. Use that flag only
-when Airtable is genuinely unreachable and the batch has to go out anyway; it
-means anything edited since the cache was written is not in these emails.
-**Say which happened in the brief either way.** The bank is cached once per
-process, so a big batch makes one request rather than one per lead.
-
-**Deal, do not loop `anchors`.** That command is the single-lead path for
-`outbound-draft`. Per-lead hashing is unbiased only in the limit: at 50 leads it
-missed a declared 20% weight by 12 points and broke the repetition cap. Dealing
-the batch hits the weights as closely as whole leads allow.
-
-Read the `THIN` lines it prints. They name a segment with too few identity lines
-to hold its share without repeating a sentence, and the fix is writing one more
-line for that segment in Airtable, not anything in code.
-
-Then fan out `draft-worker` with the hook, the research object and **that lead's
+Fan out `draft-worker` with the hook, the research object and **that lead's
 four dealt lines, inline in the prompt**. The worker must not draw its own: it
 would get the single-lead line rather than the dealt one, which breaks the
 balancing you just paid for and leaves the CRM record disagreeing with the email
@@ -279,7 +334,10 @@ of the batch, and if you must re-deal, re-draft.
 
 **Pass `--rebalance-ps` whenever any lead held.** Holds are guaranteed — a
 refuted hook, a twice-refused draft — and every hold unbalances a deal that was
-made for the larger batch. Dropping 3 of 11 on the first real run put two ps
+made for the larger batch. **Since the deal moved to stage 2b this is most
+batches, not some**: refuted hooks now land after the allocation rather than
+before it, which is the price of the drafter knowing its hook room in advance.
+Dropping 3 of 11 on the first real run put two ps
 lines at 38% against a 35% cap and the batch check blocked the whole file,
 correctly. Re-dealing from scratch is the wrong answer: it moves identity lines
 too, which means re-drafting emails that already passed a cold read. The ps is
@@ -311,6 +369,17 @@ Then write the batch to Airtable: one **Batches** row, and one **Leads** row per
 lead including the ones that held, with their Blockers. A lead that vanished
 with no record is worse than a kill you can read.
 
+**Do not compute the Batches numbers yourself.** Run `metrics` (below) and paste
+its `BATCHES ROW` block, field for field. Python does not write this row — the
+boundary in `audit/airtable.py` is that a row lands where a human sees it, and
+that stays. What was wrong was never that a model did the typing; it was that a
+model did the *arithmetic*, from memory, at the end of a long run. Every value in
+that block is measured or `?`.
+
+**A `?` is not a zero and must not be typed as one.** Leave the cell empty. A
+`0` in `Apify Cost USD` from a batch nobody costed is a wrong number that stays
+in the CRM and gets believed for months.
+
 ## Stage 6 — after Haytham uploads
 
 ```
@@ -338,6 +407,35 @@ Copy `work/select.json` to `data/runs/<batch>-select.json` and commit that too.
 It is the other half of the same baseline — what the retrieval cost, and whether
 a ranker over what was already retrieved would have reached the same hook.
 `work/` does not survive the container.
+
+### Later, when replies exist
+
+Not part of the run. Whenever Haytham exports a replies CSV from Smartlead:
+
+```
+python main.py replies <smartlead-export.csv> --leads work/draftable.json \
+  --batch <YYYY-MM-DD>
+```
+
+This is the only path this repo has to reply data — Smartlead owns replies and
+there is no API key here — and it is what makes `hook_type` testable against
+reply rate, which is the reason `Hook Type` is a select in the CRM at all. Its
+own field description calls it *"a testable variable against reply rate rather
+than a detail buried in prose"*. The variable has existed since the beginning
+and the test has never been run.
+
+It sniffs the export's columns. If it cannot identify one it **exits 2 naming
+the headers it saw** rather than reporting a zero reply rate, because a zero
+would read as "the campaign did nothing" when the truth is "the question could
+not be asked". Pass `--email-column` / `--replied-column` to name them, or
+`--all-replied` if the export is already filtered to people who replied. **Never
+pass `--all-replied` to make an error go away** — a pre-filtered file and an
+unrecognised column look identical and differ by the whole answer.
+
+Read its `NOT A VERDICT` line and mean it. One batch is a handful of samples per
+bucket, and the difference between 1 of 1 and 0 of 1 is noise wearing a
+percentage. Commit `data/runs/<batch>-replies.json`; the point is that it
+accumulates.
 
 ## What the run cost
 
@@ -377,6 +475,45 @@ records its own with `python main.py ledger add`, and those lines carry
 `websearch` or `webfetch` so a reader can tell what was measured from what was
 reported.
 
+## What the run yielded
+
+The ledger covers what Python can see. Everything on the hook side happens
+inside an agent, so it used to be narrated into the brief from memory and lost
+when the session ended — which is why every cost claim in the proposal had to be
+reconstructed from a hand-written journal entry. Run this instead:
+
+```
+python main.py metrics work/draftable.json --batch <YYYY-MM-DD> \
+  --raw <n> --after-dedupe <n> --warm <n> --passed-floors <n> \
+  --written <n> --rejected <n> --tier0-rate <0.59> \
+  --source-list <the raw list's name> --passes <n>
+```
+
+Every flag is a number an earlier stage already printed. **Pass the ones you
+have and leave out the ones you do not** — an unsupplied count prints `?`, never
+`0`, because a zero is a measurement and `?` is the honest word for a thing
+nobody measured. Do not fill one in from memory to make the block look complete;
+that is the exact habit this command exists to end.
+
+`--passes` is the count of agent passes for the batch. Python cannot see it, so
+it is **reported on trust** and printed as such, the same way `ledger add`
+records a model-side fetch.
+
+Quote the `METRICS` block into the brief. Two lines matter most:
+
+- **`yield_by_rung`** — which rung the verified hooks actually came from. If
+  rung `about` yields near zero after verification, F5 is proven rather than
+  argued, and narrowing it is a three-line change against evidence.
+- **`wasted_retrieval`** — paid fetches on leads that produced no verified hook.
+  **This is the number the whole retrieve-once effort is trying to move**, so a
+  run without it is not a judged batch.
+
+It writes `data/runs/<batch>-metrics.json`. Commit that alongside the ledger.
+
+**It never fails a batch.** Same rule as the ledger: reporting a bad number is
+the job, and a gate that can halt a send file over an accounting line is a gate
+people learn to route around.
+
 ## The brief
 
 One message at the end. Never a per-lead narration.
@@ -385,17 +522,23 @@ One message at the end. Never a per-lead narration.
 BATCH <date>: <n> written of <m> raw
   intake     <n> live site, <n> social only, <n> nothing to work
   dedupe     <n> already contacted (<n> WARM), <n> internal duplicates
-  tier 0     <n>% of sites read free, <n> escalated
-  floors     <n> passed, <n> failed (<which floors>)
+  tier 0     <n>% of sites read free, <n> escalated,
+             <n> page(s) deferrable had homepage-first been on
+  floors     <n> passed, <n> failed (<which floors>),
+             <n> settled active_recent from an observation date
   address    <n> verified, <n> enriched, <n> none
   hooks      <n> verified, <n> refuted, <n> not found
   plan       <n> rung(s), <n> WOULD-decline on ownership, <n> lead(s) no rung
   select     <n> agreed, <n> shortlisted, <n> missed, <n> unobserved, <n> no pool
   drafts     <n> send, <n> rewritten, <n> rejected
-  lines      top line <n>% of the batch (cap 35), <n> THIN segment(s)
+  lines      top line <n>% of the batch (cap 35), <n> THIN segment(s),
+             <n> ps moved by --rebalance-ps after the holds
   copy       live from Airtable | cached (say which, always)
   cost       $<x> Apify this run, $<x>/lead (quote `ledger report`)
   retrieval  <n> fetch(es), <n> duplicate, <n> blocked by the cost gate
+  yield      hook_yield <n>%, null <n>%, refuted <n>% (quote `metrics`)
+  by rung    <rung> <n> verified, ... — the number that settles F5
+  wasted     <n> paid fetch(es), $<x> on leads that produced no hook
   → out/leads.csv   READ out/preview.txt BEFORE UPLOADING
   then       wall-add + copy-usage, once it is actually uploaded
 ```

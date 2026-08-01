@@ -372,12 +372,18 @@ def test_the_report_names_the_missed_pages_rather_than_only_counting_them():
     assert "MISSED" in result["report"]
 
 
-def test_the_report_says_the_hook_room_is_unknown_rather_than_assuming_it():
-    """`deal` runs after this stage on this branch, so the real room is
-    unknowable. MIN_HOOK_WORDS is a FLOOR on the hook, and reusing it as a
-    ceiling would be one number wearing two meanings in two stages."""
+def test_the_report_asks_for_the_hook_room_rather_than_assuming_it():
+    """`deal` prints the room before this stage now, but it is handed in and
+    never derived here. MIN_HOOK_WORDS is a FLOOR on the hook, and reusing it
+    as a ceiling would be one number wearing two meanings in two stages."""
     result = select.select_all([research(obs())], today=TODAY)
-    assert "hook room unknown" in result["report"]
+    assert "hook room not given" in result["report"]
+    assert "--hook-room" in result["report"]
+
+
+def test_the_room_is_reported_when_it_is_given():
+    result = select.select_all([research(obs())], hook_room=24, today=TODAY)
+    assert "hook room 24 words, advisory only" in result["report"]
 
 
 # --------------------------------------------------------- the standalone path

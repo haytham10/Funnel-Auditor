@@ -44,6 +44,7 @@ fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced. Advisory
 plan        which hook rungs a lead has, and what each would cost. Advisory
 research    research-worker per slice -> typed objects, schema-validated
+deal        the four hand-written lines, allocated for the whole batch at once
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
 select      which observation a hook would come from, without fetching. Advisory
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
@@ -69,6 +70,14 @@ destroys something rather than wasting something.
 lead who never received anything silently excludes them from every future batch.
 `wall-add` is idempotent and safe to re-run; `copy-usage` is additive and is not,
 so it runs exactly once per batch.
+
+**`deal` runs before the hook stage, not after it.** The bank leaves between 12
+and 36 words for a hook depending on the draw, and dealing afterwards meant a
+hook could be found, verified against a verbatim quote, and then handed to a
+drafter with 12 words of room — while `draft-worker` is forbidden from cutting
+the four hand-written lines, so the only thing left to compress was the sentence
+an independent verifier had just certified. A hook that fits is chosen; a hook
+squeezed afterwards is a citation drifting from its source. See D24.
 
 ## The stages
 
@@ -137,6 +146,22 @@ research rather than treated as an own site, so such a lead is in neither the
 `IG` nor the `SEARCH` line. `resolve` is where it reappears: it emits an Identity
 for every lead and names the ones free retrieval cannot help with.
 
+**And it counts what reading the homepage first would have saved, without
+saving it.** `HOMEPAGE-FIRST` names how many leads were already a clear `no` on
+page 1 and how many page fetches past that page were therefore avoidable. Every
+page is still read; this is a number, the same way `plan` and `select` shipped
+computing an answer nothing consumes.
+
+It is a measurement rather than a change because **the −30% the proposal
+estimated does not survive contact with the code.** That figure reasons from 106
+of 151 leads passing the floors, but those failures were settled with everything
+a research worker gathered across several sources, and the floors pass on
+`unclear`. Skipping anything here needs a clear `no` from one page, and the two
+floors only reach `no` on positive contrary evidence — a named non-UAE location,
+or a named non-coach occupation. The honest claim is that nobody knows how often
+that happens, and one batch says. The floors themselves are not restated here:
+`fetch` calls `outbound/qualify.py`'s, which own them.
+
 ### `resolve`
 **In** Leads, plus the site read from `fetch --out`. **Out** one `Identity` per
 lead: its channels, each with a `confirmed | absent | unknown` verdict and the
@@ -197,10 +222,35 @@ and a different answer again from the cost gate's own "cannot be priced" — and
 batch nobody looked at must never report as a free one.
 
 ### `qualify`
-**In** a research object. **Out** three verdicts with their evidence, plus the
-captured fields. **Guarantees** `unclear` passes and only a clear `no` drops a
-row. **Exit 1** on a clear `no`. **Exit 2** if the input is not an object or a
-date will not parse. Owned by `docs/spec/02-icp.md`.
+**In** a research object, including the `observations` behind it. **Out** three
+verdicts with their evidence, plus the captured fields. **Guarantees** `unclear`
+passes and only a clear `no` drops a row. **Exit 1** on a clear `no`. **Exit 2**
+if the input is not an object or a date will not parse. Owned by
+`docs/spec/02-icp.md`.
+
+**The activity floor settles from the observations, and only upward.** The
+newest `published_at` inside the window makes it a `yes`, and **a `third_party`
+observation is skipped**: somebody else's post about them is not evidence they
+did anything, which is ban #7 one stage over and the rule `select` already
+applies. Found on the first batch that ran this — a lead's only dated
+observation was a company post naming her, two days old, and the floor called
+her active on it. Dropping an observation only ever removes evidence, so it can
+move a lead toward `unclear` and never toward a kill. Outside the window it
+settles nothing: a lead whose observations are all stale comes back exactly as a
+lead with no observations does, and falls through to the page-text rung
+unchanged. That restriction lives in `activity_from_observations` rather than in
+a caller's discipline, because `check_active` answers `no` to a stale date — so
+passing one through would open a new kill surface at the one floor built not to
+have one, on the weakest evidence there is: that the pages we happened to
+retrieve were old. Better evidence is a reason to settle a floor, not a reason
+to weaken `unclear` passes.
+
+Until 2026-08-01 the floor had no evidence at all. A coach's own website almost
+never carries a date — zero usable ones across nine sites and about 220,000
+characters — so every lead read `unclear` and the floor did nothing, and the
+repair was a write-back from the hook stage that an orchestrator had to
+remember. The dates existed one line earlier: research workers have returned
+schema-checked observations since the contract landed.
 
 ### `research`
 **In** a worker's returned object, or an array of them. **Out** a schema verdict.
@@ -254,6 +304,14 @@ thing no linter can check.
 keeps the per-lead draw for single-lead work, where there is no batch to balance
 against; `facts` prints the client-result table and the numbers it licenses.
 Owned by `docs/spec/04-email.md`.
+
+`deal` runs on the draftable set, before the hook stage, and prints the
+`HOOK ROOM` the hook stage and `select --hook-room` are then given. **Its cost
+is that lines are allocated to leads that later hold on a refuted hook**, so the
+shipped batch drifts from the declared weights. `export --rebalance-ps` is the
+existing mitigation and now fires on most batches rather than some; re-dealing
+is not the answer, because the drafts and the CRM rows are written against the
+file this produced.
 
 ### `lint`
 **In** drafts. **Out** a pass or a list of failures. **Guarantees**
@@ -366,7 +424,17 @@ address asked about — an address the actor did not answer on comes back as
 The no-login third-party fetch layer, and the only paid one. Subcommands:
 `apify limits` (check the budget **once per batch**), `apify actors`,
 `apify ig`, `apify ig-post`, `apify li-posts`, `apify li-profile`,
-`apify youtube`, `apify verify-email`, `apify search`, `apify footprint`.
+`apify verify-email`.
+
+**Two actors were retired 2026-08-01** and their subcommands with them. Neither
+was a large bill; both were surface area, which `audit/apify.py`'s own rule says
+is the thing to count. The YouTube channel actor returned a subscriber count and
+nothing else, and its only consumer was `audience_size` — a field
+`docs/spec/02-icp.md` captures and never gates on, so a paid call was wired to a
+field that by design changes no decision. The Google SERP actor duplicated the
+agent's own free WebSearch, which `audit/footprint.py` already called the
+preferred path and which is what every skill actually used.
+`classify-footprint` is untouched: it never fetched anything itself.
 
 `apify li-profile` and `apify verify-email` take one target or several; several
 is one actor run for the whole batch rather than one per lead (`li-profile`
@@ -382,7 +450,8 @@ Every run is cost-gated and **exits 3** above the ceiling rather than spending.
 The ceiling itself lives in `audit/apify.py` and is not restated here.
 
 ### `observe`
-**In** one observation or an array of them. **Out** the schema verdict.
+**In** one observation, an array of them, **or a research file, which it
+unwraps**. **Out** the schema verdict.
 **Guarantees** a record claiming to be something fetched can be checked when it
 is written: platform, kind and author inside their enums, a piece of content
 carrying its text, a publication date that parses and has already happened, and
@@ -390,16 +459,17 @@ a `retrieved_by` naming a rung this machine actually has. **Exit 1** on a
 violation, **exit 2** if the input is not an object or an array of them. Owned
 by `outbound/observe.py`.
 
-**Additive, and nothing consumes it yet.** A research object may carry
-observations alongside its verdicts; no stage reads them, the hook stage still
-does its own fetching, and the duplicate that makes unnecessary is left in place
-on purpose so `ledger report` can price it. What exists now is the contract and
-its gate.
+**One stage consumes it: `qualify`'s activity floor.** The newest
+`published_at` settles `active_recent`, which is the first dated evidence that
+floor has ever had. Nothing else reads observations — the hook stage still does
+its own fetching, and the duplicate that makes unnecessary is left in place on
+purpose so `ledger report` can price it.
 
 **The point is what research does not do.** Research keeps a `_source` string
 per verdict, so the post that settled `active_recent` — the exact material a
-hook is made of — is read once, reduced to a boolean, discarded, and paid for
-again one stage later.
+hook is made of — was read once, reduced to a boolean, discarded, and paid for
+again one stage later. The floor is the first half of that undone: the boolean
+now comes from a record that kept the post.
 
 **`text` is verbatim, and no check can prove it.** That is why it is stated
 rather than assumed: a summarised observation reads fine, ranks fine, and yields
@@ -431,6 +501,78 @@ batch. The stage that removes the duplicate is the one that gets to block on it.
 run-sync-get-dataset-items, which collapses a run to its output, so the billed
 `usageTotalUsd` on the run object is never fetched. A ledger implying otherwise
 would be worse than none.
+
+### `metrics`
+**In** the batch's research objects, plus the counts earlier stages printed.
+**Out** what the hook stage yielded and what the leads that yielded nothing
+cost, and the Batches row as a paste-ready block. **Guarantees** a count nobody
+supplied prints `?` rather than `0`. **Exit 2** on a ledger it could not read.
+**Never exit 1.** Owned by `outbound/metrics.py`.
+
+**`?` is not zero, and that is the whole design.** The dedupe wall's asymmetry
+and the ledger's, a third time: a missing wall must never read as "nobody has
+been contacted", a missing ledger must never read as "this batch cost nothing",
+and an unsupplied raw count must never read as "no leads came in". A zero is a
+measurement. A metrics block that quietly zero-fills is worse than no block,
+because it looks like evidence. The cost field is the sharpest case — a zero
+cost from an unopened ledger and a zero cost from a genuinely free batch are the
+same number and opposite facts, so the first prints `?` and only the second
+prints the figure.
+
+**`yield_by_rung` is the number that settles F5**, which says the cheapest rung
+produces the observations most likely to be refuted. The rung is derived from
+the hook's source URL rather than reported, so a worker cannot mislabel the
+number judging its own rung. `plan.LADDER` owns the rungs and
+`normalize.classify_site` owns the platforms; neither is restated (D23).
+
+**`wasted_retrieval` is what the retrieve-once work is trying to move** — paid
+fetches on leads that produced no verified hook. Free rungs are excluded, since
+the figure's use is deciding whether a *purchase* was worth making, and a
+verification fetch is excluded because it is spent on a hook that exists.
+
+**It prints the Batches row and does not write it.** `audit/airtable.py` states
+the boundary — writes stay narrow, a row lands where a human sees it — and a
+metrics command is not the place to widen it. What was wrong was never that a
+model did the typing; it was that a model did the arithmetic, from memory, at
+the end of a long run.
+
+`agent_passes` is **reported on trust** and labelled so. Python cannot see an
+agent pass, the same blind spot that makes a worker's own WebSearch invisible to
+the ledger, and `ledger add`'s answer applies here too: record it, keep it
+distinguishable from what was measured.
+
+### `replies`
+**In** a Smartlead replies export and the batch's leads. **Out** reply rate
+overall, by `hook_type`, and by the rung the hook came from. **Guarantees** a
+column it could not identify is an error and never a zero reply rate. **Exit 2**
+when it cannot read the file or name the columns. Owned by
+`outbound/replies.py`.
+
+**This is the one gap no retrieval architecture closes**, and it is a manual
+bridge on purpose. Smartlead owns replies, there is no API key in this repo, and
+`docs/spec/06-state.md` records that handover as a CSV. So Haytham exports and
+this joins on `email`. It is what finally makes `Hook Type` testable against
+reply rate — the CRM field's own description calls it *"a testable variable
+against reply rate rather than a detail buried in prose"*, and the test has
+never been run.
+
+**The columns are sniffed because nothing here has ever seen a real export.** A
+hard-coded name would fail on first contact, and fail silently if it happened to
+match something else. An unfindable column names the headers it did see;
+`--email-column` and `--replied-column` override the sniff.
+
+**A pre-filtered export is never inferred.** A file where every row is a reply
+and a file whose reply column went unrecognised look identical and differ by the
+whole answer, so `--all-replied` says which, and without it the second is an
+error. In a status column an unrecognised value counts as **not** a reply and is
+named: under-counting understates a campaign, while over-counting makes a hook
+type look good and drives a real decision on a word nobody checked. Ordinary
+statuses (`SENT`, `OPENED`, `BOUNCED`) pass silently, so the note only fires on
+something genuinely new.
+
+**It draws no conclusion.** One batch is a handful of samples per bucket. The
+report says so in a line, because a percentage over three leads reads as a
+finding to anybody skimming.
 
 ### `classify-footprint`
 Merges pre-fetched search hits into sourcing candidates. Fetch-agnostic by

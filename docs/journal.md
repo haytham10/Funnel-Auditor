@@ -1,3 +1,403 @@
+## 2026-08-01 (CRM write) — two defects in the Leads push, both mine
+
+Haytham asked for the batch in Airtable. The Batches row was fine. The 20 Leads
+rows went in **missing First Name, Last Name, Website, LinkedIn and City on
+every single row**, and he caught it, not me.
+
+**Cause: I built the rows from `work/researched.json`.** That is the research
+workers' typed output — floors, sources, coach_type, email, hook. It has never
+carried the intake identity fields, which live on the normalized Lead in
+`work/clear.json`. I read `first_name` off the wrong object, got nothing, and a
+`if v not in (None, "")` filter dropped every empty key before the request was
+built. **No error, no warning, just absent columns.** Fixed by joining
+`clear.json` on email and patching all 20.
+
+**The worse half is that I said I had verified it.** I ran a check over Name,
+Status, Hook Verified and Blockers, saw 20/20, and reported the push as
+cross-checked against the store. Those are the four fields I expected to be
+populated. A verification that only looks where you expect to find something is
+not a verification — it is the writer certifying its own work with extra steps,
+which is the one thing this machine's whole chassis exists to prevent. The
+second pass counted every field on every row and is what actually found it.
+
+**A second defect fell out of doing that properly.** Three of the five exported
+rows had a `Hook` field naming a sentence the reader never saw:
+
+  CRM Hook   "Your LinkedIn experience lists a complete business analysis..."
+  Body       "You went through a fitness studio's finances, then took over..."
+
+The `Hook` field was carrying the hook-worker's certified proposal while `Body`
+carried the drafter's rewritten version. That is exactly the failure
+`export --anchors` was built to catch one field over — a CRM row describing an
+email nobody received. On an exported lead the `Hook` field now holds what
+actually shipped, and the certified wording plus its source and date moved into
+Notes as provenance, so nothing is lost and nothing is misdescribed.
+
+**What is genuinely absent and correct**, checked against the source CSV rather
+than assumed: City 11/20 (the CSV carries 11), Instagram 0/20 (no such column),
+Sells To 15/20 (collected, never inferred — an empty answer draws a generic
+line), Failed Floors 1/20, Subject/Body/Anchor Lines 5/20 (only what shipped).
+
+**Worth building rather than remembering.** Nothing in the repo writes a Leads
+row — `audit/airtable.py` says so deliberately, and this push was done on
+Haytham's explicit instruction with a hand-written script. A hand-written script
+is exactly where a wrong-source join like this hides. If CRM writes become
+routine, the row builder belongs in code next to `export`, where the field
+mapping can be tested and where a required column arriving empty can fail
+closed instead of silently vanishing.
+
+## 2026-08-01 (batch 2026-08-01-q1) — the flip is a no, and the reason is specific
+
+Twenty UAE coaches, run end to end as the measurement batch three sessions had
+been waiting for. **`data/runs/2026-08-01-q1.jsonl`**, `-select.json` and
+`-metrics.json` are committed beside this entry.
+
+```
+AGAINST: 12 verified hook(s) — 4 agreed, 0 shortlisted, 3 missed, 5 unobserved
+hook_yield 63%  refute_rate 26%  null_hook_rate 10%
+cost_per_hook $0.0364   wasted_retrieval 47 paid fetch(es), $0.2086
+```
+
+**Five of twelve verified hooks (42%) cited a page no observation carried.**
+That is the fetch selection could not have replaced, and it is too large to flip
+on. Four were LinkedIn posts the hook stage pulled that research's own
+`li_posts` call had not returned — different `--since` windows over one profile
+give different posts — and one (Dana Barto) came off a site nobody had found
+until the hook worker searched for it. **So P3 does not flip.** The fix that
+number actually points at is research fetching deeper, not selection replacing
+the fetch.
+
+**All three MISSED share one cause and it is three lines.** Rory Buck's race
+result, Sanaa Diab's named client project and Bindu Joseph's career pivot were
+each observed, each independently VERIFIED, and each excluded by `select`'s
+`site_prose` ban for being `kind: about`. That ban came from F5's narrowing —
+"no generic site copy" became `kind != about` — and it is too blunt. What the
+verifier refuses is the **generic**, not the location. Fix the ban and reachable
+goes 4/12 to 7/12.
+
+## The correction that cost five leads
+
+I concluded that a hook cited to a `linkedin.com/in/` URL is structurally
+unverifiable, because five verifiers hit the authwall with WebFetch and curl.
+Haytham: *"of course linkedin urls are not fetchable through normal fetchers,
+thats why we use linkedin apify actors."*
+
+Correct, and the evidence was in the same run — research had pulled those exact
+profiles with `apify li-profile` an hour earlier. The verifiers have Bash. The
+rung was theirs the whole time and neither their agent file nor my prompts said
+so. Re-run through the actor, all five produced real verdicts immediately:
+three VERIFIED, two REFUTED on substance (an unsourced "rare adoption curve"
+gloss, and a hook that fused two separate sentences).
+
+`.claude/agents/hook-verifier.md` now says the paid rung is a LIVE fetch that
+satisfies independence completely, that the rule which must never break is
+reading the *stored observation*, and that **an INCONCLUSIVE reached by only
+trying WebFetch is a rung not walked.** Three verifiers had independently found
+that raw curl plus LinkedIn's embedded `application/ld+json` beats the WebFetch
+summariser on post URLs; that is written down now too.
+
+## Four findings the run turned up that nobody was looking for
+
+**The scraper builds LinkedIn URLs that 404.** Maurice Hellemons' hook was
+refuted on a dead citation. The content is real and paid for; the URL harvestapi
+constructed has an empty slug (`/posts/mauricehellemons_-activity-...` against a
+working `/posts/lucycrussell_i-put-my-phone-on-airplane-mode-10-days-ago-...`).
+**This is the sharpest case for R2 yet**: the string was copied correctly, the
+content is genuine, and the citation is still unusable, because an email cannot
+cite a URL the reader cannot open. Only a live fetch finds that.
+
+**The hook is certified before it is linted, and they disagree.** Six of twelve
+drafts had to alter a hook the verifier had certified word-for-word: an em-dash
+and spaced hyphens (`check_voice` refuses absolutely), "touchpoints" (JARGON
+list), and — worse — "70.3", "2023", "11 years", "27 years". `check_numbers` has
+no exemption for a figure that came from the recipient's own cited words, so the
+rule meant to stop us relabelling a client result is instead deleting the
+recipient's own facts from the one beat whose job is to prove we read their
+page. Both drafters moved the figure into the subject line, which is not
+digit-checked. That works and it is backwards. The fix is a scope, not a
+loosening: a figure inside the hook beat that also appears in the certified
+`hook_quote` is quoting, not claiming.
+
+**Re-voicing the identity line is where every draft breaks.** Eight cold reads,
+eight REWRITEs, the same beat every time. Four of five beats are dealt bank
+lines and every reader cleared them explicitly. The identity beat is the one
+written per lead and it is the only one that failed, always the same way — a
+hand-written line that sounds spoken re-voiced into something a database would
+say:
+
+```
+id-any-6  Deciding who is worth your time is most of my job. 30 of the ones
+          I picked turned into signed clients this year.
+drafted   Mine is on people, deciding who is worth your time. 30 of them
+          became clients this year.
+```
+
+Gone: "is most of my job", the only place a stranger learns what Haytham does,
+and "the ones I picked", which is what makes the 30 proof of judgment rather
+than a floating statistic. Elsewhere: colons standing in for verbs, three
+numbers stacked in a sentence, "the last business coach I worked with in Dubai"
+compressed to the noun-stack "a Dubai business coach". One reader checked and
+reported **zero of the 33 lines in `copy/identity.csv` use a colon.**
+
+**The linter cannot see any of it.** Claim preservation survives every one —
+right figures, right segment, nothing invented. What dies is voice, which is
+what D10's chassis exists to protect and what the linter admits it cannot catch.
+The cold read caught it eight times out of eight. Candidate fix: narrow what
+re-voicing may change to what the seam actually needs, keeping the line's verb
+and first-person framing.
+
+## Two dealt lines drew fire, and that is Haytham's call
+
+`cta-04` "Worth 15 minutes?" — two readers independently: the ask is a question
+that invites "no", and *"the ask itself has become optional, which is the one
+thing it is not allowed to be."* `ps-04` "if it's not for you, say so and I'll
+leave it there" — a soft exit handing a one-word out immediately after the ask.
+Both were reproduced faithfully from Copy Assets. Both readers said so. The copy
+lives in Airtable and this is a bank-level question, not a drafting one.
+
+## Smaller, recorded so they are not rediscovered
+
+- **`apify` has no `--batch` flag.** Telling workers to pass one was impossible
+  to follow, which is why 15 retrievals landed in `data/runs/2026-08-01.jsonl`
+  and the batch under-reported its cost by 30%. Folded back, each line carrying
+  `batch_relabelled_from`. The label should be discoverable, not remembered.
+- **cheerio-scraper needed a console permission approval** nobody had clicked —
+  a 403 `full-permission-actor-not-approved`, not the actor-id problem the
+  proposal blamed. Approved mid-run; it then read 2 of 11 URLs.
+- **`observe` graded research objects as observations.** The batch skill has
+  always said to run it on a research file; doing it for real produced fifty
+  violations about ten fine objects. It unwraps now.
+- **The activity floor counted third-party coverage.** A company post naming
+  Lorna King, two days old, made her "active". Fixed: `third_party` is skipped,
+  `unknown` still counts, and dropping an observation can only move a lead
+  toward `unclear`.
+- **`HOMEPAGE-FIRST: 0/20 leads, 0 of 57 page fetches deferrable.** The
+  proposal's −30% would have bought exactly nothing on this list.
+- **`metrics.rung_of` conflates li_profile with li_posts** — LADDER has one
+  LinkedIn rung. The `about 2` figure is right; `li_posts 10` includes three
+  profile-sourced hooks.
+- **83 duplicates, mostly mine.** A `fetch --escalate` retry re-read all 20
+  sites before its 403. D22 pollution, self-inflicted, and an escalate-only CLI
+  path would have avoided it.
+- **Mihaela Nica's blog is serving gambling spam.** Her domain is compromised.
+
+## Where the batch stopped
+
+12 verified hooks drafted, all linted PASS. Cold reads: **1 SEND (Kira Jean),
+8 REWRITE**, rewrites in flight. Nothing exported — no `leads.csv` yet, and
+none of this has been sent. The three leads with no verified hook and the five
+refuted ones hold, which is the machine working.
+
+## 2026-08-01 (Part 8) — the batch stops being unjudgeable
+
+Haytham: get everything unblocked, wire it up. Three decisions taken first —
+metrics live in the repo not the CRM, Python computes the Batches row but does
+not write it, and the Smartlead bridge gets built tolerant rather than waiting
+on a real export.
+
+**The gap this closes is not the flip.** That is still gated on a batch. What
+was missing is everything needed to *judge* that batch when it runs: Part 8
+names seven per-batch numbers and this repo computed zero of them. `ledger
+report` covers what Python can see, because those retrievals pass through code.
+Everything on the hook side happens inside an agent, got narrated into a brief
+from memory, and died with the session. That is why every cost claim in the
+proposal had to be reconstructed from a hand-written journal entry.
+
+`python main.py metrics` now computes `hook_yield`, `refute_rate`,
+`null_hook_rate`, `yield_by_rung`, `wasted_retrieval` and
+`cost_per_verified_hook`, and writes `data/runs/<batch>-metrics.json`.
+
+**The rule that shaped every field: a count nobody supplied prints `?`, never
+`0`.** This is the dedupe wall's asymmetry and the ledger's, a third time. A
+missing wall must never read as "nobody has been contacted"; a missing ledger
+must never read as "this batch cost nothing"; an unsupplied raw count must never
+read as "no leads came in". **A zero is a measurement.** A metrics block that
+quietly zero-fills is worse than no block, because it looks like evidence and
+gets quoted into a brief as though somebody counted.
+
+The cost field needed its own flag to hold that line. A zero cost from an
+unopened ledger and a zero cost from a genuinely free batch are the same number
+and opposite facts, and only one of them belongs in a CRM currency field where
+it will be believed for months. `ledger_read` separates them; without it the
+first cut printed a confident zero into the Batches block and I nearly shipped
+it.
+
+**`yield_by_rung` derives the rung from the hook's source URL rather than
+trusting a worker to report it.** A worker naming its own rung is a worker that
+can mislabel the number judging its rung — the same reasoning that makes
+`select` derive the `obs_id` join instead of trusting a citation. `plan.LADDER`
+and `normalize.classify_site` stay the authorities; nothing is restated (D23).
+
+**`wasted_retrieval` excludes free rungs and verification fetches**, and that is
+not tidiness. Its only use is deciding whether a *purchase* was worth making, so
+counting tier 0 would inflate it with things that cost nothing, and counting a
+verify fetch would count the one duplicate this machine actually wants.
+
+**The Batches row is computed here and written by a human-visible step.**
+`audit/airtable.py` says writes stay narrow and a row lands where somebody sees
+it, and a metrics command is not the place to widen that. The thing that was
+actually wrong was never that a model did the typing — it was that a model did
+the *arithmetic*, from memory, at the end of a long run. Every value in the
+block is measured or `?`, so transcription is all that is left to get wrong.
+
+**`python main.py replies` is Part 8's manual Smartlead bridge**, and the first
+thing in this repo that touches reply data at all. Export a CSV, join on
+`email`, get reply rate by `hook_type` and by rung. `Hook Type` has been a CRM
+select since the beginning, described in the base as *"a testable variable
+against reply rate rather than a detail buried in prose"*. The variable existed.
+Nothing could run the test. Now something can.
+
+Columns are sniffed because nothing here has ever seen a real Smartlead export,
+and a hard-coded name would fail on first contact and fail *silently* if it
+happened to match something else. A column it cannot identify **exits 2 naming
+the headers it saw** rather than reporting a zero reply rate — a zero would read
+as "the campaign did nothing" when the truth is "the question could not be
+asked". Same shape as everything else here.
+
+**`--all-replied` is never inferred, and that is the sharpest edge in the
+module.** Smartlead can export a file already filtered to people who replied,
+with no status column at all. That is *indistinguishable* from a full export
+whose reply column went unrecognised, and the two differ by the whole answer —
+6% against 100%. So it is a flag, and without it the second case is an error.
+
+**A test caught the one real bug.** The first cut read any value in the reply
+column as a reply, reasoning that the column had already been identified. That
+is right for a timestamp column and wrong for a status column, where the
+ordinary contents are `SENT`, `OPENED` and `BOUNCED` — so `SENT` counted, and
+the rate was inflated for whichever hook type happened to sit behind it. My own
+manual run reported 3 of 4 and I read past it; the test asserting 2 of 4 is what
+noticed. The column's **kind** decides now. An unrecognised status counts as
+not-a-reply and is named, because under-counting understates a campaign while
+over-counting makes a hook type look good and drives a real decision on a word
+nobody checked. Ordinary statuses pass silently, so the note only fires on
+something genuinely new — a note that cries wolf every run is a note nobody
+reads by the third one.
+
+**Neither command can fail a batch.** Both are observers, and the ledger's rule
+applies: reporting a bad number is the job, and a gate that can halt a real send
+file over an accounting line is a gate people learn to route around.
+
+**Neither draws a conclusion either.** `replies` prints `NOT A VERDICT` and says
+why: one batch is a handful of samples per bucket, and the difference between
+1 of 1 and 0 of 1 is noise wearing a percentage. It is worth running because it
+accumulates.
+
+**What is left is now exactly the flip, and nothing else.** `hook-worker` stops
+fetching, `plan` starts declining, `select` gets consumed, and F4's
+`HookProposal` arrives with the authored clause. The trigger is unchanged — one
+batch reaching stage 3b, producing `ledger report`'s `DUPLICATE li_posts` count
+and `select --against`'s `AGAINST:` line, with `missed` and `unobserved` read
+apart. What changed is that everything needed to judge that batch now exists.
+
+857 tests (+39), `doc-check` clean at 28 commands.
+
+## 2026-08-01 (P4 and the rest) — everything the measurement does not gate
+
+Haytham: read the proposal and the journal, then plan the remaining parts. The
+useful thing that fell out of reading them together is that **the remainder is
+two piles, not one**, and only one of them is blocked.
+
+P3 landed switched off because it is gated on numbers that do not exist:
+`data/runs/` has never recorded a `li_posts` fetch, so the duplicate the whole
+proposal exists to remove has never been measured. Three sessions have held that
+gate. **This one did not touch it.** What it did was finish everything that was
+never waiting on it — which turned out to be most of what was left.
+
+Shipped, in five commits, each its own argument:
+
+- **The `run_plan` fallthrough**, recorded as found-and-not-fixed when P3
+  landed. It dispatched on `actor_key`, returned the render crawler for
+  `site_render`, and **defaulted to cheerio for everything else** — so a caller
+  handing it an `li_profile` batch would have run a static HTML scraper against
+  LinkedIn URLs, paid, silently, returning empty items that read as a lead with
+  nothing on their profile. The defect was the defaulting, not a caller. It
+  raises now.
+- **P4a: `yt_channel` and `search` retired.** Nine actors, two of which bought
+  nothing. `yt_channel` returned a subscriber count whose only consumer is
+  `audience_size` — captured, never gated on, since the audience floor died with
+  the shift to selling their clients rather than leverage on their list. A paid
+  call wired to a field that by design changes no decision. `search` duplicated
+  the agent's free WebSearch, which `audit/footprint.py` already called the
+  preferred path and which is what every skill actually used. **Neither needed a
+  measurement, because neither rests on one**: both are arguments about what a
+  call *changes*, not what it costs. `classify-footprint` was untouched, and
+  being fetch-agnostic is exactly why that was a deletion and not a rewrite.
+- **P4b: homepage-first, counted rather than switched on.** And here the
+  proposal was wrong, which is worth writing down. It estimates -30% of tier-0
+  page fetches from the first batch's 106-of-151 floor pass rate. But those 45
+  failures were settled with everything a research worker gathered across
+  WebSearch, LinkedIn and several pages — and the floors pass on `unclear`. To
+  skip anything, a homepage-only pre-pass needs a **clear `no` on one page**, and
+  `check_uae` and `check_coach` only reach `no` on positive contrary evidence: a
+  named non-UAE location, a named non-coach occupation. That will fire far less
+  often than 45 in 151. Nobody knows how much less, so `fetch` now prints
+  `HOMEPAGE-FIRST: <n> lead(s) already a clear no on page 1, <n> of <n> page
+  fetch(es) deferrable` and skips nothing. One batch settles it. An unreadable
+  homepage is `unknown`, never `no` — a counter that implied otherwise would be
+  arguing for a saving it had not found.
+- **F3 closed, and it needed no new evidence, only a wire.** The activity floor
+  found zero usable dates across nine sites and ~220,000 characters, so
+  `active_recent` was `unclear` for effectively every lead and the floor did
+  nothing; the repair was a write-back from stage 3 that an orchestrator had to
+  remember. **The dates had existed since P1 and nothing read them.**
+  `research-worker` returns schema-checked observations carrying `published_at`,
+  and it returns them *before* it calls `qualify`. The date was in its hand one
+  line earlier.
+- **F11 closed, recorded as D24.** `copy-check` and `deal` move to a new stage
+  2b, before the hooks.
+
+**The one real decision this session made: an observation may only ever move the
+activity floor upward.** `check_active` already answers `NO` to a stale date. So
+handing it the newest of an old observation set would have opened a brand-new
+kill surface at the one floor built not to have one — and opened it on the
+weakest evidence available, which is that the pages *we happened to retrieve*
+were old. D4 says a false kill is permanent and invisible while a false pass
+costs one research call. **Better evidence is a reason to settle a floor, not a
+reason to weaken `unclear` passes.** So a stale set returns exactly what an
+empty set returns, the restriction lives inside `activity_from_observations`
+rather than in a caller's discipline, and the CLI test asserts the stale run is
+line-for-line identical to the bare run. That identity is the property; anything
+weaker is an implementation detail somebody will optimise away.
+
+It still says what it saw: `newest of 1 observation(s) is 2026-01-13 (200d ago)
+— too old to settle the floor, and never a kill`. Worth reading in a report even
+though it changes no verdict.
+
+**D24, the deal moving, is the change with a cost attached, and the cost is
+stated rather than discovered.** The bank leaves between 12 and 36 words for a
+hook. Dealing after the hook stage meant a hook could be found, cited, certified
+by an independent verifier against a verbatim quote — and then handed to a
+drafter with 12 words of room. `draft-worker` is forbidden from trimming the
+offer, close or ps lines, because `hook_room` is computed on the assumption
+those hand-written sentences survive intact. **So the only thing left to
+compress was the one sentence the machine had just gone to the most trouble to
+certify, and nothing re-checks it: the verifier has already run.** A hook chosen
+to fit is a citation. A hook squeezed after certification is a citation drifting
+from its source.
+
+The price: lines are now allocated to leads that later hold on a refuted hook,
+so the shipped batch drifts from the declared weights. That is R4, it needs no
+new machinery — `export --rebalance-ps` exists for exactly this — and what
+changes is frequency. It fires on most batches now rather than some, so the
+brief template carries the drift it reports. Re-dealing after the hooks is not
+the fix: the drafts and the CRM rows are written against the file `deal`
+produced, and a second allocation makes them disagree.
+
+`hook-worker` gets its lead's `hook_room` from `work/anchors.json` and writes to
+it. **`hook-verifier` deliberately does not** — its question is whether the words
+are on the page, and a length note is a reason to be lenient about a quote that
+nearly fits.
+
+**What is left is exactly what the measurement gates**, and nothing else: the P3
+flip (hook-worker stops fetching, `plan` starts declining, `select` gets
+consumed) and F4's `HookProposal`, which needs the authored clause the flip
+brings. The trigger, so nobody re-derives it: one batch reaching stage 3b,
+producing `ledger report`'s `DUPLICATE li_posts` count and `select --against`'s
+`AGAINST:` line, with `missed` and `unobserved` read apart rather than summed.
+
+818 tests (+12), `doc-check` clean at 26 commands and 7 apify subcommands, down
+from 10.
+
 ## 2026-08-01 (P3) — the machine can say which fetch it could have skipped
 
 Built P3 of `docs/proposals/2026-08-01-hook-retrieval.md`: `outbound/plan.py` and

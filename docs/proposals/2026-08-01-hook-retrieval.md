@@ -7,7 +7,36 @@ _**P0 through P3 of Part 9 landed on 2026-08-01**: the retrieval ledger, the
 lead, link-in-bio pages finally read, podcast hosts recognised — and then `plan`
 and `select`. All four are additive and none changes how a hook is found; the
 duplicate `li_posts` fetch in F1 is still made on purpose, so it can be removed
-against a measurement instead of an argument. P4 remains proposal._
+against a measurement instead of an argument._
+
+_**Then the rest of what does not need that measurement, also 2026-08-01.** P4a
+retired `yt_channel` and `search`, both arguments about what a call changes
+rather than what it costs. P4b's homepage-first tier 0 shipped as a count and
+not a change, because the −30% below reasons from a floor pass rate a
+homepage-only pre-pass cannot reproduce — the real number is now printed.
+**F3 closed**: `qualify` settles `active_recent` from observation dates, upward
+only, so a stale set reads exactly like no observations and the floor gains no
+kill. **F11 closed**: `deal` runs before the hook stage, so a hook is chosen to
+fit rather than compressed after a verifier certified its wording (D24). The
+`run_plan` fallthrough noted as found-and-not-fixed is fixed._
+
+_**Then Part 8's metrics, which nothing had built.** `metrics` computes
+`hook_yield`, `refute_rate`, `null_hook_rate`, `yield_by_rung`,
+`wasted_retrieval` and `cost_per_verified_hook`, writes
+`data/runs/<batch>-metrics.json`, and prints the Batches row as a paste-ready
+block rather than writing it. **A count nobody supplied prints `?`, never `0`** —
+the last thing Part 8 needed was a block that zero-fills and looks like
+evidence. `replies` is the manual Smartlead bridge Part 8 describes: export a
+CSV, join on `email`, and `hook_type` is finally testable against reply rate.
+Both fail open and neither draws a conclusion from one batch._
+
+_**What is left is exactly what the measurement gates**: the P3 flip —
+`hook-worker` stops fetching, `plan` starts declining, `select` is consumed —
+and F4's `HookProposal`, which needs the authored clause that arrives with it.
+The trigger is one batch reaching stage 3b and producing both `ledger report`'s
+`DUPLICATE li_posts` count and `select --against`'s `AGAINST:` line, read with
+`missed` and `unobserved` kept apart. **Everything needed to judge that batch is
+now built**, which was not true when this note was first written._
 
 _**P3 landed switched off, which is a departure from this document and the more
 important note on the page.** Part 9 describes P3 as the one real behaviour

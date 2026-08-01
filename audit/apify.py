@@ -35,8 +35,7 @@ call would otherwise land on a capped account (`EMAIL_VERIFY_PROVIDER=
 zerobounce` to force it). Google-footprint sourcing stays on the free tier
 search feeding `audit/footprint.py` (`main.py classify-footprint`) — that
 move was never about the cap, the free tier already does the job at no Apify
-cost, so there's nothing to restore there; `footprint_search` below
-remains a manual fallback.
+cost, so there's nothing to restore there.
 
 Every run through this module is now cost-gated (`COST_APPROVAL_THRESHOLD_
 USD`, see below) — a paid plan removes the hard monthly wall but not the
@@ -48,11 +47,29 @@ reason to look before a run that costs real money.
     ig_post     apify/instagram-post-scraper            recent posts w/ captions (date-filterable, can skip pinned); single-post detail
     li_posts    harvestapi/linkedin-profile-posts       recent posts w/ text + date (no cookies) — where LinkedIn hooks live
     li_profile  harvestapi/linkedin-profile-scraper     headline/about/experience; optional email-search mode (finds an address)
-    yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number the free tier can't read for YT-native coaches)
     email       michael.g/email-verifier-validator      address verification (status/technical_status/score)
-    search      apify/google-search-scraper             Google SERP (site:, country, date filters)
     site_static apify/cheerio-scraper                   tier-2 static HTML, for a site local requests could not reach
     site_render apify/website-content-crawler           tier-2 browser render, ONLY for a page that 200s with no text
+
+    (yt_channel and search were RETIRED 2026-08-01, P4 of
+    docs/proposals/2026-08-01-hook-retrieval.md. Neither was a large bill;
+    both were surface area, which this module's own rule above says is the
+    thing to count.
+
+    yt_channel returned a subscriber count and nothing else, and its only
+    consumer was `audience_size` — a field `docs/spec/02-icp.md` captures
+    and explicitly never gates on, since the audience floor was retired the
+    moment the offer became selling their clients rather than leverage on
+    their list. A paid actor wired to a field that by design changes no
+    decision. YouTube activity recency was already a free scrape of the
+    channel's /videos page and is unaffected.
+
+    search duplicated the agent's own free WebSearch. `audit/footprint.py`
+    said so itself: the free path is "the preferred path — it costs nothing
+    beyond what is already running", and the Apify one "remains a manual
+    fallback" that no skill had invoked. `classify_footprint_hits` stays and
+    is fetch-agnostic by design, so sourcing keeps the half that does the
+    work and loses only the layer that paid for the SERP.)
 
     (the two site actors vetted 2026-08-01. `outbound/fetch.py` had been
     emitting an escalation plan naming website-content-crawler in the slash
@@ -74,15 +91,6 @@ reason to look before a run that costs real money.
     (`status`/`technical_status`/`catch_all` -> the `result` token
     `classify_verification` already reads) rather than teaching that function
     a second vocabulary.)
-
-    (yt_channel added 2026-07-19 for the qualifier's audience floor: a coach
-    whose only sizeable channel is YouTube (subscriber count is JS/login-walled
-    to the free tier) otherwise stalls at "unconfirmed audience." One channel = one
-    dataset-item at $0.0005, so a single-lead call clears the gate ~200x over.
-    It returns the SUBSCRIBER COUNT, not a latest-upload date — YouTube activity
-    recency stays a free scrape of the channel's /videos page, per the
-    free-first rule. Handle path via `youtubeHandles`; /channel/UC.. and
-    /c/.. URLs via `startUrls`.)
 
     (Instagram split from the single apify/instagram-scraper into the two
     dedicated actors above 2026-07-18: the unified actor's `details` mode is
@@ -128,12 +136,13 @@ reason to look before a run that costs real money.
 - Email: the no-email profile mode is $4/1k, the email-search mode is
   $10/1k — only pass `with_email=True` when you're actually hunting an
   address. Never re-verify an address already MX-confirmed.
-- Search: tight scoped queries, low page counts.
+- Search: there is no paid search here. Use the agent's own WebSearch and
+  feed the hits to `main.py classify-footprint`.
 
 ## Cost approval gate
 
 Every wrapper below (`instagram`, `instagram_post`, `linkedin_posts`,
-`linkedin_profile`, `youtube_channel`, `verify_emails`, `google_search`) estimates the run's
+`linkedin_profile`, `verify_emails`, `crawl_static`, `crawl_render`) estimates the run's
 cost BEFORE calling Apify — its primary charge event's live per-unit price
 (read from `GET /v2/acts/<id>`, at this account's actual plan tier) times
 the item count the call implies (`resultsLimit`, `maxPosts`,
@@ -181,9 +190,7 @@ ACTORS = {
     "ig_post": "apify~instagram-post-scraper",
     "li_posts": "harvestapi~linkedin-profile-posts",
     "li_profile": "harvestapi~linkedin-profile-scraper",
-    "yt_channel": "apidojo~youtube-channel-information-scraper",
     "email": "michael.g~email-verifier-validator",
-    "search": "apify~google-search-scraper",
     "site_static": "apify~cheerio-scraper",
     "site_render": "apify~website-content-crawler",
 }
@@ -885,44 +892,6 @@ def linkedin_profile(urls: str | list[str], with_email: bool = False,
     return [by_ident.get(_li_identifier(u)) for u in url_list]
 
 
-def _yt_run_input(channel: str) -> dict:
-    """Map a YouTube channel URL or @handle to the apidojo actor's input.
-    Bare handles and youtube.com/@handle URLs go via `youtubeHandles` (the
-    path that reliably resolves a single channel); /channel/UC.., /c/.., and
-    /user/.. URLs go via `startUrls`. Always caps at one item."""
-    s = channel.strip()
-    low = s.lower()
-    if any(p in low for p in ("youtube.com/channel/", "youtube.com/c/", "youtube.com/user/")):
-        return {"startUrls": [s], "maxItems": 1}
-    if "youtube.com/@" in low:
-        h = "@" + low.split("youtube.com/@", 1)[1].split("/", 1)[0].split("?", 1)[0]
-    elif s.startswith("@"):
-        h = s
-    elif "youtube.com" in low:
-        # some other youtube URL shape — let the actor resolve it as a start URL
-        return {"startUrls": [s], "maxItems": 1}
-    else:
-        h = "@" + s.lstrip("@")
-    return {"youtubeHandles": [h], "maxItems": 1}
-
-
-def youtube_channel(channel: str, raw: bool = False, approved: bool = False) -> list[dict]:
-    """YouTube channel info — the subscriber COUNT (the audience-floor number
-    the free tier can't read off a JS/login-walled channel page) for a YT-native
-    coach. Takes a channel URL or @handle. Returns subscriberCount + basic
-    stats; it does NOT return a latest-upload date, so get YouTube activity
-    recency from a free scrape of the channel's /videos page instead.
-    Cost-gated (1 channel = 1 dataset-item, ~$0.0005)."""
-    est = _require_cost_approval(ACTORS["yt_channel"], 1, approved)
-    items = run_actor(ACTORS["yt_channel"], _yt_run_input(channel), memory_mbytes=512,
-                      cost_usd=est, platform="youtube", url=channel)
-    if raw:
-        return items
-    return [_lean(i, ("name", "handle", "url", "subscriberCount", "videoCount",
-                      "viewCount", "joinedAt", "description"))
-            for i in items]
-
-
 def _normalize_email_result(item: dict) -> dict:
     """michael.g/email-verifier-validator speaks its own vocabulary — top-level
     `status`: good/risky/bad, `technical_status`: valid/invalid/unknown/
@@ -1069,96 +1038,3 @@ def crawl_render(urls: list[str], *, approved: bool = False,
     if raw:
         return items
     return [_lean(i, ("url", "title", "text", "html")) for i in items]
-
-
-def google_search(query: str, pages: int = 1, site: str | None = None,
-                  country: str | None = "ae", raw: bool = False,
-                  meta: bool = False, approved: bool = False) -> list[dict] | dict:
-    """Google SERP for one query. `site` scopes to a domain (e.g.
-    linkedin.com), `country` biases results (default UAE).
-
-    The apify google-search-scraper returns far more per hit than a plain
-    search snippet, and the extra fields earn their keep for sourcing:
-    - `websiteTitle` — the site/platform label Google shows (e.g.
-      "mykajabi.com"), a free platform tag before any scrape.
-    - `emphasizedKeywords` — the exact query terms Google bolded in the
-      snippet. On a footer-signature query ("powered by kajabi ..."), a
-      hit whose emphasizedKeywords actually contains the marker is a real
-      match, not a stray Google guess — this is the false-positive filter
-      for the footprint channel.
-    With `meta=True` the return is a dict that also carries the page-level
-    `relatedQueries` and `peopleAlsoAsk` (query-expansion fuel for lateral
-    discovery) plus `resultsTotal`; otherwise it's the flat hit list, as
-    before (backward compatible)."""
-    est = _require_cost_approval(ACTORS["search"], pages, approved)
-    run: dict[str, Any] = {"queries": query, "maxPagesPerQuery": pages}
-    if site:
-        run["site"] = site
-    if country:
-        run["countryCode"] = country
-    # A SERP has no fetched URL, so the ledger carries the query under a
-    # `google:` prefix rather than pretending it is one. It is still the right
-    # value for the duplicate check: running the same query twice on the same
-    # lead is exactly the waste the ledger is looking for.
-    items = run_actor(ACTORS["search"], run, memory_mbytes=1024,
-                      cost_usd=est, platform="web", url=f"google:{query}")
-    if raw:
-        return items
-    # The SERP actor returns one item per results page; flatten organic hits.
-    hits: list[dict] = []
-    related: list = []
-    also_ask: list = []
-    for page in items:
-        if not isinstance(page, dict):
-            continue
-        for r in page.get("organicResults", []):
-            hits.append(_lean(r, ("title", "url", "displayedUrl", "websiteTitle",
-                                  "description", "emphasizedKeywords")))
-        related.extend(page.get("relatedQueries", []) or [])
-        also_ask.extend(page.get("peopleAlsoAsk", []) or [])
-    hits = hits or items
-    if not meta:
-        return hits
-    return {
-        "hits": hits,
-        "relatedQueries": related,
-        "peopleAlsoAsk": also_ask,
-    }
-
-
-def footprint_search(platform: str, geo: str = "Dubai", role: str = "coach",
-                     country: str | None = "ae", raw: bool = False,
-                     approved: bool = False) -> dict:
-    """Work one platform's Google footprint via BOTH query shapes and merge —
-    the Apify-backed path (fetches through `google_search`, which draws on
-    the shared monthly USD cap). Prefer `main.py classify-footprint`
-    (free-search-fed, `audit/footprint.py`) instead; this stays as a manual
-    fallback for when free search is unavailable.
-
-    Runs the subdomain query (`site:<domain> <role> <geo>`) and, when the
-    platform has one, the footer-signature query (`"powered by <platform>"
-    <role> <geo>`, un-site-scoped so custom domains surface), then hands
-    both hit lists to `audit.footprint.classify_footprint_hits` for the
-    dedupe/noise-filter/tagging — see that module for the merge logic.
-
-    Returns {"platform", "geo", "hits": [...], "subdomain_count",
-    "footprint_count", "queries": [...]}. Two apify calls per platform (one
-    if it has no marker); at ~$0.002/call the whole platform set is a few
-    tenths of a cent.
-    """
-    key = platform.lower().strip()
-    fp = PLATFORM_FOOTPRINTS.get(key)
-    if not fp:
-        raise ApifyError(
-            f"unknown platform {key!r}; known: {', '.join(PLATFORM_FOOTPRINTS)}"
-        )
-
-    sub_q = f"{role} {geo}"
-    subdomain_hits = google_search(sub_q, site=fp["domain"], country=country, approved=approved)
-
-    marker_hits: list[dict] = []
-    if fp["marker"]:
-        fp_q = f'"{fp["marker"]}" {role} {geo}'
-        marker_hits = google_search(fp_q, country=country, approved=approved)
-
-    return classify_footprint_hits(key, subdomain_hits, marker_hits, geo=geo, role=role)

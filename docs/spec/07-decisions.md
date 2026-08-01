@@ -426,6 +426,43 @@ points at a different file than the one it would revert.
 
 ---
 
+### D24 · The lines are dealt before the hook is written
+
+**2026-08-01.** `deal` runs on the draftable set, between the late dedupe and
+the hook stage. The `HOOK ROOM` it prints goes to `hook-worker` as a budget and
+to `select --hook-room`. It used to run one stage later, after every hook had
+been found and verified.
+
+**Why.** The live bank leaves between 12 and 36 words for a hook depending on
+the draw. Dealing afterwards meant a hook could be found, cited, and certified
+by an independent verifier against a verbatim quote — and then handed to a
+drafter with 12 words of room. `draft-worker` is explicitly forbidden from
+trimming the offer, close or ps lines, because those are somebody's
+hand-written sentences and `hook_room` is calculated on the assumption they
+survive intact. So the only thing it could compress was the one sentence the
+machine had just gone to the most trouble to certify. **A hook that is chosen to
+fit is a citation; a hook squeezed after certification is a citation drifting
+from its source**, and nothing downstream re-checks it — the verifier has
+already run.
+
+**The cost, stated rather than discovered.** Lines are now allocated to leads
+that later hold on a refuted or inconclusive hook, so their four lines go unused
+and the shipped batch drifts from the declared weights. That is R4 of the
+proposal, and it needs no new machinery: `export --rebalance-ps` exists for
+exactly this and the batch skill already instructs passing it whenever any lead
+held. What changes is frequency — it fires on most batches now rather than some,
+and the drift it reports is a line for the brief. Re-dealing after the hooks is
+not the fix: the drafts and the CRM rows are written against the file `deal`
+produced, and a second allocation makes them disagree.
+
+**Reversed by** a batch where the ps rebalance cannot hold the repetition cap
+after the holds — which would mean the drift is too large to absorb downstream,
+and the answer is more identity lines per thin segment rather than a return to
+dealing late. Dealing late does not become correct again; it only stops being
+the worse of two problems.
+
+---
+
 ## What is unknown
 
 - **Nothing here has been reversed yet.** The reversal conditions are untested,

@@ -496,6 +496,72 @@ def check_active(*, last_seen: date | None = None, today: date | None = None,
     return Verdict(NO, source or "date", f"{last_seen} ({age}d ago)")
 
 
+def activity_from_observations(observations, *,
+                               today: date | None = None) -> tuple[date | None, str]:
+    """The newest observation date, but ONLY when it clears the floor.
+
+    F3 of docs/proposals/2026-08-01-hook-retrieval.md. `latest_activity_date`
+    below found zero usable dates across nine sites and ~220,000 characters, so
+    `active_recent` came back `unclear` for effectively every lead and the floor
+    did nothing. The evidence it wanted has existed since P1: `research-worker`
+    returns schema-checked `Observation`s carrying `published_at`, and it
+    returns them before it calls this floor. The date was already in its hand.
+
+    **An observation can only ever turn `unclear` into `yes`.** It is never
+    allowed to argue the other way, and that restriction is the whole design of
+    this function rather than a caller's discipline. `check_active` returns `NO`
+    for a stale date — so handing it the newest of a stale set would open a
+    brand-new kill surface at the one floor built not to have one, and it would
+    open it on the weakest possible evidence: that the pages we happened to
+    retrieve were old. D4 is the rule, and giving a floor better evidence is not
+    a reason to weaken it. A lead whose observations are all stale comes back
+    from here exactly as a lead with no observations at all does, and falls
+    through to the page-text path unchanged.
+
+    So a date outside the window returns `(None, why)` — and `why` says the
+    dates were there and were old, because that is worth reading in a report
+    even though it changes no verdict.
+    """
+    today = today or date.today()
+    dated: list[tuple[date, str]] = []
+    for obs in observations or []:
+        # **Somebody else's post about them is not evidence they did anything.**
+        # Found on the first batch that used this: a lead's only dated
+        # observation was a company post naming her, two days old, and this
+        # would have called her active on it. The floor asks whether THEY were
+        # active. `outbound/select.py` already excludes `third_party` for the
+        # same reason one stage over — ban #7, no third-party coverage — and the
+        # floor wanting different evidence from the hook was never the intent.
+        #
+        # Dropping an observation can only ever remove evidence, so this can
+        # only move a lead toward `unclear`, never toward a kill. `unknown`
+        # stays in, per resolve's rule that no tell is not a tell saying no.
+        author = (obs.get("author") if isinstance(obs, dict)
+                  else getattr(obs, "author", "")) or ""
+        if author.strip().lower() == "third_party":
+            continue
+        raw = (obs.get("published_at") if isinstance(obs, dict)
+               else getattr(obs, "published_at", "")) or ""
+        try:
+            when = date.fromisoformat(str(raw).strip())
+        except ValueError:
+            continue                      # the schema gate's job, not this one
+        if when > today:
+            continue                      # a date nobody could have read
+        url = (obs.get("url") if isinstance(obs, dict)
+               else getattr(obs, "url", "")) or "an observation"
+        dated.append((when, url))
+
+    if not dated:
+        return None, "no dated observation"
+    when, url = max(dated, key=lambda pair: pair[0])
+    age = (today - when).days
+    if age <= ACTIVITY_WINDOW_DAYS:
+        return when, f"{url} ({when}, {age}d ago)"
+    return None, (f"newest of {len(dated)} observation(s) is {when} ({age}d ago) "
+                  f"— too old to settle the floor, and never a kill")
+
+
 def latest_activity_date(text: str, *, page_url: str = "",
                          today: date | None = None) -> tuple[date | None, str]:
     """The most recent real date on a fetched page, and where it came from.
@@ -508,10 +574,12 @@ def latest_activity_date(text: str, *, page_url: str = "",
     `check_active` turns into `unclear` and passes.
 
     The signal that does exist is LinkedIn: the hook stage pulled dated posts
-    for four of twelve leads on that same batch, several inside a week. That is
-    the real evidence for this floor, and it arrives one stage later than the
-    floor runs. Feed the verified hook's date back as `last_activity` rather
-    than expecting a site read to produce it — see the outbound-batch skill.
+    for four of twelve leads on that same batch, several inside a week. That
+    used to arrive one stage after the floor ran, and the repair was a manual
+    write-back an orchestrator had to remember. It is not any more —
+    `activity_from_observations` above reads the dates the research worker
+    already retrieved, at the stage where the floor actually runs. This stays as
+    the rung below it, for a lead whose only evidence is a page.
 
     `check_active` wants a date; a worker reading a page has text. This is the
     bridge, and it is mechanical on purpose — "when did they last post" is a

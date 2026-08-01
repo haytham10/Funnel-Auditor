@@ -151,9 +151,11 @@ def test_two_leads_on_the_same_url_are_not_a_duplicate():
 
 
 def test_a_search_query_counts_as_a_source():
-    """`google_search` has no fetched URL, so the query goes in under a
-    `google:` prefix. Running the same query twice for one lead is exactly the
-    waste this is looking for, so it must not be exempt for lacking a scheme."""
+    """A search has no fetched URL, so the query goes in under a prefix instead.
+    Since the paid SERP actor was retired these lines come from `ledger add`,
+    where an agent reports its own WebSearch on trust. Running the same query
+    twice for one lead is exactly the waste this is looking for, so it must not
+    be exempt for lacking a scheme."""
     records = [entry(url="google:jane coach dubai", platform="web"),
                entry(url="google:jane coach dubai", platform="web")]
     assert len(ledger.duplicates(records)) == 1
