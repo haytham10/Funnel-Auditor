@@ -173,13 +173,25 @@ no-address fallback on the lead's own branded domain. The fallback converges
 on exactly one address, never auto-passes a catch-all domain, and refuses free
 provider domains.
 
-The Apify-backed verifier normally tries `email` (account56/email-verifier)
-first and falls back to `email_alt` (a second vetted actor) only on the
-addresses `email` errored on. `email` has been in an outage since 2026-07-31
-(errors on every address, not a per-address signal) — see `audit/apify.py`'s
-`_PRIMARY_EMAIL_ACTOR_DOWN`, which skips it entirely while that holds, rather
-than paying for a guaranteed error. Flip it back once `email` is confirmed
-recovered.
+**One paid verifier, one free fallback, and the fallback says what it is.**
+`audit/apify.py` owns which actor `email` names. `EMAIL_VERIFY_PROVIDER` picks
+between it and the local check, and a capped Apify quota switches to the local
+check on its own. The local check reads syntax, the never-send and typo and
+disposable lists, and MX — so it can prove a domain takes mail and never that a
+mailbox exists. Its best answer is a WARN that says so, and it can never clear
+an address for sending by itself. Its FAILs are real.
+
+**`email-verify-batch` is the only place a verifier outage is visible**, because
+an outage is a property of the run rather than of any address in it. Every
+address in a batch coming back inconclusive is not an address pattern; it exits
+2, the code for a gate that could not complete, rather than 1, which would be a
+claim about the addresses. This exists because a dead actor answered "error" for
+40 consecutive leads and read to the operator as a long run of catch-all
+domains.
+
+**Every row names who answered it**, and `verify-email` returns one row per
+address asked about — an address the actor did not answer on comes back as
+`no_result` rather than being dropped from the list.
 
 ### `apify`
 The no-login third-party fetch layer, and the only paid one. Subcommands:

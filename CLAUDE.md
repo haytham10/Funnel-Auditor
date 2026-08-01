@@ -245,9 +245,15 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
   with `APPROVAL REQUIRED` / exit 3 above it. **Check the budget once per batch,
   not once per worker.** Container boot dominates the bill, not pages — batch
   every URL into one run.
-- **Email verification** defaults to Apify/MillionVerifier, auto-falling back to
-  ZeroBounce (`ZEROBOUNCE_API_KEY`) when Apify is near cap. Force with
-  `EMAIL_VERIFY_PROVIDER=zerobounce`.
+- **Email verification** is one paid actor (`audit/apify.py` names it) and one
+  free fallback, the local MX check in `audit/email_check.py`, used when Apify
+  is near cap or `EMAIL_VERIFY_PROVIDER=local`. **The local check can prove a
+  domain takes mail and never that a mailbox exists**, so its best answer is a
+  WARN saying exactly that; only the paid verifier can clear an address. ZeroBounce
+  is gone (2026-08-01): it was the documented fallback and had no credits when
+  the outage finally called on it. **`email-verify-batch` is where an outage
+  is visible** — a whole batch coming back inconclusive is not an address
+  pattern, and it exits 2.
 - **Airtable** is the CRM. Base `appejF07kunksqt4D` ("Outbound Machine"):
   Leads `tbl51dU7ojrxCVfxZ`, Batches `tbl97PsqhdndK14hP`, Copy Assets
   `tblnZBHjn430hAB5w`. The old funnel-audit base `appaBExqyEZykb1Qk` is archive

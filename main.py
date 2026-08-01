@@ -908,23 +908,46 @@ def _apify_quota_note() -> tuple[bool, str | None]:
     return False, None
 
 
+class _LocalVerifierError(Exception):
+    """Never raised. `_email_verifier` returns an exception class alongside the
+    verify function so its three callers can have one `except` shape; the local
+    verifier has no failure mode that reaches them, and saying that with a class
+    nothing throws is honester than naming a real one that never fires."""
+
+
 def _email_verifier(approved: bool = False):
-    """Which verifier to use. `EMAIL_VERIFY_PROVIDER` picks (default apify),
-    and a capped Apify quota auto-falls back to ZeroBounce rather than spending
-    an attempt that would just 402."""
+    """Which verifier to use. `EMAIL_VERIFY_PROVIDER` picks — `apify` (default)
+    or `local` — and a capped Apify quota falls back to the local check rather
+    than spending an attempt that would just 402.
+
+    The fallback used to be ZeroBounce. When the Apify actor's outage finally
+    called on it, `getcredits` returned `{"Credits":"0"}` and the machine had no
+    working verifier at all while the docs said it did. It is gone. The local
+    check cannot confirm a mailbox and never claims to, but it is always there,
+    it costs nothing, and its FAILs are real.
+    """
     import os
     import functools
-    from audit import email_verifier
+    from audit import email_check
+    # `verify_local` cannot raise — every DNS path inside `check_email` catches
+    # its own failures and returns a verdict — so the local branch names an
+    # exception class that will never fire rather than pretending otherwise.
+    local_never_raises = _LocalVerifierError
     provider = os.environ.get("EMAIL_VERIFY_PROVIDER", "apify").strip().lower()
-    if provider != "apify":
-        return email_verifier.verify_emails, email_verifier.EmailVerifierError, None
+    if provider == "local":
+        return email_check.verify_local, local_never_raises, "local MX check, no paid verifier"
+
+    note_prefix = ""
+    if provider not in ("apify", ""):
+        note_prefix = f"EMAIL_VERIFY_PROVIDER={provider!r} is not a provider, using apify — "
 
     from audit import apify
     capped, note = _apify_quota_note()
     if capped:
-        return (email_verifier.verify_emails, email_verifier.EmailVerifierError,
-                f"{note} — auto-switched to ZeroBounce for this call")
-    return functools.partial(apify.verify_emails, approved=approved), apify.ApifyError, None
+        return (email_check.verify_local, local_never_raises,
+                f"{note_prefix}{note} — auto-switched to the local MX check for this call")
+    return (functools.partial(apify.verify_emails, approved=approved),
+            apify.ApifyError, note_prefix.rstrip(" —") or None)
 
 
 def cmd_email_verify(args) -> None:
@@ -953,7 +976,13 @@ def cmd_email_verify_batch(args) -> None:
     one call or ten — batching pays for the run once instead of once per
     lead, same lever as the tier-0 site fetch and `deal`. Prints one
     quotable line per address, same format as the single-address command,
-    so nothing downstream has to tell them apart."""
+    so nothing downstream has to tell them apart.
+
+    This is also the only place that can see a verifier outage, because an
+    outage is a property of the run and not of any address in it. Exit 2 when
+    the batch looks dead: nothing is wrong with these addresses, so exit 1
+    would be a lie about them, and exit 0 is how 40 leads went past a broken
+    verifier looking like catch-alls."""
     from audit import email_check
     from audit.apify import ApifyCostApprovalRequired
     verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
@@ -974,6 +1003,11 @@ def cmd_email_verify_batch(args) -> None:
         code = email_check.print_verify(
             addr, by_email.get(addr.strip().lower()), note=note or "")
         worst = max(worst, code)
+
+    suspect = email_check.batch_health(list(rows) if rows else [])
+    if suspect:
+        print(suspect)
+        sys.exit(2)
     sys.exit(worst)
 
 

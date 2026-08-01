@@ -210,12 +210,13 @@ def print_check(address: str, lead_name: str = "") -> int:
 # So the classifier fails SAFE — anything not provably deliverable is WARN,
 # never silently promoted to PASS.
 
-# Result vocabulary → what it means for sending. Covers both MillionVerifier
-# (the original Apify-backed verifier) and ZeroBounce (the current default,
-# audit/email_verifier.py) — the two providers' tokens overlap almost
-# entirely; where they differ (catch_all vs catch-all) both spellings are
-# listed rather than normalizing, so a provider swap never silently drops a
-# token into the "unrecognized" fail-safe WARN bucket.
+# Result vocabulary → what it means for sending. The live provider is
+# michael.g/email-verifier-validator via Apify; the older MillionVerifier and
+# ZeroBounce tokens are kept because they overlap almost entirely and a
+# retired token costs nothing, where an unlisted one drops into the
+# "unrecognized" fail-safe WARN bucket and looks like a real signal. Where
+# spellings differ (catch_all vs catch-all) both are listed rather than
+# normalized, for the same reason.
 _VERIFY_DELIVERABLE = {"ok", "valid", "deliverable"}
 _VERIFY_UNDELIVERABLE = {
     "invalid": "mailbox does not exist — this is the hard-bounce case, never send here",
@@ -236,7 +237,20 @@ _VERIFY_INCONCLUSIVE = {
     "unknown": "verifier could not determine deliverability — inconclusive, "
                "not a confirmed-good address",
     "error": "verifier errored on this address — inconclusive, try again or verify by hand",
+    "no_result": "verifier was asked about this address and returned no row for it — "
+                 "inconclusive, and a sign the run came back short",
+    "local_mx": "local MX only, domain accepts mail, mailbox unconfirmed — "
+                "no paid verifier ran, so this can never clear on its own",
 }
+
+# The tokens that mean "nothing was learned about this address", as opposed to
+# "this domain accepts everything". `batch_health` reads the distinction; see
+# its docstring for why it is worth keeping the two apart.
+_VERIFY_NOTHING_LEARNED = frozenset({"unknown", "error", "no_result", "local_mx"})
+
+# Below this many addresses a run of inconclusives is ordinary. Four
+# catch-all domains in a row is a Tuesday; forty is an outage.
+_BATCH_HEALTH_MIN = 5
 
 
 def _verify_token(result: dict) -> str:
@@ -284,14 +298,122 @@ def classify_verification(result: dict | None) -> tuple[str, list[str]]:
                     "not a confirmed-good address"]
 
 
+def verify_local(emails: list[str], lead_name: str = "") -> list[dict]:
+    """The no-provider fallback: `check_email` per address, in the row shape
+    `classify_verification` reads. One row per input, in input order.
+
+    This is everything the machine can learn about an address without paying
+    anybody — syntax, the never-send and typo and disposable lists, and the
+    three-way MX ladder. What it CANNOT do is confirm a mailbox exists, because
+    there is no SMTP probe here and there is not going to be one: cloud IPs are
+    widely blocked on port 25, the big hosts accept-all anyway, and a probe from
+    a container reads as reconnaissance to some mail hosts.
+
+    So a domain that resolves comes back as `local_mx`, which classifies to WARN
+    and says so in the details. It is a real signal — a FAIL here is a genuine
+    kill, and that is most of the value — but it can never check the CRM's
+    `Email Verified` box on its own, and nothing downstream should let it.
+
+    This replaced ZeroBounce (deleted 2026-08-01), which was documented as the
+    automatic fallback and, when the outage finally called on it, turned out to
+    have no credits. A fallback nobody has exercised is a fallback nobody has.
+    """
+    rows: list[dict] = []
+    for address in emails:
+        address = (address or "").strip()
+        verdict, details = check_email(address, lead_name)
+        reason = ", ".join(details)
+        if verdict != "FAIL":
+            # PASS and WARN both mean the same thing here: the domain can take
+            # mail and the mailbox is unconfirmed. The gap between them is MX
+            # vs an A-record fallback, which is a detail, not a verdict.
+            token = "local_mx"
+        elif "disposable" in reason:
+            token = "disposable"
+        else:
+            # Bad shape, a no-reply local, a typo domain, or NXDOMAIN. All of
+            # them are "do not send here", which is what `invalid` means.
+            token = "invalid"
+        rows.append({
+            "email": address,
+            "status": verdict.lower(),
+            "result": token,
+            "reason": reason,
+            "role": any("role account" in d for d in details),
+            "verified_by": "local",
+        })
+    return rows
+
+
+def batch_health(results: list[dict] | None) -> str | None:
+    """One line naming a verifier outage, or None when the batch looks real.
+
+    A dead verifier and a run of genuine catch-all domains both surface as WARN,
+    one address at a time, and that is exactly how the 2026-07-31 outage went
+    unnoticed for 40 leads: every address came back inconclusive and the operator
+    read it as "lots of catch-all domains."
+
+    The tell is the shape of the whole run rather than any one row. Every
+    address in a batch coming back inconclusive is not an address pattern —
+    real lists are mixed. So: at `_BATCH_HEALTH_MIN` addresses or more, either
+    nothing conclusive at all, or 90%+ of rows saying nothing was learned, is
+    reported as SUSPECT.
+
+    Deliberately NOT a per-address verdict. Nothing is wrong with the addresses,
+    so no address should be marked bad; what is wrong is the run, which is why
+    the caller exits 2 (the gate could not complete) rather than 1.
+    """
+    rows = [r for r in (results or []) if isinstance(r, dict)]
+    if len(rows) < _BATCH_HEALTH_MIN:
+        return None
+
+    # A run that was answered entirely by the local check learns nothing about
+    # any mailbox BY DESIGN, so the shape below is guaranteed and reporting it
+    # would fire on every local run. That is the "warning nobody reads" failure,
+    # and a check that always fires protects nothing. The operator already sees
+    # `[via local]` on every line, plus the switch note when a quota forced it.
+    if rows and all((r.get("verified_by") or "") == "local" for r in rows):
+        return None
+
+    verdicts = [classify_verification(r)[0] for r in rows]
+    nothing_learned = sum(1 for r in rows if _verify_token(r) in _VERIFY_NOTHING_LEARNED)
+    total = len(rows)
+
+    if not any(v in ("PASS", "FAIL") for v in verdicts):
+        return (f"EMAIL VERIFY BATCH: SUSPECT — {total}/{total} inconclusive. "
+                f"No real list verifies this way; treat the verifier as down, "
+                f"not the addresses as catch-alls.")
+    if nothing_learned / total >= 0.9:
+        return (f"EMAIL VERIFY BATCH: SUSPECT — {nothing_learned}/{total} rows "
+                f"learned nothing about the address. Check the verifier before "
+                f"trusting any row in this run.")
+    return None
+
+
 def print_verify(address: str, result: dict | None, *, note: str = "") -> int:
     """Format one verification result as the quotable gate line. `note`
-    (e.g. "Apify at 92% of its monthly cap — auto-switched to ZeroBounce")
+    (e.g. "Apify at 92% of its monthly cap — auto-switched to the local check")
     folds into the same line rather than a second line, so the "quote the
     literal output line" convention still holds. Exit 1 only on FAIL
-    (unusable address); PASS and WARN exit 0, mirroring email-check."""
+    (unusable address); PASS and WARN exit 0, mirroring email-check.
+
+    The line names who answered. Two WARNs that read identically but came from
+    a paid verifier and from the local MX check are not the same fact, and
+    reading them as the same fact is what the batch check above exists to stop.
+    """
     verdict, details = classify_verification(result)
+    by = (result or {}).get("verified_by") or "none"
+    # The local check knows WHY, where the classifier only knows the token —
+    # but the two are useful in opposite directions. On a FAIL the classifier's
+    # canned line can be wrong ("mailbox does not exist" is false of a domain
+    # that never resolved), so the local reason replaces it. On a WARN the
+    # canned line IS the point ("mailbox unconfirmed"), and the local detail
+    # would read like a pass on its own, so it goes after rather than instead.
+    own_reason = (result or {}).get("reason") if by == "local" else ""
+    if own_reason:
+        details = [own_reason] if verdict == "FAIL" else list(details) + [own_reason]
     line = f"EMAIL VERIFY: {verdict} — {address}: " + ", ".join(details)
+    line += f" [via {by}]"
     if note:
         line += f" [{note}]"
     print(line)

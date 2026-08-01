@@ -184,8 +184,12 @@ def enrich(full_name: str, domain_or_url: str, *, verifier=None, shape_check=Non
     base["candidates"] = candidates
 
     if verifier is None:
-        from audit import email_verifier
-        verifier = email_verifier.verify_emails
+        # The local check, not a paid one. `main.py email-enrich` injects the
+        # real selector, so this default is only reached by a library caller or
+        # a test — and a default that quietly spends money on those is a bad
+        # default. Local can never PASS a candidate on its own (`local_mx` is
+        # WARN), so the honest outcome of not injecting a verifier is HOLD.
+        verifier = email_check.verify_local
 
     rows = verifier(candidates) or []
     # Map each returned row back to its address so we can rank PASS results by
