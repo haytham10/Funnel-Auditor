@@ -159,6 +159,36 @@ def test_a_stale_observation_set_is_indistinguishable_from_none():
     assert "too old to settle the floor, and never a kill" in why
 
 
+def test_somebody_elses_post_about_them_never_settles_the_floor():
+    """Found on the first batch that used this. A lead's only dated observation
+    was a company post naming her, two days old, and this called her active on
+    it. The floor asks whether SHE was active. `select` excludes `third_party`
+    one stage over for the same reason (ban #7), and the floor wanting different
+    evidence from the hook was never the intent."""
+    theirs = dict(_obs(2), author="third_party")
+    assert q.activity_from_observations([theirs], today=TODAY)[0] is None
+    # And it cannot cause a kill — removing evidence only moves toward unclear.
+    assert q.check_active(last_seen=None, today=TODAY).value == q.UNCLEAR
+
+
+def test_unknown_authorship_still_counts():
+    """`unknown` is the dataclass default and means no tell was available, not
+    that the tell said no — resolve's rule, applied here. Filtering it out would
+    reject most of a real pool for a field nobody was required to fill."""
+    seen, _ = q.activity_from_observations(
+        [dict(_obs(3), author="unknown")], today=TODAY)
+    assert seen == TODAY - timedelta(days=3)
+
+
+def test_a_fresh_own_post_outranks_a_fresher_third_party_one():
+    """The third-party item is dropped, not merely outranked — otherwise a
+    lead's own stale post would lose to somebody else's fresh one."""
+    seen, why = q.activity_from_observations(
+        [dict(_obs(1), author="third_party"), dict(_obs(9), author="self")],
+        today=TODAY)
+    assert seen == TODAY - timedelta(days=9)
+
+
 def test_the_window_boundary_holds_for_observations_too():
     seen, _ = q.activity_from_observations([_obs(30)], today=TODAY)
     assert seen == TODAY - timedelta(days=30)

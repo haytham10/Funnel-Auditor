@@ -358,6 +358,39 @@ def test_a_stale_observation_set_qualifies_exactly_like_no_observations():
     assert "too old to settle the floor, and never a kill" in stale.stdout
 
 
+def test_observe_unwraps_a_research_file():
+    """The batch skill has always said to run this on a research file, and until
+    a real batch did, nobody noticed a research object is not an observation:
+    ten fine objects produced fifty violations about missing platforms and urls.
+    `research` was checking the nested list correctly all along — the documented
+    way to LOOK at it was what was broken."""
+    obs = {"lead_key": "a@x.ae", "platform": "linkedin", "url": "https://li/p/1",
+           "fetched_at": "2026-08-01T09:00:00", "published_at": "2026-07-30",
+           "author": "self", "kind": "post", "text": "a real post",
+           "retrieved_by": "apify:li_posts"}
+    with tempfile.TemporaryDirectory() as tmp:
+        research = write(tmp, "r.json", [
+            {"name": "A", "email": "a@x.ae", "observations": [obs]},
+            {"name": "B", "email": "b@x.ae", "observations": [dict(obs, lead_key="b@x.ae")]},
+        ])
+        result = run("observe", research)
+    assert result.returncode == 0, result.stdout
+    assert "unwrapped 2 observation(s) from 2 research object(s)" in result.stdout
+    assert "VALID" in result.stdout
+
+
+def test_observe_still_takes_bare_observations():
+    """The two shapes are both legitimate inputs, and which one it is is a
+    question the file already answers."""
+    obs = {"lead_key": "a@x.ae", "platform": "site", "url": "https://x.ae",
+           "fetched_at": "2026-08-01T09:00:00", "author": "self",
+           "kind": "bio", "text": "coach", "retrieved_by": "tier0"}
+    with tempfile.TemporaryDirectory() as tmp:
+        result = run("observe", write(tmp, "o.json", [obs]))
+    assert result.returncode == 0, result.stdout
+    assert "unwrapped" not in result.stdout
+
+
 def test_metrics_exits_2_on_a_ledger_it_could_not_read():
     """A batch whose cost could not be computed must not report as a batch that
     cost nothing — the wall's asymmetry, two stages over."""

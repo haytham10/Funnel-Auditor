@@ -229,7 +229,13 @@ if the input is not an object or a date will not parse. Owned by
 `docs/spec/02-icp.md`.
 
 **The activity floor settles from the observations, and only upward.** The
-newest `published_at` inside the window makes it a `yes`. Outside the window it
+newest `published_at` inside the window makes it a `yes`, and **a `third_party`
+observation is skipped**: somebody else's post about them is not evidence they
+did anything, which is ban #7 one stage over and the rule `select` already
+applies. Found on the first batch that ran this — a lead's only dated
+observation was a company post naming her, two days old, and the floor called
+her active on it. Dropping an observation only ever removes evidence, so it can
+move a lead toward `unclear` and never toward a kill. Outside the window it
 settles nothing: a lead whose observations are all stale comes back exactly as a
 lead with no observations does, and falls through to the page-text rung
 unchanged. That restriction lives in `activity_from_observations` rather than in
@@ -444,7 +450,8 @@ Every run is cost-gated and **exits 3** above the ceiling rather than spending.
 The ceiling itself lives in `audit/apify.py` and is not restated here.
 
 ### `observe`
-**In** one observation or an array of them. **Out** the schema verdict.
+**In** one observation, an array of them, **or a research file, which it
+unwraps**. **Out** the schema verdict.
 **Guarantees** a record claiming to be something fetched can be checked when it
 is written: platform, kind and author inside their enums, a piece of content
 carrying its text, a publication date that parses and has already happened, and

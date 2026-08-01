@@ -366,6 +366,16 @@ def cmd_observe(args) -> None:
 
     Accepts ONE observation or an array, the same as `lint` — a worker handling
     a slice returns many.
+
+    **It also accepts a research file and unwraps it.** The batch skill has
+    always said to run this on `work/research-<slice>.json`, and until the first
+    batch actually did, nobody noticed that a research object is not an
+    observation: every one of them validated as a malformed observation with no
+    platform, no kind and no url, producing fifty violations about ten objects
+    that were in fact fine. `research` was checking the nested list correctly
+    the whole time, so the gate was never the thing broken — the documented way
+    to look at it was. Unwrapping here is the fix that keeps the documented
+    command working rather than deleting it from the skill.
     """
     from outbound import observe
 
@@ -376,6 +386,22 @@ def cmd_observe(args) -> None:
         print(f"OBSERVE: FAIL — expected an object or an array of them, got "
               f"{type(data).__name__}.")
         sys.exit(2)
+
+    # A research object carries its observations under a key; an observation is
+    # one itself. Detected rather than flagged, because the two files are both
+    # legitimate inputs and asking a caller to say which is a question the shape
+    # already answers.
+    if any(isinstance(e, dict) and "observations" in e for e in data):
+        unwrapped, carriers = [], 0
+        for entry in data:
+            if isinstance(entry, dict) and "observations" in entry:
+                carriers += 1
+                unwrapped.extend(entry.get("observations") or [])
+            else:
+                unwrapped.append(entry)
+        print(f"OBSERVE: unwrapped {len(unwrapped)} observation(s) from "
+              f"{carriers} research object(s)")
+        data = unwrapped
     for entry in data:
         if not isinstance(entry, dict):
             print(f"OBSERVE: FAIL — array holds a {type(entry).__name__}, "

@@ -120,12 +120,21 @@ python main.py research work/research-<slice>.json
 ```
 
 That checks the observations each object carries too — one record per page or
-post the worker actually read, text verbatim. To see only those, or to hand a
-worker back a shorter list to fix:
+post the worker actually read, text verbatim. **`research` is the gate; the
+command below is the magnifying glass.** To see the observations alone, or to
+hand a worker back a shorter list to fix:
 
 ```
 python main.py observe work/research-<slice>.json
 ```
+
+It unwraps the research objects and validates what is nested inside them,
+reporting how many it found over how many leads. Until the 2026-08-01 batch it
+did not unwrap, so it graded ten perfectly good research objects *as*
+observations and printed fifty violations about missing platforms and urls that
+were never missing. If you ever see that shape again, read the count line
+first: `unwrapped <n> observation(s) from <n> research object(s)` is what a
+research file should produce.
 
 **The activity floor consumes them; nothing else does yet.** `qualify` settles
 `active_recent` from the newest observation date, which is the first real

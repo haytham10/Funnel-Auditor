@@ -525,6 +525,21 @@ def activity_from_observations(observations, *,
     today = today or date.today()
     dated: list[tuple[date, str]] = []
     for obs in observations or []:
+        # **Somebody else's post about them is not evidence they did anything.**
+        # Found on the first batch that used this: a lead's only dated
+        # observation was a company post naming her, two days old, and this
+        # would have called her active on it. The floor asks whether THEY were
+        # active. `outbound/select.py` already excludes `third_party` for the
+        # same reason one stage over — ban #7, no third-party coverage — and the
+        # floor wanting different evidence from the hook was never the intent.
+        #
+        # Dropping an observation can only ever remove evidence, so this can
+        # only move a lead toward `unclear`, never toward a kill. `unknown`
+        # stays in, per resolve's rule that no tell is not a tell saying no.
+        author = (obs.get("author") if isinstance(obs, dict)
+                  else getattr(obs, "author", "")) or ""
+        if author.strip().lower() == "third_party":
+            continue
         raw = (obs.get("published_at") if isinstance(obs, dict)
                else getattr(obs, "published_at", "")) or ""
         try:
