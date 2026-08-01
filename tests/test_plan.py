@@ -137,21 +137,41 @@ def test_every_flagged_rung_names_the_command_the_flags_belong_to():
 
 
 def test_no_rung_claims_to_be_batchable_without_evidence():
-    """`li_posts` cannot be batched and it was proven by direct test. `ig_post`
-    is assumed to share the flaw and says so. A rung claiming otherwise would be
-    a container-boot estimate that is wrong by the size of the batch."""
-    for rung in plan.LADDER:
-        if rung.paid:
-            assert rung.batched is False, rung.name
+    """A `batched` claim is a container-boot estimate that is wrong by the size
+    of the batch if it is not true, so each one is pinned to what
+    `audit/apify.py` actually does rather than to an assumption.
+
+    `li_profile` batches: its actor's input IS an array of URLs. `li_posts`
+    provably cannot — `maxPosts` is a run-wide budget, verified by direct test
+    with two target URLs where all ten posts came back from one profile.
+    `ig_post` is assumed to share that flaw and says so in its note."""
+    from audit import apify
+    import inspect
+
+    batchable = {r.name for r in plan.LADDER if r.paid and r.batched}
+    assert batchable == {"li_profile"}, batchable
+    # The evidence, not a memory of it: one wrapper takes a list of URLs and
+    # the other takes exactly one, which is the whole of the claim.
+    assert "urls" in inspect.signature(apify.linkedin_profile).parameters
+    assert "url" in inspect.signature(apify.linkedin_posts).parameters
+    assert "urls" not in inspect.signature(apify.linkedin_posts).parameters
 
 
 # ------------------------------------------------------------------ the plan
 
 
-def test_a_confirmed_linkedin_channel_becomes_a_paid_step():
+def test_a_linkedin_channel_plans_both_of_its_rungs():
+    """LinkedIn is two rungs, not one: a profile scrape and a posts scrape are
+    different actors at different prices, one batchable and one provably not.
+
+    Naming only the cheaper would report half of what reaching that channel
+    costs — and while LADDER had a single LinkedIn rung, `metrics.rung_of`
+    attributed three profile-sourced hooks to the posts rung, in the very number
+    that settles F5."""
     built = plan.plan_lead(identity())
-    assert [s.rung for s in built.steps] == ["li_posts"]
-    assert built.steps[0].decision == "take"
+    assert [s.rung for s in built.steps] == ["li_profile", "li_posts"]
+    assert all(s.decision == "take" for s in built.steps)
+    assert all(s.actor_key for s in built.steps), "both rungs are paid"
 
 
 def test_the_site_rung_appears_only_when_the_caller_has_the_site():
@@ -190,7 +210,7 @@ def test_unknown_is_never_declined():
     names, and it would be permanent and invisible."""
     built = plan.plan_lead(identity(channel(
         confidence="unknown", handle="", evidence="channel id carries no name")))
-    assert [s.decision for s in built.steps] == ["take"]
+    assert {s.decision for s in built.steps} == {"take"}
 
 
 def test_a_declined_step_is_still_in_the_plan():

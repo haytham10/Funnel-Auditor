@@ -112,6 +112,12 @@ class Rung:
     # ig --mode details` is a bio read for the floors and `--mode posts` is hook
     # material, the same command asking different questions.
     command: tuple = ()
+    # URL shapes that identify this rung when its platform serves more than one.
+    # LinkedIn has two rungs with different actors, different prices and
+    # different batchability, and a hook's source URL is the only thing that
+    # says which one produced it — `metrics.rung_of` derives rather than trusts,
+    # so the marks live here beside the rung rather than in a map over there.
+    url_marks: tuple = ()
 
     @property
     def paid(self) -> bool:
@@ -129,7 +135,14 @@ class Rung:
 # `outbound/select.py` ranks `about` last and bans repeated text instead, which
 # is the same test settled on evidence rather than on where a page was found.
 #
-# Neither paid rung is batchable, and the two facts are not equally strong.
+# **LinkedIn is two rungs, not one**, and collapsing them cost a number. They
+# use different actors at different prices, one batches into a single run and
+# the other provably cannot, and they yield different kinds — a profile gives
+# an about/experience line, the posts actor gives posts. `metrics.yield_by_rung`
+# is the figure that settles F5, and with one rung it reported `li_posts 10`
+# when three of those hooks came off profiles.
+#
+# `ig_posts` is the only paid rung whose batching is untested, and it says so.
 LADDER = (
     Rung("about", ("site",), kinds=("framework", "about"),
          note="already read free at tier 0 — nothing to buy. Ranked last, never "
@@ -138,7 +151,16 @@ LADDER = (
     Rung("podcast", ("podcast", "youtube"), kinds=("episode", "video"),
          note="free: web search for their name plus 'podcast', then fetch the "
               "episode page. The rung that reaches the coaches who do not post"),
+    Rung("li_profile", ("linkedin",), actor_key="li_profile",
+         kinds=("about", "bio"), batched=True,
+         url_marks=("/in/",),
+         command=("apify li-profile",),
+         note="the headline, the about text and the experience entries. Cheaper "
+              "per lead than the posts rung because this actor's input IS an "
+              "array, so a whole slice is one container boot — and a hook has "
+              "come off an experience entry, so it is a rung and not a lookup"),
     Rung("li_posts", ("linkedin",), actor_key="li_posts", kinds=("post",),
+         url_marks=("/posts/", "/feed/update/", "/pulse/"),
          command=("apify li-posts",), flags=("--max 5", "--since 3months"),
          note="the richest source by a distance, and the most expensive call in "
               "the machine: maxPosts is a run-wide budget, PROVEN by direct "
@@ -302,12 +324,21 @@ def remaining_usd(budget: dict | None) -> float | None:
 
 
 def _rung_for(platform: str, ladder: tuple = LADDER) -> Rung | None:
-    """The first rung that serves this platform. First, not best: the ladder is
-    ordered by cost, so the earliest match is the cheapest way to reach it."""
-    for rung in ladder:
-        if platform in rung.platforms:
-            return rung
-    return None
+    """The cheapest rung that serves this platform. The ladder is ordered by
+    cost, so the earliest match is the cheapest way to reach it."""
+    return next(iter(_rungs_for(platform, ladder)), None)
+
+
+def _rungs_for(platform: str, ladder: tuple = LADDER) -> list:
+    """Every rung that serves this platform, cheapest first.
+
+    Plural because LinkedIn is two rungs. This command's whole answer is *which
+    rungs a lead has and what each would cost*, and returning only the cheapest
+    would report one price for a platform this machine buys twice — a profile
+    scrape and a posts scrape are separate actors, separate container boots and
+    separate lines in the ledger.
+    """
+    return [rung for rung in ladder if platform in rung.platforms]
 
 
 def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
@@ -334,33 +365,33 @@ def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
                 reason=rung.note))
 
     for channel in (getattr(identity, "channels", None) or []):
-        rung = _rung_for(channel.platform, ladder)
-        if rung is None:
-            continue
+        # Every rung the platform has, not just the cheapest. LinkedIn is two
+        # actors, two container boots and two ledger lines; naming one would
+        # report half of what reaching that channel actually costs.
+        for rung in _rungs_for(channel.platform, ladder):
+            est: float | None = 0.0
+            cost_note = ""
+            if rung.paid:
+                if price is None:
+                    est, cost_note = None, NOT_PRICED
+                else:
+                    est, cost_note = price(rung.actor_key, POSTS_PER_LEAD)
 
-        est: float | None = 0.0
-        cost_note = ""
-        if rung.paid:
-            if price is None:
-                est, cost_note = None, NOT_PRICED
-            else:
-                est, cost_note = price(rung.actor_key, POSTS_PER_LEAD)
+            # The whole of the decline rule, and it is one word long. `absent`
+            # is the only verdict that means a tell was available and said no;
+            # every `unknown` is a channel we simply cannot judge, and declining
+            # those would be the false-negative surface R3 names.
+            decision, reason = "take", rung.note
+            if rung.paid and channel.confidence == "absent":
+                decision = "decline"
+                reason = (f"would decline: {channel.evidence or 'ownership absent'} "
+                          f"(ADVISORY — taken anyway)")
 
-        # The whole of the decline rule, and it is one word long. `absent` is
-        # the only verdict that means a tell was available and said no; every
-        # `unknown` is a channel we simply cannot judge, and declining those
-        # would be the false-negative surface R3 names.
-        decision, reason = "take", rung.note
-        if rung.paid and channel.confidence == "absent":
-            decision = "decline"
-            reason = (f"would decline: {channel.evidence or 'ownership absent'} "
-                      f"(ADVISORY — taken anyway)")
-
-        lead_plan.steps.append(Step(
-            lead_key=lead_plan.lead_key, rung=rung.name,
-            platform=channel.platform, url=channel.url,
-            actor_key=rung.actor_key, est_cost_usd=est, cost_note=cost_note,
-            confidence=channel.confidence, decision=decision, reason=reason))
+            lead_plan.steps.append(Step(
+                lead_key=lead_plan.lead_key, rung=rung.name,
+                platform=channel.platform, url=channel.url,
+                actor_key=rung.actor_key, est_cost_usd=est, cost_note=cost_note,
+                confidence=channel.confidence, decision=decision, reason=reason))
 
     if not lead_plan.steps:
         # Not "unreachable". Rung 2 is a web search for their name, which needs

@@ -149,6 +149,13 @@ def rung_of(url: str) -> str:
     `plan.LADDER` owns the rungs and their platforms; `normalize.classify_site`
     owns which host is which platform. Neither is restated here — D23 exists
     because this stage already had the same value copied into four files.
+
+    **One platform can carry two rungs.** LinkedIn does: a profile and a post
+    are different actors at different prices, one batchable and one not. While
+    LADDER had a single LinkedIn rung this function reported `li_posts 10` on a
+    batch where three of those hooks came off profiles — and `yield_by_rung` is
+    the number that settles F5, so the rung it names has to be the rung that was
+    walked. The URL shape decides, from `Rung.url_marks`.
     """
     from outbound.plan import LADDER
     from outbound.resolve import _platform_of
@@ -157,10 +164,19 @@ def rung_of(url: str) -> str:
         return "none"
     # A URL on nobody's platform is their own site, which is rung `about`.
     platform = _platform_of(url) or "site"
-    for rung in LADDER:
-        if platform in rung.platforms:
+    candidates = [rung for rung in LADDER if platform in rung.platforms]
+    if not candidates:
+        return "other"
+    lowered = url.lower()
+    for rung in candidates:
+        if any(mark in lowered for mark in rung.url_marks):
             return rung.name
-    return "other"
+    # No mark matched. Falling back to the first candidate would silently
+    # re-create the conflation this function exists to end, so an ambiguous URL
+    # on a multi-rung platform says so instead of picking.
+    if len(candidates) > 1:
+        return f"{platform}_unattributed"
+    return candidates[0].name
 
 
 def from_research(rows: list, *, batch: str = "") -> BatchMetrics:

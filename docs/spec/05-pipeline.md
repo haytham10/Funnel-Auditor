@@ -218,6 +218,16 @@ from was two markdown files kept in agreement by hand, and the agreement failed
 twice on record. `LADDER` is now the authority; `docs/hook-rules.md` keeps what a
 hook is and names this module.
 
+**LinkedIn is two rungs.** A profile scrape and a posts scrape are different
+actors at different prices — one batches its whole slice into a single container
+boot and the other provably cannot — and they yield different kinds. While they
+were one rung, a lead's plan named one price for a channel this machine buys
+twice, and `metrics.rung_of` attributed three profile-sourced hooks to the posts
+rung in the very number that settles F5. The rungs carry the URL shapes that
+tell them apart, so attribution is derived and never reported; a LinkedIn URL
+matching neither is named `linkedin_unattributed` rather than assigned, because
+falling back to the first rung would re-create the conflation quietly.
+
 **It declines nothing.** A step whose channel is `absent` is labelled `decline`
 and taken anyway. D21 says an ownership verdict may gate a purchase where it may
 not gate a kill, and it carries the reversal condition — whether declining costs

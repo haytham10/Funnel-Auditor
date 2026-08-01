@@ -113,6 +113,26 @@ def test_the_rung_is_derived_from_the_url_not_reported():
     assert metrics.rung_of("") == "none"
 
 
+def test_the_two_linkedin_rungs_are_told_apart():
+    """`yield_by_rung` is the number that settles F5, and while LADDER had one
+    LinkedIn rung it reported `li_posts 10` on a batch where three of those
+    hooks came off profiles. Different actors, different prices, one batchable
+    and one provably not — so the URL shape decides."""
+    assert metrics.rung_of("https://linkedin.com/in/nadia-karim") == "li_profile"
+    assert metrics.rung_of("https://www.linkedin.com/posts/n_x-activity-1") \
+        == "li_posts"
+    assert metrics.rung_of("https://linkedin.com/feed/update/urn:li:activity:1") \
+        == "li_posts"
+
+
+def test_an_unattributable_linkedin_url_says_so_rather_than_picking():
+    """Falling back to the first rung would silently re-create the conflation
+    this derivation exists to end, and it would do it in the one number the
+    retrieve-once decision is read from."""
+    assert metrics.rung_of("https://linkedin.com/company/somewhere") \
+        == "linkedin_unattributed"
+
+
 def test_yield_by_rung_counts_only_verified_hooks():
     """F5's number. A refuted hook from a rung is evidence against that rung,
     so counting it as yield would invert the finding."""
