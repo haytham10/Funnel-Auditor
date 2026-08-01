@@ -121,6 +121,12 @@ traceability, claim preservation, the bridge, voice, and batch repetition.
 **Exit 1** if any draft or the batch check fails. Everything fails closed — a
 check that cannot run is a FAIL.
 
+The identity beat gets a second, tighter gate on top of the widened number
+check: it is written per lead, so what is fixed about it is its **claim**, not
+its words. See the anchor contract in `docs/spec/04-email.md`, which owns that
+decision. A draft with no claim behind it is warned about rather than skipped
+silently, because a PASS line looks identical either way.
+
 ### `export`
 **In** drafts. **Out** `out/leads.csv`, `out/preview.txt`,
 `out/wall-additions.csv`, `out/line-usage.csv`, `out/rejected.txt`.
@@ -129,6 +135,14 @@ not flagged in it; and that all five outputs are cleared first, so a blocked
 batch cannot leave a stale uploadable file behind. `--anchors` additionally
 checks the drafts really used the lines the batch deal assigned, on both the
 reported id and the written text.
+
+It also re-checks each identity sentence against the claim **in the deal file**,
+which is a separate finding from the line check for a reason: one answers *which
+line*, the other *what the sentence claims*, and a combined message would send a
+drafter looking in the wrong place. The deal is the authority rather than the
+draft, because the drafter's own lint run resolves the claim from what the
+drafter reported — which is the worker checking its homework against its own
+answer sheet. A deal carrying no claim is a rejection, not a skip.
 
 **The eight Smartlead columns:**
 
@@ -146,6 +160,21 @@ kind of wrong.
 Pulls the hand-written lines out of Airtable and **rejects any that fail the
 linter**, so an edit there cannot break an email. It is a gate, not a copier:
 when anything fails it writes nothing at all.
+
+An identity line must also declare a Claim that resolves, and must satisfy it —
+the same check the drafted email gets, run against the hand-written line. A bank
+line that cannot pass its own claim condemns every email dealt it, and the
+drafter is then asked to satisfy something impossible with one rewrite pass. And
+a totalising clause about the meetings needs a qualifier a column backs, which
+is the only thing that separates "every one with somebody who could sign off"
+from "all with prospects ready to say yes". That second rule is a heuristic over
+English and it says so in its docstring: it will miss a flourish phrased without
+a totaliser, and it cannot judge truth, only sourcing.
+
+Both hard-fail rather than warn. A blocked line costs one person one minute with
+the line in front of them, which is the cheapest place in the whole machine to
+pay, and this command's output is mostly green so a warning in it is one nobody
+reads.
 
 ### `copy-check`
 **In** nothing. **Out** whether Airtable is what a batch would actually draw
