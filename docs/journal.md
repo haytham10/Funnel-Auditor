@@ -1,3 +1,85 @@
+## 2026-08-01 (hook retrieval) — a proposal, and the number that reframes it
+
+Haytham: the hook stage is the bottleneck — expensive, slow, and it searches
+platforms where no good hook exists. Cut retrieval cost hard without losing
+personalization. Reconstruct the current machine first, then propose. Treat
+every idea in the brief as a hypothesis, not a requirement.
+
+Deliverable is **`docs/proposals/2026-08-01-hook-retrieval.md`**, a proposal
+only. Nothing implemented. Mid-session he added the rule the whole document now
+turns on: *information is retrieved exactly once per lead, and every downstream
+stage consumes structured observations rather than re-fetching — unless it is
+explicitly verifying.*
+
+**The number worth carrying forward: the first batch spent ~$1.36 of Apify
+across 155 leads, about $0.009 a lead.** The hook stage is not expensive in
+dollars and never was. It is expensive in *agent passes and wall-clock* — three
+retrieving agents per lead, two of them searching for evidence, sharing nothing.
+Anyone who reads "reduce retrieval cost" as a billing problem is optimising a
+rounding error. The proposal says so in Part 11 rather than quietly delivering a
+percentage nobody can feel.
+
+### What the reconstruction turned up
+
+- **The same LinkedIn posts are fetched twice per lead.** `research-worker` runs
+  `apify li-posts <url> --max 5`; `hook-worker` runs the same actor on the same
+  profile with `--since 3months`. Different flags, so even a command-keyed cache
+  would miss — and `li_posts` is the one actor proven un-batchable, so it is the
+  most expensive call in the machine, made up to twice.
+- **Research keeps a `_source` string and throws the post away.** There is no
+  observation type in this repo. The machine pays for a post, extracts one
+  boolean, discards the text, and pays again.
+- **The hook is the only consequential artifact with no mechanical gate.**
+  Research has a schema command, copy has two, drafts have the linter and
+  `export --anchors`. The hook has an agent and prose — against this machine's
+  own stated rule to prefer a mechanical check to an agent, always.
+- **The brief's premise that LinkedIn is searched first is already false.** Both
+  hook files were reordered on 2026-07-31 to put the About page at rung 1, and
+  both carry the comment explaining it. Credit where due.
+- **But rung 1 is poisoned one file over.** `hook-verifier` refutes anything that
+  could go unedited to another coach in the same segment, and generic About prose
+  is exactly that — so the cheapest rung produces the observations most likely to
+  be refuted, and the ladder gets walked to the paid rungs anyway. The fix is not
+  reordering; it is narrowing rung 1 to a named framework or a founding story.
+- **Link-in-bio pages are classified as research targets and never fetched.**
+  `normalize` routes linktr.ee and five siblings into `other_urls`; `batch_fetch`
+  only targets `site_url`. The cheapest identity artifact there is, discovered
+  and discarded. There is also no podcast host pattern anywhere, and podcasts are
+  rung 2.
+- **`yt_channel` feeds `audience_size`, which the ICP captures and never gates
+  on.** A paid actor wired to a field that by design changes no decision.
+
+### The shape proposed
+
+`resolve` (free identity resolution) → `plan` (mechanical routing with a cost
+model, replacing search order as prose in two markdown files) → `observe` (the
+one retrieval pass) → `select` (ranking, no fetching) → the verifier, unchanged
+and still fetching live.
+
+**Four of the brief's six abstractions accepted, two rejected.** "Observation
+Extractors" as separate agents is rejected outright — an LLM pass per platform
+per lead is exactly the cost being cut, and it would make the pipeline more
+expensive while looking more principled. "Retriever" as a single stage is
+rejected in favour of splitting the decision from the act.
+
+### The thing that outranks the architecture
+
+**Nothing is measured.** No per-lead cost, no hook source platform, no runtime
+persisted. `Tier 0 Rate` and `Apify Cost USD` exist as Batches fields that only a
+model filling them in by hand ever populates. Every cost claim in the proposal
+had to be reconstructed from a hand-written journal entry.
+
+So the migration puts instrumentation first and the behaviour change third, and
+the metrics section admits the one gap no retrieval architecture closes:
+**Smartlead owns replies, there is no API key, and this repo cannot compute any
+part of cost per booked meeting past export.** `Hook Type` has been a CRM select
+since the beginning, described in the base as a testable variable against reply
+rate. The variable exists. The test has never been run.
+
+**Not decided, not implemented.** `doc-check` passes with the proposal scanned —
+which needed proposed commands kept out of backticks, since that gate assumes a
+doc describes what exists and has no category for a proposal.
+
 ## 2026-08-01 (the fix list, worked) — the copy bank stops being sentences
 
 Haytham: take another look at every problem the first batch produced, engineer
