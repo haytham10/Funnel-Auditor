@@ -275,6 +275,192 @@ def check_attribution(body: str, facts) -> list[str]:
     return problems
 
 
+_CITY_RE = re.compile(r"\b(dubai|abu dhabi|sharjah|ajman)\b", re.I)
+
+# Spelled-out numbers below this are prose, not claims. "every one with somebody
+# who could sign off" and "picked one at a time" both put a bare `one` through
+# `numbers_in`, and treating that as a figure would fail three good bank lines.
+# Justified from the corpus rather than by taste: every real claim of one in
+# this bank is written as a digit ("their first meeting in week 1").
+_PROSE_NUMBER_CEILING = 2
+
+
+def _renderings(column: str, value) -> list[re.Pattern]:
+    """Every way an honest sentence may state one column's value.
+
+    This table is where the work of claim-checking actually lives, and its job
+    is to be GENEROUS. A rendering it fails to know about is a true sentence
+    the gate rejects, and a gate that rejects true sentences teaches drafters
+    to route around it — which is worse than the invented number it was built
+    to catch.
+    """
+    if isinstance(value, bool):
+        # `still_working`. There is no figure, so this is checked as a phrase.
+        return [re.compile(r"still (working|with) (with )?them|working with them (still|now)"
+                           r"|and I'm still", re.I)] if value else []
+
+    if isinstance(value, str):
+        # A period. The figure must appear NEXT TO ITS UNIT: a bare 2 from "2 of
+        # them signed" must not satisfy a 60-day requirement, which is the one
+        # way this check could quietly pass a sentence that says nothing.
+        patterns = []
+        for amount in sorted(_period_amounts(value)):
+            n, unit = amount
+            patterns.append(re.compile(rf"\b{n}\s*{unit}s?\b", re.I))
+            if n == 1:
+                # "in a month", "inside a week" — the article form of one.
+                patterns.append(re.compile(rf"\b(a|one)\s+{unit}\b", re.I))
+        return patterns
+
+    if not isinstance(value, (int, float)):
+        return []
+
+    patterns = [re.compile(rf"\b{_with_separators(value)}\b"),
+                re.compile(rf"\b{int(value)}\b")]
+    word = _NUMBER_WORDS.get(int(value))
+    if word:
+        patterns.append(re.compile(rf"\b{word}\b", re.I))
+    if isinstance(value, int) and value >= 1000 and value % 1000 == 0:
+        patterns.append(re.compile(rf"\b{value // 1000}\s*k\b", re.I))
+    if column in ("first_meeting_days", "first_client_days") and value > 0:
+        # "inside a week" for day 7, "in week 2" for day 10. Exact under the
+        # "inside" framing rather than the rounding this module refuses
+        # elsewhere: a first meeting on day 10 really did fall inside week 2.
+        weeks = -(-int(value) // 7)
+        patterns.append(re.compile(rf"\bweek\s*{weeks}\b", re.I))
+        if weeks == 1:
+            patterns.append(re.compile(r"\b(a|one)\s+week\b", re.I))
+    return patterns
+
+
+def _period_amounts(text: str) -> set[tuple[int, str]]:
+    """"60 days" -> {(60, "day"), (2, "month")}. Exact conversions only, the
+    same rule `anchors.period_numbers` holds: 60 days is 2 months, 45 days is
+    not 6 weeks."""
+    out: set[tuple[int, str]] = set()
+    for amount, unit in re.findall(r"(\d+)\s*(day|week|month|year)s?", text or "", re.I):
+        value, unit = int(amount), unit.lower()
+        out.add((value, unit))
+        if unit == "day":
+            if value % 7 == 0:
+                out.add((value // 7, "week"))
+            if value % 30 == 0:
+                out.add((value // 30, "month"))
+        elif unit == "week":
+            out.add((value * 7, "day"))
+        elif unit == "month":
+            out.add((value * 30, "day"))
+    return out
+
+
+def _with_separators(value) -> str:
+    return f"{int(value):,}" if isinstance(value, int) else str(value)
+
+
+_NUMBER_WORDS = {v: k for k, v in _WORD_NUMBERS.items()}
+
+
+def check_identity_claim(identity: str, claim) -> list[str]:
+    """Does the authored identity sentence assert what it was dealt, and
+    nothing more?
+
+    The identity beat is the one beat the drafter WRITES rather than re-voices.
+    That is not a licence this function grants — `check_bridge` below requires a
+    second-person clause before the first digit, and two-thirds of the bank's
+    identity lines open on a bare stat, so most leads already get a sentence the
+    model composed. What was missing was any check on what that sentence claims,
+    and a wrong figure went out under a real segment's name for a month because
+    of it.
+
+    So the constraint moved from the words to the claim. This asserts exactly
+    four things:
+
+      1. every figure the claim declares is present, in any licensed rendering
+      2. the segment noun is there when the claim is scoped to one, and is NOT
+         there when the claim is widened
+      3. no figure appears that the claim does not license
+      4. no fact-table city appears except this claim's own
+
+    And it must NOT assert — this list is the contract with the drafter, and
+    breaking it silently re-imposes the verbatim rule by another route:
+
+      - no string similarity to the reference line, and no shared-word floor
+      - nothing about word order, clause structure or sentence count
+      - not that the reference line's phrasing survives in any form
+      - not the period's unit: 60 days and 2 months are the same fact
+      - no length constraint beyond the global word budget
+
+    KNOWN LIMIT, stated because a gate that oversells itself is worse than one
+    that does not exist: this is set membership, not binding. "2 of them signed"
+    against a claim whose clients is 5 passes if 2 is licensed as the period
+    figure. Binding a figure to its noun is not mechanically reachable, and
+    `check_attribution` has the same limit by design. That is what the cold read
+    is for.
+    """
+    if claim is None:
+        return ["identity beat has no claim spec, so its figures are unchecked "
+                "(the line is missing its Claim in Copy Assets)"]
+    text = identity or ""
+    if not text.strip():
+        return ["identity beat is missing"]
+
+    problems: list[str] = []
+
+    for column, value in claim.figures.items():
+        patterns = _renderings(column, value)
+        if not patterns:
+            continue
+        if not any(p.search(text) for p in patterns):
+            shown = value if not isinstance(value, bool) else "still working with them"
+            problems.append(
+                f'identity beat drops the claim: {column} = {shown} is not in it')
+
+    if claim.names_segment:
+        wanted = claim.segment.lower()
+        if not re.search(rf"\b{re.escape(wanted)}\s+coach", text, re.I):
+            problems.append(
+                f'identity beat never says "{wanted} coach", but its claim is '
+                f"scoped to that segment")
+    elif not claim.aggregate:
+        match = _SEGMENT_RE.search(text)
+        if match:
+            # Not because naming it would be false — these ARE that segment's
+            # figures. Because a widened line is drawn from the generic pool and
+            # goes to leads of every segment, so a named reference group is a
+            # mismatch for most of the people who receive it. That is the whole
+            # difference between widening and matching.
+            problems.append(
+                f'identity beat says "{match.group(1).lower()} coach", but this '
+                f"claim is widened: the line is dealt across segments, so naming "
+                f"one puts the wrong reference group in front of most readers")
+
+    licensed = claim.numbers()
+    for raw, value in numbers_in(text):
+        if value < _PROSE_NUMBER_CEILING and not raw[:1].isdigit():
+            continue        # bare spelled "one" is prose, see the ceiling above
+        if not _licensed(value, licensed):
+            problems.append(
+                f'identity beat cites "{raw}", which its claim does not license '
+                f"(claim is {claim.raw})")
+
+    # Keyed on whether the line DECLARED a city, not on whether its row happens
+    # to have one — every row does. Declaring `city` is the line saying "I
+    # assert where this happened"; naming one without declaring it is an
+    # undeclared claim, and it is invisible to `check_attribution`, which only
+    # ever looks at numbers.
+    declared_city = "city" in claim.columns
+    for city in {m.group(0).title() for m in _CITY_RE.finditer(text)}:
+        if declared_city and city.lower() != (claim.city or "").lower():
+            problems.append(
+                f'identity beat says {city}, but this result happened in '
+                f"{claim.city}")
+        elif not declared_city:
+            problems.append(
+                f"identity beat names {city}, which its claim does not assert "
+                f"(claim is {claim.raw})")
+    return problems
+
+
 def check_claims(beats: dict[str, str]) -> list[str]:
     """Did re-voicing drop something the anchor promised?"""
     problems = []
@@ -415,12 +601,15 @@ def check_echo(beats: dict[str, str]) -> list[str]:
 
 
 def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
-                allowed_numbers: set, facts=None) -> Result:
+                allowed_numbers: set, facts=None, identity_claim=None) -> Result:
     """Everything, for one email. This is the gate `export` refuses to skip.
 
     `facts` enables the attribution check. It is optional only so a caller can
     lint a body in isolation; omitting it means relabelling goes uncaught, so
-    the export path always passes it.
+    the export path always passes it. `identity_claim` follows the same
+    precedent for the same reason, and both say so in a warning rather than
+    skipping silently — a check that quietly does not run is worse than one
+    that is not there, because the PASS line looks the same either way.
     """
     result = Result(name=name)
 
@@ -432,6 +621,15 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
     voice_failures, warnings = check_voice(body)
     result.failures.extend(voice_failures)
     result.warnings.extend(warnings)
+    # Before check_numbers: this one names the column and the value, where the
+    # widened check can only say "not true of any client result". A drafter
+    # reading the failure list should see the specific complaint first.
+    if identity_claim is not None:
+        result.failures.extend(
+            check_identity_claim(beats.get("identity", ""), identity_claim))
+    else:
+        result.warnings.append("no claim spec passed, the identity beat's "
+                               "figures are unchecked")
     result.failures.extend(check_numbers(body, allowed_numbers))
     if facts is not None:
         result.failures.extend(check_attribution(body, facts))

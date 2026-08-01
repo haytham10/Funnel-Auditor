@@ -555,7 +555,14 @@ def cmd_deal(args) -> None:
 
     out = {
         email: {
-            "identity": {"id": a.identity.id, "line": a.identity.line},
+            # The identity entry carries the CLAIM as well as the line, because
+            # the line is the drafter's register and the claim is the actual
+            # constraint. `export --anchors` re-checks the written sentence
+            # against this, so the authority is the deal file rather than
+            # whatever the drafter copied out of its prompt.
+            "identity": {"id": a.identity.id, "line": a.identity.line,
+                         "claim": a.claim.raw if a.claim else "",
+                         "identity_words": list(a.identity_budget())},
             "offer": {"id": a.offer.id, "line": a.offer.line},
             "cta": {"id": a.cta.id, "line": a.cta.line},
             "ps": {"id": a.ps.id, "line": a.ps.line},
@@ -711,6 +718,33 @@ def cmd_facts(args) -> None:
 # ----------------------------------------------------------------------- lint
 
 
+def _identity_claim_of(draft: dict, facts):
+    """The claim spec behind one draft's identity beat, from whichever of the
+    two things the draft carries.
+
+    A drafting worker is handed the Claim inline in its prompt and reports back
+    the anchor id it used, so the id is the reliable half — it is looked up in
+    the live bank here rather than trusted from the draft, which is the same
+    reason `export --anchors` re-checks the id against the deal. A draft with
+    an explicit `identity_claim` string wins, for a caller linting a beat in
+    isolation with no bank behind it.
+    """
+    from outbound import anchors
+
+    raw = (draft.get("identity_claim") or "").strip()
+    if raw:
+        return anchors.claim_for(anchors.Line("draft", "", {"claim": raw}), facts)
+
+    line_id = (draft.get("anchor_ids") or {}).get("identity", "")
+    if not line_id:
+        return None
+    bank = anchors.CopyBank.load()
+    for line in bank.identity:
+        if line.id == line_id:
+            return anchors.claim_for(line, facts)
+    return None
+
+
 def cmd_lint(args) -> None:
     """The gate on model-written copy. Per email, then across the batch.
 
@@ -760,6 +794,7 @@ def cmd_lint(args) -> None:
             beats=beats,
             allowed_numbers=set(allowed),
             facts=facts,
+            identity_claim=_identity_claim_of(draft, facts),
         )
         print(result.report())
         failed += 0 if result.passed else 1

@@ -103,14 +103,24 @@ says whether the edit is live and shippable.
 | Beat | Freedom | Must survive |
 |---|---|---|
 | Hook | yours to write | the cited fact |
-| Identity | re-shape for the bridge | every digit, the segment, the timeframe |
+| **Identity** | **yours to write** | **the CLAIM the prompt block prints** |
 | Offer | light re-voicing | ten names, already pulled, not a scraped list |
 | Close | light re-voicing | 15 minutes, the clock, why these ten |
 | ps | verbatim or near | the costless no |
 
+**The identity beat is written, not drawn.** `anchors` prints a REFERENCE line
+for register and a CLAIM naming the exact figures that must survive, whether the
+segment may be named, and which city if any. Every figure listed has to be in the
+sentence in some honest wording; no figure outside the claim's licensed set may
+be. Everything else about the sentence is yours, including dropping a phrase from
+the reference that reads badly for this person. That is the point of it: a defect
+in a hand-written line used to be unfixable here and cost the lead its only
+rewrite pass.
+
 Watch for re-voicing an anchor into blandness. "I pulled 10 names for you before
 writing this" has a person in it; "I have identified ten prospects matching your
-profile" has the same claim and no writer.
+profile" has the same claim and no writer. On the identity beat that risk is
+higher, because there is no hand-written sentence holding the voice up.
 
 ## Numbers
 

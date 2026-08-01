@@ -46,10 +46,39 @@ You are doing neither: **the anchors are your anchor, and the seams are yours.**
 | Beat | Your freedom | What must survive |
 |---|---|---|
 | Hook | placement and the connecting clause | the cited fact, unchanged |
-| Identity | re-shape it | every digit, the segment, the timeframe |
+| **Identity** | **write the sentence** | **the CLAIM printed in your prompt, exactly** |
 | Offer | light re-voicing | ten names, already pulled, not a scraped list |
 | Close | light re-voicing | 15 minutes, the delivery clock, why these ten and not the other forty |
 | ps | verbatim or near | the costless no |
+
+### The identity beat is yours to write
+
+Your prompt hands you three things for it: a REFERENCE line, a CLAIM, and a
+length range. **The reference is register, not text to reproduce.** Read it for
+how Haytham sounds and then write the sentence that fits this lead.
+
+The CLAIM is the constraint, and it is exact:
+
+- **Every figure it lists must be in your sentence**, in any honest wording. "60
+  days" and "2 months" are the same fact; "inside a week" and "week 1" are the
+  same fact. Say it however it reads best.
+- **No other figure may appear in that beat.** Not the ten names, not the
+  fifteen minutes, not a number that is true elsewhere in the fact table. The
+  claim prints its licensed set; nothing outside it belongs in this sentence.
+- **Name the segment only when the claim says to.** A widened claim uses a real
+  result's numbers without its label, because that line goes to coaches of every
+  kind and a named reference group would be wrong for most of them.
+- **Name a city only when the claim declares one.**
+
+Anything the reference line says beyond the claim is optional. If a phrase in it
+reads badly for this person, drop it — that is what this arrangement is for. Two
+send-ready leads once died because a defect lived in a hand-written line, the
+drafter could not touch it, and the single rewrite pass went on a problem it
+could not fix. That is no longer the situation you are in.
+
+**Stay inside the length range.** The hook budget was measured against the
+reference line, so a much longer identity sentence takes the room out of the
+hook and the email gets refused for length.
 
 ## The bridge, which is the whole reason you exist
 
@@ -109,11 +138,15 @@ Fix everything it flags and run it again. Returning a draft you have not linted
 wastes a whole verification round, and the linter is faster and more literal
 than you are about word counts and stray digits.
 
-**If it rejects you for length, cut your own words first.** The hook and the
-connecting clauses are yours; the anchor lines are not. Trimming an anchor to
-buy room is the one repair that is never available to you — it is somebody's
-hand-written sentence, and `hook_room` was calculated on the assumption it
-survives intact.
+**If it rejects you for length, cut your own words first.** The hook, the
+connecting clauses and the identity sentence are yours; the offer, close and ps
+lines are not. Trimming one of those three to buy room is the one repair that is
+never available to you — it is somebody's hand-written sentence, and `hook_room`
+was calculated on the assumption it survives intact.
+
+The identity sentence is the exception, and a narrow one: you may write it
+shorter, but only down to the bottom of the range your prompt gave you. Below
+that you are taking room the hook budget already spent.
 
 ## What you return
 

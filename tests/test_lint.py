@@ -413,3 +413,175 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------------- the identity claim
+#
+# The identity beat is the one beat the drafter WRITES. These pin both halves
+# of that: the sentence is free, the claim is not. The load-bearing one is
+# `test_a_sentence_sharing_no_words_with_the_reference_still_passes` — without
+# it, any of the checks below could quietly re-impose the verbatim rule.
+
+
+def _claim(raw):
+    return anchors.claim_for(anchors.Line("x", "", {"claim": raw}), FACTS)
+
+
+def test_a_sentence_sharing_no_words_with_the_reference_still_passes():
+    """The whole point. `id-biz-3`'s reference is "12 meetings for the last
+    business coach I worked with in Dubai, and 5 of them turned into clients."
+    A completely different sentence making the same claim must pass, because
+    otherwise the drafter cannot fix a defective line and the lead holds."""
+    spec = _claim("Business:meetings,clients,city")
+    written = ("Your next client is the whole job for me. The most recent business "
+               "coach I did this for, here in Dubai, sat down with 12 people and "
+               "signed 5.")
+    assert lint.check_identity_claim(written, spec) == []
+
+
+def test_a_sentence_that_drops_a_required_figure_fails():
+    spec = _claim("Business:meetings,period,clients")
+    problems = lint.check_identity_claim(
+        "I booked a business coach 12 meetings and 5 of them signed.", spec)
+    assert any("period = 60 days" in p for p in problems)
+
+
+def test_the_real_id_fit_2_defect_is_caught():
+    """It shipped for a month. "closed AED 36k in 6 weeks" against a Fitness
+    row whose close_period is 45 days, passing only because 6 is in
+    OFFER_NUMBERS — which is why a claim licenses its own figures and not
+    those."""
+    spec = _claim("Fitness:aed_closed,close_period,city")
+    problems = lint.check_identity_claim(
+        "I find your next paying client, just like I did with a fitness coach in "
+        "Dubai who closed AED 36k in 6 weeks.", spec)
+    assert any("close_period = 45 days" in p for p in problems)
+    assert any('cites "6"' in p for p in problems)
+
+
+def test_an_offer_number_is_not_licensed_in_the_identity_beat():
+    spec = _claim("Life:meetings,clients")
+    problems = lint.check_identity_claim(
+        "I got a life coach 8 meetings, 3 signed, and 10 names are next.", spec)
+    assert any('cites "10"' in p for p in problems)
+
+
+def test_a_period_restated_in_another_exact_unit_passes():
+    # 60 days and 2 months are the same fact. A gate that knows only one of
+    # them rejects an honest sentence, which is how drafters learn to route
+    # around a gate.
+    spec = _claim("Business:period")
+    assert lint.check_identity_claim(
+        "Your equivalent, a business coach, got 2 months of this.", spec) == []
+    assert lint.check_identity_claim(
+        "Your equivalent, a business coach, got 60 days of this.", spec) == []
+
+
+def test_a_bare_number_does_not_satisfy_a_period_that_needs_its_unit():
+    # Otherwise "2 of them signed" would silently satisfy a 60-day claim, and
+    # the check would pass a sentence that says nothing about the timeframe.
+    spec = _claim("Business:period")
+    assert lint.check_identity_claim("2 of them signed for you.", spec) != []
+
+
+def test_the_article_form_of_one_unit_counts():
+    # "inside a week" carries no digit at all, and `id-lead-3` is written that
+    # way. "in a month" is `id-fit-1`.
+    assert lint.check_identity_claim(
+        "Your leadership coach equivalent had their first meeting inside a week.",
+        _claim("Leadership:first_meeting_days")) == []
+    assert lint.check_identity_claim(
+        "For you, like the fitness coach before you: 7 meetings in a month.",
+        _claim("Fitness:meetings,period")) == []
+
+
+def test_week_one_satisfies_a_seven_day_first_client():
+    assert lint.check_identity_claim(
+        "Your equivalent, a mindset coach, landed their first client in week 1.",
+        _claim("Mindset:first_client_days")) == []
+
+
+def test_every_one_is_prose_and_not_a_figure():
+    # `id-biz-2` and `id-exec-1` both say "every one with somebody who could
+    # sign off". Reading that `one` as a figure fails two good lines.
+    spec = _claim("Business:meetings,clients")
+    assert lint.check_identity_claim(
+        "I booked a business coach 12 meetings, every one with somebody who could "
+        "sign off, and 5 signed.", spec) == []
+
+
+def test_a_segment_scoped_claim_needs_its_segment_noun():
+    spec = _claim("Health:meetings,clients")
+    assert any("health coach" in p for p in lint.check_identity_claim(
+        "I got someone 9 meetings and 6 of them signed.", spec))
+
+
+def test_a_widened_claim_must_not_name_a_segment():
+    # Not because it would be false — they ARE Health's figures. Because a
+    # widened line is dealt across segments, so a named reference group is a
+    # mismatch for most of the people who get it.
+    spec = _claim("Health:meetings,clients|widened")
+    problems = lint.check_identity_claim(
+        "I did this for a health coach who closed 6 of the 9 meetings I set up.", spec)
+    assert any("dealt across segments" in p for p in problems)
+    assert lint.check_identity_claim(
+        "I did this for a coach here who closed 6 of the 9 meetings I set up.",
+        spec) == []
+
+
+def test_the_wrong_city_fails():
+    # Nothing catches this today: `check_attribution` only looks at numbers, so
+    # "a life coach in Dubai" would sail through while the Life row says Abu
+    # Dhabi.
+    spec = _claim("Life:meetings,city")
+    assert any("Abu Dhabi" in p for p in lint.check_identity_claim(
+        "I got a life coach in Dubai 8 meetings.", spec))
+    assert lint.check_identity_claim(
+        "I got a life coach in Abu Dhabi 8 meetings.", spec) == []
+
+
+def test_a_city_the_claim_never_declared_fails():
+    # Keyed on what the line DECLARED, not on whether its row has a city —
+    # every row does. `id-career-3` cites Career's meetings and period and
+    # deliberately says "here" rather than Dubai; naming the city would be an
+    # undeclared claim, and `check_attribution` only ever looks at numbers.
+    spec = _claim("Career:meetings,period")
+    assert any("does not assert" in p for p in lint.check_identity_claim(
+        "12 meetings in 45 days for a career coach in Dubai.", spec))
+    assert lint.check_identity_claim(
+        "12 meetings in 45 days for a career coach here.", spec) == []
+
+
+def test_a_retention_claim_needs_the_retention_said_out_loud():
+    spec = _claim("Executive:meetings,still_working")
+    assert lint.check_identity_claim(
+        "6 meetings for an executive coach, and I'm still working with them.",
+        spec) == []
+    assert lint.check_identity_claim(
+        "6 meetings for an executive coach.", spec) != []
+
+
+def test_a_missing_claim_is_reported_rather_than_skipped():
+    problems = lint.check_identity_claim("anything at all", None)
+    assert problems and "no claim spec" in problems[0]
+
+
+def test_check_email_warns_when_no_claim_was_passed():
+    # A check that quietly does not run is worse than one that is not there,
+    # because the PASS line looks the same either way.
+    result = lint.check_email(
+        name="x", subject="A subject here", body="body text",
+        beats={"identity": "x"}, allowed_numbers=set())
+    assert any("claim spec" in w for w in result.warnings)
+
+
+def test_every_live_bank_line_satisfies_its_own_claim():
+    """The regression that matters most. If a bank line cannot pass the check
+    its own Claim implies, every email dealt that line fails, and the drafter
+    is asked to satisfy something impossible."""
+    bank = anchors.CopyBank.from_csv()
+    broken = {
+        line.id: lint.check_identity_claim(line.line, anchors.claim_for(line, FACTS))
+        for line in bank.identity
+    }
+    assert not {k: v for k, v in broken.items() if v}

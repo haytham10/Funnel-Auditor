@@ -297,11 +297,14 @@ class ClaimSpec:
                     licensed.add(value // 1000)
             elif isinstance(value, str):
                 licensed |= period_numbers(value)
-            if column == "first_meeting_days" and isinstance(value, int) and value > 0:
+            if (column in ("first_meeting_days", "first_client_days")
+                    and isinstance(value, int) and value > 0):
                 # "inside a week" for 7 days, "in week 2" for 10. The ceiling is
                 # exact under the "inside" framing rather than the rounding this
                 # module refuses elsewhere: a first meeting on day 10 really did
-                # happen inside week 2.
+                # happen inside week 2. Both columns, because `lint._renderings`
+                # accepts the week form for both — and licensing a rendering the
+                # figure check then rejects is a gate contradicting itself.
                 licensed.add(-(-value // 7))
         return licensed
 
@@ -825,20 +828,77 @@ class Anchor:
     # True when the deal had to move a beat to leave room for the hook. Carried
     # so `deal` can report the weight drift it caused rather than absorb it.
     length_repaired: bool = False
+    # What the identity sentence must assert. None only when the line carries no
+    # Claim, which `copy-sync` refuses — so in practice this is always set, and
+    # the drafter's prompt says so rather than quietly dropping the constraint.
+    claim: "ClaimSpec | None" = None
 
     def hook_room(self) -> int:
-        """Words this lead's hook actually has, given the lines it drew."""
+        """Words this lead's hook actually has, given the lines it drew.
+
+        Still measured on the REFERENCE identity line even though the drafter
+        now authors that sentence. The budget is therefore an estimate on one
+        beat, which is why the prompt hands the drafter an identity budget too:
+        stay within a few words of the reference and this number stays true. A
+        joint hook+identity budget is the cleaner answer and it moves
+        MIN_HOOK_WORDS, `copy_sync._check_hook_room` and `_resolve_length`, so
+        it is a change of its own rather than a rider on this one.
+        """
         from outbound.lint import hook_room
 
         return hook_room({"identity": self.identity.line, "offer": self.offer.line,
                           "cta": self.cta.line, "ps": self.ps.line})
 
+    def identity_budget(self) -> tuple[int, int]:
+        """The word range an authored identity sentence has to land in, so
+        `hook_room` above stays honest. Three words either side of the
+        reference: enough to re-shape a sentence, not enough to move the
+        ceiling."""
+        words = len(self.identity.line.split())
+        return max(1, words - 3), words + 3
+
+    def _identity_prompt_lines(self) -> list[str]:
+        """The identity beat, as three things rather than one.
+
+        A sentence to copy would be the old contract, and the old contract is
+        what killed two send-ready leads: the defect was in the line, the
+        drafter was not allowed to touch it, and the lead spent its one rewrite
+        pass on a problem it could not fix. So the CLAIM is the constraint, the
+        REFERENCE is the register, and the words are the drafter's.
+        """
+        low, high = self.identity_budget()
+        out = [f"  identity [{self.identity.id}] — WRITE THIS SENTENCE YOURSELF.",
+               f"    REFERENCE (Haytham's register, not text to reproduce):",
+               f"      {self.identity.line}"]
+        if self.claim is None:
+            out.append("    CLAIM: none declared — do not add a figure this beat "
+                       "does not already carry.")
+        else:
+            out.append("    CLAIM — every one of these must survive, in your words:")
+            for column, value in self.claim.figures.items():
+                out.append(f"      {column} = {value}")
+            if self.claim.names_segment:
+                out.append(f"      say it about a {self.claim.segment.lower()} coach")
+            else:
+                out.append("      do NOT name a segment — these figures are real "
+                           "but the label is not yours to use here")
+            if self.claim.qualifier:
+                out.append(f"      the meetings were with a {self.claim.qualifier}")
+            out.append("    NO OTHER FIGURE may appear in this beat. Licensed here: "
+                       + (", ".join(str(n) for n in sorted(self.claim.numbers())) or "none"))
+        out.append(f"    LENGTH: {low}-{high} words. The hook budget below was "
+                   "measured against the reference.")
+        return out
+
     def as_prompt_block(self) -> str:
         """What the drafting model actually sees."""
         return "\n".join([
-            "ANCHOR LINES (hand-written by Haytham — match their voice; you may",
-            "re-voice for flow, you may not change what they claim):",
-            f"  identity [{self.identity.id}]: {self.identity.line}",
+            "ANCHOR LINES (hand-written by Haytham). Three of these four are his",
+            "sentences: re-voice for flow, never change what they claim. The",
+            "identity beat is different and is spelled out below.",
+            "",
+            *self._identity_prompt_lines(),
+            "",
             f"  offer    [{self.offer.id}]: {self.offer.line}",
             f"  cta      [{self.cta.id}]: {self.cta.line}",
             f"  ps       [{self.ps.id}]: {self.ps.line}",
@@ -914,6 +974,7 @@ def draw(email: str, *, coach_type: str = "", sells_to: str = "",
         segment=segment,
         allowed_numbers=all_numbers(facts),
         length_repaired=bool(repaired),
+        claim=claim_for(identity, facts),
     )
 
 
@@ -1057,6 +1118,10 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
     repaired = _resolve_length(fixed, identity, [l["email"] for l in leads], bank)
 
     widened = all_numbers(facts)
+    # Resolved once per LINE rather than once per lead. A 200-lead batch draws
+    # from 33 identity lines, and re-resolving the same claim two hundred times
+    # is the same shape of waste the copy-bank cache was added to stop.
+    claims = {line.id: claim_for(line, facts) for line in bank.identity}
     return {
         lead["email"]: Anchor(
             identity=identity[lead["email"]],
@@ -1066,6 +1131,7 @@ def deal_batch(leads: list[dict], *, bank: "CopyBank | None" = None,
             segment=segments[lead["email"]],
             allowed_numbers=widened,
             length_repaired=lead["email"] in repaired,
+            claim=claims.get(identity[lead["email"]].id),
         )
         for lead in leads
     }

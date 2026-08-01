@@ -128,6 +128,50 @@ drafter used the line it was actually dealt is checked on both the reported id
 an email that reads perfectly and a CRM row naming a sentence the reader never
 saw.
 
+### Identity is claim-scoped. The other three beats are text-scoped.
+
+Offer, close and ps are Haytham's sentences, lightly re-voiced. **The identity
+beat is written per lead**, and the thing that is fixed about it is not its
+words but what it asserts.
+
+That is a description before it is a decision. The bridge rule below requires a
+second-person clause before the first digit, and most of the bank's identity
+lines open on a bare stat — so on most leads the model was already composing
+that sentence. What was missing was any check on what the composed sentence
+*claimed*, and a wrong figure went out under a real segment's name for a month
+because of it.
+
+So each identity line declares a **Claim**: which row of `copy/results.csv`,
+which of its columns, whether it may name the segment at all, and any property
+of the meetings that a column backs. `outbound/anchors.py` owns the grammar and
+the vocabulary; Airtable *Copy Assets* holds the value, per
+`docs/spec/06-state.md`. The linter checks four things and no more — every
+declared figure present in any honest rendering, the segment noun there when
+the claim is scoped and absent when it is widened, no figure the claim does not
+license, and no city it did not declare.
+
+**What it deliberately does not check is the wording**: no similarity to the
+reference line, no shared-word floor, nothing about order or structure. A
+sentence sharing not one word with the hand-written line passes if it makes the
+same claim. That is the point, and there is a test named after it.
+
+**Why this replaced editing the line.** A defect in a hand-written line — a
+garden-path clause, a flourish with nothing behind it, a word that collides with
+the beat after it — used to be unfixable by the drafter, who is not allowed to
+touch the copy. The lead spent its one rewrite pass on a problem it structurally
+could not solve and held anyway. Two of three send-ready leads died that way on
+the first real batch. Under a claim, the same defect is a sentence the drafter
+can simply write differently.
+
+**What it costs.** A mechanical guarantee that the identity words are Haytham's,
+traded for a mechanical guarantee about the claim plus a human guarantee about
+voice. That makes the cold read materially more load-bearing on this beat than
+on the others, which is why `draft-verifier` watches specifically for an
+identity sentence that carries the claim and none of the reference line's edge.
+
+**What would reverse it:** authored identity sentences reading measurably worse
+on cold reads than the hand-written ones did.
+
 ### A batch is dealt, not rolled
 
 The lines are allocated across the whole batch at once, so the declared weights
