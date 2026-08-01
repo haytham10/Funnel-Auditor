@@ -154,7 +154,6 @@ LADDER = (
     Rung("li_profile", ("linkedin",), actor_key="li_profile",
          kinds=("about", "bio"), batched=True,
          url_marks=("/in/",),
-         command=("apify li-profile",),
          note="the headline, the about text and the experience entries. Cheaper "
               "per lead than the posts rung because this actor's input IS an "
               "array, so a whole slice is one container boot — and a hook has "

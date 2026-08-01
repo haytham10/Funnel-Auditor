@@ -127,13 +127,13 @@ def test_the_paid_rungs_carry_the_hook_window_in_their_flags():
     assert "3months" in apify.LI_POSTED_LIMITS
 
 
-def test_every_flagged_rung_names_the_command_the_flags_belong_to():
+def test_command_and_flags_travel_together():
     """`apify ig --mode details` reads a bio for the floors and `--mode posts`
     is hook material: one subcommand, two rungs, two windows. A flag set with no
-    command to attach to would be checked against both."""
+    command to attach to would be checked against both — and a command with no
+    flags is config nothing reads, which is how a value goes stale unnoticed."""
     for rung in plan.LADDER:
-        if rung.flags:
-            assert rung.command, f"{rung.name} has flags and no command"
+        assert bool(rung.flags) == bool(rung.command), rung.name
 
 
 def test_no_rung_claims_to_be_batchable_without_evidence():
