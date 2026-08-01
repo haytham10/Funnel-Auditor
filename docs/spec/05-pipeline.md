@@ -84,6 +84,26 @@ HTTP and BeautifulSoup, then the agent's own WebSearch and WebFetch, then a sing
 batched paid run. **Guarantees** the batch, not the page, is the unit — container
 boot dominates the bill, so every URL goes into one run.
 
+**Tier 0 is concurrent.** It was a serial loop, and on 151 sites at a
+15-second-per-page timeout it exceeded a 120-second ceiling, then a 590-second
+one, and was killed twice before finishing. `--workers` sets the pool; the work
+is network-bound and one lead is one thread is one host, so nothing here makes
+more requests to any single host than the serial version did.
+
+**The escalation runs only when asked.** `--escalate` executes the plan through
+the same cost gate and the same **exit 3** as every other paid call; without it
+the plan is printed and nothing is spent. Two vetted actors sit behind it, one
+static and one that renders, and which one a URL gets is not a preference: a
+browser is only correct for a page that returned 200 with no text. Both are
+Apify's own compute-billed actors, so an estimate is genuinely impossible rather
+than merely unavailable, and the gate says which of those two it is — one is
+worth retrying and the other never will be.
+
+Until 2026-08-01 the plan named an actor id that was in no vetted map, so
+nothing could run it through the gate at all; it was something the operator
+executed by hand outside the approval path, and the first real batch skipped it
+entirely.
+
 ### `qualify`
 **In** a research object. **Out** three verdicts with their evidence, plus the
 captured fields. **Guarantees** `unclear` passes and only a clear `no` drops a

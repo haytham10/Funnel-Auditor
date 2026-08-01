@@ -239,8 +239,13 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
   When a session does anything worth remembering, add a dated entry at the top
   and commit it.
 - **Firecrawl is gone** (2026-07-31). The fetch ladder is: local
-  `requests` + BeautifulSoup, then the agent's own WebSearch/WebFetch, then
-  Apify for what is genuinely login-walled.
+  `requests` + BeautifulSoup (concurrent, `--workers`), then the agent's own
+  WebSearch/WebFetch, then Apify for what is genuinely login-walled or that
+  free HTTP could not read. **`python main.py fetch --escalate` runs the
+  batched paid crawl**; without the flag the plan is printed and nothing is
+  spent. `apify/cheerio-scraper` is the static path and
+  `apify/website-content-crawler` the render path, and rendering is only ever
+  correct for a page that returns 200 with no text.
 - **Apify** needs `APIFY_TOKEN`. Every run is cost-gated at $0.10 and blocks
   with `APPROVAL REQUIRED` / exit 3 above it. **Check the budget once per batch,
   not once per worker.** Container boot dominates the bill, not pages — batch

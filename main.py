@@ -1080,7 +1080,8 @@ def cmd_fetch(args) -> None:
     from outbound import fetch
 
     leads = _load_leads(args.leads)
-    result = fetch.batch_fetch(leads, max_pages=args.max_pages)
+    result = fetch.batch_fetch(leads, max_pages=args.max_pages,
+                               workers=args.workers)
     print(result["report"])
 
     payload = {
@@ -1107,6 +1108,34 @@ def cmd_fetch(args) -> None:
         print(f"  wrote {args.out}")
     for plan in result["escalate_plans"]:
         print(f"  ESCALATE  {plan['why']}")
+
+    if not args.escalate:
+        if result["escalate_plans"]:
+            print("  (pass --escalate --approve-cost to run these; they are paid)")
+        return
+
+    # Off by default and gated exactly like every other paid call. Before this
+    # the plan named an actor that was in no ACTORS map, so it could only be run
+    # by hand, outside the approval path — and the first real batch skipped it.
+    from audit.apify import ApifyCostApprovalRequired, ApifyError
+
+    escalated = {}
+    for plan in result["escalate_plans"]:
+        try:
+            escalated[plan["actor_key"]] = fetch.run_plan(
+                plan, approved=args.approve_cost)
+        except ApifyCostApprovalRequired as exc:
+            print(f"FETCH: APPROVAL REQUIRED — {exc}")
+            sys.exit(3)
+        except ApifyError as exc:
+            print(f"FETCH: escalation failed ({exc}) — tier 0 results above stand")
+            sys.exit(1)
+    for key, items in escalated.items():
+        print(f"  ESCALATED {key}: {len(items)} page(s) back")
+    if args.out:
+        payload["escalated"] = escalated
+        Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
+                                  encoding="utf-8")
 
 
 # -------------------------------------------------------------------- fetching
@@ -1236,6 +1265,10 @@ def cmd_doc_check(args) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    # Imported for one default. `doc-check` builds this parser, so anything
+    # heavy at import time here is paid by the test suite too.
+    from outbound import fetch as fetch_defaults
+
     parser = argparse.ArgumentParser(
         prog="main.py",
         description="The outbound machine. Every command is a decision, "
@@ -1271,6 +1304,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-pages", type=int, default=5)
     p.add_argument("--with-text", action="store_true", help="include page text in the output")
     p.add_argument("--out", help="write the reads as JSON")
+    p.add_argument("--workers", type=int, default=fetch_defaults.DEFAULT_WORKERS,
+                   help="concurrent site reads (network-bound; 1 restores the "
+                        "serial loop that could not finish 151 sites)")
+    p.add_argument("--escalate", action="store_true",
+                   help="actually RUN the batched Apify plan, not just print it")
+    p.add_argument("--approve-cost", action="store_true",
+                   help="approve the escalation's cost (see exit 3)")
     p.set_defaults(func=cmd_fetch)
 
     p = sub.add_parser("anchors", help="which hand-written lines a lead draws")
