@@ -151,12 +151,83 @@ Then the late dedupe, now that addresses exist:
 python main.py dedupe work/researched.json --stage late
 ```
 
+Write the survivors to `work/draftable.json` — every lead that passed the floors
+and has a verified address. That is the set the next three stages work on.
+
+## Stage 2b — the lines, before the hook is written
+
+**Deal here, not after the hook.** The bank leaves between 12 and 36 words for a
+hook depending on the draw, and dealing afterwards meant a hook could be found,
+verified against a verbatim quote, and then handed to a drafter with 12 words of
+room — so the drafter compressed a sentence an independent verifier had just
+certified. The four lines are never available to it to cut instead. Knowing the
+room first is what makes that impossible rather than merely discouraged.
+
+**Airtable's Copy Assets table owns every line.** `copy/*.csv` is a cache of it,
+not a second opinion. Check that first:
+
+```
+python main.py copy-check
+```
+
+Quote its line. `PASS` means the live table is what this batch will draw from
+and the cache matches it. `FAIL` names either a live line that fails the linter
+— fix it in Airtable, nothing here can — or a cache that drifted, fixed with
+`python main.py copy-sync --live` and a commit of `copy/*.csv`. `BLOCKED`
+(exit 2) means there is no key or no network, so the check could not look.
+
+Then deal the whole draftable set at once:
+
+```
+python main.py deal work/draftable.json --out work/anchors.json
+```
+
+`deal` re-enforces the same thing rather than trusting you ran the check. It
+prints a `COPY:` line naming where the lines came from, exits 1 if the live
+table answered with lines that fail the linter, and exits 1 if the table could
+not be read at all unless you pass `--allow-cached-copy`. Use that flag only
+when Airtable is genuinely unreachable and the batch has to go out anyway; it
+means anything edited since the cache was written is not in these emails.
+**Say which happened in the brief either way.** The bank is cached once per
+process, so a big batch makes one request rather than one per lead.
+
+**Deal, do not loop `anchors`.** That command is the single-lead path for
+`outbound-draft`. Per-lead hashing is unbiased only in the limit: at 50 leads it
+missed a declared 20% weight by 12 points and broke the repetition cap. Dealing
+the batch hits the weights as closely as whole leads allow.
+
+Read the `THIN` lines it prints. They name a segment with too few identity lines
+to hold its share without repeating a sentence, and the fix is writing one more
+line for that segment in Airtable, not anything in code.
+
+**The cost of dealing here: lines get allocated to leads that later hold.** A
+refuted hook means that lead's four lines went unused, so the shipped batch
+drifts from the declared weights. That is what `export --rebalance-ps` exists
+for and the skill already tells you to pass it whenever any lead held — it will
+now fire on most batches rather than some. Quote the drift it reports in the
+brief. Do not re-run `deal` after the hooks to tidy it up: the drafts and the
+CRM rows are written against this file, and a second allocation makes them
+disagree.
+
+Note the `hook room <lo> to <hi> words` line. The room is **per lead** — it
+depends on how long that lead's four lines came out — and each lead's own number
+is the `hook_room` field on its entry in `work/anchors.json`. Stage 3 hands each
+hook-worker its lead's number. Stage 3b takes one number for the batch, and the
+low end is the one to pass: its check is a warning about a pick that will not
+fit, so the tighter figure is the honest input.
+
 ## Stage 3 — hooks
 
 For every lead that passed the floors and has a verified address, fan out
-`hook-worker`, then `hook-verifier` on each proposal. The verifier never sees
-the worker's search — that independence is the entire mechanism, so do not
-summarise the worker's reasoning into the verifier's prompt.
+`hook-worker`, then `hook-verifier` on each proposal. **Give each worker the
+`hook_room` on its lead's entry in `work/anchors.json`** and tell it to land
+inside it, so a quote is chosen to fit rather than compressed after a verifier
+has certified its exact wording. The verifier does not get it and must not: its
+job is whether the words are on the page, and a length note is a reason to be
+lenient about one that nearly fits. The verifier never sees the worker's search
+either — that independence is the
+entire mechanism, so do not summarise the worker's reasoning into the verifier's
+prompt.
 
 Pipeline these: a hook can be verified while other hooks are still being found.
 Do not wait for all the workers before starting any verifier.
@@ -190,8 +261,12 @@ Once every hook has been verified or refuted, and the hook fields are written
 back onto the research objects:
 
 ```
-python main.py select work/draftable.json --against --out work/select.json
+python main.py select work/draftable.json --against --hook-room <n> \
+  --out work/select.json
 ```
+
+`<n>` is the **low** end of the hook-room range `deal` printed at stage 2b. It
+used to be unknowable here, because `deal` ran a stage later.
 
 No fetching, no model, no clause. It ranks the observations the research workers
 already returned and reports how its choice relates to the hook the stage
@@ -218,44 +293,9 @@ quietly retired.
 
 ## Stage 4 — draft
 
-**Airtable's Copy Assets table owns every line.** `copy/*.csv` is a cache of it,
-not a second opinion. Check that first:
+The lines were dealt at stage 2b. Read `work/anchors.json`; do not deal again.
 
-```
-python main.py copy-check
-```
-
-Quote its line. `PASS` means the live table is what this batch will draw from
-and the cache matches it. `FAIL` names either a live line that fails the linter
-— fix it in Airtable, nothing here can — or a cache that drifted, fixed with
-`python main.py copy-sync --live` and a commit of `copy/*.csv`. `BLOCKED`
-(exit 2) means there is no key or no network, so the check could not look.
-
-Then, for every lead with a VERIFIED hook at once, deal the anchors:
-
-```
-python main.py deal work/draftable.json --out work/anchors.json
-```
-
-`deal` re-enforces the same thing rather than trusting you ran the check. It
-prints a `COPY:` line naming where the lines came from, exits 1 if the live
-table answered with lines that fail the linter, and exits 1 if the table could
-not be read at all unless you pass `--allow-cached-copy`. Use that flag only
-when Airtable is genuinely unreachable and the batch has to go out anyway; it
-means anything edited since the cache was written is not in these emails.
-**Say which happened in the brief either way.** The bank is cached once per
-process, so a big batch makes one request rather than one per lead.
-
-**Deal, do not loop `anchors`.** That command is the single-lead path for
-`outbound-draft`. Per-lead hashing is unbiased only in the limit: at 50 leads it
-missed a declared 20% weight by 12 points and broke the repetition cap. Dealing
-the batch hits the weights as closely as whole leads allow.
-
-Read the `THIN` lines it prints. They name a segment with too few identity lines
-to hold its share without repeating a sentence, and the fix is writing one more
-line for that segment in Airtable, not anything in code.
-
-Then fan out `draft-worker` with the hook, the research object and **that lead's
+Fan out `draft-worker` with the hook, the research object and **that lead's
 four dealt lines, inline in the prompt**. The worker must not draw its own: it
 would get the single-lead line rather than the dealt one, which breaks the
 balancing you just paid for and leaves the CRM record disagreeing with the email
@@ -285,7 +325,10 @@ of the batch, and if you must re-deal, re-draft.
 
 **Pass `--rebalance-ps` whenever any lead held.** Holds are guaranteed — a
 refuted hook, a twice-refused draft — and every hold unbalances a deal that was
-made for the larger batch. Dropping 3 of 11 on the first real run put two ps
+made for the larger batch. **Since the deal moved to stage 2b this is most
+batches, not some**: refuted hooks now land after the allocation rather than
+before it, which is the price of the drafter knowing its hook room in advance.
+Dropping 3 of 11 on the first real run put two ps
 lines at 38% against a 35% cap and the batch check blocked the whole file,
 correctly. Re-dealing from scratch is the wrong answer: it moves identity lines
 too, which means re-drafting emails that already passed a cold read. The ps is
@@ -391,14 +434,17 @@ One message at the end. Never a per-lead narration.
 BATCH <date>: <n> written of <m> raw
   intake     <n> live site, <n> social only, <n> nothing to work
   dedupe     <n> already contacted (<n> WARM), <n> internal duplicates
-  tier 0     <n>% of sites read free, <n> escalated
-  floors     <n> passed, <n> failed (<which floors>)
+  tier 0     <n>% of sites read free, <n> escalated,
+             <n> page(s) deferrable had homepage-first been on
+  floors     <n> passed, <n> failed (<which floors>),
+             <n> settled active_recent from an observation date
   address    <n> verified, <n> enriched, <n> none
   hooks      <n> verified, <n> refuted, <n> not found
   plan       <n> rung(s), <n> WOULD-decline on ownership, <n> lead(s) no rung
   select     <n> agreed, <n> shortlisted, <n> missed, <n> unobserved, <n> no pool
   drafts     <n> send, <n> rewritten, <n> rejected
-  lines      top line <n>% of the batch (cap 35), <n> THIN segment(s)
+  lines      top line <n>% of the batch (cap 35), <n> THIN segment(s),
+             <n> ps moved by --rebalance-ps after the holds
   copy       live from Airtable | cached (say which, always)
   cost       $<x> Apify this run, $<x>/lead (quote `ledger report`)
   retrieval  <n> fetch(es), <n> duplicate, <n> blocked by the cost gate

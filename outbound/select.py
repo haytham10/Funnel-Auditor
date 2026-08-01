@@ -380,11 +380,12 @@ def select_all(researches: list, *, size: int = SHORTLIST, hook_room: int = 0,
                 "every observation was excluded — no hook found is a good "
                 "answer, and the lead holds rather than failing")
 
-        # Advisory only. `deal` runs AFTER the hook stage on this branch, so the
-        # real room is unknowable here (F11). MIN_HOOK_WORDS is a FLOOR on the
-        # hook, not a ceiling — reusing it as the room would be one number
-        # wearing two meanings in two stages, which is the drift that gave this
-        # stage four recency windows.
+        # Advisory only, and only when the caller passes it. `deal` runs before
+        # the hook stage now (F11), so the room is knowable — but it is a
+        # per-batch number handed in, never derived here. MIN_HOOK_WORDS is a
+        # FLOOR on the hook, not a ceiling, and reusing it as the room would be
+        # one number wearing two meanings in two stages, which is the drift that
+        # gave this stage four recency windows.
         if hook_room and selection.pick and selection.pick.words > hook_room * 6:
             selection.notes.append(
                 f"TIGHT: the top pick is {selection.pick.words} words against "
@@ -516,8 +517,10 @@ def report(selections: list[LeadSelection], *, hook_room: int = 0,
     if hook_room:
         lines.append(f"  hook room {hook_room} words, advisory only")
     else:
-        lines.append("  hook room unknown — `deal` runs after this stage (F11), "
-                     "so length is a floor on the observation and nothing else")
+        lines.append("  hook room not given — pass --hook-room with the LOW end "
+                     "of the `hook room <lo> to <hi> words` range `deal` prints "
+                     "before this stage now (F11). Without it length is a floor "
+                     "on the observation and nothing else")
 
     for problem in problems:
         lines.append(f"  SCHEMA  {problem}")

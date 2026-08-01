@@ -44,6 +44,7 @@ fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced. Advisory
 plan        which hook rungs a lead has, and what each would cost. Advisory
 research    research-worker per slice -> typed objects, schema-validated
+deal        the four hand-written lines, allocated for the whole batch at once
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
 select      which observation a hook would come from, without fetching. Advisory
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
@@ -69,6 +70,14 @@ destroys something rather than wasting something.
 lead who never received anything silently excludes them from every future batch.
 `wall-add` is idempotent and safe to re-run; `copy-usage` is additive and is not,
 so it runs exactly once per batch.
+
+**`deal` runs before the hook stage, not after it.** The bank leaves between 12
+and 36 words for a hook depending on the draw, and dealing afterwards meant a
+hook could be found, verified against a verbatim quote, and then handed to a
+drafter with 12 words of room — while `draft-worker` is forbidden from cutting
+the four hand-written lines, so the only thing left to compress was the sentence
+an independent verifier had just certified. A hook that fits is chosen; a hook
+squeezed afterwards is a citation drifting from its source. See D24.
 
 ## The stages
 
@@ -289,6 +298,14 @@ thing no linter can check.
 keeps the per-lead draw for single-lead work, where there is no batch to balance
 against; `facts` prints the client-result table and the numbers it licenses.
 Owned by `docs/spec/04-email.md`.
+
+`deal` runs on the draftable set, before the hook stage, and prints the
+`HOOK ROOM` the hook stage and `select --hook-room` are then given. **Its cost
+is that lines are allocated to leads that later hold on a refuted hook**, so the
+shipped batch drifts from the declared weights. `export --rebalance-ps` is the
+existing mitigation and now fires on most batches rather than some; re-dealing
+is not the answer, because the drafts and the CRM rows are written against the
+file this produced.
 
 ### `lint`
 **In** drafts. **Out** a pass or a list of failures. **Guarantees**

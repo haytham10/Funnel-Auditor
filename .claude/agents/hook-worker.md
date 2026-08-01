@@ -26,6 +26,19 @@ A hook must be:
 - **Cited.** A URL you actually fetched, the quote verbatim, and a date.
 - **Theirs.** Something they wrote, said, built or named. Not something written
   about them, and not their website's marketing copy.
+- **Inside the hook room your prompt gives you.** That is the words the drafter
+  will have left once the four hand-written lines, the greeting and the sign-off
+  are counted against the 95-word ceiling, and the live bank makes it anywhere
+  between 12 and 36. Write to it.
+
+**Why the room comes to you rather than to the drafter alone.** The lines used
+to be dealt one stage after this one, so a hook could be found, verified against
+a verbatim quote, and then handed to a drafter with 12 words of room — and the
+drafter is explicitly forbidden from cutting the four hand-written lines, so the
+only thing it could compress was the sentence a verifier had just certified. A
+hook that fits is chosen; a hook that is squeezed afterwards is a citation
+quietly drifting from its source. If the room genuinely cannot hold anything
+honest about this person, that is a null hook, which is a real answer.
 
 ## The twelve bans
 

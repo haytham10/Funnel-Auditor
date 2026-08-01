@@ -1649,8 +1649,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--shortlist", type=int, default=select_defaults.SHORTLIST,
                    help="how many candidates to offer per lead")
     p.add_argument("--hook-room", type=int, default=0,
-                   help="words the drafter will have. Advisory: `deal` runs "
-                        "after this stage, so 0 means unknown")
+                   help="words the drafter will have — the low end of the range "
+                        "`deal` prints. Advisory; 0 means not given")
     p.add_argument("--out", help="write the selections as JSON")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_select)

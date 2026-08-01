@@ -138,11 +138,18 @@ Fix everything it flags and run it again. Returning a draft you have not linted
 wastes a whole verification round, and the linter is faster and more literal
 than you are about word counts and stray digits.
 
-**If it rejects you for length, cut your own words first.** The hook, the
-connecting clauses and the identity sentence are yours; the offer, close and ps
-lines are not. Trimming one of those three to buy room is the one repair that is
-never available to you — it is somebody's hand-written sentence, and `hook_room`
-was calculated on the assumption it survives intact.
+**If it rejects you for length, cut your own words first.** The connecting
+clauses and the identity sentence are yours; the offer, close and ps lines are
+not. Trimming one of those three to buy room is the one repair that is never
+available to you — it is somebody's hand-written sentence, and `hook_room` was
+calculated on the assumption it survives intact.
+
+**The hook is the last thing to touch, not the first.** It was written against
+this same `hook_room` — the lines are dealt before the hook stage runs, so the
+hook-worker already knew the budget — and an independent verifier certified its
+exact wording against the page. Compressing it is how a certified quote drifts
+from its source. If everything of yours is already as tight as it goes and the
+draft is still long, say so rather than shaving the citation.
 
 The identity sentence is the exception, and a narrow one: you may write it
 shorter, but only down to the bottom of the range your prompt gave you. Below
