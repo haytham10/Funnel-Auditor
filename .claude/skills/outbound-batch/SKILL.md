@@ -79,6 +79,21 @@ If it emits an escalation plan, that is ONE batched Apify run for every failed
 URL, not one per lead. Run it that way or not at all; fifty separate two-page
 runs is the worst possible way to use a compute-billed actor.
 
+**If the escalation fails, retry with `--escalate-only`, never by re-running
+`fetch --escalate`:**
+
+```
+python main.py fetch work/sites.json --escalate-only --approve-cost
+```
+
+`--escalate` reads every site at tier 0 *before* it escalates, so a retry reads
+them all a second time. On `2026-08-01-q1` one retry after a 403 put **52
+duplicate `(lead, url)` pairs** into the ledger of the batch whose entire
+purpose was to produce a duplicate count — 52 of the 83 recorded, and only 12
+of the total were real findings. D22 names that risk in advance and it happened
+anyway, because avoiding it meant calling into the module by hand. Now it does
+not.
+
 ## Stage 1b — whose channels are these
 
 ```

@@ -109,7 +109,17 @@ more requests to any single host than the serial version did.
 
 **The escalation runs only when asked.** `--escalate` executes the plan through
 the same cost gate and the same **exit 3** as every other paid call; without it
-the plan is printed and nothing is spent. Two vetted actors sit behind it, one
+the plan is printed and nothing is spent.
+
+**A failed escalation is retried with `--escalate-only`, not with `--escalate`
+again.** `--escalate` re-reads every site at tier 0 first, so the retry after a
+403 on `2026-08-01-q1` read all 20 a second time and put 52 duplicate
+`(lead, url)` pairs into the ledger — 52 of the 83 that batch recorded, in the
+one batch whose purpose was a duplicate count. D22 states the risk in those
+words and it happened anyway, because avoiding it meant calling `fetch.run_plan`
+by hand and the CLI offered no narrower path. `--escalate-only` takes the saved
+`sites.json`, runs the plans in it and reads nothing. **A retry must not be able
+to pollute the measurement it is retrying.** Two vetted actors sit behind it, one
 static and one that renders, and which one a URL gets is not a preference: a
 browser is only correct for a page that returned 200 with no text. Both are
 Apify's own compute-billed actors, so an estimate is genuinely impossible rather

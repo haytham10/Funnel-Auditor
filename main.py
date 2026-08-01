@@ -1170,6 +1170,69 @@ def cmd_email_enrich(args) -> None:
 # ------------------------------------------------------------------ the fetch
 
 
+def _run_escalations(plans: list, *, approved: bool) -> dict:
+    """Execute the batched Apify plans. Shared by the full run and the retry.
+
+    Exits 3 on the cost gate and 1 on an actor error, exactly as the escalation
+    inside `cmd_fetch` always did — the two paths differ in what precedes them,
+    not in what a refused purchase means.
+    """
+    from audit.apify import ApifyCostApprovalRequired, ApifyError
+    from outbound import fetch
+
+    escalated = {}
+    for plan in plans:
+        try:
+            escalated[plan["actor_key"]] = fetch.run_plan(plan, approved=approved)
+        except ApifyCostApprovalRequired as exc:
+            print(f"FETCH: APPROVAL REQUIRED — {exc}")
+            sys.exit(3)
+        except ApifyError as exc:
+            print(f"FETCH: escalation failed ({exc})")
+            sys.exit(1)
+    for key, items in escalated.items():
+        print(f"  ESCALATED {key}: {len(items)} page(s) back")
+    return escalated
+
+
+def cmd_escalate_only(args) -> None:
+    """Run a saved escalation plan and read nothing at tier 0.
+
+    The retry path, and it exists because there was not one. A batched
+    escalation failed on a 403 mid-run; the obvious repair — re-run `fetch
+    --escalate` — re-reads every site before it escalates, so twenty free reads
+    happened again and **52 duplicate `(lead, url)` pairs** went into the
+    ledger. The batch existed to produce a duplicate count. D22 records the
+    risk in advance, in those words, and it happened anyway, because avoiding it
+    meant calling `fetch.run_plan` by hand and nothing in the CLI offered it.
+
+    A retry must not be able to pollute the measurement it is retrying.
+    """
+    payload = _load_json(args.leads, "FETCH")
+    if not isinstance(payload, dict) or "escalate_plans" not in payload:
+        print(f"FETCH: FAIL — {args.leads} is not a sites.json from "
+              f"`fetch --out`; it carries no escalate_plans.")
+        sys.exit(2)
+
+    plans = payload.get("escalate_plans") or []
+    if not plans:
+        print("FETCH: nothing to escalate — this run's tier 0 read every site.")
+        return
+    for plan in plans:
+        print(f"  ESCALATE  {plan['why']}")
+    if not args.approve_cost:
+        print("  (pass --approve-cost to run these; they are paid)")
+        return
+
+    payload["escalated"] = _run_escalations(plans, approved=args.approve_cost)
+    print("  no tier-0 read happened, so no page in this run can be a "
+          "duplicate of one already in the ledger.")
+    if args.out:
+        Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
+                                  encoding="utf-8")
+        print(f"  wrote {args.out}")
+
+
 def cmd_fetch(args) -> None:
     """Tier 0: read sites with free local HTTP, and plan one batched Apify run
     for whatever that couldn't read.
@@ -1177,6 +1240,9 @@ def cmd_fetch(args) -> None:
     Container boot dominates an Apify bill, not pages, so the escalation is
     always one run for the whole batch — never one per lead.
     """
+    if args.escalate_only:
+        return cmd_escalate_only(args)
+
     from outbound import fetch
 
     leads = _load_leads(args.leads)
@@ -1239,21 +1305,13 @@ def cmd_fetch(args) -> None:
     # Off by default and gated exactly like every other paid call. Before this
     # the plan named an actor that was in no ACTORS map, so it could only be run
     # by hand, outside the approval path — and the first real batch skipped it.
-    from audit.apify import ApifyCostApprovalRequired, ApifyError
-
-    escalated = {}
-    for plan in result["escalate_plans"]:
-        try:
-            escalated[plan["actor_key"]] = fetch.run_plan(
-                plan, approved=args.approve_cost)
-        except ApifyCostApprovalRequired as exc:
-            print(f"FETCH: APPROVAL REQUIRED — {exc}")
-            sys.exit(3)
-        except ApifyError as exc:
-            print(f"FETCH: escalation failed ({exc}) — tier 0 results above stand")
-            sys.exit(1)
-    for key, items in escalated.items():
-        print(f"  ESCALATED {key}: {len(items)} page(s) back")
+    #
+    # **If this fails, retry with `--escalate-only <sites.json>`, not with this
+    # command again.** Re-running it re-reads every site first, which is 52
+    # duplicate pairs in the ledger of a batch whose whole purpose was a
+    # duplicate count.
+    escalated = _run_escalations(result["escalate_plans"],
+                                 approved=args.approve_cost)
     if args.out:
         payload["escalated"] = escalated
         Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
@@ -1804,6 +1862,13 @@ def build_parser() -> argparse.ArgumentParser:
                         "serial loop that could not finish 151 sites)")
     p.add_argument("--escalate", action="store_true",
                    help="actually RUN the batched Apify plan, not just print it")
+    p.add_argument("--escalate-only", dest="escalate_only", action="store_true",
+                   help="run the escalation from a saved sites.json and read "
+                        "NOTHING at tier 0. The retry path: `--escalate` after "
+                        "a failed escalation re-reads every site first, which "
+                        "put 52 duplicate pairs in one batch's ledger and "
+                        "buried the one duplicate it existed to expose. With "
+                        "this, the positional argument is the sites.json")
     p.add_argument("--approve-cost", action="store_true",
                    help="approve the escalation's cost (see exit 3)")
     p.set_defaults(func=cmd_fetch)

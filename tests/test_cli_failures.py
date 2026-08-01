@@ -652,6 +652,54 @@ def test_select_exits_2_on_something_that_is_not_a_research_object():
         assert "SELECT: FAIL" in out.stdout
 
 
+# ----------------------------------------------------------- escalate-only
+
+
+def test_escalate_only_refuses_a_file_that_is_not_a_sites_json():
+    """It takes `fetch --out`'s payload, not a Leads file. Handing it the wrong
+    one must name the difference rather than reporting nothing to escalate,
+    which is what "no plans" would look like."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "leads.json", [{"name": "A"}])
+        result = run("fetch", path, "--escalate-only")
+        assert result.returncode == 2, result.stdout
+        assert "escalate_plans" in result.stdout
+
+
+def test_escalate_only_reads_nothing_at_tier_0():
+    """The retry path, and the reason it exists. `--escalate` after a failed
+    escalation re-reads every site first: 52 duplicate `(lead, url)` pairs went
+    into the ledger of the one batch whose purpose was a duplicate count.
+
+    Asserted against the ledger, because "it did not fetch" is the claim."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = offline_env()
+        env["OUTBOUND_LEDGER_ROOT"] = tmp
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [{"actor_key": "site_render", "urls": ["https://a.ae"],
+                                "why": "1 url(s) returned 200 with no text"}]})
+        result = subprocess.run(
+            [sys.executable, "main.py", "fetch", sites, "--escalate-only"],
+            cwd=ROOT, capture_output=True, text=True, env=env)
+        assert result.returncode == 0, result.stdout
+        assert "ESCALATE" in result.stdout
+        # Unapproved, so nothing was bought — and nothing was read either.
+        assert not (Path(tmp) / "data" / "runs").exists(), \
+            "a run that fetched nothing must leave no retrieval lines"
+
+
+def test_escalate_only_with_no_plans_is_not_an_error():
+    """A batch whose tier 0 read everything has nothing to retry, and that is a
+    success rather than a missing file."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json",
+                      {"tier0_rate": 1.0, "sites": {}, "escalate_plans": []})
+        result = run("fetch", sites, "--escalate-only")
+        assert result.returncode == 0, result.stdout
+        assert "nothing to escalate" in result.stdout
+
+
 # -------------------------------------------------------------------- ledger
 
 
