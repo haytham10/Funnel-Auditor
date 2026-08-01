@@ -544,10 +544,20 @@ def _require_cost_approval(actor_id: str, item_count: int, approved: bool,
     expensive enough to need signing off. Returns None when pricing could not
     be read, which is also what a compute-billed actor looks like: unpriceable
     is a real answer here, not a failure.
+
+    **On the approved path the lookup is best-effort and never fatal.** The
+    decision is already made there; the number is for the ledger. Pricing needs
+    a token, so the first cut of this turned "no APIFY_TOKEN" into an exception
+    raised by the approval gate — a call that was signed off failing on the
+    accounting rather than on the work. That is the ledger's own rule about not
+    halting what it observes, arriving one function early.
     """
-    est, reason = estimate_cost_usd(actor_id, item_count, event_key)
     if approved:
-        return est
+        try:
+            return estimate_cost_usd(actor_id, item_count, event_key)[0]
+        except ApifyError:
+            return None
+    est, reason = estimate_cost_usd(actor_id, item_count, event_key)
     if est is None or est > COST_APPROVAL_THRESHOLD_USD:
         raise ApifyCostApprovalRequired(actor_id, est, reason)
     return est

@@ -31,6 +31,13 @@ os.environ["OUTBOUND_COPY_SOURCE"] = "csv"
 _ledger_root = tempfile.TemporaryDirectory(prefix="outbound-ledger-")
 os.environ["OUTBOUND_LEDGER_ROOT"] = _ledger_root.name
 
+# And no Apify token, so no test anywhere can reach the paid layer. Every Apify
+# path is tested against stubs; a token in the environment only ever means the
+# suite behaves differently on a developer machine than in CI, which is how a
+# real regression in the approval gate passed here and failed there.
+for _var in ("APIFY_TOKEN", "APIFY_API_TOKEN"):
+    os.environ.pop(_var, None)
+
 from outbound import anchors  # noqa: E402
 
 anchors.reset_cache()

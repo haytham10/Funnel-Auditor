@@ -17,12 +17,23 @@ Run: python -m pytest tests/test_apify_cost_gate.py -q
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Standalone runs get no conftest, and every wrapper here writes a ledger line.
 os.environ.setdefault("OUTBOUND_LEDGER_ROOT",
                       tempfile.mkdtemp(prefix="outbound-ledger-"))
+
+# No token, so nothing here can reach Apify even by accident. This file stubs
+# `requests.get` and `run_actor` per test, and that was believed to be enough
+# until the approval gate started pricing the approved path too: on a machine
+# with APIFY_TOKEN set, ten tests that stub only `run_actor` began making real
+# pricing calls and passing, and the same ten failed in CI where there is no
+# token. The suite must not depend on who ran it — the same reason
+# `test_cli_failures.offline_env()` pops AIRTABLE_API_KEY.
+for _var in ("APIFY_TOKEN", "APIFY_API_TOKEN"):
+    os.environ.pop(_var, None)
 
 from audit import apify
 from outbound import ledger
@@ -286,6 +297,33 @@ def test_an_unpriceable_run_is_still_approvable(monkeypatch):
     monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
                         lambda actor_id, event_key=None: None)
     assert apify._require_cost_approval("some~actor", 5, approved=True) is None
+
+
+def test_an_approved_run_does_not_fail_when_pricing_cannot_be_looked_up():
+    """The regression this pins for real: pricing needs a token, so making the
+    gate always estimate turned "no APIFY_TOKEN" into an exception raised by the
+    approval gate — a call already signed off failing on the accounting rather
+    than on the work. CI caught it; a developer machine with a token could not.
+    On the approved path the number is for the ledger, so it is best-effort."""
+    _reset_caches()
+    assert apify._require_cost_approval("some~actor", 5, approved=True) is None
+
+
+def test_an_unapproved_run_with_no_token_fails_on_the_token():
+    """The other half, and the asymmetry is deliberate.
+
+    Unapproved, a missing token surfaces as the token error rather than a cost
+    refusal — pricing reads `_auth_headers` before it reads anything else, and
+    "APIFY_TOKEN is not set" is the more useful sentence than "cannot estimate"
+    for a run that could not have happened either way. What matters is that it
+    raises at all: failing to price must never become permission to spend.
+    """
+    _reset_caches()
+    try:
+        apify._require_cost_approval("some~actor", 5, approved=False)
+    except apify.ApifyError:
+        return
+    raise AssertionError("no price must never pass through to a run")
 
 
 def test_require_cost_approval_blocks_over_threshold(monkeypatch):
@@ -601,37 +639,6 @@ def test_footprint_search_forwards_approved_to_both_google_search_calls(monkeypa
     assert calls and all(calls)
 
 
-if __name__ == "__main__":
-    import unittest.mock as _mock
-
-    class _MonkeyPatch:
-        def __init__(self):
-            self._undo = []
-
-        def setattr(self, obj, name, value):
-            self._undo.append((obj, name, getattr(obj, name)))
-            setattr(obj, name, value)
-
-        def undo(self):
-            for obj, name, old in reversed(self._undo):
-                setattr(obj, name, old)
-
-    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
-    failed = 0
-    for fn in fns:
-        mp = _MonkeyPatch()
-        try:
-            fn(mp)
-            print(f"ok   {fn.__name__}")
-        except AssertionError as e:
-            failed += 1
-            print(f"FAIL {fn.__name__}: {e}")
-        finally:
-            mp.undo()
-    print(f"\n{len(fns) - failed}/{len(fns)} passed")
-    sys.exit(1 if failed else 0)
-
-
 # --- the two site actors, and the two ways a run can be unpriceable ----------
 
 
@@ -872,3 +879,64 @@ def test_every_actor_key_survives_the_round_trip():
     assert len(apify._ACTOR_KEYS) == len(apify.ACTORS)
     for key, actor_id in apify.ACTORS.items():
         assert apify._ACTOR_KEYS[actor_id] == key
+
+
+# The no-pytest runner stays at the BOTTOM of this file, and that is not a
+# style preference. It used to sit two-thirds of the way up, so the sixteen
+# tests defined below it were never in `globals()` when it built its list —
+# `python tests/test_apify_cost_gate.py` reported 39/39 while pytest ran 55.
+# A standalone runner that silently skips a third of the file is worse than
+# none, because the third it skips reports as a pass.
+if __name__ == "__main__":
+    import inspect
+
+    class _MonkeyPatch:
+        """Enough of pytest's fixture to run this file without pytest.
+
+        It grew `setenv` and the signature dispatch below when the ledger tests
+        arrived: the runner used to hand every test one positional argument, so
+        a test taking `tmp_path`, or none at all, was a TypeError that only the
+        no-pytest path could produce. A standalone runner that cannot run half
+        the file is worse than no standalone runner, because it reports the
+        other half as a pass.
+        """
+
+        def __init__(self):
+            self._undo = []
+            self._env = []
+
+        def setattr(self, obj, name, value):
+            self._undo.append((obj, name, getattr(obj, name)))
+            setattr(obj, name, value)
+
+        def setenv(self, name, value):
+            self._env.append((name, os.environ.get(name)))
+            os.environ[name] = str(value)
+
+        def undo(self):
+            for obj, name, old in reversed(self._undo):
+                setattr(obj, name, old)
+            for name, old in reversed(self._env):
+                if old is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = old
+
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+    failed = 0
+    for fn in fns:
+        mp = _MonkeyPatch()
+        scratch = tempfile.TemporaryDirectory(prefix="apify-test-")
+        available = {"monkeypatch": mp, "tmp_path": Path(scratch.name)}
+        try:
+            fn(*[available[name] for name in
+                 inspect.signature(fn).parameters])
+            print(f"ok   {fn.__name__}")
+        except AssertionError as e:
+            failed += 1
+            print(f"FAIL {fn.__name__}: {e}")
+        finally:
+            mp.undo()
+            scratch.cleanup()
+    print(f"\n{len(fns) - failed}/{len(fns)} passed")
+    sys.exit(1 if failed else 0)
