@@ -34,8 +34,16 @@ In order. Stop as soon as the datum is settled.
    residence and for finding a LinkedIn or podcast URL the site did not link.
 3. **Apify, and only for what is genuinely login-walled**: LinkedIn posts and
    profiles, and Instagram.
-   `python main.py apify li-posts <url> --max 5`, `apify li-profile <url>`,
-   `apify ig <url> --mode details`.
+   `python main.py apify li-posts <url> --max 5 --since 3months`,
+   `apify li-profile <url>`, `apify ig <url> --mode details`.
+
+   **The window on that call is not yours to pick.** It is
+   `outbound/plan.py`'s, on the `li_posts` rung, and `doc-check` fails if this
+   line drifts from it. It used to say `--max 5` with no window while the hook
+   stage asked the same profile for `--since 3months`, so two stages asked one
+   person two different questions and the hook stage kept finding posts you had
+   never requested. That was 4 of the 5 UNOBSERVED hooks in `2026-08-01-q1` —
+   the single number deciding whether your fetch can replace theirs.
 
    **There is no paid YouTube call any more.** It returned a subscriber count
    for `audience_size`, which is captured and never gated on, so it bought a

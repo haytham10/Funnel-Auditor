@@ -28,6 +28,14 @@ OUTBOUND_BATCH=<batch> python main.py apify li-profile <url> --lead <email> --st
 OUTBOUND_BATCH=<batch> python main.py apify li-posts   <url> --lead <email> --stage verify --purpose verify
 ```
 
+**Your fetch carries no window, on purpose.** The ladder makes the retrieving
+stages pass `--since 3months`, because that is an editorial rule about what
+makes a good hook. Yours is not a hook search — it is one page, one quote — and
+narrowing it would make you refute a post for being older than the rule that
+picked it. If a cited post is not in the first `--max 5`, raise the number
+rather than concluding it is not there. Same reason you are never told the hook
+room: a fact about the email's shape is not evidence about the page.
+
 **This is a live fetch and it satisfies your independence completely.** The rule
 you must never break is reading the research stage's *stored observation* and
 calling that verification — a cache check confirms somebody copied a string

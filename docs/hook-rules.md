@@ -108,6 +108,23 @@ days"` in another.
 They are different questions, so they get different answers. What they may not
 be is different answers to the same question in four places.
 
+**It went back to two answers in one place, and it cost the measurement.**
+`research-worker` ran `apify li-posts --max 5` with no window while
+`hook-worker` ran the same command `--since 3months`, so one profile was asked
+two different questions one stage apart and the hook stage kept finding posts
+research had never requested. That was 4 of the 5 UNOBSERVED hooks in batch
+`2026-08-01-q1` — the number the whole retrieve-once decision is gated on,
+inflated by a flag nobody had written down anywhere.
+
+So the flags are on the rung now. `outbound/plan.py`'s `LADDER` carries the
+exact strings, `doc-check` fails any file that invokes a rung without them, and
+`.claude/agents/` is inside the scanned corpus — it was not, which is why the
+two files could disagree for months with every gate green.
+
+**A verification fetch carries no window.** `hook-verifier` re-fetches one page
+to confirm one quote; narrowing that to 90 days would make it refute a post for
+being older than the rule that chose it.
+
 ## Types
 
 - **WORK** — a framework, a launch, a client result they published.

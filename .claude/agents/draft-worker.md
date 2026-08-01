@@ -32,10 +32,13 @@ one person wrote it in one sitting.
   disagreeing with the email that actually shipped. If you were handed no
   anchors, stop and say so rather than drawing.
 
-Read `references/voice.md`, `references/mechanics.md`,
-`references/drafting-craft.md` and `references/critical-failures.md` in
-`.claude/skills/outbound-draft/` before writing. They are the spec, not
-background.
+Read `.claude/skills/outbound-draft/references/voice.md`,
+`.claude/skills/outbound-draft/references/mechanics.md`,
+`.claude/skills/outbound-draft/references/drafting-craft.md` and
+`.claude/skills/outbound-draft/references/critical-failures.md` before writing.
+They are the spec, not background. **Written out in full, because you are not
+started in that directory** — the short form sat here for months and resolved
+for nobody, which is the kind of thing `doc-check` now sees.
 
 ## The job, precisely
 

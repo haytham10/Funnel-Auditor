@@ -105,6 +105,37 @@ def test_the_about_rung_offers_the_page_as_well_as_a_framework():
         for kind in about.kinds)
 
 
+def test_the_paid_rungs_carry_the_hook_window_in_their_flags():
+    """Two stages asked one LinkedIn profile two different questions: research
+    ran `--max 5` with no window, the hook stage ran `--since 3months`. The hook
+    stage then "discovered" posts research had never requested — 4 of the 5
+    UNOBSERVED in `2026-08-01-q1`, which is the number the flip is gated on.
+
+    `3months` and `"90 days"` are `select.HOOK_RECENCY_DAYS` in each actor's own
+    spelling, so they are pinned against it rather than against a memory."""
+    from outbound import select
+
+    assert select.HOOK_RECENCY_DAYS == 90
+    posts = next(r for r in plan.LADDER if r.name == "li_posts")
+    insta = next(r for r in plan.LADDER if r.name == "ig_posts")
+    assert "--since 3months" in posts.flags
+    assert '--newer-than "90 days"' in insta.flags
+    # And the spelling has to be one the actor accepts, or the call errors at
+    # the point where the whole stage is already committed.
+    from audit import apify
+
+    assert "3months" in apify.LI_POSTED_LIMITS
+
+
+def test_every_flagged_rung_names_the_command_the_flags_belong_to():
+    """`apify ig --mode details` reads a bio for the floors and `--mode posts`
+    is hook material: one subcommand, two rungs, two windows. A flag set with no
+    command to attach to would be checked against both."""
+    for rung in plan.LADDER:
+        if rung.flags:
+            assert rung.command, f"{rung.name} has flags and no command"
+
+
 def test_no_rung_claims_to_be_batchable_without_evidence():
     """`li_posts` cannot be batched and it was proven by direct test. `ig_post`
     is assumed to share the flaw and says so. A rung claiming otherwise would be

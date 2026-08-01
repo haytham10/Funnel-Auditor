@@ -97,6 +97,21 @@ class Rung:
     kinds: tuple = ()            # the observe.KINDS this rung can produce
     batched: bool = False        # can one actor run serve several leads?
     note: str = ""
+    # Flags a call on this rung MUST carry, and the reason this field exists at
+    # all. `research-worker` ran `apify li-posts --max 5` with no window while
+    # `hook-worker` ran `--since 3months`, so two calls asked one profile two
+    # different questions and the hook stage kept "discovering" posts research
+    # had simply not requested — 4 of the 5 UNOBSERVED in `2026-08-01-q1`, the
+    # number the whole retrieve-once decision is gated on. `doc-check` asserts
+    # every doc that names this rung's command carries these.
+    flags: tuple = ()
+    # How to recognise an invocation of this rung in prose. First element is the
+    # subcommand, which only counts when an argument follows it — a doc naming
+    # `apify li-posts` to say what it is has recited no flags and needs none.
+    # The rest disambiguate, because one subcommand can serve two rungs: `apify
+    # ig --mode details` is a bio read for the floors and `--mode posts` is hook
+    # material, the same command asking different questions.
+    command: tuple = ()
 
     @property
     def paid(self) -> bool:
@@ -124,14 +139,22 @@ LADDER = (
          note="free: web search for their name plus 'podcast', then fetch the "
               "episode page. The rung that reaches the coaches who do not post"),
     Rung("li_posts", ("linkedin",), actor_key="li_posts", kinds=("post",),
+         command=("apify li-posts",), flags=("--max 5", "--since 3months"),
          note="the richest source by a distance, and the most expensive call in "
               "the machine: maxPosts is a run-wide budget, PROVEN by direct "
               "test, so it is one container boot per lead"),
     Rung("ig_posts", ("instagram",), actor_key="ig_post", kinds=("post",),
+         command=("apify ig", "--mode posts"),
+         flags=('--newer-than "90 days"',),
          note="a real rung, not a last resort — for a coach whose whole presence "
               "is Instagram it is the only one. Batching UNTESTED, assumed to "
               "share li_posts' flaw"),
 )
+
+# The window in those flags is `select.HOOK_RECENCY_DAYS`, in each actor's own
+# spelling: `3months` is the only value in `audit/apify.py`'s LI_POSTED_LIMITS
+# that reaches 90 days, and `--newer-than` takes the number in words. A test
+# pins both against that constant so the spellings cannot outlive it.
 
 
 @dataclass
