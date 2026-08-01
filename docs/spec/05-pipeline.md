@@ -348,6 +348,18 @@ its words. See the anchor contract in `docs/spec/04-email.md`, which owns that
 decision. A draft with no claim behind it is warned about rather than skipped
 silently, because a PASS line looks identical either way.
 
+**Quoting is not claiming.** A figure that is in the hook beat *and* in the
+certified `hook_quote` is the recipient's own fact and is exempt. Without that,
+the rule written to stop us relabelling a client result was instead deleting
+"70.3", "2023" and "27 years" out of the one beat whose job is to prove we read
+their page — six of twelve drafts in `2026-08-01-q1` had to alter a hook a
+verifier had certified word for word, and both drafters kept the digits by
+moving them into the subject line, which nothing checks. The exemption is the
+**intersection** of the two texts, applied to the hook beat's own words rather
+than to a value, so a figure the drafter introduced is still caught and nothing
+leaks into the identity beat. A hook carrying a figure with no quote passed is a
+warning, never a silent pass.
+
 ### `export`
 **In** drafts. **Out** `out/leads.csv`, `out/preview.txt`,
 `out/wall-additions.csv`, `out/line-usage.csv`, `out/rejected.txt`.

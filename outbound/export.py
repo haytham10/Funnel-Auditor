@@ -87,6 +87,11 @@ class Draft:
     linkedin_url: str = ""
     hook_type: str = ""
     hook_source_url: str = ""
+    # The wording an independent verifier certified. Carried so the linter can
+    # tell a figure the recipient wrote from one we claimed: quoting is not
+    # claiming, and without it `check_numbers` deletes "70.3" and "27 years"
+    # out of the one beat whose job is to prove we read their page.
+    hook_quote: str = ""
 
     def row(self) -> dict:
         """The Smartlead row. Eight columns, nothing analytical."""

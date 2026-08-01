@@ -895,6 +895,11 @@ def cmd_lint(args) -> None:
             allowed_numbers=set(allowed),
             facts=facts,
             identity_claim=_identity_claim_of(draft, facts),
+            # Named on the draft record by `hook-worker`, carried through
+            # verification. A figure in the hook beat that is also in here is
+            # the recipient's own, quoted; without it the drafter's only way to
+            # keep it is the subject line, which nothing digit-checks.
+            hook_quote=draft.get("hook_quote", ""),
         )
         print(result.report())
         failed += 0 if result.passed else 1
@@ -975,13 +980,15 @@ def cmd_export(args) -> None:
             website=row.get("website", ""), linkedin_url=row.get("linkedin_url", ""),
             hook_type=row.get("hook_type", ""),
             hook_source_url=row.get("hook_source_url", ""),
+            hook_quote=row.get("hook_quote", ""),
         )
         allowed = row.get("allowed_numbers")
         if allowed is None:
             allowed = anchors.all_numbers(facts)
         results[draft.email] = lint.check_email(
             name=draft.name, subject=draft.subject, body=draft.body,
-            beats=beats, allowed_numbers=set(allowed), facts=facts)
+            beats=beats, allowed_numbers=set(allowed), facts=facts,
+            hook_quote=draft.hook_quote)
         drafts.append(draft)
         for_batch.append({"subject": draft.subject, "body": draft.body,
                           "beats": beats})
