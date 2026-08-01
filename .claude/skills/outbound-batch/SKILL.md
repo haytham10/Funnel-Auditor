@@ -83,6 +83,30 @@ research workers and do not let a verdict in it change what they are told. It is
 here to be read and measured for a batch before anything is built on it, which
 is the same way the ledger and the observation contract arrived.
 
+## Stage 1c — what it would cost to look
+
+```
+python main.py plan work/identity.json --leads work/clear.json --out work/plan.json
+```
+
+Free, and it fetches nothing at all — it describes a ladder, it does not walk
+one. Quote the `PLAN:` line. The number that matters is **would decline**: how
+many paid rungs point at a channel that names somebody else. Pair it with the
+`NO RUNG` lines, which are the leads where free retrieval found nowhere to look
+— on the first batch three leads walked the whole ladder and returned nothing,
+and that cost three full agent passes to discover.
+
+**It declines nothing, and you must not either.** There is no flag on this run
+that would. Every rung it labels `decline` is still in the file, because nobody
+yet knows whether the leads with no confirmed channel are the leads that produce
+no hook — and that is exactly what this batch is being run to find out. If they
+are the same leads, declining is free. If they are not, `plan` should not gate
+on ownership at all, and it is much better to learn that before it is built.
+
+**Nothing consumes `work/plan.json` yet.** Do not hand it to the hook workers
+and do not let a `decline` change which rung anybody walks. `hook-worker` keeps
+its own ladder this batch, on purpose.
+
 ## Stage 2 — research
 
 Fan out `research-worker`, one per slice of ~10 leads, at most 5 at a time.
@@ -153,6 +177,38 @@ rather than a shrug. A hook dated outside the window is not a kill — the lead 
 already through the floor — but it is worth a line in the brief, because a coach
 whose newest public thing is five months old is a different prospect from one
 who posted yesterday.
+
+## Stage 3b — would a ranker have found it without fetching
+
+Once every hook has been verified or refuted, and the hook fields are written
+back onto the research objects:
+
+```
+python main.py select work/draftable.json --against --out work/select.json
+```
+
+No fetching, no model, no clause. It ranks the observations the research workers
+already returned and reports how its choice relates to the hook the stage
+actually verified. Quote the `AGAINST:` line, and read the `MISSED` and
+`UNOBSERVED` lines under it rather than the totals.
+
+Those two words are the whole point and they mean opposite things:
+
+- **MISSED** — the hook's page *was* observed and the ranker passed it over. It
+  names the ban that dropped it. A wrong ban is a three-line fix.
+- **UNOBSERVED** — the hook cited a page no observation carries. That is the
+  fetch selection could not have replaced, and it is the number that decides
+  whether the hook stage can stop fetching at all.
+
+**Nothing consumes `work/select.json`.** It never replaces a verified hook, it
+does not change which lead is drafted, and a disagreement is not an error — it
+exits 0 whatever it finds, the same way the ledger reports a duplicate without
+failing on it.
+
+**And it verifies nothing.** A quote it found is in the text we stored, not on
+the page. The verifier's live re-fetch is the only thing that has ever caught a
+fabricated claim, and reading this output as verification is how that gets
+quietly retired.
 
 ## Stage 4 — draft
 
@@ -278,6 +334,11 @@ Then commit `data/contacted-before.csv`. That commit is the wall's history.
 Commit `data/runs/<batch>.jsonl` in the same breath. That is what the batch
 cost, and it is the baseline the next one gets compared against.
 
+Copy `work/select.json` to `data/runs/<batch>-select.json` and commit that too.
+It is the other half of the same baseline — what the retrieval cost, and whether
+a ranker over what was already retrieved would have reached the same hook.
+`work/` does not survive the container.
+
 ## What the run cost
 
 Read this before writing the brief, and quote its first line into the `cost`
@@ -299,6 +360,10 @@ Two lines in that output are worth reading rather than skimming:
   in the machine on the one actor that cannot be batched. It is expected today;
   it is what the retrieve-once work is being measured against. Note the count in
   the journal.
+
+  **This is one half of a pair.** `DUPLICATE` says what the second fetch cost;
+  stage 3b's `AGAINST:` line says whether it bought anything the first fetch had
+  not already. Record both in the same journal entry or neither is decidable.
 - **`BLOCKED`** — what the cost gate refused. A batch that quietly stopped at
   the threshold looks identical, in every other record kept here, to a batch
   that found nothing.
@@ -324,6 +389,8 @@ BATCH <date>: <n> written of <m> raw
   floors     <n> passed, <n> failed (<which floors>)
   address    <n> verified, <n> enriched, <n> none
   hooks      <n> verified, <n> refuted, <n> not found
+  plan       <n> rung(s), <n> WOULD-decline on ownership, <n> lead(s) no rung
+  select     <n> agreed, <n> shortlisted, <n> missed, <n> unobserved, <n> no pool
   drafts     <n> send, <n> rewritten, <n> rejected
   lines      top line <n>% of the batch (cap 35), <n> THIN segment(s)
   copy       live from Airtable | cached (say which, always)

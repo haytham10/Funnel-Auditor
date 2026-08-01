@@ -387,6 +387,45 @@ itself does not reverse; only the stage that satisfies it does.
 
 ---
 
+### D23 · The hook ladder is code, and the prose names it
+
+**2026-08-01.** Where a hook comes from — the four rungs, their order, which are
+free, which are paid, which actor each names and which of them can share a run —
+lives in `outbound/plan.py` as `LADDER`. `docs/hook-rules.md` keeps what it
+actually owns: what a hook is, the four requirements, the twelve bans, the two
+windows and the three types. It names the module instead of listing the rungs.
+
+**Why.** The ladder was prose in two files kept in agreement by hand, and the
+agreement has failed twice, both times recorded in the file it failed in. The
+list once opened with the **paid** LinkedIn rung under a heading that said "in
+cost order", so the sentence and the list disagreed and the list won — which is
+how a batch reaches for LinkedIn before reading an About page already on disk.
+And the recency window existed as four different numbers in four files before it
+was collapsed into two owners. Neither drift was caught by a check, because
+nothing in this repo reads a paragraph: `doc-check` can prove a command exists
+and can never prove two lists agree.
+
+It is also the one part of the hook stage that has to be **per-lead**. A rung
+nobody has a channel for is not a rung, and prose cannot say so. Making it a data
+structure is what lets `plan` report which rungs are populated and what each
+would cost, and it is the precondition for `yield_by_rung` — the number Part 8 of
+the proposal calls the one that settles F5.
+
+**What this does not do.** `.claude/agents/hook-worker.md` still carries its own
+copy of the ladder and is deliberately not edited: the hook stage keeps fetching
+until `select` has been measured against it, and rewriting the agent's routing
+would be the behaviour change this phase is built to avoid. So there are two
+copies today rather than one, and the second is implementation-layer prose that
+`docs/spec/00-index.md` permits to describe how current code works. It goes when
+the hook stage stops fetching, and not before.
+
+**Reversed by** a batch where the generated rungs are wrong often enough that an
+agent improvising would have done better — which would mean `resolve`'s channel
+verdicts are the thing to fix rather than the ladder's shape, so the reversal
+points at a different file than the one it would revert.
+
+---
+
 ## What is unknown
 
 - **Nothing here has been reversed yet.** The reversal conditions are untested,
