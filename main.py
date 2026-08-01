@@ -1390,6 +1390,17 @@ def cmd_select(args) -> None:
     the ranker would have picked the same evidence the hook stage paid to fetch,
     and it reports five verdicts rather than two because `missed` and
     `unobserved` say opposite things about whether that fetch is removable.
+
+    `--batch` writes both halves of that measurement into `data/runs/`: the
+    selections **and the corpus they were ranked from**. Only the first was kept
+    for `2026-08-01-q1`, and the corpus lived in `work/`, which does not survive
+    the container. So when the ban that caused all three MISSED turned out to be
+    wrong, there was no way to re-score the batch that proved it — the fix had to
+    ship on a diagnosis, and the next honest number needs a new paid run.
+
+    A ranking change should be answerable against every batch already run. That
+    is only true if the input is kept, and keeping it is not something to
+    remember at the end of a long session.
     """
     from outbound import select
 
@@ -1408,11 +1419,26 @@ def cmd_select(args) -> None:
     selections = result["selections"]
     print(result["report"])
 
+    payload = json.dumps({"selections": [s.to_dict() for s in selections]},
+                         indent=2, default=str)
     if args.out:
-        Path(args.out).write_text(
-            json.dumps({"selections": [s.to_dict() for s in selections]},
-                       indent=2, default=str), encoding="utf-8")
+        Path(args.out).write_text(payload, encoding="utf-8")
         print(f"  wrote {args.out}")
+    if args.batch:
+        from outbound import ledger
+
+        verdict = ledger.artifact("-select.json", batch=args.batch)
+        corpus = ledger.artifact("-research.json", batch=args.batch)
+        verdict.parent.mkdir(parents=True, exist_ok=True)
+        verdict.write_text(payload, encoding="utf-8")
+        # The input, not a summary of it. A re-score needs every observation's
+        # text, date and kind — the selections carry only the shortlist, and the
+        # rejections carry a ban name and a URL, which cannot be re-ranked.
+        corpus.write_text(json.dumps(data, indent=2, default=str),
+                          encoding="utf-8")
+        print(f"  wrote {verdict} and {corpus}")
+        print(f"  commit both. `select {corpus} --against` re-scores this batch "
+              f"for free after any change to the bans or the ranking.")
     if args.json:
         print(json.dumps([s.to_dict() for s in selections], indent=2, default=str))
 
@@ -1613,7 +1639,10 @@ def cmd_metrics(args) -> None:
     print(metrics.report(out))
     print(metrics.batches_block(out))
 
-    target = args.out or (f"data/runs/{args.batch}-metrics.json" if args.batch else "")
+    from outbound import ledger
+
+    target = args.out or (ledger.artifact("-metrics.json", batch=args.batch)
+                          if args.batch else "")
     if target:
         print(f"  wrote {metrics.write_artifact(out, target)}")
     sys.exit(0)
@@ -1654,7 +1683,10 @@ def cmd_replies(args) -> None:
     out = rep.join(leads, export, batch=args.batch or "")
     print(rep.report(out))
 
-    target = args.out or (f"data/runs/{args.batch}-replies.json" if args.batch else "")
+    from outbound import ledger
+
+    target = args.out or (ledger.artifact("-replies.json", batch=args.batch)
+                          if args.batch else "")
     if target:
         from outbound.metrics import write_artifact
         print(f"  wrote {write_artifact(out, target)}")
@@ -1801,6 +1833,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help="words the drafter will have — the low end of the range "
                         "`deal` prints. Advisory; 0 means not given")
     p.add_argument("--out", help="write the selections as JSON")
+    p.add_argument("--batch", default="",
+                   help="write data/runs/<batch>-select.json AND "
+                        "-research.json, so a later change to the bans can be "
+                        "re-scored against this batch without paying for it "
+                        "again. Commit both")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_select)
 

@@ -290,6 +290,19 @@ opposite things about whether that fetch can be removed.
 third-party coverage, stale news, generic site copy, and invented specifics,
 the last through the `obs_id` join. `docs/hook-rules.md` still owns all twelve.
 
+**Generic site copy is repeated text, not an About page.** `2026-08-01-q1`
+MISSED three leads and all three were `kind: about` observations a verifier had
+independently confirmed; that one ban was 21 of the corpus's 32 rejections. What
+the verifier refuses is the generic, and the only mechanical form of that is the
+same text appearing for two different leads. An About page now ranks last and is
+offered when the lead has nothing better.
+
+**`--batch` writes the corpus as well as the verdict**, into `data/runs/`. Only
+the verdict was kept for `2026-08-01-q1` and the input lived in `work/`, so the
+batch that disproved a ban could not be re-scored against the fix. Both files
+are committed; `select data/runs/<batch>-research.json --against` re-runs the
+measurement for free after any change to the bans or the ranking.
+
 **A quote found here is not a verified quote.** It is in the text we stored,
 which is a different claim from being on the page. The verifier's live re-fetch
 is the only mechanism that has caught a fabricated claim, and it stays.

@@ -136,9 +136,25 @@ def path(batch: str | None = None, root: str | Path | None = None) -> Path:
     repo's ledger, and the first honest cost figure this machine produces would
     have a test run mixed into it.
     """
+    return artifact(".jsonl", batch=batch, root=root)
+
+
+def artifact(suffix: str, *, batch: str | None = None,
+             root: str | Path | None = None) -> Path:
+    """Any per-batch file in `data/runs/` — the ledger, and everything beside it.
+
+    `select`, `metrics` and `replies` each write one, and each had built the
+    path itself from a literal `"data/runs/"`. Three copies of a directory name
+    is the drift D23 exists about, and it had a second cost: none of the three
+    honoured `OUTBOUND_LEDGER_ROOT`, so a test of any of them wrote into the
+    real repo's run directory beside real batches.
+
+    `suffix` starts with `-` for a sibling (`-select.json`) or `.` for the
+    ledger itself.
+    """
     base = Path(root or os.environ.get("OUTBOUND_LEDGER_ROOT")
                 or Path(__file__).resolve().parent.parent)
-    return base / RUNS_DIR / f"{batch_label(batch)}.jsonl"
+    return base / RUNS_DIR / f"{batch_label(batch)}{suffix}"
 
 
 # --------------------------------------------------------------------- write

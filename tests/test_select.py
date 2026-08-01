@@ -204,6 +204,52 @@ def test_the_short_floor_is_the_linter_s_and_not_a_second_number():
 # --------------------------------------------------------------- the ranking
 
 
+def test_the_batch_artifacts_keep_the_corpus_and_not_only_the_verdict():
+    """`2026-08-01-q1` committed its selections and left the research objects in
+    `work/`, which does not survive the container. So when the ban behind all
+    three MISSED turned out to be wrong, the batch that proved it could not be
+    re-scored: the selections carry a shortlist, and a rejection carries a ban
+    name and a URL, neither of which can be ranked again.
+
+    The corpus is the input, byte for byte, so `select <corpus> --against`
+    answers any later change to the bans without paying for a run."""
+    import json
+    import subprocess
+
+    with tempfile.TemporaryDirectory() as tmp:
+        env = dict(os.environ, OUTBOUND_LEDGER_ROOT=tmp)
+        rows = [research(obs(), name="Nadia Karim",
+                         hook_verified="verified",
+                         hook_source_url="https://linkedin.com/posts/nadia-1")]
+        source = Path(tmp) / "draftable.json"
+        source.write_text(json.dumps(rows), encoding="utf-8")
+
+        proc = subprocess.run(
+            [sys.executable, "main.py", "select", str(source), "--against",
+             "--batch", "test-batch"],
+            cwd=Path(__file__).resolve().parent.parent,
+            capture_output=True, text=True, env=env)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+
+        runs = Path(tmp) / "data" / "runs"
+        assert json.loads((runs / "test-batch-research.json").read_text()) == rows
+        assert "selections" in json.loads(
+            (runs / "test-batch-select.json").read_text())
+
+
+def test_the_run_artifacts_all_honour_one_root():
+    """Three commands write into `data/runs/` and each had built the path from
+    its own string literal, so none of them could be redirected and a test of
+    any one wrote beside real batches."""
+    from outbound import ledger
+
+    with tempfile.TemporaryDirectory() as tmp:
+        for suffix in ("-select.json", "-metrics.json", "-replies.json"):
+            got = ledger.artifact(suffix, batch="b", root=tmp)
+            assert got == Path(tmp) / ledger.RUNS_DIR / f"b{suffix}"
+        assert ledger.path(batch="b", root=tmp).name == "b.jsonl"
+
+
 def test_the_ranking_is_enum_positions_and_not_a_score():
     """`resolve` states the rule: nothing in this repo carries a numeric
     confidence, and one batch of 151 leads cannot calibrate a scale."""

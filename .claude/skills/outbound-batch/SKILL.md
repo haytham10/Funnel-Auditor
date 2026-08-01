@@ -271,11 +271,18 @@ back onto the research objects:
 
 ```
 python main.py select work/draftable.json --against --hook-room <n> \
-  --out work/select.json
+  --batch <YYYY-MM-DD> --out work/select.json
 ```
 
 `<n>` is the **low** end of the hook-room range `deal` printed at stage 2b. It
 used to be unknowable here, because `deal` ran a stage later.
+
+**`--batch` writes the corpus as well as the verdict**, into `data/runs/`.
+Commit both. On `2026-08-01-q1` only the verdict was kept and the corpus lived
+in `work/`, which does not survive the container — so when the ban that caused
+all three MISSED turned out to be wrong, the batch that proved it could not be
+re-scored. A ranking change should be answerable against every batch already
+run, and that is only true if the input is still here.
 
 No fetching, no model, no clause. It ranks the observations the research workers
 already returned and reports how its choice relates to the hook the stage
@@ -403,10 +410,12 @@ Then commit `data/contacted-before.csv`. That commit is the wall's history.
 Commit `data/runs/<batch>.jsonl` in the same breath. That is what the batch
 cost, and it is the baseline the next one gets compared against.
 
-Copy `work/select.json` to `data/runs/<batch>-select.json` and commit that too.
-It is the other half of the same baseline — what the retrieval cost, and whether
-a ranker over what was already retrieved would have reached the same hook.
-`work/` does not survive the container.
+Commit `data/runs/<batch>-select.json` and `data/runs/<batch>-research.json`,
+which stage 3b's `--batch` already wrote. They are the other half of the same
+baseline — what the retrieval cost, whether a ranker over what was already
+retrieved would have reached the same hook, and the corpus that answer was
+computed from. **`work/` does not survive the container**, so anything left
+there is gone by the next session.
 
 ### Later, when replies exist
 
