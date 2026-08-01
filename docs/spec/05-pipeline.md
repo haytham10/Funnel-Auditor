@@ -46,6 +46,9 @@ lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
 ```
 
+Every fetch along that line writes itself to `data/runs/<batch>.jsonl` as it
+happens, so a batch that dies in stage 3 still leaves its accounting.
+
 `outbound-batch` runs the whole thing. `outbound-draft` is the single-lead and
 repair path.
 
@@ -276,6 +279,32 @@ anything worth that risk.
 
 Every run is cost-gated and **exits 3** above the ceiling rather than spending.
 The ceiling itself lives in `audit/apify.py` and is not restated here.
+
+### `ledger`
+**In** a retrieval, or a batch label. **Out** one JSON line per fetch, and the
+batch read back. **Guarantees** every retrieval the code made carries what it
+was priced at and how long it took, and a second fetch of the same
+`(lead, url)` that is not a verification is named. **Exit 2** on a ledger it
+could not read, which includes one that is not there — the dedupe wall's
+asymmetry, one stage over: a missing wall must never read as "nobody has been
+contacted", and a missing ledger must never read as "this batch cost nothing".
+**Never exit 1**, not even on a duplicate. Owned by `outbound/ledger.py`.
+
+`ledger add` is the only way a retrieval Python did not make gets recorded. An
+agent's own WebSearch and WebFetch happen model-side and are invisible here, so
+those lines are **reported on trust** and `retrieved_by` keeps them
+distinguishable from the ones the code wrote itself. `ledger report` reads a
+batch back and writes nothing.
+
+**Reporting a duplicate is the job; failing on one is not.** A gate that can
+halt a real send file over an accounting line is a gate people learn to route
+around — the same reason `doc-check` runs with the tests rather than with a
+batch. The stage that removes the duplicate is the one that gets to block on it.
+
+**The costs are estimates, and the ledger says so.** The runner uses Apify's
+run-sync-get-dataset-items, which collapses a run to its output, so the billed
+`usageTotalUsd` on the run object is never fetched. A ledger implying otherwise
+would be worse than none.
 
 ### `classify-footprint`
 Merges pre-fetched search hits into sourcing candidates. Fetch-agnostic by

@@ -374,6 +374,45 @@ def test_the_same_assembler_serves_lint_and_export():
     assert check.stdout.strip() == "True", check.stdout + check.stderr
 
 
+# -------------------------------------------------------------------- ledger
+
+
+def test_a_missing_ledger_exits_2_not_a_zero_cost_report():
+    """The wall's asymmetry, one stage over. A batch whose ledger is not there
+    must not report as a batch that spent nothing — that is the one reading
+    that would make the number worth less than no number."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = offline_env()
+        env["OUTBOUND_LEDGER_ROOT"] = tmp
+        out = subprocess.run(
+            [sys.executable, "main.py", "ledger", "report", "--batch", "never-ran"],
+            cwd=ROOT, capture_output=True, text=True, env=env)
+        assert out.returncode == 2, out.stdout
+        assert "LEDGER: FAIL" in out.stdout
+
+
+def test_a_duplicate_fetch_is_reported_without_failing():
+    """Reporting one is the job. Failing on one belongs to the stage that
+    removes it — a gate that can halt a send file over an accounting line is a
+    gate people learn to route around."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = offline_env()
+        env["OUTBOUND_LEDGER_ROOT"] = tmp
+
+        def ledger(*args):
+            return subprocess.run([sys.executable, "main.py", "ledger", *args],
+                                  cwd=ROOT, capture_output=True, text=True, env=env)
+
+        for stage in ("research", "hook"):
+            added = ledger("add", "--batch", "b", "--lead", "a@b.com", "--stage", stage,
+                           "--url", "https://linkedin.com/in/x", "--by", "webfetch")
+            assert added.returncode == 0, added.stdout
+
+        out = ledger("report", "--batch", "b")
+        assert out.returncode == 0, out.stdout
+        assert "DUPLICATE" in out.stdout
+
+
 # ------------------------------------------------------------------ doc-check
 
 

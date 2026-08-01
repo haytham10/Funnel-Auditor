@@ -19,6 +19,7 @@ spec doc names a row here rather than copying from it.
 | what an identity line CLAIMS | Airtable *Copy Assets*, the `Claim` column. Its grammar and vocabulary are code, in `outbound/anchors.py` | by hand, next to the line it belongs to; refused by `copy-sync` if it names something the fact table has not got | `outbound/anchors.py`, `outbound/lint.py` |
 | the client-result numbers | `copy/results.csv` | by hand, from `docs/identity-intake-raw.txt` | `outbound/lint.py`, `facts` |
 | who has already been contacted | `data/contacted-before.csv` | `wall-add`, after the upload | `dedupe` |
+| what each retrieval cost and how long it took | `data/runs/` — one `.jsonl` per batch | every retrieval site as it happens, plus `ledger add` for the model-side rungs Python cannot see | `ledger report` |
 | where each lead is right now | Airtable *Leads* | the batch run | the skills |
 | what shipped in a batch | Airtable *Batches* | the batch run | reporting |
 | the three floors, as evaluated | `outbound/qualify.py` | code | `qualify` |
@@ -104,6 +105,27 @@ a push from that session is what opens or updates the pull request — so
 `.claude/hooks/schema_drift.py` binds the check to the push and blocks it on
 drift. A check that only runs when somebody remembers is the thing this whole
 layer exists to stop relying on.
+
+## Why the ledger is committed and `out/` is not
+
+They are both a run's leftovers, and only one of them is a record.
+
+`out/` holds the artifacts of building one batch — the upload file, the preview,
+the rejects. They are read once, by a person, before uploading, and after that
+the wall and the journal are what say the batch happened.
+
+`data/runs/<batch>.jsonl` is the accounting. Its entire value is comparing one
+batch against the last: whether the change that was supposed to stop paying
+twice for the same LinkedIn profile actually did. A number that only exists
+inside an ephemeral container answers that for nobody, and every cost claim ever
+made about this machine so far was reconstructed by hand from a journal entry
+because nothing wrote one down.
+
+So it sits next to the wall, for the same reason and with the same benefit:
+appending is a commit, so it gets a history for free. A scratch or smoke run
+sets `OUTBOUND_LEDGER_ROOT` somewhere outside the repo, which is what the test
+suite does — otherwise a test of the plumbing ends up inside the record of what
+a real batch cost.
 
 ## State that is deliberately ephemeral
 

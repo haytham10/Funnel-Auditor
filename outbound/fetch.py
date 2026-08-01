@@ -72,10 +72,22 @@ class Page:
     html: str = ""
     text: str = ""
     error: str = ""
+    # How long this one page took. The first per-retrieval timing in the repo —
+    # `batch_fetch`'s elapsed_secs is batch-wide, and was the only clock here.
+    secs: float = 0.0
 
     @property
     def ok(self) -> bool:
         return self.status == 200 and len(self.text) >= MIN_USEFUL_TEXT
+
+    @property
+    def outcome(self) -> str:
+        """The ledger's word for how this fetch went."""
+        if self.error:
+            return "error"
+        if self.status != 200:
+            return "error"
+        return "ok" if self.ok else "empty"
 
     @property
     def thin(self) -> bool:
@@ -133,19 +145,22 @@ def _session() -> requests.Session:
 def get_page(url: str, session: requests.Session | None = None) -> Page:
     """One page, free. Never raises — a failure is a Page with an error on it."""
     session = session or _session()
+    started = time.monotonic()
     try:
         response = session.get(url, timeout=TIMEOUT, allow_redirects=True)
     except requests.RequestException as exc:
-        return Page(url=url, error=type(exc).__name__)
+        return Page(url=url, error=type(exc).__name__,
+                    secs=round(time.monotonic() - started, 2))
 
+    elapsed = round(time.monotonic() - started, 2)
     content_type = response.headers.get("content-type", "")
     if "html" not in content_type.lower():
-        return Page(url=url, status=response.status_code,
+        return Page(url=url, status=response.status_code, secs=elapsed,
                     error=f"not html ({content_type.split(';')[0]})")
 
     html = response.text
     return Page(url=url, status=response.status_code, html=html,
-                text=visible_text(html))
+                text=visible_text(html), secs=elapsed)
 
 
 def discover_paths(homepage_html: str, base_url: str, limit: int = 6) -> list[str]:
@@ -405,10 +420,21 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
         read.owner_match = check_owner(read, getattr(lead, "name", ""))
         return _read_key(lead), lead, read
 
+    # The ledger is written from this loop rather than from `read_site`, for
+    # two reasons: only here is the lead known (`read_site` takes a URL), and
+    # only here is the code single-threaded again, so the appends are ordered
+    # without contending for the lock on every page of every site.
+    from outbound import ledger
+
     workers = max(1, min(workers, len(targets) or 1))
     with ThreadPoolExecutor(max_workers=workers) as pool:
         for key, lead, read in pool.map(read_one, targets):
             reads[key] = read
+            for page in read.pages:
+                ledger.record(lead_key=key, stage="fetch", platform="site",
+                              url=page.url, retrieved_by="tier0", cost_usd=0.0,
+                              secs=page.secs, outcome=page.outcome,
+                              purpose="observe")
             if read.escalate:
                 thin.extend(read.escalate)
             elif not read.ok:

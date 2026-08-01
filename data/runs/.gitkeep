@@ -1,0 +1,14 @@
+# The retrieval ledger lives here, one file per batch: data/runs/<batch>.jsonl.
+#
+# Committed, unlike out/ and work/. Those hold one run's artifacts and the
+# container is ephemeral; this is the record of what a run cost, and the whole
+# point of it is comparing one batch against the last. Appending is a commit,
+# so it gets a history for free — the same reason the dedupe wall is a file in
+# the repo rather than a table in the CRM.
+#
+# This file exists so the directory survives a fresh clone, because doc-check
+# treats a backticked path as a claim that it is on disk.
+#
+# A scratch or smoke run should set OUTBOUND_LEDGER_ROOT to somewhere outside
+# the repo, so a test of the plumbing does not end up in the record of what a
+# real batch cost. The test suite does exactly that.

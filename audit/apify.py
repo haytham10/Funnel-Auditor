@@ -160,6 +160,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from typing import Any
 
 import requests
@@ -186,6 +187,12 @@ ACTORS = {
     "site_static": "apify~cheerio-scraper",
     "site_render": "apify~website-content-crawler",
 }
+
+# The map read backwards, so `run_actor` can name the rung it just spent on
+# without every wrapper passing its own key down. The ledger records
+# `apify:li_posts`, not `apify:harvestapi~linkedin-profile-posts` — the key is
+# what the cost tables, the docs and the escalate plans already speak in.
+_ACTOR_KEYS = {actor_id: key for key, actor_id in ACTORS.items()}
 
 # Default sync-run ceiling. run-sync-get-dataset-items holds the HTTP
 # connection open until the run finishes or this elapses; a run that
@@ -268,6 +275,9 @@ def run_actor(
     *,
     timeout_secs: int = _SYNC_TIMEOUT_SECS,
     memory_mbytes: int | None = None,
+    cost_usd: float | None = None,
+    platform: str = "",
+    url: str = "",
 ) -> list[dict]:
     """Run an actor synchronously and return its dataset items.
 
@@ -275,10 +285,32 @@ def run_actor(
     returns the dataset in one shot. Raises ApifyError with an actionable
     message on the failures worth distinguishing (bad token, no credits,
     sync timeout).
+
+    This is the one chokepoint every wrapper below passes through, so it is
+    where a retrieval is timed and written to the ledger. `cost_usd` comes from
+    the approval gate, which computes the figure immediately before every call
+    and used to discard it; `platform` and `url` are what the caller knows and
+    this function cannot infer. A run that fails is still recorded — a failed
+    paid run has still paid for its container boot, and a stage that spent
+    ninety seconds erroring is exactly the thing the ledger exists to surface.
+
+    `run-sync-get-dataset-items` collapses a run to its output, so the real
+    `usageTotalUsd` on the run object is never fetched. The recorded cost is an
+    estimate and the ledger says so.
     """
+    from outbound import ledger
+
     params: dict[str, Any] = {"timeout": timeout_secs}
     if memory_mbytes:
         params["memory"] = memory_mbytes
+    started = time.monotonic()
+
+    def log(outcome: str) -> None:
+        ledger.record(platform=platform, url=url, cost_usd=cost_usd,
+                      secs=round(time.monotonic() - started, 2),
+                      outcome=outcome,
+                      retrieved_by=f"apify:{_ACTOR_KEYS.get(actor_id, actor_id)}")
+
     try:
         resp = requests.post(
             f"{APIFY_BASE}/acts/{actor_id}/run-sync-get-dataset-items",
@@ -288,7 +320,11 @@ def run_actor(
             timeout=timeout_secs + 30,
         )
     except requests.RequestException as exc:
+        log("error")
         raise ApifyError(f"network error reaching Apify: {exc}") from exc
+
+    if not resp.ok or resp.status_code in (401, 402, 408, 504):
+        log("error")
 
     if resp.status_code == 401:
         raise ApifyError("401 Unauthorized — APIFY_TOKEN is missing or invalid.")
@@ -304,8 +340,11 @@ def run_actor(
     try:
         data = resp.json()
     except ValueError as exc:
+        log("error")
         raise ApifyError(f"non-JSON response from Apify: {resp.text[:200]}") from exc
-    return data if isinstance(data, list) else [data]
+    items = data if isinstance(data, list) else [data]
+    log("ok" if items else "empty")
+    return items
 
 
 def account_limits() -> dict:
@@ -487,16 +526,31 @@ def estimate_cost_usd(actor_id: str, item_count: int,
 
 
 def _require_cost_approval(actor_id: str, item_count: int, approved: bool,
-                           event_key: str | None = None) -> None:
-    """The approval gate every wrapper below calls before running. No-op
+                           event_key: str | None = None) -> float | None:
+    """The approval gate every wrapper below calls before running. Passes
     once approved=True (the caller already has Haytham's sign-off for this
-    call); otherwise estimates the cost and raises ApifyCostApprovalRequired
-    if it's unknown or over COST_APPROVAL_THRESHOLD_USD."""
-    if approved:
-        return
+    call); otherwise raises ApifyCostApprovalRequired if the estimate is
+    unknown or over COST_APPROVAL_THRESHOLD_USD.
+
+    **Returns the estimate**, which is the only dollar figure this repo
+    produces. It used to be computed, compared, and dropped — surviving only
+    inside the exception raised when the gate refused, so the runs that were
+    cheap enough to allow were the runs nothing recorded a price for. The
+    caller hands it to `run_actor`, which writes it to the ledger.
+
+    The estimate is now computed on the approved path too, which it was not
+    before. That is one extra pricing lookup per actor per process — cached in
+    `_pricing_cache`, and it buys a cost figure for exactly the runs that were
+    expensive enough to need signing off. Returns None when pricing could not
+    be read, which is also what a compute-billed actor looks like: unpriceable
+    is a real answer here, not a failure.
+    """
     est, reason = estimate_cost_usd(actor_id, item_count, event_key)
+    if approved:
+        return est
     if est is None or est > COST_APPROVAL_THRESHOLD_USD:
         raise ApifyCostApprovalRequired(actor_id, est, reason)
+    return est
 
 
 def discover_actors(query: str, limit: int = 6) -> list[dict]:
@@ -620,11 +674,13 @@ def instagram(url: str | list[str], mode: str = "posts", newer_than: str | None 
         if not targets:
             raise ApifyError("instagram(mode='details') needs at least one profile")
         usernames = [_ig_username(u) for u in targets]
-        _require_cost_approval(ACTORS["ig_profile"], len(usernames), approved)
+        est = _require_cost_approval(ACTORS["ig_profile"], len(usernames), approved)
         run: dict[str, Any] = {"usernames": usernames}
         if include_about:
             run["includeAboutSection"] = True
-        items = run_actor(ACTORS["ig_profile"], run, memory_mbytes=1024)
+        items = run_actor(ACTORS["ig_profile"], run, memory_mbytes=1024,
+                          cost_usd=est, platform="instagram",
+                          url=targets[0] if single else "")
         if raw:
             return items
         keep = ("username", "fullName", "biography", "followersCount",
@@ -646,13 +702,14 @@ def instagram(url: str | list[str], mode: str = "posts", newer_than: str | None 
             "LinkedIn equivalent turned out to be a run-wide budget that "
             "starved every profile but one.")
     # mode == "posts"
-    _require_cost_approval(ACTORS["ig_post"], limit, approved)
+    est = _require_cost_approval(ACTORS["ig_post"], limit, approved)
     run = {"username": [url], "resultsLimit": limit}
     if newer_than:
         run["onlyPostsNewerThan"] = newer_than
     if skip_pinned:
         run["skipPinnedPosts"] = True
-    items = run_actor(ACTORS["ig_post"], run, memory_mbytes=1024)
+    items = run_actor(ACTORS["ig_post"], run, memory_mbytes=1024,
+                      cost_usd=est, platform="instagram", url=url)
     if raw:
         return items
     _raise_on_actor_error(items, url)
@@ -666,11 +723,12 @@ def instagram_post(post_url: str, raw: bool = False, approved: bool = False) -> 
     hook (caption in full plus top comments). Runs apify/instagram-post-scraper
     on the single post URL (its `username` field takes a post URL directly).
     Cost-gated (1 post)."""
-    _require_cost_approval(ACTORS["ig_post"], 1, approved)
+    est = _require_cost_approval(ACTORS["ig_post"], 1, approved)
     items = run_actor(
         ACTORS["ig_post"],
         {"username": [post_url], "resultsLimit": 1},
         memory_mbytes=1024,
+        cost_usd=est, platform="instagram", url=post_url,
     )
     if raw:
         return items
@@ -695,11 +753,12 @@ def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
     worse failure than one container boot per lead."""
     if since and since not in LI_POSTED_LIMITS:
         raise ApifyError(f"since must be one of {LI_POSTED_LIMITS}, got {since!r}")
-    _require_cost_approval(ACTORS["li_posts"], max_posts, approved)
+    est = _require_cost_approval(ACTORS["li_posts"], max_posts, approved)
     run: dict[str, Any] = {"targetUrls": [url], "maxPosts": max_posts}
     if since:
         run["postedLimit"] = since
-    items = run_actor(ACTORS["li_posts"], run, memory_mbytes=256)
+    items = run_actor(ACTORS["li_posts"], run, memory_mbytes=256,
+                      cost_usd=est, platform="linkedin", url=url)
     if raw:
         return items
     return [_lean(i, ("linkedinUrl", "postedAt", "postedDate", "content",
@@ -790,7 +849,8 @@ def linkedin_profile(urls: str | list[str], with_email: bool = False,
     if not url_list:
         raise ApifyError("linkedin_profile needs at least one URL")
     event = LI_PROFILE_EVENTS[bool(with_email)]
-    _require_cost_approval(ACTORS["li_profile"], len(url_list), approved, event_key=event)
+    est = _require_cost_approval(ACTORS["li_profile"], len(url_list), approved,
+                                 event_key=event)
     items = run_actor(
         ACTORS["li_profile"],
         # `queries` takes profile URLs or bare public identifiers
@@ -799,6 +859,7 @@ def linkedin_profile(urls: str | list[str], with_email: bool = False,
         # caller decide which of the two it holds.
         {"queries": url_list, "profileScraperMode": LI_PROFILE_MODES[bool(with_email)]},
         memory_mbytes=256,
+        cost_usd=est, platform="linkedin", url=url_list[0] if single else "",
     )
     if raw:
         return items
@@ -842,8 +903,9 @@ def youtube_channel(channel: str, raw: bool = False, approved: bool = False) -> 
     stats; it does NOT return a latest-upload date, so get YouTube activity
     recency from a free scrape of the channel's /videos page instead.
     Cost-gated (1 channel = 1 dataset-item, ~$0.0005)."""
-    _require_cost_approval(ACTORS["yt_channel"], 1, approved)
-    items = run_actor(ACTORS["yt_channel"], _yt_run_input(channel), memory_mbytes=512)
+    est = _require_cost_approval(ACTORS["yt_channel"], 1, approved)
+    items = run_actor(ACTORS["yt_channel"], _yt_run_input(channel), memory_mbytes=512,
+                      cost_usd=est, platform="youtube", url=channel)
     if raw:
         return items
     return [_lean(i, ("name", "handle", "url", "subscriberCount", "videoCount",
@@ -911,8 +973,10 @@ def verify_emails(emails: list[str], raw: bool = False, approved: bool = False) 
     if not emails:
         raise ApifyError("verify_emails needs at least one address")
 
-    _require_cost_approval(ACTORS["email"], len(emails), approved)
-    items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
+    est = _require_cost_approval(ACTORS["email"], len(emails), approved)
+    items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256,
+                      cost_usd=est, platform="email",
+                      url=emails[0] if len(emails) == 1 else "")
     by_email = {item["email"].strip().lower(): _normalize_email_result(item)
                 for item in items if isinstance(item, dict) and item.get("email")}
 
@@ -955,14 +1019,15 @@ def crawl_static(urls: list[str], *, approved: bool = False,
     if not urls:
         raise ApifyError("crawl_static needs at least one URL")
     targets = list(dict.fromkeys(urls))
-    _require_cost_approval(ACTORS["site_static"], len(targets), approved)
+    est = _require_cost_approval(ACTORS["site_static"], len(targets), approved)
     items = run_actor(ACTORS["site_static"], {
         "startUrls": [{"url": u} for u in targets],
         "pageFunction": _CHEERIO_PAGE_FUNCTION,
         "maxRequestsPerCrawl": len(targets),
         "maxRequestRetries": 1,
         "proxyConfiguration": {"useApifyProxy": True},
-    }, memory_mbytes=1024)
+    }, memory_mbytes=1024, cost_usd=est, platform="site",
+        url=targets[0] if len(targets) == 1 else "")
     if raw:
         return items
     return [_lean(i, ("url", "status", "title", "text", "html")) for i in items]
@@ -980,7 +1045,7 @@ def crawl_render(urls: list[str], *, approved: bool = False,
     if not urls:
         raise ApifyError("crawl_render needs at least one URL")
     targets = list(dict.fromkeys(urls))
-    _require_cost_approval(ACTORS["site_render"], len(targets), approved)
+    est = _require_cost_approval(ACTORS["site_render"], len(targets), approved)
     items = run_actor(ACTORS["site_render"], {
         "startUrls": [{"url": u} for u in targets],
         "crawlerType": "playwright:adaptive",
@@ -989,7 +1054,8 @@ def crawl_render(urls: list[str], *, approved: bool = False,
         "saveHtml": True,
         "saveMarkdown": False,
         "proxyConfiguration": {"useApifyProxy": True},
-    }, memory_mbytes=1024)
+    }, memory_mbytes=1024, cost_usd=est, platform="site",
+        url=targets[0] if len(targets) == 1 else "")
     if raw:
         return items
     return [_lean(i, ("url", "title", "text", "html")) for i in items]
@@ -1014,13 +1080,18 @@ def google_search(query: str, pages: int = 1, site: str | None = None,
     `relatedQueries` and `peopleAlsoAsk` (query-expansion fuel for lateral
     discovery) plus `resultsTotal`; otherwise it's the flat hit list, as
     before (backward compatible)."""
-    _require_cost_approval(ACTORS["search"], pages, approved)
+    est = _require_cost_approval(ACTORS["search"], pages, approved)
     run: dict[str, Any] = {"queries": query, "maxPagesPerQuery": pages}
     if site:
         run["site"] = site
     if country:
         run["countryCode"] = country
-    items = run_actor(ACTORS["search"], run, memory_mbytes=1024)
+    # A SERP has no fetched URL, so the ledger carries the query under a
+    # `google:` prefix rather than pretending it is one. It is still the right
+    # value for the duplicate check: running the same query twice on the same
+    # lead is exactly the waste the ledger is looking for.
+    items = run_actor(ACTORS["search"], run, memory_mbytes=1024,
+                      cost_usd=est, platform="web", url=f"google:{query}")
     if raw:
         return items
     # The SERP actor returns one item per results page; flatten organic hits.

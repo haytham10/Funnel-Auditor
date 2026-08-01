@@ -11,14 +11,25 @@ test. Two reasons, both learned the hard way in one run:
 
 The Airtable and snapshot paths are still tested — explicitly, with stubs, in
 `test_copy_sync.py`.
+
+`OUTBOUND_LEDGER_ROOT` is the same idea one module over. `batch_fetch` and
+every Apify wrapper append to `data/runs/<batch>.jsonl` now, so without this
+a test run would write real-looking retrieval lines into the repo's own
+ledger — and the first honest cost figure this machine produces would have a
+test suite mixed into it. Pointed at a temp directory that goes away with the
+process.
 """
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["OUTBOUND_COPY_SOURCE"] = "csv"
+
+_ledger_root = tempfile.TemporaryDirectory(prefix="outbound-ledger-")
+os.environ["OUTBOUND_LEDGER_ROOT"] = _ledger_root.name
 
 from outbound import anchors  # noqa: E402
 

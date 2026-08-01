@@ -241,6 +241,43 @@ Run it once, `--dry-run` first if unsure.
 
 Then commit `data/contacted-before.csv`. That commit is the wall's history.
 
+Commit `data/runs/<batch>.jsonl` in the same breath. That is what the batch
+cost, and it is the baseline the next one gets compared against.
+
+## What the run cost
+
+Read this before writing the brief, and quote its first line into the `cost`
+row rather than adding up Apify calls by hand:
+
+```
+python main.py ledger report --leads <the batch's lead count>
+```
+
+Pass `--leads` — without it, cost per lead is computed over only the leads that
+needed a fetch, which reports several times the real figure on a batch where
+most leads were settled free.
+
+Two lines in that output are worth reading rather than skimming:
+
+- **`DUPLICATE`** — a page fetched twice for one lead, for something other than
+  verification. The known one is `li-posts`, run once by `research-worker` and
+  again by `hook-worker` on the same profile, and it is the most expensive call
+  in the machine on the one actor that cannot be batched. It is expected today;
+  it is what the retrieve-once work is being measured against. Note the count in
+  the journal.
+- **`BLOCKED`** — what the cost gate refused. A batch that quietly stopped at
+  the threshold looks identical, in every other record kept here, to a batch
+  that found nothing.
+
+**The ledger never fails a run.** It reports; it does not block. And a missing
+ledger exits 2 rather than printing a zero, so "no ledger" can never be read as
+"this batch was free".
+
+Every free WebSearch and WebFetch a worker ran is invisible to Python. A worker
+records its own with `python main.py ledger add`, and those lines carry
+`websearch` or `webfetch` so a reader can tell what was measured from what was
+reported.
+
 ## The brief
 
 One message at the end. Never a per-lead narration.
@@ -256,7 +293,8 @@ BATCH <date>: <n> written of <m> raw
   drafts     <n> send, <n> rewritten, <n> rejected
   lines      top line <n>% of the batch (cap 35), <n> THIN segment(s)
   copy       live from Airtable | cached (say which, always)
-  cost       $<x> Apify this run
+  cost       $<x> Apify this run, $<x>/lead (quote `ledger report`)
+  retrieval  <n> fetch(es), <n> duplicate, <n> blocked by the cost gate
   → out/leads.csv   READ out/preview.txt BEFORE UPLOADING
   then       wall-add + copy-usage, once it is actually uploaded
 ```

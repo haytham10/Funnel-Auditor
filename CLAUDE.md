@@ -125,6 +125,15 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 - `python main.py copy-usage` — reports which lines actually shipped back to
   Copy Assets. Also after uploading. **Additive, not idempotent** — run once
   per batch.
+- `python main.py ledger` — what each retrieval cost and how long it took, one
+  JSON line per fetch in `data/runs/<batch>.jsonl`, written as the run proceeds
+  so a batch that dies mid-stage still leaves its accounting. `ledger add`
+  records the model-side rungs Python cannot see, on trust; `ledger report`
+  reads a batch back and names any `(lead, url)` fetched twice for something
+  other than verification. **Exit 2 on a missing ledger** — a missing ledger is
+  not a zero-cost batch, the same asymmetry as the wall. **Never exit 1**, not
+  even on a duplicate: reporting one is the job, and a gate that can halt a send
+  file over an accounting line is a gate people learn to route around.
 - `python main.py doc-check` — the docs against the code they describe. Every
   command a doc names must exist in the parser, every path it backticks must be
   on disk, every copy-line id must be in the CSV, every `Defers to:` must
@@ -179,7 +188,9 @@ Pointers, not manuals. Every module carries a full docstring.
 ladder and the batched Apify plan), `qualify` (the three floors, evidence-
 carrying), `research` (the typed contract every worker returns), `anchors` (the
 deterministic line draw and the fact table), `lint` (the checks), `export`
-(leads.csv and preview.txt).
+(leads.csv and preview.txt), `ledger` (what every retrieval cost and how long it
+took — the only module here that fails **open**, because an observer that can
+halt the run it observes is worse than no observer).
 
 **`audit/`** — what survived the pivot: `email_check`, `email_verifier`,
 `email_enrich`, `apify` (cost-gated), `extract`, `urls`, `draft_lint`,

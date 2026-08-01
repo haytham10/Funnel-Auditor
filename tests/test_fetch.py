@@ -11,14 +11,20 @@ other test had.
 So the rule here is that every test feeds real HTML through the real harvest.
 """
 
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Standalone runs get no conftest, and batch_fetch writes a ledger line per page.
+os.environ.setdefault("OUTBOUND_LEDGER_ROOT",
+                      tempfile.mkdtemp(prefix="outbound-ledger-"))
+
 import threading
 
-from outbound import fetch
+from outbound import fetch, ledger
 
 
 PAGE = """
@@ -309,3 +315,82 @@ def test_the_owner_check_is_reported_and_never_a_kill(monkeypatch):
     assert "OWNER-CHECK" in out["report"]
     # Still read, still counted, still available to every later stage.
     assert out["attempted"] == 1
+
+
+# --------------------------------------------------------------- the ledger
+#
+# `batch_fetch` computed an `elapsed_secs` for the whole batch, printed it, and
+# dropped it — the only clock in the entire repo. Nothing knew what any single
+# page cost in time, so "tier 0 is free" was true in dollars and unmeasured in
+# the thing that actually ran out: wall-clock.
+
+
+def test_every_page_read_free_lands_in_the_ledger(monkeypatch, tmp_path):
+    monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
+    monkeypatch.setattr(fetch, "read_site",
+                        lambda url, **k: read_of(("https://coachsite.ae", PAGE),
+                                                 ("https://coachsite.ae/about", PAGE)))
+    fetch.batch_fetch([_Social("Sarah Khan", site="https://coachsite.ae")], workers=2)
+
+    records, _ = ledger.read(None, tmp_path)
+    assert len(records) == 2, "one line per page, not one per site"
+    assert {r.url for r in records} == {"https://coachsite.ae",
+                                        "https://coachsite.ae/about"}
+    assert all(r.retrieved_by == "tier0" for r in records)
+    assert all(r.cost_usd == 0.0 for r in records)
+    assert all(r.stage == "fetch" and r.purpose == "observe" for r in records)
+
+
+def test_the_ledger_line_is_keyed_to_the_lead_not_the_site(monkeypatch, tmp_path):
+    """Two rows from a directory can share a company site. Keying on the site
+    would merge their spend, which is the same bug `_read_key` exists for."""
+    monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
+    monkeypatch.setattr(fetch, "read_site",
+                        lambda url, **k: read_of(("https://shared.ae", PAGE)))
+    fetch.batch_fetch([_Social("One", site="https://shared.ae"),
+                       _Social("Two", site="https://shared.ae")], workers=2)
+
+    records, _ = ledger.read(None, tmp_path)
+    assert len({r.lead_key for r in records}) == 2
+
+
+def test_a_page_that_could_not_be_read_is_recorded_as_an_error(monkeypatch, tmp_path):
+    """A site that ate fifteen seconds of timeout and returned nothing is the
+    most expensive free page in a batch. Recording only the good ones hides it."""
+    monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
+
+    def dead(url, **k):
+        read = fetch.SiteRead(domain="dead.ae")
+        read.pages.append(fetch.Page(url="https://dead.ae", error="ConnectTimeout",
+                                     secs=15.0))
+        return read
+    monkeypatch.setattr(fetch, "read_site", dead)
+    fetch.batch_fetch([_Social("Gone", site="https://dead.ae")], workers=2)
+
+    records, _ = ledger.read(None, tmp_path)
+    assert records[0].outcome == "error"
+    assert records[0].secs == 15.0
+
+
+def test_a_page_that_returned_nothing_is_empty_not_ok():
+    """200 with no text is the JS-render signature, and the only honest reason
+    to pay for a browser. It must not read as a successful free fetch."""
+    thin = fetch.Page(url="https://x.ae", status=200, html="<html></html>", text="")
+    assert thin.thin and thin.outcome == "empty"
+
+
+def test_get_page_times_itself(monkeypatch):
+    """The first per-retrieval clock in the repo."""
+    monkeypatch.setattr(fetch, "visible_text", lambda html: "x" * 500)
+
+    class _Resp:
+        status_code = 200
+        headers = {"content-type": "text/html"}
+        text = "<html><body>hi</body></html>"
+
+    class _Session:
+        def get(self, *a, **k):
+            return _Resp()
+
+    page = fetch.get_page("https://x.ae", _Session())
+    assert page.ok and page.secs >= 0.0 and isinstance(page.secs, float)

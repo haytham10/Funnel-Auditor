@@ -16,17 +16,25 @@ Run: python -m pytest tests/test_apify_cost_gate.py -q
 
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Standalone runs get no conftest, and every wrapper here writes a ledger line.
+os.environ.setdefault("OUTBOUND_LEDGER_ROOT",
+                      tempfile.mkdtemp(prefix="outbound-ledger-"))
+
 from audit import apify
+from outbound import ledger
 
 
 class _FakeResponse:
-    def __init__(self, payload, ok=True, status_code=200):
+    def __init__(self, payload, ok=True, status_code=200, text=""):
         self._payload = payload
         self.ok = ok
         self.status_code = status_code
+        # Only the not-ok branch of run_actor reads this, to quote the body back.
+        self.text = text
 
     def json(self):
         return self._payload
@@ -256,14 +264,28 @@ def test_estimate_cost_unknown_when_price_unavailable(monkeypatch):
     assert reason
 
 
-def test_require_cost_approval_noop_when_already_approved(monkeypatch):
+def test_require_cost_approval_passes_but_still_prices_when_approved(monkeypatch):
+    """approved=True must never block. It DOES still price the run.
+
+    This used to short-circuit before estimating at all, and the consequence
+    only became visible when the ledger arrived: the runs signed off as
+    expensive were the runs nothing recorded a price for. The estimate is
+    cached per actor per process, so the cost is one lookup, and it buys a
+    figure for exactly the calls worth having one.
+    """
     _reset_caches()
-    # If this were called, it would fail the test (no price mock supplied) —
-    # approved=True must short-circuit before any estimate is attempted.
-    def boom(actor_id, event_key=None):
-        raise AssertionError("should not estimate when already approved")
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", boom)
-    apify._require_cost_approval("some~actor", 999, approved=True)  # no raise
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.002)
+    assert apify._require_cost_approval("some~actor", 999, approved=True) == 1.998
+
+
+def test_an_unpriceable_run_is_still_approvable(monkeypatch):
+    """Pricing that cannot be read must not turn into a block on a call
+    Haytham already signed off. None is the honest cost, not a refusal."""
+    _reset_caches()
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: None)
+    assert apify._require_cost_approval("some~actor", 5, approved=True) is None
 
 
 def test_require_cost_approval_blocks_over_threshold(monkeypatch):
@@ -322,9 +344,8 @@ def test_verify_emails_blocks_over_threshold_before_running(monkeypatch):
 def test_verify_emails_runs_when_approved(monkeypatch):
     _reset_caches()
 
-    def boom(actor_id, event_key=None):
-        raise AssertionError("should not estimate when already approved")
-    monkeypatch.setattr(apify, "_actor_primary_event_price_usd", boom)
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.001)
     monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [{"email": "a@b.com", "status": "ok"}])
     out = apify.verify_emails(["a@b.com"], approved=True)
     assert out[0]["email"] == "a@b.com"
@@ -760,3 +781,94 @@ def test_instagram_details_gates_on_the_number_of_profiles(monkeypatch):
         assert not seen.get("ran"), "gated calls must not run"
         return
     raise AssertionError("6 profiles at $0.02 is $0.12, over the threshold")
+
+
+# ------------------------------------------------------------------ the ledger
+#
+# The cost gate is where the only dollar figure in this repo is produced, so it
+# is also where the ledger gets its numbers. Before this, `_require_cost_approval`
+# computed the estimate, compared it, and dropped it — the figure survived only
+# inside the exception raised when the gate refused, which meant every run that
+# was allowed to happen went unpriced. These pin that the number now reaches the
+# record, on both the allowed path and the refused one.
+
+
+def test_an_allowed_run_records_what_it_was_priced_at(monkeypatch, tmp_path):
+    _reset_caches()
+    monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.004)
+    monkeypatch.setattr(apify.requests, "post",
+                        lambda *a, **k: _FakeResponse([{"content": "a post"}]))
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+
+    apify.linkedin_posts("https://linkedin.com/in/x", max_posts=5)
+
+    records, _ = ledger.read(None, tmp_path)
+    assert len(records) == 1
+    assert records[0].retrieved_by == "apify:li_posts"
+    assert records[0].cost_usd == 0.02
+    assert records[0].url == "https://linkedin.com/in/x"
+    assert records[0].outcome == "ok"
+
+
+def test_a_run_that_returned_nothing_is_recorded_as_empty(monkeypatch, tmp_path):
+    """A paid run that came back empty still paid for its container boot. It is
+    the single most interesting line in a batch that produced no hooks."""
+    _reset_caches()
+    monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.001)
+    monkeypatch.setattr(apify.requests, "post", lambda *a, **k: _FakeResponse([]))
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+
+    apify.linkedin_posts("https://linkedin.com/in/x")
+
+    records, _ = ledger.read(None, tmp_path)
+    assert records[0].outcome == "empty"
+
+
+def test_a_run_that_errored_is_still_recorded(monkeypatch, tmp_path):
+    """A stage that spent ninety seconds failing is exactly what the ledger
+    exists to surface. Recording only successes would hide it."""
+    _reset_caches()
+    monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.001)
+    monkeypatch.setattr(apify.requests, "post",
+                        lambda *a, **k: _FakeResponse({"error": "x"}, ok=False,
+                                                      status_code=500))
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+
+    try:
+        apify.linkedin_posts("https://linkedin.com/in/x")
+    except apify.ApifyError:
+        pass
+    records, _ = ledger.read(None, tmp_path)
+    assert records[0].outcome == "error"
+
+
+def test_the_ledger_names_the_actor_key_not_the_rest_api_id(monkeypatch, tmp_path):
+    """`apify:li_posts`, not `apify:harvestapi~linkedin-profile-posts`. The key
+    is what the cost tables, the docs and the escalate plans already speak in."""
+    _reset_caches()
+    monkeypatch.setenv("OUTBOUND_LEDGER_ROOT", str(tmp_path))
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.0005)
+    monkeypatch.setattr(apify.requests, "post",
+                        lambda *a, **k: _FakeResponse([{"name": "a channel"}]))
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+
+    apify.youtube_channel("@somebody")
+
+    records, _ = ledger.read(None, tmp_path)
+    assert records[0].retrieved_by == "apify:yt_channel"
+    assert records[0].platform == "youtube"
+
+
+def test_every_actor_key_survives_the_round_trip():
+    """The reverse map is built from ACTORS, so an actor added without a key —
+    or a duplicate id across two keys — would silently mislabel its spend."""
+    assert len(apify._ACTOR_KEYS) == len(apify.ACTORS)
+    for key, actor_id in apify.ACTORS.items():
+        assert apify._ACTOR_KEYS[actor_id] == key

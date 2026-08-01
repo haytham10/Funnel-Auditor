@@ -26,6 +26,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     email-verify     deliverability confirm before a send
     email-verify-batch  the same, for a whole slice's addresses in one call
     email-enrich     the no-address fallback on the lead's own domain
+    ledger      what each retrieval cost and how long it took
     apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
     classify-footprint   merge pre-fetched search hits into sourcing candidates
     doc-check   the docs against the code they describe
@@ -1162,9 +1163,17 @@ def cmd_apify(args) -> None:
     approval threshold exits 3 rather than running.
     """
     from audit import apify
+    from outbound import ledger
 
     cmd = args.apify_command
     approved = getattr(args, "approve_cost", False)
+    # The run facts the wrappers cannot know. `run_actor` supplies the technical
+    # half — which actor, which URL, how long, what it was priced at — and picks
+    # these up from the ambient context rather than threading a lead key through
+    # ten signatures that have nothing else to do with it.
+    ledger.set_context(lead_key=getattr(args, "lead", "") or "",
+                       stage=getattr(args, "stage", "") or "research",
+                       purpose=getattr(args, "purpose", "") or "observe")
     try:
         if cmd == "limits":
             out = apify.account_limits()
@@ -1204,6 +1213,13 @@ def cmd_apify(args) -> None:
             print(json.dumps({"error": f"apify: unknown subcommand {cmd!r}"}))
             sys.exit(2)
     except apify.ApifyCostApprovalRequired as exc:
+        # A refusal never reaches run_actor, so it is recorded here. What the
+        # gate turned down is as worth knowing as what it let through: a batch
+        # that quietly stopped at the threshold looks identical, in every other
+        # record this machine keeps, to a batch that found nothing.
+        ledger.record(url="", cost_usd=exc.estimated_usd, secs=0.0,
+                      outcome="blocked",
+                      retrieved_by=f"apify:{apify._ACTOR_KEYS.get(exc.actor_id, exc.actor_id)}")
         print(json.dumps({"error": str(exc), "needs_approval": True,
                           "actor": exc.actor_id,
                           "estimated_usd": exc.estimated_usd}, indent=2))
@@ -1236,6 +1252,55 @@ def cmd_classify_footprint(args) -> None:
         print(json.dumps({"error": str(exc)}, indent=2))
         sys.exit(1)
     print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+
+
+# ---------------------------------------------------------------------- ledger
+
+
+def cmd_ledger(args) -> None:
+    """What each retrieval cost, and how long it took.
+
+    Two subcommands, and the split matters. `add` is the only way a model-side
+    retrieval gets recorded at all — an agent's own WebSearch and WebFetch happen
+    outside Python, so those lines are reported on trust, and `retrieved_by`
+    keeps them distinguishable from the ones the code wrote itself. `report`
+    reads a batch back.
+
+    `report` exits 2 on a missing ledger rather than printing a zero, on the same
+    asymmetry as the dedupe wall: a missing wall must never read as "nobody has
+    been contacted", and a missing ledger must never read as "this batch cost
+    nothing". It never exits 1 — not even on a duplicate fetch. Reporting one is
+    the job; failing on one belongs to the stage that removes it, and a gate that
+    can halt a real send file over an accounting line is a gate people learn to
+    route around.
+    """
+    from outbound import ledger
+
+    if args.ledger_command == "add":
+        wrote = ledger.record(
+            batch=args.batch, lead_key=args.lead, stage=args.stage,
+            platform=args.platform, url=args.url, retrieved_by=args.by,
+            cost_usd=args.cost, secs=args.secs, outcome=args.outcome,
+            purpose=args.purpose)
+        if not wrote:
+            # The one place a failed append is visible. `ledger.append` swallows
+            # everything so it can never kill a batch, which means the operator
+            # asking for a line to be written is the only caller who can be told.
+            print("LEDGER: FAIL — could not append to "
+                  f"{ledger.path(args.batch)}.")
+            sys.exit(2)
+        print(f"LEDGER: added {args.by} {args.platform} {args.url} "
+              f"to {ledger.path(args.batch)}")
+        return
+
+    try:
+        records, malformed = ledger.read(args.batch)
+    except ledger.LedgerUnreadable as exc:
+        print(f"LEDGER: FAIL — {exc}. Refusing to report a batch it could "
+              f"not read.")
+        sys.exit(2)
+    print(ledger.report(records, batch=args.batch, malformed=malformed,
+                        leads=args.leads))
 
 
 # ------------------------------------------------------------------- doc-check
@@ -1422,8 +1487,51 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_enrich)
 
+    p_ledger = sub.add_parser("ledger",
+                              help="what each retrieval cost and how long it took")
+    ledger_sub = p_ledger.add_subparsers(dest="ledger_command", required=True)
+
+    a = ledger_sub.add_parser("add", help="record a retrieval Python did not make")
+    a.add_argument("--lead", default="", help="the lead this was fetched for")
+    a.add_argument("--platform", default="web",
+                   help="site | linkedin | instagram | youtube | podcast | web | email")
+    a.add_argument("--url", default="", help="the page actually fetched")
+    a.add_argument("--by", default="websearch",
+                   help="websearch | webfetch — the rungs that happen model-side")
+    a.add_argument("--stage", default="research", help="fetch | research | hook | verify")
+    a.add_argument("--purpose", default="observe", choices=["observe", "verify"],
+                   help="a second fetch of the same page is only allowed to verify")
+    a.add_argument("--secs", type=float, default=0.0)
+    a.add_argument("--cost", type=float, default=0.0)
+    a.add_argument("--outcome", default="ok", choices=["ok", "empty", "error", "blocked"])
+    a.add_argument("--batch", help="batch label (default OUTBOUND_BATCH, then today)")
+
+    a = ledger_sub.add_parser("report", help="a batch's retrievals, cost and duplicates")
+    a.add_argument("--batch", help="batch label (default OUTBOUND_BATCH, then today)")
+    a.add_argument("--leads", type=int, default=0,
+                   help="the batch's real lead count, so cost/lead is not "
+                        "computed over only the leads that needed a fetch")
+
+    p_ledger.set_defaults(func=cmd_ledger)
+
     p_apify = sub.add_parser("apify", help="no-login LinkedIn / Instagram / YouTube / SERP fetch")
     apify_sub = p_apify.add_subparsers(dest="apify_command", required=True)
+
+    def paid(parser_) -> None:
+        """The run facts a paid call carries into the ledger.
+
+        Optional everywhere, because a ledger line with no lead on it is still
+        worth more than no line, and a retrieval that refuses to happen without
+        one is a gate this stage was explicitly not supposed to grow.
+        """
+        parser_.add_argument("--lead", default="",
+                             help="the lead this retrieval is for (ledger)")
+        parser_.add_argument("--stage", default="research",
+                             help="fetch | research | hook | verify (ledger)")
+        parser_.add_argument("--purpose", default="observe",
+                             choices=["observe", "verify"],
+                             help="a second fetch of the same page is only "
+                                  "allowed to verify (ledger)")
 
     apify_sub.add_parser("limits", help="usage vs plan — check ONCE per batch")
 
@@ -1442,11 +1550,13 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--include-about", dest="include_about", action="store_true")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     a = apify_sub.add_parser("ig-post", help="one Instagram post in full")
     a.add_argument("url")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     a = apify_sub.add_parser("li-posts", help="recent LinkedIn posts — primary hook source")
     a.add_argument("url")
@@ -1455,6 +1565,7 @@ def build_parser() -> argparse.ArgumentParser:
                                        "3months", "6months", "year"])
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     a = apify_sub.add_parser("li-profile", help="LinkedIn headline / about / experience")
     a.add_argument("urls", nargs="+",
@@ -1462,16 +1573,19 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--email", action="store_true", help="use the pricier email-search mode")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     a = apify_sub.add_parser("youtube", help="channel stats and recent videos")
     a.add_argument("channel")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     a = apify_sub.add_parser("verify-email", help="verify addresses in one batched call")
     a.add_argument("addresses", nargs="+")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     a = apify_sub.add_parser("search", help="Google SERP for one query")
     a.add_argument("query")
@@ -1481,6 +1595,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--meta", action="store_true")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     a = apify_sub.add_parser("footprint", help="platform footprint sourcing")
     a.add_argument("platform")
@@ -1489,6 +1604,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--country", default="ae")
     a.add_argument("--raw", action="store_true")
     a.add_argument("--approve-cost", action="store_true")
+    paid(a)
 
     p_apify.set_defaults(func=cmd_apify)
 
