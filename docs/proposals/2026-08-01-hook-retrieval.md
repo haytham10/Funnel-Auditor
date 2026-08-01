@@ -23,11 +23,18 @@ answer is "this becomes measurable" rather than "this gets better".
 `python main.py doc-check` runs over `docs/` in CI. It fails on any `main.py`
 command in backticks or a fenced block that is not in the parser, and on any
 backticked path that is not on disk. That gate assumes a doc describes what
-exists, and a proposal is a category it does not have. So **every command
-proposed here is written in plain prose without backticks**, and proposed module
-paths appear only inside fenced blocks, which the path check exempts. That is a
-workaround, and if this proposal is accepted the right fix is for doc-check to
-learn about `docs/proposals/`, not for the convention to spread.
+exists, and a proposal is a category it did not have. So when this document was
+written, **every command proposed here was put in plain prose without
+backticks**, and proposed module paths appeared only inside fenced blocks, which
+the path check exempts. That was a workaround, and the note here said the right
+fix was for doc-check to learn about `docs/proposals/` rather than for the
+convention to spread.
+
+**It has.** `docs/proposals/` is now in doc-check's `EXCLUDED` map alongside the
+journal, with its reason stated and reported on `skipped`. The prose below is
+left as it was written — the workaround is no longer needed, but rewriting the
+argument to show that off would be a strange use of a document nobody has
+finished acting on yet.
 
 ---
 

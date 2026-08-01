@@ -84,6 +84,14 @@ PIPELINE_DOC = "docs/spec/05-pipeline.md"
 EXCLUDED = {
     "docs/journal.md": "a log, not a spec — it names deleted things on purpose",
     "docs/claude-docs": "external market research, not a description of this machine",
+    # A proposal argues for commands and modules that do not exist yet — that is
+    # what makes it a proposal. Checking one would gate it on already being
+    # built, and the first proposal written under this check had to drop the
+    # backticks off every command it named to get through, which is a convention
+    # that would have spread. The cost is real and worth stating: a proposal
+    # citing `outbound/fetch.py` is no longer told when that file moves.
+    "docs/proposals": "a proposal names commands and paths that do not exist "
+                      "yet — checking it would gate it on already being built",
 }
 
 # Gitignored (.gitignore: /out/, /work/) and so absent from a fresh clone, but
