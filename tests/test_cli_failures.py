@@ -374,6 +374,69 @@ def test_the_same_assembler_serves_lint_and_export():
     assert check.stdout.strip() == "True", check.stdout + check.stderr
 
 
+# ------------------------------------------------------------------- observe
+
+
+def test_observe_rejects_an_observation_naming_an_actor_that_does_not_exist():
+    """A record of a fetch that did not happen reads exactly like a real one to
+    everything downstream. Exit 1: the check ran and something failed."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "obs.json", [{
+            "lead_key": "a@b.com", "platform": "linkedin", "url": "https://x/1",
+            "fetched_at": "2026-08-01T09:00:00", "author": "self", "kind": "post",
+            "text": "a real sentence", "retrieved_by": "apify:not_an_actor"}])
+        out = run("observe", path)
+        assert out.returncode == 1, out.stdout
+        assert "not an actor this machine has" in out.stdout
+
+
+def test_observe_exits_2_on_something_that_is_not_an_object():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "obs.json", "a string")
+        out = run("observe", path)
+        assert out.returncode == 2, out.stdout
+        assert "OBSERVE: FAIL" in out.stdout
+
+
+# -------------------------------------------------------------------- ledger
+
+
+def test_a_missing_ledger_exits_2_not_a_zero_cost_report():
+    """The wall's asymmetry, one stage over. A batch whose ledger is not there
+    must not report as a batch that spent nothing — that is the one reading
+    that would make the number worth less than no number."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = offline_env()
+        env["OUTBOUND_LEDGER_ROOT"] = tmp
+        out = subprocess.run(
+            [sys.executable, "main.py", "ledger", "report", "--batch", "never-ran"],
+            cwd=ROOT, capture_output=True, text=True, env=env)
+        assert out.returncode == 2, out.stdout
+        assert "LEDGER: FAIL" in out.stdout
+
+
+def test_a_duplicate_fetch_is_reported_without_failing():
+    """Reporting one is the job. Failing on one belongs to the stage that
+    removes it — a gate that can halt a send file over an accounting line is a
+    gate people learn to route around."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = offline_env()
+        env["OUTBOUND_LEDGER_ROOT"] = tmp
+
+        def ledger(*args):
+            return subprocess.run([sys.executable, "main.py", "ledger", *args],
+                                  cwd=ROOT, capture_output=True, text=True, env=env)
+
+        for stage in ("research", "hook"):
+            added = ledger("add", "--batch", "b", "--lead", "a@b.com", "--stage", stage,
+                           "--url", "https://linkedin.com/in/x", "--by", "webfetch")
+            assert added.returncode == 0, added.stdout
+
+        out = ledger("report", "--batch", "b")
+        assert out.returncode == 0, out.stdout
+        assert "DUPLICATE" in out.stdout
+
+
 # ------------------------------------------------------------------ doc-check
 
 

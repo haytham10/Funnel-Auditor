@@ -1,6 +1,13 @@
 # Proposal: retrieve once, then select
 
-_Written 2026-08-01. A proposal, not a decision. Nothing here is implemented._
+_Written 2026-08-01. A proposal, not a decision._
+
+_**P0 and P1 of Part 9 landed on 2026-08-01**, unchanged in shape: the retrieval
+ledger, and the `Observation` contract with its schema gate. Both are additive
+and neither changes how a hook is found — the duplicate `li_posts` fetch in F1
+is still made on purpose, so it can be removed against a measurement instead of
+an argument. P2 through P4 remain proposal. Everything below is left as written,
+so the reasoning the phases rest on is still readable in its original form._
 
 **The thesis in one line: the hook stage should not retrieve anything.**
 Evidence is fetched once per lead, into a typed record, and every stage after
@@ -23,11 +30,18 @@ answer is "this becomes measurable" rather than "this gets better".
 `python main.py doc-check` runs over `docs/` in CI. It fails on any `main.py`
 command in backticks or a fenced block that is not in the parser, and on any
 backticked path that is not on disk. That gate assumes a doc describes what
-exists, and a proposal is a category it does not have. So **every command
-proposed here is written in plain prose without backticks**, and proposed module
-paths appear only inside fenced blocks, which the path check exempts. That is a
-workaround, and if this proposal is accepted the right fix is for doc-check to
-learn about `docs/proposals/`, not for the convention to spread.
+exists, and a proposal is a category it did not have. So when this document was
+written, **every command proposed here was put in plain prose without
+backticks**, and proposed module paths appeared only inside fenced blocks, which
+the path check exempts. That was a workaround, and the note here said the right
+fix was for doc-check to learn about `docs/proposals/` rather than for the
+convention to spread.
+
+**It has.** `docs/proposals/` is now in doc-check's `EXCLUDED` map alongside the
+journal, with its reason stated and reported on `skipped`. The prose below is
+left as it was written — the workaround is no longer needed, but rewriting the
+argument to show that off would be a strange use of a document nobody has
+finished acting on yet.
 
 ---
 

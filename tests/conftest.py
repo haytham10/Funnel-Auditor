@@ -11,14 +11,32 @@ test. Two reasons, both learned the hard way in one run:
 
 The Airtable and snapshot paths are still tested — explicitly, with stubs, in
 `test_copy_sync.py`.
+
+`OUTBOUND_LEDGER_ROOT` is the same idea one module over. `batch_fetch` and
+every Apify wrapper append to `data/runs/<batch>.jsonl` now, so without this
+a test run would write real-looking retrieval lines into the repo's own
+ledger — and the first honest cost figure this machine produces would have a
+test suite mixed into it. Pointed at a temp directory that goes away with the
+process.
 """
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["OUTBOUND_COPY_SOURCE"] = "csv"
+
+_ledger_root = tempfile.TemporaryDirectory(prefix="outbound-ledger-")
+os.environ["OUTBOUND_LEDGER_ROOT"] = _ledger_root.name
+
+# And no Apify token, so no test anywhere can reach the paid layer. Every Apify
+# path is tested against stubs; a token in the environment only ever means the
+# suite behaves differently on a developer machine than in CI, which is how a
+# real regression in the approval gate passed here and failed there.
+for _var in ("APIFY_TOKEN", "APIFY_API_TOKEN"):
+    os.environ.pop(_var, None)
 
 from outbound import anchors  # noqa: E402
 

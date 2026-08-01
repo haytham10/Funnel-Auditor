@@ -50,6 +50,39 @@ Never call Apify for something a free tier already answered. The orchestrator
 checks the Apify budget once for the whole batch and tells you if it is tight;
 if it says so, prefer `unclear` over a paid call.
 
+**Every paid call carries the lead it was for.** Pass `--lead <email or slug>`
+on every `apify` command, so the run's cost lands against the right row rather
+than in a heap. Free rungs are invisible to the code, so record your own:
+
+```
+python main.py ledger add --lead <key> --platform web --url <what you read> --by websearch
+```
+
+One line per real read, not per thought. This is the only record that a rung
+was walked and returned nothing, which is the answer nobody currently has.
+
+## Keep what you read
+
+A verdict names its source. An **observation** is the source itself, kept.
+
+Alongside the verdicts, return one observation per page, post or episode you
+actually read — with the text **verbatim**. Never summarise it. Something later
+will quote from this, and an independent verifier will re-fetch the page to
+check the quote is really there; a tidied sentence fails that check and looks
+like a fabrication.
+
+Validate them with `python main.py observe <file>`, which will tell you the
+enums and refuse a `retrieved_by` naming a rung this machine does not have.
+Leave `obs_id` blank — it generates from the content.
+
+`author` is the one field worth being careful about: `self` means **they**
+wrote it. A magazine's profile of them is `third_party`, and getting that wrong
+is how a coach ends up quoted saying something a journalist wrote.
+
+Nothing consumes observations yet, so this is not extra work in service of a
+guess — it is the evidence that stops being thrown away, one boolean at a time,
+and re-fetched a stage later at full price.
+
 ## The floors
 
 Run `python main.py qualify <lead.json>` rather than judging by eye. Feed it
@@ -99,10 +132,11 @@ guessed pattern, from any source.
 
 ## What you return
 
-One JSON array, one object per lead, matching `outbound/research.py`. Validate
-each with `python main.py research <file>` before returning and fix what it
-flags. Fields you could not settle stay at their defaults; do not invent values
-to make an object look complete.
+One JSON array, one object per lead, matching `outbound/research.py` — including
+its `observations` list. Validate each with `python main.py research <file>`
+before returning and fix what it flags; it checks the observations too. Fields
+you could not settle stay at their defaults; do not invent values to make an
+object look complete.
 
 Return the full object even for a lead that failed a floor, with the failure
 noted. An orchestrator guessing why a lead vanished is worse than a `no` it can

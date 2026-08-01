@@ -605,6 +605,35 @@ def test_the_journal_is_skipped_on_purpose():
     assert skipped["docs/journal.md"].strip(), "an exclusion must carry a reason"
 
 
+def test_a_proposal_may_name_things_that_do_not_exist_yet():
+    """A proposal argues for commands and modules that are not built. Checking
+    one gates it on already being built, and the first proposal written under
+    this check had to drop the backticks off every command it named to pass."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = build(tmp, {"01-a.md": HEADER + "\nbody\n"}, extra={
+            "docs/proposals/a-proposal.md":
+                "Run `python main.py observe <obs.json>`, defined in "
+                "`outbound/observe.py`, writing `data/runs/<batch>.jsonl`.\n",
+        })
+        result = doc_check.check_docs(root, parser=fake_parser(), airtable=False)
+        assert result.ok, result.report()
+        skipped = dict(result.skipped)
+        assert "docs/proposals/a-proposal.md" in skipped, result.skipped
+        assert skipped["docs/proposals/a-proposal.md"].strip(), \
+            "an exclusion must carry a reason"
+
+
+def test_a_doc_outside_proposals_still_cannot_name_a_missing_command():
+    """The exclusion is a directory, not a loophole. Pinned because the obvious
+    way to write it — a substring match on 'proposal' — would exempt any file
+    whose path merely contains the word."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = build(tmp, {"01-a.md": HEADER + "\nRun `main.py observe`.\n"})
+        result = doc_check.check_docs(root, parser=fake_parser(), airtable=False)
+        kinds = {f.kind for f in result.findings}
+        assert kinds == {"UNKNOWN COMMAND"}, result.report()
+
+
 def test_runtime_prefixes_match_gitignore():
     """The constant is derived from .gitignore. Pin it so the two cannot
     silently diverge and start flagging paths a clean checkout never has."""

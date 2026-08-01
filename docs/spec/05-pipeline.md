@@ -46,6 +46,9 @@ lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
 ```
 
+Every fetch along that line writes itself to `data/runs/<batch>.jsonl` as it
+happens, so a batch that dies in stage 3 still leaves its accounting.
+
 `outbound-batch` runs the whole thing. `outbound-draft` is the single-lead and
 repair path.
 
@@ -132,6 +135,10 @@ date will not parse. Owned by `docs/spec/02-icp.md`.
 no source named is rejected** — that combination means the answer was reasoned
 rather than fetched. This is the stage with no verifier agent on purpose: a
 schema check is cheaper than an agent and strictly harder to talk around.
+
+The object may also carry the observations behind those verdicts, and they are
+validated here through the same call — capped, so one worker that got an enum
+wrong cannot bury the floor violation that actually drops a row. See `observe`.
 
 ### hook
 Two agents, not a command. `hook-worker` proposes with an exact quote, URL and
@@ -276,6 +283,57 @@ anything worth that risk.
 
 Every run is cost-gated and **exits 3** above the ceiling rather than spending.
 The ceiling itself lives in `audit/apify.py` and is not restated here.
+
+### `observe`
+**In** one observation or an array of them. **Out** the schema verdict.
+**Guarantees** a record claiming to be something fetched can be checked when it
+is written: platform, kind and author inside their enums, a piece of content
+carrying its text, a publication date that parses and has already happened, and
+a `retrieved_by` naming a rung this machine actually has. **Exit 1** on a
+violation, **exit 2** if the input is not an object or an array of them. Owned
+by `outbound/observe.py`.
+
+**Additive, and nothing consumes it yet.** A research object may carry
+observations alongside its verdicts; no stage reads them, the hook stage still
+does its own fetching, and the duplicate that makes unnecessary is left in place
+on purpose so `ledger report` can price it. What exists now is the contract and
+its gate.
+
+**The point is what research does not do.** Research keeps a `_source` string
+per verdict, so the post that settled `active_recent` — the exact material a
+hook is made of — is read once, reduced to a boolean, discarded, and paid for
+again one stage later.
+
+**`text` is verbatim, and no check can prove it.** That is why it is stated
+rather than assumed: a summarised observation reads fine, ranks fine, and yields
+a hook whose quote is not on the page — the one failure the independent verifier
+exists to catch, arriving through the one door it does not watch.
+
+### `ledger`
+**In** a retrieval, or a batch label. **Out** one JSON line per fetch, and the
+batch read back. **Guarantees** every retrieval the code made carries what it
+was priced at and how long it took, and a second fetch of the same
+`(lead, url)` that is not a verification is named. **Exit 2** on a ledger it
+could not read, which includes one that is not there — the dedupe wall's
+asymmetry, one stage over: a missing wall must never read as "nobody has been
+contacted", and a missing ledger must never read as "this batch cost nothing".
+**Never exit 1**, not even on a duplicate. Owned by `outbound/ledger.py`.
+
+`ledger add` is the only way a retrieval Python did not make gets recorded. An
+agent's own WebSearch and WebFetch happen model-side and are invisible here, so
+those lines are **reported on trust** and `retrieved_by` keeps them
+distinguishable from the ones the code wrote itself. `ledger report` reads a
+batch back and writes nothing.
+
+**Reporting a duplicate is the job; failing on one is not.** A gate that can
+halt a real send file over an accounting line is a gate people learn to route
+around — the same reason `doc-check` runs with the tests rather than with a
+batch. The stage that removes the duplicate is the one that gets to block on it.
+
+**The costs are estimates, and the ledger says so.** The runner uses Apify's
+run-sync-get-dataset-items, which collapses a run to its output, so the billed
+`usageTotalUsd` on the run object is never fetched. A ledger implying otherwise
+would be worse than none.
 
 ### `classify-footprint`
 Merges pre-fetched search hits into sourcing candidates. Fetch-agnostic by

@@ -100,6 +100,13 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 - `python main.py research <obj.json>` — schema. Catches a verdict outside the
   enum, and a hard yes/no with no source, which means it was reasoned rather
   than fetched.
+- `python main.py observe <obs.json>` — the same treatment for what a worker
+  says it actually fetched: enums, a piece of content that carries its text, a
+  publication date that parses and has already happened, and a `retrieved_by`
+  naming a rung this machine has. **Additive — nothing consumes observations
+  yet**, and the hook stage still does its own fetching. The contract exists so
+  that evidence stops being discarded one boolean at a time, and so the
+  duplicate fetch it makes unnecessary can be removed against a measurement.
 - `python main.py lint <drafts.json>` — traceability, claim preservation, the
   bridge, voice, and batch repetition.
 - `python main.py export --anchors <deal.json>` — the drafts really used the
@@ -125,6 +132,15 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 - `python main.py copy-usage` — reports which lines actually shipped back to
   Copy Assets. Also after uploading. **Additive, not idempotent** — run once
   per batch.
+- `python main.py ledger` — what each retrieval cost and how long it took, one
+  JSON line per fetch in `data/runs/<batch>.jsonl`, written as the run proceeds
+  so a batch that dies mid-stage still leaves its accounting. `ledger add`
+  records the model-side rungs Python cannot see, on trust; `ledger report`
+  reads a batch back and names any `(lead, url)` fetched twice for something
+  other than verification. **Exit 2 on a missing ledger** — a missing ledger is
+  not a zero-cost batch, the same asymmetry as the wall. **Never exit 1**, not
+  even on a duplicate: reporting one is the job, and a gate that can halt a send
+  file over an accounting line is a gate people learn to route around.
 - `python main.py doc-check` — the docs against the code they describe. Every
   command a doc names must exist in the parser, every path it backticks must be
   on disk, every copy-line id must be in the CSV, every `Defers to:` must
@@ -177,9 +193,12 @@ Pointers, not manuals. Every module carries a full docstring.
 **`outbound/`** — `normalize` (raw row to Lead, junk classification),
 `dedupe` (the two passes and the Contacted-Before wall), `fetch` (the free-first
 ladder and the batched Apify plan), `qualify` (the three floors, evidence-
-carrying), `research` (the typed contract every worker returns), `anchors` (the
+carrying), `research` (the typed contract every worker returns), `observe` (one
+thing that was actually fetched, kept verbatim), `anchors` (the
 deterministic line draw and the fact table), `lint` (the checks), `export`
-(leads.csv and preview.txt).
+(leads.csv and preview.txt), `ledger` (what every retrieval cost and how long it
+took — the only module here that fails **open**, because an observer that can
+halt the run it observes is worse than no observer).
 
 **`audit/`** — what survived the pivot: `email_check`, `email_verifier`,
 `email_enrich`, `apify` (cost-gated), `extract`, `urls`, `draft_lint`,
