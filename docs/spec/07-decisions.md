@@ -277,6 +277,61 @@ that is the signal to point at it rather than copy it.**
 
 ---
 
+### D19 · The identity beat is claim-scoped; the other three are text-scoped
+**2026-08-01.** Offer, close and ps are Haytham's sentences, lightly re-voiced.
+The identity beat is **written per lead**, and what is fixed about it is what it
+claims — which row of `copy/results.csv`, which columns, whether it may name the
+segment — not its words. `outbound/anchors.py` owns the grammar; Airtable *Copy
+Assets* holds the value.
+
+**Why.** A defect in a hand-written line was unfixable by the drafter, who is
+not allowed to touch the copy. The lead spent its one rewrite pass on a problem
+it structurally could not solve and held anyway: two of three send-ready leads
+died that way on the first real batch, and the fix each time was editing a line
+in Airtable, per lead, forever. It was also already two-thirds true — the bridge
+rule requires a second-person clause before the first digit and most bank lines
+open on a bare stat, so the model was already composing that sentence on most
+leads. What was missing was any check on what the composed sentence claimed, and
+a wrong figure went out under a real segment's name for a month because of it.
+
+**What it costs.** A mechanical guarantee that the identity words are Haytham's,
+traded for a mechanical guarantee about the claim plus a human guarantee about
+voice. The cold read is materially more load-bearing on this beat than on the
+others, which is why `draft-verifier` watches specifically for a sentence that
+carries the claim and none of the reference line's edge.
+
+**Reversed by** authored identity sentences reading measurably worse on cold
+reads than the hand-written ones did. Not by a single bad draft — by a pattern
+across a batch that the verifier keeps catching.
+
+---
+
+### D20 · One email verifier, and no documented fallback nobody has run
+**2026-08-01.** `michael.g/email-verifier-validator` via Apify, with the local
+MX check in `audit/email_check.py` as the free fallback. `account56` and
+ZeroBounce are deleted rather than disabled.
+
+**Why.** Two verifiers were down at once on the first batch: the primary
+answered `{"status":"error"}` for every address, and ZeroBounce — the
+*documented* automatic fallback — turned out to have zero credits when it was
+finally called on. The machine had no working verifier and said so only as a
+WARN per address, indistinguishable from a run of catch-all domains, for 40
+leads. A fallback nobody has exercised is a fallback nobody has, and a flag
+saying "do not call this actor" is a call site waiting to be switched back on by
+somebody who does not know why it was switched off.
+
+The local check can prove a domain takes mail and never that a mailbox exists.
+Its best answer is a WARN that says exactly that, and it can never clear an
+address on its own. **No SMTP probe**, deliberately: cloud IPs are widely
+blocked on port 25, the large hosts accept-all anyway, and a probe from a
+container reads as reconnaissance to some mail hosts.
+
+**Reversed by** a second verifier that is actually exercised on every batch
+rather than only in an outage — which is the only way the next one gets found
+before it matters.
+
+---
+
 ## What is unknown
 
 - **Nothing here has been reversed yet.** The reversal conditions are untested,
