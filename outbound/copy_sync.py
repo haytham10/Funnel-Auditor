@@ -51,6 +51,7 @@ FIELD_MAP = {
     "Coach Type": "coach_type",
     "Sells To": "sells_to",
     "Shape": "shape",
+    "Claim": "claim",
     "Weight": "weight",
     "Active": "active",
 }
@@ -137,6 +138,7 @@ def normalize_records(records: list[dict]) -> tuple[list[dict], list[str]]:
                 "coach_type": (row.get("coach_type") or "").strip(),
                 "sells_to": (row.get("sells_to") or "").strip(),
                 "shape": (row.get("shape") or "").strip(),
+                "claim": (row.get("claim") or "").strip(),
                 "weight": str(row.get("weight") or "").strip(),
             },
         })
@@ -337,8 +339,8 @@ def validate(lines: list[dict], facts=None) -> list[str]:
 # depends on which rung of the three-source ladder answered, which is the exact
 # failure the canonical id sort was added to kill.
 CSV_COLUMNS = {
-    "identity": ["id", "coach_type", "sells_to", "shape", "weight", "line",
-                 "word_count"],
+    "identity": ["id", "coach_type", "sells_to", "shape", "claim", "weight",
+                 "line", "word_count"],
     "offer": ["id", "line", "weight", "word_count"],
     "cta": ["id", "line", "weight", "word_count"],
     "ps": ["id", "line", "weight", "word_count"],
@@ -355,11 +357,20 @@ def _row_for(line: dict, beat: str) -> dict:
     meta = line["meta"]
     word_count = str(len(line["line"].split()))
     if beat == "identity":
+        # `weight` is in CSV_COLUMNS above and was NOT being written — the
+        # column was added and the writer was not, so DictWriter filled it with
+        # its blank default on every row. An identity weight set in Airtable
+        # survived into the live bank and the snapshot and vanished from the
+        # CSVs, which is a bank whose draw depends on which rung of the source
+        # ladder answered. That is precisely what the comment above CSV_COLUMNS
+        # says this column was added to stop.
         return {
             "id": line["id"], "coach_type": meta.get("coach_type", ""),
             "sells_to": meta.get("sells_to", "") or "any",
-            "shape": meta.get("shape", ""), "line": line["line"],
-            "word_count": word_count,
+            "shape": meta.get("shape", ""),
+            "claim": meta.get("claim", ""),
+            "weight": str(meta.get("weight", "") or "").strip(),
+            "line": line["line"], "word_count": word_count,
         }
     return {
         "id": line["id"], "line": line["line"],
