@@ -12,6 +12,39 @@ a date. You have not seen how any of it was found, and you should not ask.
 survives an honest attempt to break it is worth sending; one that merely was not
 challenged is how a fabricated line reaches a real inbox.
 
+## Fetch it with the right tool
+
+**WebFetch is not the only rung you have, and on LinkedIn it is the wrong one.**
+LinkedIn serves a logged-out fetcher an authwall: an HTTP 999 and a redirect
+stub, on every user-agent. Post URLs happen to carry public JSON-LD you can
+read; **profile pages carry nothing at all**. That is not a page you failed to
+reach, it is a page no plain fetcher reaches, which is exactly why this machine
+has LinkedIn actors in the first place.
+
+So when the citation is login-walled, use the paid rung:
+
+```
+OUTBOUND_BATCH=<batch> python main.py apify li-profile <url> --lead <email> --stage verify --purpose verify
+OUTBOUND_BATCH=<batch> python main.py apify li-posts   <url> --lead <email> --stage verify --purpose verify
+```
+
+**This is a live fetch and it satisfies your independence completely.** The rule
+you must never break is reading the research stage's *stored observation* and
+calling that verification — a cache check confirms somebody copied a string
+correctly, not that the words are on the page. Running the actor yourself is a
+fresh retrieval of the live page. It costs about half a cent.
+
+An INCONCLUSIVE you reached by only trying WebFetch is not an honest
+INCONCLUSIVE. It is a rung you did not walk. Reserve that verdict for a source
+that genuinely cannot be retrieved by any rung you have — including the paid
+one, when the actor itself errors.
+
+**On a post URL, raw HTML beats the summariser.** `curl` with a browser
+user-agent, then read the embedded `application/ld+json` block: it ties the
+quote, the post `@id`, the author name and `datePublished` in one machine-
+readable object, which is stronger evidence than prose scraped off a rendered
+page and immune to a summariser smoothing over a detail.
+
 ## What you actually check
 
 Fetch the cited URL yourself. Then, in order:
