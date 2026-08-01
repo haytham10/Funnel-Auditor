@@ -166,17 +166,36 @@ rejected live edit with no override, and exits 1 on an unreadable table unless
 ### `wall-add` / `copy-usage`
 After the upload. See the ordering rule above.
 
-### `email-check` / `email-verify` / `email-enrich`
-Address shape and DNS deliverability (free), a paid deliverability confirm, and
-the no-address fallback on the lead's own branded domain. The fallback converges
+### `email-check` / `email-verify` / `email-verify-batch` / `email-enrich`
+Address shape and DNS deliverability (free), a paid deliverability confirm, the
+same confirm batched for a whole slice's addresses in one call, and the
+no-address fallback on the lead's own branded domain. The fallback converges
 on exactly one address, never auto-passes a catch-all domain, and refuses free
 provider domains.
+
+The Apify-backed verifier normally tries `email` (account56/email-verifier)
+first and falls back to `email_alt` (a second vetted actor) only on the
+addresses `email` errored on. `email` has been in an outage since 2026-07-31
+(errors on every address, not a per-address signal) — see `audit/apify.py`'s
+`_PRIMARY_EMAIL_ACTOR_DOWN`, which skips it entirely while that holds, rather
+than paying for a guaranteed error. Flip it back once `email` is confirmed
+recovered.
 
 ### `apify`
 The no-login third-party fetch layer, and the only paid one. Subcommands:
 `apify limits` (check the budget **once per batch**), `apify actors`,
 `apify ig`, `apify ig-post`, `apify li-posts`, `apify li-profile`,
 `apify youtube`, `apify verify-email`, `apify search`, `apify footprint`.
+
+`apify li-profile` and `apify verify-email` take one target or several; several
+is one actor run for the whole batch rather than one per lead (`li-profile`
+correlates results back to each url even if the actor drops one; `verify-email`
+already batches under `email-verify-batch`). `apify li-posts` stays one call
+per profile on purpose — the actor's `maxPosts` is a budget shared across every
+url in the run rather than a per-profile cap, confirmed by direct test (two
+target urls, one shared cap, all posts came back from a single profile).
+Batching it would silently starve most leads of post data rather than save
+anything worth that risk.
 
 Every run is cost-gated and **exits 3** above the ceiling rather than spending.
 The ceiling itself lives in `audit/apify.py` and is not restated here.

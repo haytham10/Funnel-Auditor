@@ -1,3 +1,136 @@
+## 2026-08-01 (first real batch) — 155 leads in, 1 email out, and why that is the honest number
+
+Haytham dropped a 155-row UAE coach list and asked for a clean Smartlead file.
+The machine ran end to end for the first time. **One email reached SEND.** That
+number is not a bug report, it is the gate working, but the run surfaced enough
+that the fix list below matters more than the file.
+
+### The funnel, measured
+
+```
+155 raw -> 151 clear (2 already contacted, 2 in-batch dupes; no WARM hits)
+151 -> 106 pass the three floors (18 uae_based, 11 is_coach, 14 active, 2 both)
+slice 1 of 16 taken to the end: 8 draftable -> 3 hooks VERIFIED -> 1 SEND
+```
+
+**Tier 0 read 89 of 151 sites free (59%).** That is the number the batch skill
+says nobody has published for this niche. Record it. The other 62 were settled
+by the workers' own WebSearch/WebFetch, not by Apify — the generic
+site-crawler escalation plan was deliberately not run, because that actor is
+not in the vetted set and the free tier-1 fallback covered it. Whole-batch
+research cost about **$1.36 of Apify** (26.4% -> 31.1% of the monthly cap).
+
+### Two email-verifier outages, one of them silent
+
+`account56/email-verifier` returned `{"status":"error"}` for **every** address,
+valid or not — an actor fault that `classify_verification` correctly reads as
+WARN. Correct, and useless: the first 40 leads all came back WARN, which is
+indistinguishable from a batch of genuine catch-alls. Added `email_alt`
+(`michael.g/email-verifier-validator`, Haytham-named) as a fallback, then, on
+his instruction, stopped calling the primary at all —
+`_PRIMARY_EMAIL_ACTOR_DOWN` in `audit/apify.py`. **Flip it back when account56
+recovers.**
+
+The documented ZeroBounce fallback **was not actually available**:
+`getcredits` returns `{"Credits":"0"}`. So during the outage window the machine
+had no working verifier at all and said so only as WARN. Post-fix the same
+addresses resolved to 69 pass / 68 warn / 4 fail across 151.
+
+### Batching: two of three, and the third is a trap
+
+Haytham: stop calling actors one lead at a time. `linkedin_profile()` and
+`verify_emails()` now take a list and run once for a whole slice (new
+`email-verify-batch`; `apify li-profile` takes many URLs). `linkedin_profile`
+correlates results back per URL so one dead profile does not blank the rest.
+
+**`linkedin_posts` must stay one call per profile.** Tested directly: two
+`targetUrls`, `maxPosts: 10`, and all ten posts came back from ONE profile and
+zero from the other. `maxPosts` is a budget shared across the run, not a
+per-profile cap. Batching it would silently starve most leads of post data,
+which reads downstream as "no recent activity" — a false `active_recent` kill
+and a hook search that never sees what is there. Worth more than the container
+boots it would save.
+
+### The list lied, constantly
+
+Roughly **40 of 151** leads carried an identity or site mismatch: the given
+`site_url` or LinkedIn URL belonged to an unrelated person or company (parked
+domains, name collisions, a coach's training-school site mistaken for their own
+practice), or the current LinkedIn placed them in Saudi, Albania, Panama,
+Egypt, India, Malaysia, Romania, the Netherlands or the US while the row said
+UAE. Every override was independently re-sourced. **Treat any single field on a
+purchased list as a hypothesis.**
+
+### `qualify`'s `is_coach` check can never say no
+
+It keyword-matches "coach" and structurally only returns yes/unclear. Workers
+in at least five slices had to override it by hand with sourced evidence — a
+Bacardi retail supervisor, a flydubai cabin crew member, a Middlesex lecturer,
+an airline CEO whose goalie coaching is a stated hobby. The floor is doing
+nothing on its own. Either it gets real logic or the docs should stop calling
+it a floor.
+
+### What actually blocked the drafts
+
+This is the finding worth the session. Across three leads and six draft/verify
+cycles: **every drafter-written line passed on its second read.** The recurring
+blockers were the hand-written bank lines and, worse, their *pairings*.
+
+- `id-biz-3` garden-pathed: "the last business coach in Dubai" read as *the
+  only one left*. Fixed in Airtable (added "I worked with", matching
+  `id-health-3`). The re-draft then reached **SEND** — the fix demonstrably
+  worked.
+- `id-life-1` ended on "all with prospects ready to say yes": an unfalsifiable
+  flourish, and sales-desk register against a psychology-based coach's own
+  voice. Replaced with "and 3 of them signed". **The replacement may have
+  traded one flaw for another** — a later cold read called the result a
+  three-number proof stack (8 / 5 weeks / 3). Unresolved; `id-life-4` (Abu
+  Dhabi, two numbers, person-turn built in) was independently recommended twice
+  as the better line for that segment.
+- **Seam collisions are systemic and unchecked.** `id-career-3` ends "...worked
+  with here." and `b4-02` opens "Real people here," — four seconds apart, each
+  line fine alone. Measured across the bank: **14 of 132 identity->offer
+  pairings (11%) repeat a distinctive word across the seam** (here, people,
+  this, actually, meeting). Nothing catches this: the linter is per-line, and
+  `deal` does not look at what a line sits next to. Roughly 1 lead in 9 will
+  draw one and burn its rewrite pass on it.
+- `cta-01` ships verbatim as the "good example" in
+  `references/critical-failures.md`. Fine once; a tell if a reader sees two.
+
+### The rewrite budget is spent on things the drafter cannot fix
+
+A lead gets one rewrite. When the defect is in a bank line or a bank *pairing*,
+the drafter cannot touch it, so the lead burns its pass and holds anyway. That
+is how two of three send-ready leads died. The one-rewrite rule is right for
+drafter error and wrong for copy error; they are not the same failure and
+should not share a budget.
+
+### Also worth knowing
+
+A hook-worker overstated a lead's role ("ran the workshop" when his own post
+said he was an invited participant) and the hook-verifier caught it on the
+re-fetch. Another claimed "this month" for a 30-day-old comment; also caught.
+Both refutations were correct. The independence is earning its cost.
+
+Three leads produced **no hook at all** after a second pass that searched
+Instagram and the open web as well as LinkedIn: one has a private Instagram,
+one has no discoverable IG and a dead site, one is unfindable behind same-name
+collisions. Null is the right answer and the workers gave it without stretching.
+
+### Shipped this session
+
+- `audit/apify.py`: `email_alt` fallback + `_PRIMARY_EMAIL_ACTOR_DOWN`;
+  batched `linkedin_profile`; `linkedin_posts` documented as un-batchable.
+- `main.py`: `email-verify-batch`; `apify li-profile` takes many URLs.
+- Airtable Copy Assets: `id-biz-3` and `id-life-1` rewritten (both carry their
+  reason in the Notes field).
+- `out/leads.csv` — one lead, Chris Lake. Read `out/preview.txt` before upload.
+  `wall-add` and `copy-usage` are NOT run; they wait on an actual upload.
+
+The remaining 105 qualified leads are researched and un-drafted. Their research
+lives in `work/research-all-151.json` (gitignored, container is ephemeral — it
+was handed to Haytham directly).
+
 ## 2026-07-31 (email length) — the hook pays, so stop charging the copy
 
 Haytham asked who pays for a long email. The answer was the hook: four of five

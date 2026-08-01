@@ -50,7 +50,17 @@ reason to look before a run that costs real money.
     li_profile  harvestapi/linkedin-profile-scraper     headline/about/experience; optional email-search mode (finds an address)
     yt_channel  apidojo/youtube-channel-information-scraper  channel subscriber count + stats (the audience-floor number the free tier can't read for YT-native coaches)
     email       account56/email-verifier                MillionVerifier-backed address verification
+    email_alt   michael.g/email-verifier-validator      fallback verifier, only when `email` errors on an address
     search      apify/google-search-scraper             Google SERP (site:, country, date filters)
+
+    (email_alt added 2026-07-31: account56/email-verifier started returning
+    `{"status": "error", "error": "Failed to verify email"}` for every address
+    regardless of validity — an actor-side outage, not a per-address signal.
+    Haytham named this specific actor as the fallback. `verify_emails` below
+    retries only the addresses `email` errored on, and normalizes the result
+    (`status`/`technical_status`/`catch_all` -> the `result` token
+    `classify_verification` already reads) rather than teaching that function
+    a second vocabulary.)
 
     (yt_channel added 2026-07-19 for the qualifier's audience floor: a coach
     whose only sizeable channel is YouTube (subscriber count is JS/login-walled
@@ -136,6 +146,7 @@ does. A missing token fails closed with a clear message, never a guess.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 import requests
@@ -158,6 +169,7 @@ ACTORS = {
     "li_profile": "harvestapi~linkedin-profile-scraper",
     "yt_channel": "apidojo~youtube-channel-information-scraper",
     "email": "account56~email-verifier",
+    "email_alt": "michael.g~email-verifier-validator",
     "search": "apify~google-search-scraper",
 }
 
@@ -608,7 +620,16 @@ def linkedin_posts(url: str, max_posts: int = 5, since: str | None = None,
                    raw: bool = False, approved: bool = False) -> list[dict]:
     """Recent LinkedIn posts (no cookies) — the primary hook source. `since`
     is one of LI_POSTED_LIMITS (e.g. 'week', 'month'). Reactions/comments
-    stay off by default to keep the run cheap. Cost-gated on `max_posts`."""
+    stay off by default to keep the run cheap. Cost-gated on `max_posts`.
+
+    Stays single-URL on purpose, unlike `linkedin_profile`: this actor's
+    `maxPosts` is a budget shared across every `targetUrls` entry in the run,
+    not a per-profile cap — verified directly (two target URLs, maxPosts=10,
+    all 10 posts came back from the SAME profile, zero from the other).
+    Batching leads into one call would silently starve most of them of any
+    post data, which reads as "no recent activity" — a false `active_recent`
+    kill and a hook search that never finds what's actually there. That is a
+    worse failure than one container boot per lead."""
     if since and since not in LI_POSTED_LIMITS:
         raise ApifyError(f"since must be one of {LI_POSTED_LIMITS}, got {since!r}")
     _require_cost_approval(ACTORS["li_posts"], max_posts, approved)
@@ -641,62 +662,93 @@ def _li_best_email(emails: list) -> str | None:
     return (valid or entries[0])["email"]
 
 
-def linkedin_profile(url: str, with_email: bool = False, raw: bool = False,
-                     approved: bool = False) -> list[dict]:
+def _format_li_profile(i: dict) -> dict:
+    location = i.get("location") or {}
+    current = (i.get("currentPosition") or [{}])[0]
+    experience = []
+    for e in i.get("experience") or []:
+        end = e.get("endDate") or {}
+        rec_e = {
+            "title": e.get("position"),
+            "company": e.get("companyName"),
+            "location": e.get("location"),
+            "duration": e.get("duration"),
+            "description": e.get("description"),
+            # harvestapi has no is_current flag; a position still running
+            # reads "Present" as its end date, which is the same fact.
+            "is_current": str(end.get("text", "")).strip().lower() == "present" or None,
+        }
+        experience.append({k: v for k, v in rec_e.items() if v not in (None, "", [])})
+    websites = [w for w in (i.get("websites") or []) if isinstance(w, str)]
+    name = " ".join(p for p in (i.get("firstName"), i.get("lastName")) if p)
+    rec = {
+        "linkedinUrl": i.get("linkedinUrl"),
+        "publicIdentifier": i.get("publicIdentifier"),
+        "fullName": name,
+        "headline": i.get("headline"),
+        "about": i.get("about"),
+        "location": location.get("linkedinText"),
+        "currentCompany": current.get("companyName"),
+        "followerCount": i.get("followerCount"),
+        "website": websites[0] if websites else None,
+        "email": _li_best_email(i.get("emails")),
+        "experience": experience,
+    }
+    return {k: v for k, v in rec.items() if v not in (None, "", [])}
+
+
+def _li_identifier(url: str) -> str:
+    """The `/in/<public-identifier>` segment, lowercased — the stable key
+    for correlating a batched query back to which lead asked for it. This
+    actor's output rows don't echo the input string on a success, only
+    `publicIdentifier`/`linkedinUrl`, so matching has to go through this."""
+    m = re.search(r"/in/([^/?#]+)", url)
+    return (m.group(1) if m else url).strip().strip("/").lower()
+
+
+def linkedin_profile(urls: str | list[str], with_email: bool = False,
+                     raw: bool = False, approved: bool = False):
     """LinkedIn profile enrichment (headline, about, experience). Pass
     with_email=True ONLY when hunting an address for a no-email lead — it
     switches the actor to its email-search mode, which bills 2.5x the plain
-    one. Takes a profile URL or bare public identifier. Cost-gated (1 item, at
-    the price of whichever mode is being run)."""
+    one.
+
+    `urls` is a single profile URL/identifier (returns a list, as before,
+    raising if it didn't resolve) OR a list of them — a list is ONE actor
+    run for the whole batch (`queries` already takes an array; ten profiles
+    in one call is one container boot instead of ten, and this actor DOES
+    key its output per query rather than sharing a budget across them, unlike
+    `linkedin_posts`'s `maxPosts` — see the note there on why that one stays
+    single-URL). Batched mode returns one row per input url, in input order,
+    `None` for a url that didn't resolve rather than raising — one bad
+    profile in a batch of ten should not blank out the other nine."""
+    single = isinstance(urls, str)
+    url_list = [urls] if single else list(urls)
+    if not url_list:
+        raise ApifyError("linkedin_profile needs at least one URL")
     event = LI_PROFILE_EVENTS[bool(with_email)]
-    _require_cost_approval(ACTORS["li_profile"], 1, approved, event_key=event)
+    _require_cost_approval(ACTORS["li_profile"], len(url_list), approved, event_key=event)
     items = run_actor(
         ACTORS["li_profile"],
         # `queries` takes profile URLs or bare public identifiers
         # interchangeably, which is the one input field that accepts both —
         # the more specific `urls`/`publicIdentifiers` fields would make the
         # caller decide which of the two it holds.
-        {"queries": [url], "profileScraperMode": LI_PROFILE_MODES[bool(with_email)]},
+        {"queries": url_list, "profileScraperMode": LI_PROFILE_MODES[bool(with_email)]},
         memory_mbytes=256,
     )
     if raw:
         return items
-    _raise_on_actor_error(items, url)
-    out = []
+
+    if single:
+        _raise_on_actor_error(items, url_list[0])
+        return [_format_li_profile(i) for i in items]
+
+    by_ident = {}
     for i in items:
-        location = i.get("location") or {}
-        current = (i.get("currentPosition") or [{}])[0]
-        experience = []
-        for e in i.get("experience") or []:
-            end = e.get("endDate") or {}
-            rec_e = {
-                "title": e.get("position"),
-                "company": e.get("companyName"),
-                "location": e.get("location"),
-                "duration": e.get("duration"),
-                "description": e.get("description"),
-                # harvestapi has no is_current flag; a position still running
-                # reads "Present" as its end date, which is the same fact.
-                "is_current": str(end.get("text", "")).strip().lower() == "present" or None,
-            }
-            experience.append({k: v for k, v in rec_e.items() if v not in (None, "", [])})
-        websites = [w for w in (i.get("websites") or []) if isinstance(w, str)]
-        name = " ".join(p for p in (i.get("firstName"), i.get("lastName")) if p)
-        rec = {
-            "linkedinUrl": i.get("linkedinUrl"),
-            "publicIdentifier": i.get("publicIdentifier"),
-            "fullName": name,
-            "headline": i.get("headline"),
-            "about": i.get("about"),
-            "location": location.get("linkedinText"),
-            "currentCompany": current.get("companyName"),
-            "followerCount": i.get("followerCount"),
-            "website": websites[0] if websites else None,
-            "email": _li_best_email(i.get("emails")),
-            "experience": experience,
-        }
-        out.append({k: v for k, v in rec.items() if v not in (None, "", [])})
-    return out
+        if isinstance(i, dict) and i.get("publicIdentifier") and not i.get("error"):
+            by_ident[i["publicIdentifier"].strip().lower()] = _format_li_profile(i)
+    return [by_ident.get(_li_identifier(u)) for u in url_list]
 
 
 def _yt_run_input(channel: str) -> dict:
@@ -736,19 +788,68 @@ def youtube_channel(channel: str, raw: bool = False, approved: bool = False) -> 
             for i in items]
 
 
+def _normalize_alt_email_result(item: dict) -> dict:
+    """`email_alt` (michael.g/email-verifier-validator) speaks its own
+    vocabulary — top-level `status`: good/bad, `technical_status`:
+    valid/invalid. Fold it into the `result` token `classify_verification`
+    already reads instead of teaching that function a second vocabulary."""
+    if item.get("disposable"):
+        token = "disposable"
+    elif item.get("catch_all"):
+        token = "catch_all"
+    else:
+        technical = (item.get("technical_status") or "").strip().lower()
+        token = technical if technical in ("valid", "invalid") else "unknown"
+    out = dict(item)
+    out["result"] = token
+    return out
+
+
+# account56/email-verifier has been in an outage since 2026-07-31 (returns
+# `{"status": "error"}` for every address, valid or not — an actor fault, not
+# a per-address signal). Haytham: stop spending calls on it while it's down,
+# it's wasting credits for a guaranteed error. `email_alt` is now the one
+# actually called; flip this back once account56 is confirmed recovered.
+_PRIMARY_EMAIL_ACTOR_DOWN = True
+
+
 def verify_emails(emails: list[str], raw: bool = False, approved: bool = False) -> list[dict]:
-    """Verify one or more addresses (MillionVerifier-backed). The confirm
-    step before a found/guessed address enters the CRM. Cost-gated on
-    len(emails)."""
+    """Verify one or more addresses. The confirm step before a found/guessed
+    address enters the CRM. Cost-gated on len(emails).
+
+    Normally tries `email` (account56/email-verifier, MillionVerifier-backed)
+    first and only falls back to `email_alt` (michael.g/email-verifier-
+    validator, Haytham-named fallback) for addresses that error. While
+    `_PRIMARY_EMAIL_ACTOR_DOWN` is set, `email` is skipped entirely and
+    `email_alt` runs directly — no point paying for a guaranteed error."""
     if not emails:
         raise ApifyError("verify_emails needs at least one address")
-    _require_cost_approval(ACTORS["email"], len(emails), approved)
-    items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
+
+    if _PRIMARY_EMAIL_ACTOR_DOWN:
+        _require_cost_approval(ACTORS["email_alt"], len(emails), approved)
+        alt_items = run_actor(ACTORS["email_alt"], {"emails": emails}, memory_mbytes=256)
+        by_email = {alt["email"].strip().lower(): _normalize_alt_email_result(alt)
+                    for alt in alt_items if isinstance(alt, dict) and alt.get("email")}
+    else:
+        _require_cost_approval(ACTORS["email"], len(emails), approved)
+        items = run_actor(ACTORS["email"], {"emails": emails}, memory_mbytes=256)
+        by_email = {(i.get("email") or "").strip().lower(): i
+                    for i in items if isinstance(i, dict) and i.get("email")}
+        errored = [e for e in emails
+                   if (by_email.get(e.strip().lower()) or {}).get("status") == "error"]
+        if errored:
+            _require_cost_approval(ACTORS["email_alt"], len(errored), approved)
+            alt_items = run_actor(ACTORS["email_alt"], {"emails": errored}, memory_mbytes=256)
+            for alt in alt_items:
+                if isinstance(alt, dict) and alt.get("email"):
+                    by_email[alt["email"].strip().lower()] = _normalize_alt_email_result(alt)
+
+    ordered = [by_email[e.strip().lower()] for e in emails if e.strip().lower() in by_email]
     if raw:
-        return items
+        return ordered
     return [_lean(i, ("email", "status", "result", "resultCode", "subStatus",
                       "free", "role", "disposable"))
-            for i in items]
+            for i in ordered]
 
 
 def google_search(query: str, pages: int = 1, site: str | None = None,
