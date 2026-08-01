@@ -1,3 +1,110 @@
+## 2026-08-01 (P4 and the rest) — everything the measurement does not gate
+
+Haytham: read the proposal and the journal, then plan the remaining parts. The
+useful thing that fell out of reading them together is that **the remainder is
+two piles, not one**, and only one of them is blocked.
+
+P3 landed switched off because it is gated on numbers that do not exist:
+`data/runs/` has never recorded a `li_posts` fetch, so the duplicate the whole
+proposal exists to remove has never been measured. Three sessions have held that
+gate. **This one did not touch it.** What it did was finish everything that was
+never waiting on it — which turned out to be most of what was left.
+
+Shipped, in five commits, each its own argument:
+
+- **The `run_plan` fallthrough**, recorded as found-and-not-fixed when P3
+  landed. It dispatched on `actor_key`, returned the render crawler for
+  `site_render`, and **defaulted to cheerio for everything else** — so a caller
+  handing it an `li_profile` batch would have run a static HTML scraper against
+  LinkedIn URLs, paid, silently, returning empty items that read as a lead with
+  nothing on their profile. The defect was the defaulting, not a caller. It
+  raises now.
+- **P4a: `yt_channel` and `search` retired.** Nine actors, two of which bought
+  nothing. `yt_channel` returned a subscriber count whose only consumer is
+  `audience_size` — captured, never gated on, since the audience floor died with
+  the shift to selling their clients rather than leverage on their list. A paid
+  call wired to a field that by design changes no decision. `search` duplicated
+  the agent's free WebSearch, which `audit/footprint.py` already called the
+  preferred path and which is what every skill actually used. **Neither needed a
+  measurement, because neither rests on one**: both are arguments about what a
+  call *changes*, not what it costs. `classify-footprint` was untouched, and
+  being fetch-agnostic is exactly why that was a deletion and not a rewrite.
+- **P4b: homepage-first, counted rather than switched on.** And here the
+  proposal was wrong, which is worth writing down. It estimates -30% of tier-0
+  page fetches from the first batch's 106-of-151 floor pass rate. But those 45
+  failures were settled with everything a research worker gathered across
+  WebSearch, LinkedIn and several pages — and the floors pass on `unclear`. To
+  skip anything, a homepage-only pre-pass needs a **clear `no` on one page**, and
+  `check_uae` and `check_coach` only reach `no` on positive contrary evidence: a
+  named non-UAE location, a named non-coach occupation. That will fire far less
+  often than 45 in 151. Nobody knows how much less, so `fetch` now prints
+  `HOMEPAGE-FIRST: <n> lead(s) already a clear no on page 1, <n> of <n> page
+  fetch(es) deferrable` and skips nothing. One batch settles it. An unreadable
+  homepage is `unknown`, never `no` — a counter that implied otherwise would be
+  arguing for a saving it had not found.
+- **F3 closed, and it needed no new evidence, only a wire.** The activity floor
+  found zero usable dates across nine sites and ~220,000 characters, so
+  `active_recent` was `unclear` for effectively every lead and the floor did
+  nothing; the repair was a write-back from stage 3 that an orchestrator had to
+  remember. **The dates had existed since P1 and nothing read them.**
+  `research-worker` returns schema-checked observations carrying `published_at`,
+  and it returns them *before* it calls `qualify`. The date was in its hand one
+  line earlier.
+- **F11 closed, recorded as D24.** `copy-check` and `deal` move to a new stage
+  2b, before the hooks.
+
+**The one real decision this session made: an observation may only ever move the
+activity floor upward.** `check_active` already answers `NO` to a stale date. So
+handing it the newest of an old observation set would have opened a brand-new
+kill surface at the one floor built not to have one — and opened it on the
+weakest evidence available, which is that the pages *we happened to retrieve*
+were old. D4 says a false kill is permanent and invisible while a false pass
+costs one research call. **Better evidence is a reason to settle a floor, not a
+reason to weaken `unclear` passes.** So a stale set returns exactly what an
+empty set returns, the restriction lives inside `activity_from_observations`
+rather than in a caller's discipline, and the CLI test asserts the stale run is
+line-for-line identical to the bare run. That identity is the property; anything
+weaker is an implementation detail somebody will optimise away.
+
+It still says what it saw: `newest of 1 observation(s) is 2026-01-13 (200d ago)
+— too old to settle the floor, and never a kill`. Worth reading in a report even
+though it changes no verdict.
+
+**D24, the deal moving, is the change with a cost attached, and the cost is
+stated rather than discovered.** The bank leaves between 12 and 36 words for a
+hook. Dealing after the hook stage meant a hook could be found, cited, certified
+by an independent verifier against a verbatim quote — and then handed to a
+drafter with 12 words of room. `draft-worker` is forbidden from trimming the
+offer, close or ps lines, because `hook_room` is computed on the assumption
+those hand-written sentences survive intact. **So the only thing left to
+compress was the one sentence the machine had just gone to the most trouble to
+certify, and nothing re-checks it: the verifier has already run.** A hook chosen
+to fit is a citation. A hook squeezed after certification is a citation drifting
+from its source.
+
+The price: lines are now allocated to leads that later hold on a refuted hook,
+so the shipped batch drifts from the declared weights. That is R4, it needs no
+new machinery — `export --rebalance-ps` exists for exactly this — and what
+changes is frequency. It fires on most batches now rather than some, so the
+brief template carries the drift it reports. Re-dealing after the hooks is not
+the fix: the drafts and the CRM rows are written against the file `deal`
+produced, and a second allocation makes them disagree.
+
+`hook-worker` gets its lead's `hook_room` from `work/anchors.json` and writes to
+it. **`hook-verifier` deliberately does not** — its question is whether the words
+are on the page, and a length note is a reason to be lenient about a quote that
+nearly fits.
+
+**What is left is exactly what the measurement gates**, and nothing else: the P3
+flip (hook-worker stops fetching, `plan` starts declining, `select` gets
+consumed) and F4's `HookProposal`, which needs the authored clause the flip
+brings. The trigger, so nobody re-derives it: one batch reaching stage 3b,
+producing `ledger report`'s `DUPLICATE li_posts` count and `select --against`'s
+`AGAINST:` line, with `missed` and `unobserved` read apart rather than summed.
+
+818 tests (+12), `doc-check` clean at 26 commands and 7 apify subcommands, down
+from 10.
+
 ## 2026-08-01 (P3) — the machine can say which fetch it could have skipped
 
 Built P3 of `docs/proposals/2026-08-01-hook-retrieval.md`: `outbound/plan.py` and

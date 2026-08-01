@@ -48,6 +48,7 @@ fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced. Advisory
 plan        which hook rungs a lead has, and what each would cost. Advisory
 research    research-worker per slice -> typed objects, schema-validated
+deal        the four hand-written lines, allocated for the whole batch at once
 hook        hook-worker proposes -> hook-verifier re-fetches the citation
 select      which observation a hook would come from, without fetching. Advisory
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
@@ -99,17 +100,20 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 
 - `python main.py qualify <lead.json>` — the three floors. **`unclear` passes;
   only a clear `no` drops a row.** A false kill is permanent and invisible; a
-  false pass costs one research call.
+  false pass costs one research call. Pass the lead's `observations` with its
+  text and the activity floor settles from a real publication date — **upward
+  only**, so a lead whose observations are all stale reads exactly like a lead
+  with none, and better evidence buys the floor a `yes` and never a kill.
 - `python main.py research <obj.json>` — schema. Catches a verdict outside the
   enum, and a hard yes/no with no source, which means it was reasoned rather
   than fetched.
 - `python main.py observe <obs.json>` — the same treatment for what a worker
   says it actually fetched: enums, a piece of content that carries its text, a
   publication date that parses and has already happened, and a `retrieved_by`
-  naming a rung this machine has. **Additive — nothing consumes observations
-  yet**, and the hook stage still does its own fetching. The contract exists so
-  that evidence stops being discarded one boolean at a time, and so the
-  duplicate fetch it makes unnecessary can be removed against a measurement.
+  naming a rung this machine has. **The activity floor consumes them; nothing
+  else does yet**, and the hook stage still does its own fetching. The contract
+  exists so that evidence stops being discarded one boolean at a time, and so
+  the duplicate fetch it makes unnecessary can be removed against a measurement.
 - `python main.py plan <identity.json>` — which hook rungs a lead actually has,
   what each would cost, and which paid ones point at somebody else's channel.
   **It declines nothing.** D21 says an ownership verdict may gate a purchase
@@ -124,7 +128,8 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   splits `missed` (observed, ranked out — fixable) from `unobserved` (never
   fetched — the call that cannot be removed). **Additive; nothing consumes it
   and `hook-worker` still fetches.** A quote it finds is in the text we stored,
-  never verified on the page.
+  never verified on the page. `--hook-room` takes the low end of the range
+  `deal` prints, which is knowable here since D24 moved the deal earlier.
 - `python main.py lint <drafts.json>` — traceability, claim preservation, the
   bridge, voice, and batch repetition.
 - `python main.py export --anchors <deal.json>` — the drafts really used the
@@ -196,6 +201,15 @@ offer line 8% against a declared 20% and pushed another to 38%, over the
 repetition cap. It converged near n=200, and batches are not that big. Dealing
 gets the worst miss to about 1 point. `python main.py anchors` keeps the
 per-lead draw for single-lead work, where there is no batch to balance against.
+
+**And it is dealt before the hook is written, not after** (D24). The bank leaves
+between 12 and 36 words for a hook, so dealing late handed the drafter a hook
+that had been certified against a verbatim quote and then had to be compressed —
+the four hand-written lines are never available to cut instead. A hook chosen to
+fit is a citation; a hook squeezed afterwards is a citation drifting from its
+source. The cost is that leads holding on a refuted hook leave their lines
+unused, which is what `export --rebalance-ps` is for and which now fires on most
+batches rather than some.
 
 **The repetition cap outranks the 70/30 exact-match ratio.** When a segment has
 too few identity lines to spread its share — Executive has exactly one usable
@@ -292,7 +306,10 @@ the voice references). **Agents** — `research-worker`, `hook-worker`,
 - **Apify** needs `APIFY_TOKEN`. Every run is cost-gated at $0.10 and blocks
   with `APPROVAL REQUIRED` / exit 3 above it. **Check the budget once per batch,
   not once per worker.** Container boot dominates the bill, not pages — batch
-  every URL into one run.
+  every URL into one run. Seven vetted actors; `yt_channel` and `search` were
+  retired 2026-08-01 because one fed a field the ICP never gates on and the
+  other duplicated the agent's own free WebSearch. Neither was a bill —
+  **`audit/apify.py`'s rule is that an actor is surface area, not capability.**
 - **Email verification** is one paid actor (`audit/apify.py` names it) and one
   free fallback, the local MX check in `audit/email_check.py`, used when Apify
   is near cap or `EMAIL_VERIFY_PROVIDER=local`. **The local check can prove a
