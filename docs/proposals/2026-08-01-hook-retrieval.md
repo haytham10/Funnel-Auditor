@@ -2,12 +2,25 @@
 
 _Written 2026-08-01. A proposal, not a decision._
 
-_**P0 and P1 of Part 9 landed on 2026-08-01**, unchanged in shape: the retrieval
-ledger, and the `Observation` contract with its schema gate. Both are additive
-and neither changes how a hook is found — the duplicate `li_posts` fetch in F1
-is still made on purpose, so it can be removed against a measurement instead of
-an argument. P2 through P4 remain proposal. Everything below is left as written,
-so the reasoning the phases rest on is still readable in its original form._
+_**P0, P1 and P2 of Part 9 landed on 2026-08-01**: the retrieval ledger, the
+`Observation` contract with its schema gate, and `resolve` — a typed Identity
+per lead, link-in-bio pages finally read, and podcast hosts recognised. All
+three are additive and none changes how a hook is found; the duplicate
+`li_posts` fetch in F1 is still made on purpose, so it can be removed against a
+measurement instead of an argument. P3 and P4 remain proposal._
+
+_**One departure from Part 5, recorded rather than quietly made.** `resolve`
+runs after `fetch`, not before it. Part 5's ordering has no `fetch` stage at all
+— tier 0 is absorbed into `observe` by then — so resolving first in the machine
+as it stands would mean reading each homepage and reading it again seconds
+later: 89 duplicate `(lead, url)` pairs on the first batch, which would bury the
+one duplicate the ledger exists to expose. See D22 in `docs/spec/07-decisions.md`.
+P2 also fixed two bugs found underneath it: `_SOCIAL_RE` was harvesting the Meta
+pixel as a lead's Facebook page, and `dedupe` was indexing podcast hosts on the
+wall._
+
+_Everything below is left as written, so the reasoning the phases rest on is
+still readable in its original form._
 
 **The thesis in one line: the hook stage should not retrieve anything.**
 Evidence is fetched once per lead, into a typed record, and every stage after

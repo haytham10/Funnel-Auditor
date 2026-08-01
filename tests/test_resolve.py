@@ -240,6 +240,143 @@ def test_the_platform_vocabulary_is_observe_s():
     assert "linkinbio" in observe.PLATFORMS and "twitter" in observe.PLATFORMS
 
 
+# ------------------------------------------------------------- the link in bio
+
+LINKTREE = """
+<html><body><h1>Sarah Khan</h1>
+  <a href="https://www.instagram.com/themindsetlab">Instagram</a>
+  <a href="https://open.spotify.com/show/4abcXYZ">Podcast</a>
+</body></html>
+"""
+
+
+def pages(**by_url):
+    """A fetcher over canned HTML, and a record of what it was asked for."""
+    asked = []
+
+    def fetch_page(url):
+        asked.append(url)
+        html = by_url.get(url)
+        if html is None:
+            return fetch.Page(url=url, error="ConnectionError")
+        return fetch.Page(url=url, status=200, html=html,
+                          text=fetch.visible_text(html))
+    fetch_page.asked = asked
+    return fetch_page
+
+
+def test_a_link_in_bio_page_is_read_and_vouches_for_what_it_lists():
+    """F8. `normalize` has routed linktr.ee into other_urls since intake was
+    written, and `batch_fetch` targets site_url and nothing else, so the
+    cheapest identity artifact available was discovered and discarded."""
+    lead = lead_of(website="https://linktr.ee/sarahk")
+    reader = pages(**{"https://linktr.ee/sarahk": LINKTREE})
+    identity = resolve.resolve_lead(lead, fetch_page=reader)
+
+    instagram = [c for c in identity.channels if c.platform == "instagram"][0]
+    assert instagram.confidence == "confirmed", instagram.evidence
+    assert instagram.source == "linkinbio"
+    assert any(c.platform == "podcast" for c in identity.channels)
+
+
+def test_a_link_in_bio_page_that_never_names_them_vouches_for_nothing():
+    lead = lead_of(website="https://linktr.ee/themindsetlab")
+    reader = pages(**{"https://linktr.ee/themindsetlab":
+                      '<html><body><a href="https://www.instagram.com/'
+                      'someoneelse">IG</a></body></html>'})
+    instagram = [c for c in resolve.resolve_lead(lead, fetch_page=reader).channels
+                 if c.platform == "instagram"][0]
+    assert instagram.confidence == "absent"
+
+
+def test_a_page_that_will_not_load_is_a_note_never_a_raise():
+    lead = lead_of(website="https://linktr.ee/sarahk")
+    identity = resolve.resolve_lead(lead, fetch_page=pages())
+    assert any("unreadable" in n for n in identity.notes)
+    assert identity.channels, "the linktree URL itself is still a channel"
+
+
+def test_nothing_is_fetched_without_a_fetcher():
+    """The default is no network. `--no-fetch` and every test that does not ask
+    for a reader must be provably offline."""
+    lead = lead_of(website="https://linktr.ee/sarahk")
+    reader = pages(**{"https://linktr.ee/sarahk": LINKTREE})
+    resolve.resolve_lead(lead)
+    assert reader.asked == []
+
+
+def test_resolve_never_refetches_what_fetch_already_read():
+    """D22, made mechanical rather than a docstring claim. The invariant is
+    that a page read free by an earlier stage is never read again here."""
+    lead = lead_of(email="sarah@coachsite.ae", website="https://coachsite.ae")
+    lead.other_urls.append("https://linktr.ee/sarahk")
+    reader = pages(**{"https://linktr.ee/sarahk": LINKTREE})
+    resolve.resolve_lead(lead, site_read(), fetch_page=reader)
+    assert reader.asked == ["https://linktr.ee/sarahk"]
+    assert lead.site_url not in reader.asked
+
+
+def test_every_link_in_bio_page_lands_in_the_ledger():
+    """P0's rule: every retrieval writes itself as it happens. A stage that
+    fetches without accounting for it is the state the ledger was built to end,
+    and it is keyed to the lead so a page cannot be charged to the wrong one."""
+    from outbound import ledger
+
+    batch = "resolve-linkinbio-test"
+    previous = os.environ.get("OUTBOUND_BATCH")
+    os.environ["OUTBOUND_BATCH"] = batch
+    try:
+        lead = lead_of(email="sarah@coachsite.ae",
+                       website="https://linktr.ee/sarahk")
+        reader = pages(**{"https://linktr.ee/sarahk": LINKTREE})
+        resolve.resolve_lead(lead, fetch_page=reader)
+        records, _ = ledger.read(batch=batch)
+    finally:
+        if previous is None:
+            os.environ.pop("OUTBOUND_BATCH", None)
+        else:
+            os.environ["OUTBOUND_BATCH"] = previous
+
+    written = [r for r in records if r.url == "https://linktr.ee/sarahk"]
+    assert len(written) == 1, records
+    assert written[0].stage == "resolve" and written[0].platform == "linkinbio"
+    assert written[0].purpose == "observe" and written[0].cost_usd == 0.0
+    assert written[0].lead_key == "sarah@coachsite.ae"
+    assert written[0].retrieved_by == "tier0"
+
+
+def test_the_page_is_kept_verbatim_as_an_observation():
+    """Once retrieve-once holds nothing reads this page again. Reducing it to a
+    list of links would be F2 committed fresh by the stage written to end it."""
+    lead = lead_of(website="https://linktr.ee/sarahk")
+    reader = pages(**{"https://linktr.ee/sarahk": LINKTREE})
+    identity = resolve.resolve_lead(lead, fetch_page=reader)
+
+    assert len(identity.observations) == 1
+    assert resolve.validate(identity) == []
+    obs = observe.load(identity.observations)[0]
+    assert obs.kind == "bio" and obs.platform == "linkinbio"
+    assert obs.author == "self" and "Sarah Khan" in obs.text
+    assert observe.validate(obs) == []
+
+
+def test_a_link_in_bio_page_with_no_prose_still_validates():
+    """`bio` is deliberately not a CONTENT_KIND: a linktree is a wall of
+    buttons, and requiring text of it would reject a real observation."""
+    lead = lead_of(website="https://linktr.ee/sarahk")
+    reader = pages(**{"https://linktr.ee/sarahk":
+                      '<html><body><a href="https://x.ae"></a></body></html>'})
+    identity = resolve.resolve_lead(lead, fetch_page=reader)
+    assert identity.observations and resolve.validate(identity) == []
+
+
+def test_a_broken_observation_surfaces_through_the_identity_schema():
+    identity = resolve.Identity(lead_key="a@x.ae", observations=[
+        {"platform": "myspace", "url": "", "kind": "bio",
+         "fetched_at": "", "retrieved_by": ""}])
+    assert len(resolve.validate(identity)) >= 3
+
+
 # --------------------------------------------------------------- the delegation
 
 

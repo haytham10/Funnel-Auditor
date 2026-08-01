@@ -1217,7 +1217,7 @@ def cmd_resolve(args) -> None:
     row. Exit 1 on a bad verdict is the natural mistake, and it would be R3 of
     the proposal violated in code.
     """
-    from outbound import fetch as fetch_mod, resolve
+    from outbound import fetch as fetch_mod, ledger, resolve
 
     leads = _load_leads(args.leads)
     reads = {}
@@ -1236,7 +1236,13 @@ def cmd_resolve(args) -> None:
             read.owner_match = site.get("owner_match") or "unknown"
             reads[key] = read
 
-    result = resolve.resolve_all(leads, reads)
+    # The only thing this stage fetches is the link-in-bio page, which no stage
+    # has ever read even though intake has been discovering them since it was
+    # written. `--no-fetch` makes that skippable without making it invisible.
+    ledger.set_context(stage="resolve")
+    result = resolve.resolve_all(
+        leads, reads, workers=args.workers,
+        fetch_page=None if args.no_fetch else resolve.page_reader())
     identities = result["identities"]
     print(result["report"])
 
@@ -1504,6 +1510,11 @@ def build_parser() -> argparse.ArgumentParser:
                                    "that names the lead can vouch for the "
                                    "channels it links")
     p.add_argument("--out", help="write the identities as JSON")
+    p.add_argument("--no-fetch", action="store_true",
+                   help="skip the link-in-bio pages — every verdict then comes "
+                        "from the row and the site read alone")
+    p.add_argument("--workers", type=int, default=fetch_defaults.DEFAULT_WORKERS,
+                   help="concurrent link-in-bio reads")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_resolve)
 

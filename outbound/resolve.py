@@ -318,6 +318,86 @@ def _merge(channels: list[Channel]) -> list[Channel]:
                   key=lambda c: (order.get(c.platform, len(PLATFORMS)), c.url))
 
 
+def _linkinbio_urls(lead) -> list[str]:
+    """The link-in-bio pages on this row. Already discovered, never fetched.
+
+    `normalize` has routed linktr.ee, beacons.ai, stan.store, bio.link,
+    milkshake.app and taplink.cc into `other_urls` since intake was written,
+    with a comment recording that dropping them was a real bug. And then
+    `batch_fetch` targets `site_url` and nothing else, so no stage has ever read
+    one. That is F8: a linktree is a free HTTP page listing every channel a
+    coach has — the cheapest identity artifact available, discovered and
+    discarded.
+    """
+    urls = []
+    for url in (getattr(lead, "other_urls", None) or []):
+        if _platform_of(url) == "linkinbio":
+            urls.append(normalize_url(url))
+    return list(dict.fromkeys(urls))
+
+
+def _read_linkinbio(lead_key_value: str, url: str, tokens: list[str],
+                    fetch_page) -> tuple[list[tuple[str, str]], str, dict, str]:
+    """Read one link-in-bio page: its channels, its own ownership, its record.
+
+    Returns `(channels, page_owner, observation, note)`. A page that will not
+    load yields a note and empties, never a raise — the same posture
+    `fetch.get_page` takes, and for the same reason: this stage cannot be
+    allowed to take a batch down over a linktree.
+    """
+    from outbound import ledger
+
+    page = fetch_page(url)
+    ledger.record(lead_key=lead_key_value, stage="resolve", platform="linkinbio",
+                  url=url, retrieved_by="tier0", cost_usd=0.0, secs=page.secs,
+                  outcome=page.outcome, purpose="observe")
+
+    if not page.html:
+        return [], "unknown", {}, (f"link-in-bio page unreadable ({url}): "
+                                   f"{page.error or page.status}")
+
+    # Does the page itself name them? Only then can it vouch for what it links.
+    # The handle is checked as well as the text, because a linktree is often a
+    # wall of buttons with almost no prose on it.
+    haystack = f"{page.text} {url}".lower()
+    page_owner = "unknown"
+    if tokens:
+        page_owner = "confirmed" if any(t in haystack for t in tokens) else "unknown"
+
+    channels = []
+    for platform, pattern in _social_patterns().items():
+        for match in pattern.finditer(page.html):
+            channels.append((platform, normalize_url(match.group(0))))
+
+    # Kept verbatim. Once retrieve-once holds nothing reads this page again, and
+    # reducing it to a list of links would be F2 committed fresh by the stage
+    # written to end it. `bio` is not a CONTENT_KIND, so a wall of buttons with
+    # no prose still validates.
+    from datetime import datetime, timezone
+
+    observation = {
+        "lead_key": lead_key_value,
+        "platform": "linkinbio",
+        "url": url,
+        "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "author": "self" if page_owner == "confirmed" else "unknown",
+        "kind": "bio",
+        "text": page.text,
+        "cost_usd": 0.0,
+        "retrieved_by": "tier0",
+    }
+    return channels, page_owner, observation, ""
+
+
+def _social_patterns():
+    """`fetch`'s harvest patterns, borrowed rather than restated. They are one
+    definition of what a profile URL looks like, and the pixel they used to
+    match is the reason a second copy is not wanted."""
+    from outbound.fetch import _SOCIAL_RE
+
+    return _SOCIAL_RE
+
+
 def resolve_lead(lead, read=None, *, fetch_page=None) -> Identity:
     """One lead's Identity, from its row plus whatever tier 0 already read.
 
@@ -352,12 +432,40 @@ def resolve_lead(lead, read=None, *, fetch_page=None) -> Identity:
         if platform in PLATFORMS:
             candidates.append((url, platform, "site", site_host))
 
+    # The link-in-bio page, which is the only thing this stage fetches. It is
+    # listed on the row already and no stage has ever read it (F8), and a page
+    # that names the coach vouches for every channel it lists — the cheapest
+    # attribution available anywhere in this machine.
+    for url in _linkinbio_urls(lead):
+        candidates.append((url, "linkinbio", "row", ""))
+        if fetch_page is None:
+            continue
+        found, page_owner, observation, note = _read_linkinbio(
+            identity.lead_key, url, tokens, fetch_page)
+        if note:
+            identity.notes.append(note)
+        if observation:
+            identity.observations.append(observation)
+        host = urlparse(url).netloc
+        for platform, linked in found:
+            if platform in PLATFORMS:
+                candidates.append((linked, platform, "linkinbio",
+                                   host if page_owner == "confirmed" else ""))
+
     channels = []
     for url, platform, source, from_page in candidates:
         canonical = normalize_url(url)
+        # A `from_page` is only ever set by a source that has already decided
+        # the page names them: the site read carries its own owner verdict, and
+        # a link-in-bio page is checked when it is read.
+        page_owner = "unknown"
+        if source == "site":
+            page_owner = identity.owner_verdict
+        elif source == "linkinbio" and from_page:
+            page_owner = "confirmed"
         handle, confidence, evidence = score_channel(
             canonical, platform, tokens, source=source, from_page=from_page,
-            page_owner=identity.owner_verdict if source == "site" else "unknown")
+            page_owner=page_owner)
         channels.append(Channel(platform=platform, url=canonical, handle=handle,
                                 confidence=confidence, evidence=evidence,
                                 source=source))
@@ -373,20 +481,45 @@ def resolve_lead(lead, read=None, *, fetch_page=None) -> Identity:
 
 
 def resolve_all(leads: list, reads: dict | None = None, *,
-                fetch_page=None) -> dict:
+                fetch_page=None, workers: int = 0) -> dict:
     """Every lead's Identity, plus the batch report.
 
     **Every lead gets one**, including a lead with no channels and a lead whose
     every channel is `absent`. An Identity is a description, not a gate.
-    """
-    reads = reads or {}
-    from outbound.fetch import lead_key as _lead_key
 
-    identities = []
-    for lead in leads:
-        identities.append(
-            resolve_lead(lead, reads.get(_lead_key(lead)), fetch_page=fetch_page))
+    Concurrent when it fetches, serial when it does not. `batch_fetch`'s
+    docstring records why: 151 sites at a 15-second timeout blew through a
+    120-second ceiling and then a 590-second one, and was killed twice before
+    finishing. Nobody in this module should write a new serial network loop.
+    Results are collected into a list in input order, so completion order does
+    not leak into the file.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from outbound.fetch import DEFAULT_WORKERS, lead_key as _lead_key
+
+    reads = reads or {}
+    if fetch_page is None:
+        identities = [resolve_lead(lead, reads.get(_lead_key(lead)))
+                      for lead in leads]
+    else:
+        def one(lead):
+            return resolve_lead(lead, reads.get(_lead_key(lead)),
+                                fetch_page=fetch_page)
+
+        pool_size = max(1, min(workers or DEFAULT_WORKERS, len(leads) or 1))
+        with ThreadPoolExecutor(max_workers=pool_size) as pool:
+            identities = list(pool.map(one, leads))
     return {"identities": identities, "report": report(identities)}
+
+
+def page_reader():
+    """The default link-in-bio fetcher: `fetch.get_page` on a per-thread
+    session. Built here rather than defaulted in the signature so that "did
+    anything touch the network" stays a property of the call, not of a global."""
+    from outbound.fetch import get_page, _thread_session
+
+    return lambda url: get_page(url, _thread_session())
 
 
 # ------------------------------------------------------------------- the gate
