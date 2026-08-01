@@ -580,15 +580,19 @@ def _ig_username(url_or_handle: str) -> str:
     return s.strip("/")
 
 
-def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
+def instagram(url: str | list[str], mode: str = "posts", newer_than: str | None = None,
               limit: int = 12, skip_pinned: bool = False, include_about: bool = False,
               raw: bool = False, approved: bool = False) -> list[dict]:
     """Instagram profile enrichment, split across two dedicated actors.
 
     mode='details' → apify/instagram-profile-scraper: profile metadata
     (followers, bio, latest posts; `include_about` adds the paid
-    about-account block — country, join date, verification). Gated as 1
-    profile.
+    about-account block — country, join date, verification). **Takes one
+    profile or several.** The actor's input field is `usernames`, an array, so
+    several profiles are one container boot instead of several — the same lever
+    `linkedin_profile` and `verify_emails` already pull. Results are correlated
+    back per username, so one dead profile returns None in its slot rather than
+    blanking the rest. Gated on the number of profiles.
 
     mode='posts' → apify/instagram-post-scraper: recent posts with captions,
     `newer_than` (e.g. '7 days', '2026-07-01') filtering recency,
@@ -596,25 +600,51 @@ def instagram(url: str, mode: str = "posts", newer_than: str | None = None,
     the coach's signature/framework content, i.e. exactly the SMYKM hook).
     Gated on `limit`.
 
+    **`posts` stays one call per profile, deliberately.** `linkedin_posts` was
+    batched, tested, and turned out to share `maxPosts` across every target as
+    a single run-wide budget: two profiles and a cap of ten returned all ten
+    posts from one profile and nothing from the other. Nobody has tested
+    whether this actor's `resultsLimit` behaves the same way, and assuming it
+    does not is how a batch silently loses most of its post data — which reads
+    downstream as "no recent activity", a false kill on the activity floor plus
+    a hook search that never sees what is there. Test it before batching it.
+
     Pass approved=True once Haytham has signed off on an estimate over
     COST_APPROVAL_THRESHOLD_USD — see "Cost approval gate" above."""
     if mode not in IG_RESULT_TYPES:
         raise ApifyError(f"instagram mode must be one of {IG_RESULT_TYPES}, got {mode!r}")
 
     if mode == "details":
-        _require_cost_approval(ACTORS["ig_profile"], 1, approved)
-        username = _ig_username(url)
-        run: dict[str, Any] = {"usernames": [username]}
+        single = isinstance(url, str)
+        targets = [url] if single else list(url)
+        if not targets:
+            raise ApifyError("instagram(mode='details') needs at least one profile")
+        usernames = [_ig_username(u) for u in targets]
+        _require_cost_approval(ACTORS["ig_profile"], len(usernames), approved)
+        run: dict[str, Any] = {"usernames": usernames}
         if include_about:
             run["includeAboutSection"] = True
         items = run_actor(ACTORS["ig_profile"], run, memory_mbytes=1024)
         if raw:
             return items
-        _raise_on_actor_error(items, username)
         keep = ("username", "fullName", "biography", "followersCount",
                 "postsCount", "url", "latestPosts", "about")
-        return [_lean(i, keep) for i in items]
+        if single:
+            _raise_on_actor_error(items, usernames[0])
+            return [_lean(i, keep) for i in items]
+        # Batched: index by username and return one slot per input, so a
+        # profile the actor could not read is a None the caller can see rather
+        # than a silently shorter list.
+        by_name = {(i.get("username") or "").strip().lower(): _lean(i, keep)
+                   for i in items if isinstance(i, dict)}
+        return [by_name.get(name.strip().lower()) for name in usernames]
 
+    if not isinstance(url, str):
+        raise ApifyError(
+            "instagram(mode='posts') takes one profile. The post actor's "
+            "resultsLimit has not been tested as a per-profile cap, and the "
+            "LinkedIn equivalent turned out to be a run-wide budget that "
+            "starved every profile but one.")
     # mode == "posts"
     _require_cost_approval(ACTORS["ig_post"], limit, approved)
     run = {"username": [url], "resultsLimit": limit}

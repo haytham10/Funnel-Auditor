@@ -212,3 +212,51 @@ def test_a_single_worker_still_works(monkeypatch):
 def test_an_empty_batch_does_not_divide_by_zero(monkeypatch):
     out = fetch.batch_fetch([], workers=8)
     assert out["attempted"] == 0 and out["tier0_rate"] == 0.0
+
+
+# ------------------------------------------------ the leads tier 0 cannot help
+
+
+class _Social:
+    def __init__(self, name, site="", instagram="", linkedin=""):
+        self.name, self.site_url = name, site
+        self.instagram_url, self.linkedin_url = instagram, linkedin
+        self.facebook_url = self.youtube_url = ""
+        self.email = f"{name.lower()}@x.ae"
+        self.slug = name.lower()
+        self.company = self.city = ""
+
+    def social_urls(self):
+        return [u for u in (self.linkedin_url, self.instagram_url,
+                            self.facebook_url, self.youtube_url) if u]
+
+
+def test_a_lead_with_no_site_and_no_social_is_named_for_search():
+    """It produced nothing at all before, so each research worker met it cold
+    and improvised — which is how the last batch used WebSearch without it
+    being a rung anybody had planned."""
+    out = fetch.batch_fetch([_Social("Nobody")], workers=2)
+    assert [l["name"] for l in out["needs_search"]] == ["Nobody"]
+    assert out["ig_only"] == []
+
+
+def test_a_lead_reachable_only_on_instagram_is_named_for_ig():
+    out = fetch.batch_fetch(
+        [_Social("Iggy", instagram="https://instagram.com/iggy")], workers=2)
+    assert [l["url"] for l in out["ig_only"]] == ["https://instagram.com/iggy"]
+    assert out["needs_search"] == []
+
+
+def test_a_lead_with_another_social_is_not_ig_only():
+    out = fetch.batch_fetch([_Social("Both",
+                                     instagram="https://instagram.com/b",
+                                     linkedin="https://linkedin.com/in/b")],
+                            workers=2)
+    assert out["ig_only"] == [] and out["needs_search"] == []
+
+
+def test_a_lead_with_a_site_is_neither(monkeypatch):
+    monkeypatch.setattr(fetch, "read_site",
+                        lambda url, **k: fetch.SiteRead(domain=url))
+    out = fetch.batch_fetch([_Social("Sited", site="https://a.ae")], workers=2)
+    assert out["ig_only"] == [] and out["needs_search"] == []

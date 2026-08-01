@@ -692,3 +692,71 @@ def test_the_site_crawlers_gate_before_running(monkeypatch):
         except apify.ApifyCostApprovalRequired:
             continue
         raise AssertionError(f"{call.__name__} should have been gated")
+
+
+def test_instagram_details_batches_several_profiles_into_one_run(monkeypatch):
+    """The profile actor's input field is `usernames`, an array — so batching
+    is free, the same lever li-profile and verify-email already pull."""
+    _reset_caches()
+    seen = {}
+
+    def record(actor_id, run_input, **kwargs):
+        seen["actor"], seen["input"] = actor_id, run_input
+        return [{"username": "b", "biography": "second"},
+                {"username": "a", "biography": "first"}]
+    monkeypatch.setattr(apify, "run_actor", record)
+    out = apify.instagram(["https://instagram.com/a/", "https://instagram.com/b"],
+                          mode="details", approved=True)
+    assert seen["actor"] == apify.ACTORS["ig_profile"]
+    assert seen["input"]["usernames"] == ["a", "b"]
+    # Correlated back to input order, not the order the actor answered in.
+    assert [r["username"] for r in out] == ["a", "b"]
+
+
+def test_a_profile_the_actor_could_not_read_is_a_none_not_a_short_list(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(apify, "run_actor",
+                        lambda *a, **k: [{"username": "a", "biography": "hi"}])
+    out = apify.instagram(["https://instagram.com/a", "https://instagram.com/gone"],
+                          mode="details", approved=True)
+    assert len(out) == 2 and out[1] is None
+
+
+def test_instagram_posts_refuses_a_list(monkeypatch):
+    """li-posts was batched, tested, and turned out to share `maxPosts` across
+    every target as one run-wide budget — two profiles, a cap of ten, all ten
+    posts from one and nothing from the other. Nobody has tested whether this
+    actor's resultsLimit behaves the same, and assuming it does not is how a
+    batch silently loses its post data and reads as "no recent activity"."""
+    _reset_caches()
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: [])
+    try:
+        apify.instagram(["https://instagram.com/a", "https://instagram.com/b"],
+                        mode="posts", approved=True)
+    except apify.ApifyError as exc:
+        assert "run-wide budget" in str(exc)
+        return
+    raise AssertionError("mode='posts' must refuse more than one profile")
+
+
+def test_a_single_instagram_profile_still_returns_a_flat_list(monkeypatch):
+    _reset_caches()
+    monkeypatch.setattr(apify, "run_actor",
+                        lambda *a, **k: [{"username": "a", "biography": "hi"}])
+    out = apify.instagram("https://instagram.com/a", mode="details", approved=True)
+    assert out[0]["username"] == "a"
+
+
+def test_instagram_details_gates_on_the_number_of_profiles(monkeypatch):
+    _reset_caches()
+    seen = {}
+    monkeypatch.setattr(apify, "_actor_primary_event_price_usd",
+                        lambda actor_id, event_key=None: 0.02)
+    monkeypatch.setattr(apify, "run_actor", lambda *a, **k: seen.update(ran=True) or [])
+    try:
+        apify.instagram([f"https://instagram.com/u{i}" for i in range(6)],
+                        mode="details")
+    except apify.ApifyCostApprovalRequired:
+        assert not seen.get("ran"), "gated calls must not run"
+        return
+    raise AssertionError("6 profiles at $0.02 is $0.12, over the threshold")

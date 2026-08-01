@@ -104,6 +104,13 @@ nothing could run it through the gate at all; it was something the operator
 executed by hand outside the approval path, and the first real batch skipped it
 entirely.
 
+**It also names the leads it cannot help with.** A lead with no site produced
+no output here, so every research worker met it cold and improvised — which is
+how the last batch came to use web search and Instagram without either being a
+rung anybody had planned. The report now prints a `SEARCH` line per lead with
+no site and no social, and an `IG` line per lead reachable only on Instagram.
+That is handed-out work rather than a gap each worker rediscovers.
+
 ### `qualify`
 **In** a research object. **Out** three verdicts with their evidence, plus the
 captured fields. **Guarantees** `unclear` passes and only a clear `no` drops a

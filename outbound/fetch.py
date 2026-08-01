@@ -352,6 +352,24 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
     targets = [l for l in leads if getattr(l, "site_url", "")]
     started = time.monotonic()
 
+    # The leads this stage cannot help with, named rather than left to be
+    # rediscovered. A lead with no site produced nothing at all here, so the
+    # research worker met it cold and improvised — which is how the last batch
+    # came to use WebSearch and Instagram without either being a rung anybody
+    # had planned. Naming them turns that into handed-out work.
+    needs_search, ig_only = [], []
+    for lead in leads:
+        if getattr(lead, "site_url", ""):
+            continue
+        handle = getattr(lead, "instagram_url", "")
+        socials = lead.social_urls() if hasattr(lead, "social_urls") else []
+        if handle and not [s for s in socials if s != handle]:
+            ig_only.append({"name": getattr(lead, "name", ""), "url": handle})
+        elif not socials:
+            needs_search.append({"name": getattr(lead, "name", ""),
+                                 "company": getattr(lead, "company", ""),
+                                 "city": getattr(lead, "city", "")})
+
     def read_one(lead):
         return _read_key(lead), lead, read_site(
             lead.site_url, max_pages=max_pages, session=_thread_session())
@@ -382,10 +400,14 @@ def batch_fetch(leads: list, *, max_pages: int = 5,
         "elapsed_secs": round(elapsed, 1),
         "workers": workers,
         "escalate_plans": plans,
+        "needs_search": needs_search,
+        "ig_only": ig_only,
         "report": (
             f"TIER 0: {sum(1 for r in reads.values() if r.ok)}/{attempted} sites "
             f"read free in {elapsed:.0f}s on {workers} worker(s). "
             f"{len(dead)} unreachable, {len(thin)} thin. "
-            f"{len(plans)} batched Apify run(s) needed."
+            f"{len(plans)} batched Apify run(s) needed. "
+            f"{len(needs_search)} lead(s) need a web search, "
+            f"{len(ig_only)} reachable only on Instagram."
         ),
     }

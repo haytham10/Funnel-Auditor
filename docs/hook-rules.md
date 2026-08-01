@@ -62,16 +62,40 @@ email fail even when the hook is technically true.
 
 ## Where hooks come from, in cost order
 
-1. **LinkedIn posts** — the richest source by a distance.
-   `python main.py apify li-posts <url> --max 5 --since month`
-2. **Their own About page** — free, already fetched by the research stage.
-3. **Podcasts and YouTube** — web search for their name plus "podcast", then
-   fetch the episode page for the description and date.
-4. **Instagram** — `python main.py apify ig <url> --mode posts`
+Actual cost order. This list used to open with the paid rung under a heading
+that said cost order, which is how a batch reaches for LinkedIn before reading
+an About page it already has on disk.
+
+1. **Their own About page** — free, already fetched by the research stage.
+2. **Podcasts and YouTube** — web search for their name plus "podcast", then
+   fetch the episode page for the description and date. Free, and it reaches
+   the coaches who do not post.
+3. **LinkedIn posts** — the richest source by a distance, and paid.
+   `python main.py apify li-posts <url> --max 5 --since 3months`
+4. **Instagram** — `python main.py apify ig <url> --mode posts --newer-than "90 days"`
+
+**Instagram is a rung, not a fallback.** For a coach whose whole presence is
+Instagram it is the only one there is, and `python main.py fetch` names those
+leads in its report so they are handed out rather than discovered.
 
 Social sources are worth the trouble: giving the research agents the social
 links got hooks on 99 of 113 leads, against 21 of 40 when an earlier run ignored
 that column.
+
+### Two windows, and each has one owner
+
+There were four, which is three too many for one stage: 30 days in the code,
+"about 90 days" here, `--since month` in one agent file, `--newer-than "60
+days"` in another.
+
+- **Activity, 30 days.** Owned by `docs/spec/02-icp.md` and evaluated in
+  `outbound/qualify.py`. It is a floor: is this person still working?
+- **Hook recency, 90 days.** Owned by this file. It is an editorial judgement:
+  would they recognise this as something they recently did? The flags above are
+  set to match, and an evergreen line they wrote themselves is exempt from both.
+
+They are different questions, so they get different answers. What they may not
+be is different answers to the same question in four places.
 
 ## Types
 

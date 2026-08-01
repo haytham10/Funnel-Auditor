@@ -1109,6 +1109,17 @@ def cmd_fetch(args) -> None:
     for plan in result["escalate_plans"]:
         print(f"  ESCALATE  {plan['why']}")
 
+    # Named work rather than a blind spot. These leads produce no tier-0 read
+    # at all, so before this they simply were not in the output and each worker
+    # rediscovered the gap on its own.
+    for lead in result["ig_only"]:
+        print(f"  IG        {lead['name'] or '(no name)'} — {lead['url']} "
+              f"(batch these: `apify ig <url> <url> --mode details`)")
+    for lead in result["needs_search"]:
+        hint = " ".join(x for x in (lead["name"], lead["company"], lead["city"]) if x)
+        print(f"  SEARCH    {hint or '(nothing to search on)'} "
+              f"— no site and no social, free WebSearch first")
+
     if not args.escalate:
         if result["escalate_plans"]:
             print("  (pass --escalate --approve-cost to run these; they are paid)")
@@ -1157,7 +1168,10 @@ def cmd_apify(args) -> None:
         elif cmd == "actors":
             out = apify.discover_actors(args.query, args.limit)
         elif cmd == "ig":
-            out = apify.instagram(args.url, mode=args.mode, newer_than=args.newer_than,
+            # One url stays a string so the single-profile path keeps raising on
+            # an actor error instead of returning a None the caller has to spot.
+            target = args.url[0] if len(args.url) == 1 else args.url
+            out = apify.instagram(target, mode=args.mode, newer_than=args.newer_than,
                                   limit=args.limit, skip_pinned=args.skip_pinned,
                                   include_about=args.include_about, raw=args.raw,
                                   approved=approved)
@@ -1415,7 +1429,9 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--limit", type=int, default=6)
 
     a = apify_sub.add_parser("ig", help="Instagram posts or profile details")
-    a.add_argument("url")
+    # Several profiles is one run for `--mode details`, whose input field is an
+    # array. `--mode posts` refuses more than one, on purpose: see `instagram`.
+    a.add_argument("url", nargs="+")
     a.add_argument("--mode", default="posts", choices=["posts", "details"])
     a.add_argument("--newer-than", dest="newer_than")
     a.add_argument("--limit", type=int, default=12)
