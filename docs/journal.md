@@ -1,3 +1,107 @@
+## 2026-08-02 (batch q3) — 5 of 34, and the drafting stage failed 17 of 17 first reads
+
+Haytham dropped two queue files (20 + 14) and said run it. Ran as one batch so
+the copy weights had something to balance across.
+
+**The shape: 34 raw, 28 draftable, 17 verified hooks, 5 shipped.**
+
+Six leads never reached drafting and every one is list quality rather than
+retrieval: three fail `uae_based` on LinkedIn's own location field (Stevie Pages
+UK, Erika McDonnell US, Rahat Shigri Islamabad), one fails `is_coach` (Ambreen
+Mohammad is a senior lecturer), two have no deliverable address. All six arrived
+carrying a company website that was not the lead's own, which was true of about
+a third of this list.
+
+**Retrieval was good and it is worth saying so**: 61 observations over 34 leads,
+24 dated, against q2's 42 of which 26 were About pages. `hook_yield` 61%,
+`refute_rate` 0%, `escalation_rate` 0% — the D27 flip held completely, no hook
+worker had to escalate off its shortlist.
+
+### The drafting stage is the finding
+
+**Every draft came back REWRITE on its first cold read. 17 of 17.** Nine then
+failed a second read and were held. That is not fifteen independent slips, and
+the verifier findings repeat almost word for word:
+
+1. the hook clause **comments on the quote instead of taking something from
+   it** — "That question lands.", "Full rebuild.", "an unusual combination.",
+   "Same eye, new room." Each hands the recipient their own words back and
+   stops, so the next beat has nothing to stand on.
+2. the identity beat arrives as **the copy line with a `your` bolted on**, often
+   verbless — "About AED 400k in signed business", "30 signed this year, across
+   8 practices".
+
+Both are invisible to the linter. That is the argument for the cold read and it
+earned its cost twice over. But a 100% first-pass rewrite rate is a
+`draft-worker` instruction problem, not a per-lead one, and it is the cheapest
+thing in this repo to fix: those two failures should be named in the agent file
+with these examples, before the next batch spends ~90 opus passes rediscovering
+them. **91 of this batch's 137 agent passes were drafting.**
+
+Three holds were one sentence from shipping. Meg Juma's only remaining fault was
+writing "the practice" where "High on Ambition" belonged. Chris De Nil's was the
+single word "pivoting". The one-rewrite rule held anyway, which is right — it is
+the rule that stops a drafter grinding opus against a draft forever — but it is
+worth knowing what it cost here.
+
+**Amjad Saijary is the best outcome in the batch and he shipped nothing.** His
+drafter withdrew its own draft: the post the certified hook cites says he
+open-sourced WaaAgent "not to sell it, but because I want to see where the tech
+community takes it", so any bridge naming buyers would contradict the same post
+on the same screen. It also found he has no evidenced buyer profile at all —
+salaried at an academy that holds the enrolment relationship, `sells_to` empty,
+own domain unreachable. It refused to assert a business he has not shown he has.
+
+### Three code faults, all found by running
+
+**`crawl_render` has never worked.** It launches Chromium with 1024 MB and was
+SIGKILLed (exit 137) before its first page on every run, restarted three times,
+reported FAILED. Every browser render this machine has ever planned bought a
+container boot and returned nothing. Now 4096. Behind it: the sync timeout is
+sized for cheerio, so a 10-URL browser batch rendered 5 pages and TIMED-OUT,
+which discards them; and a failed run returned nothing at all, so those 5 paid
+pages were thrown away and the retry bought them again. `_salvage_dataset` reads
+them off the run now.
+
+**`_run_escalations` exited from inside its loop**, discarding every plan that
+had already succeeded. The static crawl returned 12 pages three times and was
+discarded three times. It collects failures now and the caller writes what
+landed. `--escalate-only` skips a plan whose pages are already in the file,
+which is what its own retry message had been promising.
+
+**`crm-rows` joined email-first on both sides.** A research object's email is
+not the Lead's — research re-checks it, so a hard bounce gets replaced and a
+lead with no address carries none. Two of 34 failed to join and reported as the
+missing-identity defect. `CRM: FAIL (2) — 32 rows` became `PASS — 34 rows`.
+
+I also caused a duplicate I had just finished fixing the code to prevent: the
+first escalation failure was retried with `fetch --escalate` instead of
+`--escalate-only`, which re-reads every site first. 110 of this batch's 129
+duplicate pairs are that. Left in the ledger; the count is a measurement and
+this batch is not entitled to a flattering one.
+
+### Two things for next time
+
+**The deal may be mis-allocating identity lines by career stage.** Amanda
+Slade's verifier argued her hold was upstream: `id-life-2` claims a first client
+in week 1, and she is an established master coach with high-net-worth clients,
+so the proof reads as beginner advice. `deal` balances weights, not fit. Worth
+one look before it is called a drafting fault again.
+
+**Correcting an observation's date changes its id hash and orphans the hook
+citing it.** Bahar Selman's hook was refuted on a date 17 days off; fixing the
+observation forced a re-run of `select` and a re-point of the proposal.
+
+### Cost
+
+$0.698 real Apify ($11.87 to $12.57), $0.0224/lead over 34. 377 retrievals,
+129 duplicates, 137 agent passes (91 draft, 41 hook, 5 research), opus 91 /
+sonnet 46. `wasted_retrieval` $0.5543 on leads that produced no verified hook,
+which is high and is mostly the 11 null hooks — leads whose only material was
+an About page, on rows whose real channels were never on the list.
+
+Not yet uploaded, so `wall-add` and `copy-usage` have NOT been run.
+
 ## 2026-08-02 (fixes) — the three things `2026-08-02-q2` found, and the one I did not fix
 
 Haytham: fix the hook_room calculation in deal, make sure everything is fixed
