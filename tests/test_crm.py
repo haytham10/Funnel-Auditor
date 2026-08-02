@@ -254,3 +254,45 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+def test_a_lead_joins_on_slug_when_its_email_changed():
+    """The research object's email is not guaranteed to be the Lead's.
+
+    Research re-checks the address, so a hard bounce is replaced by a verified
+    one and a lead with no deliverable address ends up carrying none at all.
+    Keyed on email alone, both stop joining and report as the missing-identity
+    defect when they are really the two sides naming the same person
+    differently. Two of thirty-four on 2026-08-02-q3.
+    """
+    leads = [{"slug": "anita-o-c", "email": "old@bounced.example",
+              "name": "Anita O", "first_name": "Anita", "last_name": "O",
+              "site_url": "https://aoc.example", "linkedin_url": "", "city": ""},
+             {"slug": "mary-b", "email": "mary@junk.example",
+              "name": "Mary B", "first_name": "Mary", "last_name": "B",
+              "site_url": "", "linkedin_url": "", "city": ""}]
+    researches = [
+        # address swapped for a verified one
+        {"slug": "anita-o-c", "email": "info@aoc.example", "name": "Anita O"},
+        # no deliverable address found at all
+        {"slug": "mary-b", "email": "", "name": "Mary B"},
+    ]
+    build = crm.build(leads, researches, [], batch="2026-08-02-q3")
+    assert len(build.rows) == 2, build.problems
+    assert not [p for p in build.problems if "no normalized lead" in p]
+    assert all(r.get("First Name") for r in build.rows)
+
+
+def test_a_research_object_with_no_matching_lead_still_fails_closed():
+    """Widening the join must not lose the check it was widening.
+
+    A research object whose slug and email both match nothing is the original
+    defect: twenty rows went in with no First Name, Last Name, Website,
+    LinkedIn or City because the row was built from research alone.
+    """
+    leads = [{"slug": "someone-else", "email": "someone@else.example",
+              "name": "Someone Else", "first_name": "Someone"}]
+    researches = [{"slug": "ghost-lead", "email": "ghost@nowhere.example",
+                   "name": "Ghost Lead"}]
+    build = crm.build(leads, researches, [], batch="2026-08-02-q3")
+    assert [p for p in build.problems if "no normalized lead" in p]
