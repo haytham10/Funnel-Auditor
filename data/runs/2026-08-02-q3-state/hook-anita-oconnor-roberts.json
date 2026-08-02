@@ -1,0 +1,14 @@
+{
+  "lead_key": "anita-oconnor-roberts",
+  "observation_id": "655c9df1a73a",
+  "quote": "Anita holds MSc degrees in Organisational Psychology, Supply Chain Management as well as a BA in HR Management.",
+  "line": "Organisational psychology and supply chain management is an unusual pairing on a coach's bio, and it says you read organisations as whole systems rather than just people problems.",
+  "hook_type": "WORK",
+  "source_url": "https://aocconsult.com/about",
+  "published_at": "",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Reversed from rank 1 (LinkedIn ICF badge post) to rank 2 (About page) on coordinator review: the badge post is templated activity-feed content and the sentence following the quote is ICF boilerplate, not hers, so remarking on it reads as feed-surveillance rather than as evidence we read her page. The MSc pairing on the About page is the specific, non-transferable detail: organisational psychology next to supply chain management is not a combination other coaches in this batch could claim. It is undated, but she already cleared the activity floor on other evidence, so recency does not need to ride on this hook."
+  ]
+}

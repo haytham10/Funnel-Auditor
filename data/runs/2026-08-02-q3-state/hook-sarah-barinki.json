@@ -1,0 +1,13 @@
+{
+  "lead_key": "sarah-barinki",
+  "hook": "",
+  "hook_type": null,
+  "hook_source_url": null,
+  "hook_quote": null,
+  "hook_date": null,
+  "observation_id": null,
+  "escalated": false,
+  "escalation_rung": null,
+  "confidence": "low",
+  "note": "Shortlist held exactly one candidate (rank 1, obs_id 6024c699a275, LinkedIn about text): 'Head Athletic Trainer at trainSHARPE health coaching. I coach business leaders and high achieving men to improve their body composition, cognitive performance, sleep and productivity.' This is her own bio copy naming her employer and niche, but it is a value-proposition sentence swappable onto any performance/executive coach in this segment (same shape as the banned 'I empower professionals to reconnect with the meaningful life they look for' example) -- not an unswappable specific fact about her (no unusual credential, story, or named achievement). The paid LinkedIn rung (li_profile) has already been walked this batch and this is what it returned; li_posts is not declined in work/plan.json but re-walking LinkedIn again would be the duplicate fetch this batch was told to avoid, not a bounded escalation onto a new rung. No other candidate exists to fall back to. Returning a null hook."
+}

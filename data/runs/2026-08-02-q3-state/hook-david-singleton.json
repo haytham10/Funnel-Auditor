@@ -1,0 +1,18 @@
+{
+  "lead_key": "david-singleton",
+  "observation_id": "8b709726ef57",
+  "quote": "something I call ‘Leadership Architecture’",
+  "line": "You've named your own method: \"something I call 'Leadership Architecture'.\"",
+  "hook_type": "WORK",
+  "source_url": "https://linkedin.com/posts/singletonsingleton_transformation-leadership-activity-7485571228355784704-R-Vs",
+  "published_at": "2026-07-22",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Switched to rank 2 after the coordinator flagged two problems with the rank 1 pick: the earlier clause ('your weekly coffee ritual') misdescribed a post actually about a 5:30am boot camp, and the earlier quote ('how I met Paraic initially.') named a stranger the reader can't place without reconstructing context.",
+    "Rank 2's quote is his own coined term for his own method, legible on its own with no outside reference needed, dated 11 days ago, and unrepeatable by anyone else — same category as another lead's self-named diagnostic that verified cleanly.",
+    "Rejected rank 1 outright rather than fixing the clause: the boot camp/community material didn't have a shorter self-contained span that both named something distinctive and stood alone without more surrounding sentence than the hook room allows.",
+    "Rejected rank 3 (About page) as undated, third-person career summary with no recency signal.",
+    "Quote and clause fit the 20-word hook_room for this lead (anchors.json)."
+  ]
+}

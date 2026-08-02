@@ -1,0 +1,12 @@
+{
+  "lead_key": "dmartinez@coach.com",
+  "hook": "",
+  "hook_type": "",
+  "hook_source_url": "",
+  "hook_quote": "",
+  "hook_date": "",
+  "observation_id": "",
+  "escalated": false,
+  "confidence": "low",
+  "note": "Only candidate (obs_id 8a5e1c786b61, LinkedIn About) is generic health-coach mission copy: 'My mission is to guide and mentor individuals to take responsibility for their health and supports them in making sustainable lifestyle choices,' followed by a stock list of coaching areas (weight management, food cravings, sleep, energy, digestion, stress, time management). This is swappable onto any health coach in the segment without editing -- the exact hero-copy failure mode, not a founding story. li_profile and li_posts are both 'take' in plan.json, but li_profile is what produced this observation and li_posts was already walked this batch per the task brief and came back empty -- re-walking either would be a duplicate fetch, not a legitimate escalation. Returning a null hook."
+}

@@ -1,0 +1,16 @@
+{
+  "lead_key": "solene-anglaret",
+  "observation_id": "4d4485980b2c",
+  "quote": "Intensive with @kyleherselman at @courtyardplayhouse",
+  "line": "You listed an Intensive with @kyleherselman at @courtyardplayhouse among your latest theatre sessions in Dubai.",
+  "hook_type": "LIFE",
+  "source_url": "https://instagram.com/p/DaPVb0_DFZs",
+  "published_at": "2026-07-01",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Took rank 2 over rank 1 (the Botswana travel post): rank 1 is a country-facts listicle transferable to any traveler and too long (182 words) to fit the 26-word hook room without paraphrasing her own words.",
+    "Rank 3 (the coaching FAQ page) is generic site copy ('personalised coaching to support individuals navigating change') that any coach's About page could carry.",
+    "Rank 2's named workshop and instructor is the specific, theirs-only detail, and it fits the room as quoted."
+  ]
+}

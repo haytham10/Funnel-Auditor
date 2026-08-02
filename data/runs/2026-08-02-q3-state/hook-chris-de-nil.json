@@ -1,0 +1,14 @@
+{
+  "lead_key": "chris-de-nil",
+  "observation_id": "cfbd3cc93de6",
+  "quote": "playing for the Golden Lions Rugby franchise",
+  "line": "You played for the Golden Lions Rugby franchise before pivoting to triathlon coaching in Dubai.",
+  "hook_type": "LIFE",
+  "source_url": "https://triconnectcoaching.com/about",
+  "published_at": "",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Only candidate is the About page founding story (138 words vs 17 of room). Skipped the hero-adjacent opening line (Founder and Head Coach... started in 2020) as generic-transferable, and skipped the closing Belgian Born, South African raised, UAE career line as writer-less biography. Took the one unswappable fact in the piece, a named rugby franchise, and wrote the clause connecting it to the triathlon pivot the rest of the page describes. No pricing quoted per instruction even though the site carries real programme pricing."
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "lead_key": "lisa-zevi",
+  "observation_id": "5452d82d18cc",
+  "quote": "COO in a BOX",
+  "line": "You call yourself \"COO in a BOX\" on your LinkedIn, a tagline I haven't seen from another coach.",
+  "hook_type": "WORK",
+  "source_url": "https://linkedin.com/in/lisa-zevi",
+  "published_at": "",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Rejected rank 1 (48c6b0532a19): a Wednesday-Wisdom listicle of generic business metrics advice, transferable to any business coach unedited. Took rank 2's About text instead, quoting her self-branded tagline 'COO in a BOX' (also her own domain, cooinabox.co.uk), unique to her rather than boilerplate service description.",
+    "Checked the plan's undeclined 'about' site rung (cooinabox.co.uk) as a possible fresher source; it did not resolve (DNS failure), so no escalation was made or recorded."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "lead_key": "bahar-selman",
+  "observation_id": "4f60950a0714",
+  "quote": "What do you want to be remembered for?",
+  "line": "You wrote that you now ask clients \"What do you want to be remembered for?\" instead of asking about targets.",
+  "hook_type": "WORK",
+  "source_url": "https://linkedin.com/posts/baharselman_i-thought-corporate-life-taught-me-everything-activity-7483182368472719360-6VoK",
+  "published_at": "2026-07-15",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Took rank 1 (fresh, self, LinkedIn post). Skipped the surrounding leadership-aphorism framing (generic, and closes on a reply-inviting question, which is banned) and quoted only the specific clause where she names the question she switched to asking clients, which is contiguous text from the post and fits the 22-word room.",
+    "Rank 2 (Vera Wang story) rejected: it is mostly a third-party case study about Vera Wang, not Bahar's own recent action.",
+    "Rank 3 (site about page) rejected: generic corporate-coaching hero copy.",
+    "published_at corrected 2026-08-01 -> 2026-07-15: the research observation carried the wrong date and a verifier caught it on live re-fetch. Quote and authorship were verbatim and unchanged."
+  ]
+}

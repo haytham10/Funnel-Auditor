@@ -1,0 +1,17 @@
+{
+  "lead_key": "meg-juma",
+  "observation_id": "39ba270161df",
+  "quote": "working with a global private jets company based in the UAE",
+  "line": "Your about page notes you spent time working with a global private jets company based in the UAE before founding your coaching practice.",
+  "hook_type": "LIFE",
+  "source_url": "https://megjuma.com/pages/about-me",
+  "published_at": "",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Took rank 2, not rank 1: the LinkedIn about (rank 1) is positioning-statement copy ('Learning & Development Strategist... driving talent mobility and organisational excellence... proprietary IP framework') that could be pasted onto any L&D coach unedited.",
+    "The site About page (rank 2) has an unswappable specific fact: before founding High on Ambition she worked in the private jet industry in the UAE. That is the clause a stranger could not have written about anybody else.",
+    "The BellaNaija podcast candidate was already excluded upstream (rejected as third_party) and never reached the shortlist.",
+    "published_at is blank because the About page carries no date; select.json already cleared this under the evergreen/About-page exemption, so it is not re-judged here."
+  ]
+}

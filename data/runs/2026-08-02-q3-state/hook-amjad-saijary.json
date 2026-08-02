@@ -1,0 +1,14 @@
+{
+  "lead_key": "amjad-saijary",
+  "observation_id": "de27d22512d5",
+  "quote": "It's not just another chatbot it's an agent that holds full context about a business (products, images, pricing), takes on a fully customizable persona, and responds in a natural, human like way like a real employee who knows every detail of the business.",
+  "line": "You built WaaAgent as an agent that holds full context on a business, not just another chatbot, and replies like an employee who actually knows the place.",
+  "hook_type": "WORK",
+  "source_url": "https://linkedin.com/posts/amjad-saijary_ai-whatsapp-opensource-activity-7474106011138740224-CYnL",
+  "published_at": "2026-06-20",
+  "escalated": false,
+  "escalation_rung": "",
+  "notes": [
+    "Took rank 1 (LinkedIn post, 43d old, self) over rank 2 (undated About page). The post describes WaaAgent, a WhatsApp business agent he built and open-sourced. First quote attempt used the em-dash sentence about open-sourcing the code; rejected by the gate since we cannot edit their punctuation, so re-picked a different contiguous span from the same post describing what the agent actually does, which has no em-dash and needs no third-party context."
+  ]
+}
