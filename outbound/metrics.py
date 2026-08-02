@@ -154,6 +154,11 @@ class BatchMetrics:
     tokens_subagents: object = UNKNOWN
     orchestrator_share: float | None = None
     tokens_per_shipped: object = UNKNOWN
+    # Distinct from `cost_usd`, which is Apify's. This one is the model bill,
+    # and it is `?` whenever `usage` could not price it — an expired rate card
+    # or a model with no rate on file. The tokens above stay exact either way.
+    model_cost_usd: object = UNKNOWN
+    cost_per_shipped_usd: object = UNKNOWN
 
     # --- what could not be computed, named rather than left as a zero ------
     gaps: list = field(default_factory=list)
@@ -341,6 +346,16 @@ def add_usage(out: BatchMetrics, usage: dict) -> BatchMetrics:
     out.orchestrator_share = usage.get("orchestrator_share")
     if isinstance(out.written, int) and out.written:
         out.tokens_per_shipped = int(out.tokens_total / out.written)
+
+    # Money only when `usage` could state it with a basis. `usd: None` means the
+    # rate card expired or a model had no rate — `?`, never a total that
+    # silently omits part of the run.
+    dollars = (usage.get("price") or {}).get("usd")
+    if dollars is not None:
+        out.model_cost_usd = dollars
+        if isinstance(out.written, int) and out.written:
+            out.cost_per_shipped_usd = round(dollars / out.written, 2)
+
     for gap in usage.get("gaps") or []:
         out.gaps.append(gap)
     return out
@@ -513,6 +528,14 @@ def report(out: BatchMetrics) -> str:
             f"  tokens_per_email  "
             + (f"{UNKNOWN}  pass --written" if out.tokens_per_shipped is UNKNOWN
                else f"{out.tokens_per_shipped:,}"))
+        if out.model_cost_usd is UNKNOWN:
+            lines.append(f"  model_cost        {UNKNOWN}  tokens are exact; the "
+                         f"rate card could not price them (see GAP)")
+        else:
+            lines.append(f"  model_cost        ${out.model_cost_usd:,.2f}"
+                         + ("" if out.cost_per_shipped_usd is UNKNOWN
+                            else f", ${out.cost_per_shipped_usd:,.2f}/email")
+                         + "  equivalent list cost, not an invoice")
     if out.duplicates:
         lines.append(f"  duplicates        {out.duplicates} — quote "
                      f"`ledger report` for which")

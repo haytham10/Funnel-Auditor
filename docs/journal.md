@@ -15,16 +15,39 @@ which carries `message.usage` per request and a separate file per subagent.
 
 | | q2 | q3 | both |
 |---|---|---|---|
-| cost | $172.88 | $181.82 | **$354.70** |
 | tokens | 227.9M | 182.4M | **410.3M** |
 | shipped | 9 | 13 | 22 |
-| per email | | | **$16.12 / 18.7M tokens** |
-| orchestrator | 77.6% | 72.8% | **75.1%** |
+| per email | | | **18.7M tokens** |
+| orchestrator | 77.6% | 72.8% | **~75%** |
 
 **410 million tokens to ship 22 emails of about 120 words.** And three quarters
 of it was the main thread, which reports no passes at all because nobody records
 one for the loop they are typing in. Main-thread cache read plus write alone was
 70% of everything — pure coordination.
+
+**The dollar figure needs a correction, and it is instructive.** I quoted
+**$354.70** for days. That number mixed two bases: q2's report priced Sonnet 5 at
+the introductory rate and q3's priced it at list, and neither knew which applied.
+On one basis it is **$349.30** (both intro) or **$361.96** (both list) — $15.88
+or $16.45 per email, against the $16.12 I was quoting. The orchestrator share is
+Opus-only and so unaffected in substance: 76.3% at intro, 73.6% at list.
+
+Nothing in the conclusions moves. What moves is the argument about rate tables.
+`ledger pass` refuses to store prices because "a rate table here would be a
+number going stale in a file nobody remembers to update" — and the failure that
+actually happened was the opposite shape: **no table at all, two agents guessing
+independently, and no way to tell they had guessed differently.** Sonnet 5's
+introductory rate expires 2026-08-31, twenty-nine days after these runs, so the
+next person to price a batch would have guessed a third way.
+
+So `usage` now carries a rate card that knows its own expiry: every rate has the
+date it was read, the introductory rate has the date it lapses, and pricing
+returns **nothing** once either has passed rather than a confident wrong number.
+A model with no rate withholds the whole total instead of reporting one that
+silently omits part of the run. Tokens stay exact throughout; only the dollars
+are ever withheld. That is the `?`-not-`0` rule applied to money, and it is the
+part of the doctrine worth keeping — not the refusal to write a price down, but
+the refusal to state one that cannot be checked.
 
 The mechanism: one session runs the whole pipeline for 10+ hours, context reaches
 578k-684k tokens, nothing compacts until after the work is done, every one of

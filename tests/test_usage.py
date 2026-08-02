@@ -241,6 +241,93 @@ def test_the_artifact_is_rewritten_not_appended():
         assert on_disk["totals"]["requests"] == 2      # not 1, and not 3
 
 
+def test_the_sonnet_intro_rate_expires_on_its_own_date():
+    """The reason this mechanism exists. The two 2026-08-02 forensics runs
+    priced Sonnet 5 differently -- one intro, one list -- so the combined figure
+    quoted for days mixed two bases. Neither run was careless; nothing told
+    either which rate applied."""
+    from datetime import date
+
+    during = usage._model_rate("claude-sonnet-5", date(2026, 8, 2))
+    after = usage._model_rate("claude-sonnet-5", date(2026, 9, 1))
+    assert (during["input"], during["output"]) == (2.00, 10.00)
+    assert (after["input"], after["output"]) == (3.00, 15.00)
+    assert "introductory" in during["basis"] and "list" in after["basis"]
+
+
+def test_an_expired_rate_card_refuses_to_price_and_says_why():
+    """A price that has outlived its card is worse than none: it looks
+    measured. Tokens stay exact; only the dollars are withheld."""
+    from datetime import date
+
+    out = {"by_model": {"claude-opus-5": {"tokens": 1000}},
+           "totals": {"input_tokens": 1000}}
+    stale = usage.price(out, on=date(2027, 6, 24))
+    assert stale["usd"] is None
+    assert any("days old" in r for r in stale["unpriceable"])
+
+    fresh = usage.price(out, on=usage.RATES_AS_OF)
+    assert fresh["usd"] is not None
+
+
+def test_a_model_with_no_rate_withholds_the_whole_total():
+    """Pricing the models it knows and quietly dropping the rest would report a
+    total that is confidently too low -- the wrong-zero failure in a new hat."""
+    from datetime import date
+
+    out = {"by_model": {"claude-opus-5": {"tokens": 1000},
+                        "claude-from-the-future": {"tokens": 9_000_000}},
+           "totals": {"input_tokens": 9_001_000}}
+    priced = usage.price(out, on=usage.RATES_AS_OF)
+    assert priced["usd"] is None
+    assert any("claude-from-the-future" in r for r in priced["unpriceable"])
+
+
+def test_the_cache_tiers_are_priced_apart():
+    """A 1h cache write costs 2x base input and a 5m write 1.25x; a read costs a
+    tenth. The orchestrator writes at 1h and every subagent at 5m, and that
+    split alone was ~30% of the measured bill."""
+    from datetime import date
+
+    def usd(**totals):
+        out = {"by_model": {"claude-opus-5": {"tokens": 1}}, "totals": totals}
+        return usage.price(out, on=usage.RATES_AS_OF)["usd"]
+
+    million = 1_000_000
+    assert usd(input_tokens=million) == 5.00
+    assert usd(cache_write_5m=million) == 6.25
+    assert usd(cache_write_1h=million) == 10.00
+    assert usd(cache_read=million) == 0.50
+    assert usd(output_tokens=million) == 25.00
+
+
+def test_metrics_prints_a_question_mark_when_the_card_cannot_price():
+    """Same rule as every other number here: `?`, never a zero, and never a
+    figure whose basis has expired."""
+    out = metrics.BatchMetrics(batch="b", written=10)
+    metrics.add_usage(out, {"totals": {"tokens": 100},
+                            "orchestrator": {"tokens": 60},
+                            "subagents": {"tokens": 40},
+                            "orchestrator_share": 0.6,
+                            "price": {"usd": None,
+                                      "unpriceable": ["rate card expired"]}})
+    text = metrics.report(out)
+    assert out.model_cost_usd is metrics.UNKNOWN
+    assert f"model_cost        {metrics.UNKNOWN}" in text
+    assert "model_cost        $0" not in text
+
+
+def test_metrics_prints_cost_per_email_when_it_can():
+    out = metrics.BatchMetrics(batch="b", written=10)
+    metrics.add_usage(out, {"totals": {"tokens": 100},
+                            "orchestrator": {"tokens": 60},
+                            "subagents": {"tokens": 40},
+                            "orchestrator_share": 0.6,
+                            "price": {"usd": 40.00, "unpriceable": []}})
+    assert out.cost_per_shipped_usd == 4.00
+    assert "model_cost        $40.00, $4.00/email" in metrics.report(out)
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

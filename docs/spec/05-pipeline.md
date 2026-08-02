@@ -910,11 +910,27 @@ both batches — one thread whose context reached 578k-684k tokens, re-read on
 every one of ~390 turns. That is the line `ledger pass` cannot express and the
 reason this command reads transcripts rather than asking.
 
-**Tokens, not dollars**, for the reason `ledger pass` gives and one more. Model
-prices are a value this repo does not own and would go stale in a file nobody
-updates — that argument is about *prices*. A token count is a measurement this
-repo does own, it does not go stale, and a reader who wants dollars applies a
-rate the way they would to any other input.
+**Tokens are the measurement; dollars are derived and carry an expiry.** A token
+count is a measurement this repo owns and it never goes stale. A price is not,
+which is why `ledger pass` refuses a rate table — "a number going stale in a
+file nobody remembers to update". That names the failure mode correctly and
+draws the wrong conclusion: the danger is not that a price is written down, it
+is that it goes wrong **silently**.
+
+It already did. The two 2026-08-02 forensics runs priced Sonnet 5 differently —
+one used the introductory rate, one used list — so the combined figure quoted
+for days mixed two bases and was off by about 2%. Neither run was careless;
+nothing told either one which rate applied.
+
+So the rate card carries the date it was read, Sonnet 5's introductory rate
+carries the date it expires, and **`price()` returns nothing once either has
+passed** — the report prints tokens and says why it could not price them. A
+model with no rate on file withholds the *whole* total rather than reporting one
+that quietly omits part of the run. The cache tiers are priced apart, because a
+1h write costs 2x base input against a 5m write's 1.25x and the orchestrator
+writes at 1h while every subagent writes at 5m — that split alone was ~30% of
+the measured bill. Every figure is labelled **equivalent list cost, not an
+invoice**: this account bills on a subscription.
 
 **Deduplicated on `requestId`, last record winning.** A streamed response emits
 several records under one id with `output_tokens` growing across them. Counting

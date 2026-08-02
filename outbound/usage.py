@@ -46,6 +46,7 @@ import json
 import os
 import re
 from dataclasses import dataclass, field, asdict
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 # Where Claude Code keeps a session's transcripts. Not ours, which is why it is
@@ -62,6 +63,125 @@ SPAWN_TOOLS = ("Task", "Agent")
 AGENT_ID = re.compile(r"agentId:\s*([0-9a-zA-Z_-]+)")
 
 UNATTRIBUTED = "unattributed"
+
+# --------------------------------------------------------------------- prices
+#
+# The one thing in this file that can go stale. `ledger.record_pass` refuses a
+# rate table outright — "model prices are a value this repo does not own and
+# would be a number going stale in a file nobody remembers to update". That is
+# right about the failure mode and too strong about the remedy: the danger is
+# not that a price is written down, it is that it goes wrong **silently**.
+#
+# It already did. The two 2026-08-02 forensics runs priced Sonnet 5
+# differently — one used the introductory rate, one used list — so the combined
+# figure quoted for days mixed two bases and was off by about 2%. Neither report
+# was careless; nothing told either one which rate applied.
+#
+# So: every rate carries the date it was read, Sonnet 5's introductory rate
+# carries the date it expires, and `price()` returns **None** once either has
+# passed rather than a confident wrong number. The report then prints tokens and
+# says why it could not price them. A figure that knows when to stop being
+# trusted is the `?`-not-`0` rule applied to money.
+RATES_AS_OF = date(2026, 6, 24)
+
+# How long a rate card may go unrefreshed before it stops being quotable. Six
+# months is longer than any intro window seen so far and short enough that a
+# price change cannot sit unnoticed for a year.
+RATES_STALE_AFTER_DAYS = 180
+
+# Cache is priced off the base input rate: a write costs more than fresh input,
+# a read costs a tenth. The 5m/1h split is not cosmetic — the orchestrator
+# writes at the 1h tier and every subagent at 5m, and on the measured batches
+# that split alone was ~30% of the bill.
+CACHE_WRITE_5M = 1.25
+CACHE_WRITE_1H = 2.0
+CACHE_READ = 0.1
+
+# USD per million tokens, base input and output. Everything else derives.
+RATES = {
+    "claude-opus-5": {"input": 5.00, "output": 25.00},
+    "claude-sonnet-5": {
+        "input": 3.00, "output": 15.00,
+        # Introductory pricing, and the reason this whole mechanism exists.
+        "intro": {"input": 2.00, "output": 10.00, "until": date(2026, 8, 31)},
+    },
+    "claude-opus-4-8": {"input": 5.00, "output": 25.00},
+    "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
+}
+
+
+def _today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+def _model_rate(model: str, on: date) -> dict | None:
+    """Base input/output for one model on one date, or None if unknown."""
+    card = RATES.get(model)
+    if not card:
+        return None
+    intro = card.get("intro")
+    if intro and on <= intro["until"]:
+        return {"input": intro["input"], "output": intro["output"],
+                "basis": f"{model} introductory rate, through {intro['until']}"}
+    return {"input": card["input"], "output": card["output"],
+            "basis": f"{model} list rate"}
+
+
+def price(out: dict, *, on: date | None = None) -> dict:
+    """Dollars for a summarised run, or the reason there are none.
+
+    Returns `{"usd": float|None, "by_model": {...}, "basis": [...],
+    "unpriceable": [...]}`. **`usd` is None whenever anything could not be
+    priced** — a stale card, a model with no rate — rather than a total that
+    quietly omits part of the run.
+    """
+    on = on or _today()
+    result: dict = {"usd": None, "by_model": {}, "basis": [], "unpriceable": [],
+                    "as_of": str(RATES_AS_OF), "priced_on": str(on)}
+
+    stale_by = (on - RATES_AS_OF).days
+    if stale_by > RATES_STALE_AFTER_DAYS:
+        result["unpriceable"].append(
+            f"the rate card was read {RATES_AS_OF} and is {stale_by} days old "
+            f"(limit {RATES_STALE_AFTER_DAYS}) — refresh it from the "
+            f"`claude-api` skill rather than quoting a price this may have "
+            f"outlived. Tokens below are unaffected")
+        return result
+
+    total = 0.0
+    for model, row in (out.get("by_model") or {}).items():
+        rate = _model_rate(model, on)
+        if not rate:
+            result["unpriceable"].append(
+                f"no rate on file for {model} — its tokens are counted and not "
+                f"priced, so the total is withheld rather than made up")
+            continue
+        result["basis"].append(rate["basis"])
+        result["by_model"][model] = {"tokens": row.get("tokens", 0)}
+
+    if result["unpriceable"]:
+        return result
+
+    # Bucket totals are run-wide, not per model. Attribute them by each model's
+    # share of tokens — exact when one model dominates, which is every batch
+    # measured so far, and honest about being a split when it is not.
+    totals = out.get("totals") or {}
+    grand = sum(r["tokens"] for r in result["by_model"].values()) or 1
+    for model, row in result["by_model"].items():
+        rate = _model_rate(model, on)
+        share = row["tokens"] / grand
+        cost = (
+            totals.get("input_tokens", 0) * share * rate["input"]
+            + totals.get("cache_write_5m", 0) * share * rate["input"] * CACHE_WRITE_5M
+            + totals.get("cache_write_1h", 0) * share * rate["input"] * CACHE_WRITE_1H
+            + totals.get("cache_read", 0) * share * rate["input"] * CACHE_READ
+            + totals.get("output_tokens", 0) * share * rate["output"]
+        ) / 1_000_000
+        row["usd"] = round(cost, 2)
+        total += cost
+
+    result["usd"] = round(total, 2)
+    return result
 
 
 class TranscriptsUnreadable(Exception):
@@ -313,6 +433,10 @@ def summarise(turns: list, *, batch: str = "", sources: Sources | None = None) -
         out["gaps"].append(
             f"{stray} subagent(s) could not be matched to a spawn, so their "
             f"tokens are counted but not attributed to an agent type")
+
+    out["price"] = price(out)
+    for reason in out["price"]["unpriceable"]:
+        out["gaps"].append(reason)
     return out
 
 
@@ -364,6 +488,18 @@ def report(out: dict) -> str:
         lines.append("  by_agent          " + ", ".join(
             f"{k} {v['agents']}x {_n(v['tokens'])}"
             for k, v in out["by_agent"].items()))
+    # Money last, and only when it can be stated with its basis. A dollar
+    # figure whose rate card has expired is worse than none: it looks measured.
+    money = out.get("price") or {}
+    if money.get("usd") is not None:
+        lines.append(f"  cost              ${money['usd']:,.2f} "
+                     f"(rates as of {money['as_of']})")
+        for basis in money.get("basis") or []:
+            lines.append(f"                    {basis}")
+        lines.append("                    equivalent list cost, not an "
+                     "invoice — a subscription bills differently")
+    elif money:
+        lines.append("  cost              ? — tokens above are exact; see GAP")
     for gap in out.get("gaps") or []:
         lines.append(f"  GAP  {gap}")
     lines.append("  MEASURED from the session transcript, not reported by an "
