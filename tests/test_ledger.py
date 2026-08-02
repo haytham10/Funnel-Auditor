@@ -386,6 +386,31 @@ def test_an_unknown_field_in_a_stored_line_is_ignored():
         assert records[0].url == "https://x/1"
 
 
+def test_duplicate_pairs_are_grouped_by_shape_not_listed_one_by_one():
+    """`2026-08-02-q3` had 129 duplicate pairs and its journal names the answer
+    in one sentence: 110 of them were one shape. That sentence was arrived at by
+    reading 129 lines identical except for a name, every one of which stayed in
+    the orchestrator's context for the rest of the run."""
+    records = []
+    for n in range(6):
+        for _ in range(2):
+            records.append(entry(lead_key=f"lead{n}", url=f"https://x/{n}",
+                                 retrieved_by="apify:li_posts"))
+    text = ledger.report(records)
+    assert "DUPLICATE  6x" in text
+    assert "6 duplicate pair(s) in 1 shape(s)" in text
+    # The individual lines are one flag away, never gone.
+    assert text.count("DUPLICATE") < 3
+    assert ledger.report(records, verbose=True).count("DUPLICATE") == 6
+
+
+def test_a_batch_with_no_duplicates_still_says_so_explicitly():
+    """The grouped branch must not swallow the sentence that says the
+    retrieve-once invariant held. Silence and success look identical."""
+    text = ledger.report([entry(lead_key="a", url="https://x/1")])
+    assert "no duplicate fetch" in text
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

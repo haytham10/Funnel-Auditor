@@ -243,6 +243,37 @@ def schema_help() -> str:
             "look complete.\n\n" + observe.schema_help())
 
 
+def headline(research: Research) -> str:
+    """One line: the verdict and what still blocks the lead, without the four
+    lines of evidence behind them.
+
+    A slice of ten leads printed in full is about 5 KB, and the orchestrator
+    runs this once per slice and again on the merged file — every byte of which
+    stays in its context for the rest of the run. A lead that passed the schema
+    has nothing in those four lines anybody acts on; the blockers are the part
+    that gets read, so they stay on the line.
+    """
+    problems = validate(research)
+    head = "VALID" if not problems else f"INVALID ({len(problems)})"
+    verdict = ("PASS" if research.passes_floors
+               else f"FAIL ({', '.join(research.failed_floors)})")
+    blocked = research.blockers()
+    return (f"RESEARCH {research.name or research.slug}: {head}, "
+            f"floors {verdict}"
+            + (f", blocked ({'; '.join(blocked)})" if blocked else ""))
+
+
+def needs_a_look(research: Research) -> bool:
+    """Whether the full block is worth printing.
+
+    Schema problems only. A blocker is not a reason: this gate runs before the
+    hook stage, so *every* lead is blocked on `no hook` at the moment it is
+    validated, and triggering on that printed the full block for all of them —
+    which is the 14 KB this was meant to cut.
+    """
+    return bool(validate(research))
+
+
 def report(research: Research) -> str:
     """The quotable summary a worker returns and an orchestrator cross-checks."""
     problems = validate(research)

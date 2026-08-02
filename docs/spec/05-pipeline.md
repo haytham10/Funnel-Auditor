@@ -297,6 +297,16 @@ The object may also carry the observations behind those verdicts, and they are
 validated here through the same call — capped, so one worker that got an enum
 wrong cannot bury the floor violation that actually drops a row. See `observe`.
 
+**A clean lead reports as one line.** The full block is four lines of evidence
+that only matter when something is wrong, and the orchestrator runs this once
+per slice *and* again on the merged file — 14,202 bytes on a 28-lead batch,
+against 2,316 in the headline form, every byte of it resident for the rest of
+the run. The blockers stay on the line, because they are the part that gets
+read. `--verbose` restores the full block, and one lead is always full.
+**A blocker is not what triggers the block**: this gate runs before the hook
+stage, so every lead is blocked on `no hook` at the moment it is validated.
+Only a schema problem is loud.
+
 **This is the machine's retrieval stage as of D27**, which is a change in what
 the objects are *for* rather than in what validates them. Nothing downstream
 fetches for a hook: `select` ranks what research returned and `hook-worker`
@@ -645,6 +655,23 @@ anything worth that risk.
 Every run is cost-gated and **exits 3** above the ceiling rather than spending.
 The ceiling itself lives in `audit/apify.py` and is not restated here.
 
+**The payload goes to a file; stdout gets a summary.** Every other bulk stage
+here does this — `fetch`, `select`, `plan`, `metrics`, `export`, `crm-rows` —
+and `apify` was the one that did not, printing its whole dataset into the
+caller's context by design. On `2026-08-02-q2` three Instagram runs produced
+914,685 bytes of tool-result, roughly 305 KB each where a trimmed result is
+20-30 KB, and its token forensics could not account for them at all. The summary
+names the item count, how many carry text and the date range, which is what
+decides whether the file is worth opening. `--print` restores the old behaviour
+for debugging by hand. `limits` and `actors` still print: their output is the
+answer, not a payload.
+
+**The field trimming recurses.** `_lean`'s allow-list branch used to copy nested
+records through verbatim, so `latestPosts` on a profile and `author` on a post
+each carried the media blobs the trimming exists to drop — a leaned profile
+shipping a dozen unleaned posts inside itself. `--raw` still bypasses trimming
+entirely, and is harmless now that raw goes to disk.
+
 ### `observe`
 **In** one observation, an array of them, **or a research file, which it
 unwraps**. **Out** the schema verdict.
@@ -741,6 +768,14 @@ worse than filing it under the wrong name.
 halt a real send file over an accounting line is a gate people learn to route
 around — the same reason `doc-check` runs with the tests rather than with a
 batch. The stage that removes the duplicate is the one that gets to block on it.
+
+**`report` groups duplicates by shape, because the shape is the finding.**
+`2026-08-02-q3` produced 129 duplicate pairs and its journal entry names the
+answer in one sentence — 110 of them were a single shape — reached by reading
+129 lines that differed only by a name, all of which stayed in the
+orchestrator's context afterwards. Grouped, that batch reports in 1,474 bytes
+where it used to take 15,905, and the dominant shape is the first line rather
+than an inference. `--verbose` prints every pair.
 
 **The costs are estimates, and the ledger says so.** The runner uses Apify's
 run-sync-get-dataset-items, which collapses a run to its output, so the billed

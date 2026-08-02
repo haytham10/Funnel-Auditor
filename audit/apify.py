@@ -649,12 +649,69 @@ _NOISE_KEYS = {
 }
 
 
+def _scrub(value):
+    """Drop the noise at every depth, not just the top one.
+
+    This used to filter only the outermost keys, which meant the allow-list
+    branch below let whole nested objects through untouched — `latestPosts` on
+    an Instagram profile and `author` on a LinkedIn post are each a full record
+    carrying exactly the media blobs `_NOISE_KEYS` names. A "lean" profile was
+    shipping a dozen unleaned posts inside itself. Three Instagram runs on
+    `2026-08-02-q2` produced 914,685 bytes of tool-result, an order of magnitude
+    above what a trimmed result should be, and no forensics could account for it.
+    """
+    if isinstance(value, dict):
+        return {k: _scrub(v) for k, v in value.items() if k not in _NOISE_KEYS}
+    if isinstance(value, list):
+        return [_scrub(v) for v in value]
+    return value
+
+
 def _lean(item: dict, keep: tuple[str, ...] | None = None) -> dict:
     if not isinstance(item, dict):
         return item
     if keep:
-        return {k: item[k] for k in keep if k in item and item[k] not in (None, "", [])}
-    return {k: v for k, v in item.items() if k not in _NOISE_KEYS}
+        return {k: _scrub(item[k]) for k in keep
+                if k in item and item[k] not in (None, "", [])}
+    return _scrub(item)
+
+
+# Fields that carry the thing a hook is actually made from. A result with none
+# of them is a result nobody needs to open.
+_TEXT_KEYS = ("caption", "text", "content", "headline", "summary", "biography",
+              "about", "title", "description", "occupation")
+_DATE_KEYS = ("timestamp", "date", "postedAt", "publishedAt", "takenAt",
+              "postedAtISO", "time")
+
+
+def _first(item: dict, keys) -> str:
+    for key in keys:
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def summarise(out) -> dict:
+    """What an agent needs to decide whether to read the payload.
+
+    The payload itself goes to a file. This is the line that goes to stdout, and
+    it exists because `apify` was the only command in this repo that printed its
+    whole dataset into the caller's context — every other bulk stage (`fetch`,
+    `select`, `plan`, `metrics`, `export`) writes a file and prints a summary.
+    A worker deciding whether to open a file needs three things: how many items
+    came back, how many carry text worth quoting, and how recent they are.
+    """
+    items = out if isinstance(out, list) else [out] if isinstance(out, dict) else []
+    items = [i for i in items if isinstance(i, dict)]
+    dates = sorted(d for d in (_first(i, _DATE_KEYS) for i in items) if d)
+    return {
+        "items": len(items),
+        "with_text": sum(1 for i in items if _first(i, _TEXT_KEYS)),
+        "newest": dates[-1] if dates else "",
+        "oldest": dates[0] if dates else "",
+        "keys": sorted(items[0].keys())[:14] if items else [],
+    }
 
 
 def _raise_on_actor_error(items: list[dict], target: str) -> None:

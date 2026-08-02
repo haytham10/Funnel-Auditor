@@ -37,6 +37,12 @@ python main.py apify li-profile <url> --lead <email> --stage verify --purpose ve
 python main.py apify li-posts   <url> --lead <email> --stage verify --purpose verify
 ```
 
+**Both write a file and print a summary; the quote you are checking is in the
+file.** Grep it for the quote rather than reading the whole thing — you are
+confirming one sentence, and a `grep` that finds it is the confirmation. If the
+grep misses, read the file before calling it refuted: a quote can be split
+across fields or carry different whitespace.
+
 **The batch label is not yours to carry.** It used to be prefixed here as
 `OUTBOUND_BATCH=<batch>`, which meant somebody had to tell you the label and you
 had to remember to type it. `work/BATCH` holds it and every command reads it.

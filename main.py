@@ -54,6 +54,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -342,17 +343,28 @@ def cmd_research(args) -> None:
               "is a worker that returned nothing, not a slice that passed.")
         sys.exit(2)
 
-    failed = 0
+    # One lead is somebody debugging one lead; print everything. A slice is the
+    # orchestrator checking a worker, and there the full block for a lead that
+    # passed is four lines nobody acts on that stay in its context for the rest
+    # of the run. `--verbose` restores the old output.
+    full = args.verbose or len(data) == 1
+    failed = quiet = 0
     for entry in data:
         if not isinstance(entry, dict):
             print(f"RESEARCH: FAIL — array holds a {type(entry).__name__}, "
                   f"expected an object per lead.")
             sys.exit(2)
         obj = r.Research.from_dict(entry)
-        print(r.report(obj))
+        if full or r.needs_a_look(obj):
+            print(r.report(obj))
+        else:
+            print(r.headline(obj))
+            quiet += 1
         failed += 1 if r.validate(obj) else 0
     if len(data) > 1:
-        print(f"RESEARCH: {len(data) - failed}/{len(data)} valid")
+        print(f"RESEARCH: {len(data) - failed}/{len(data)} valid"
+              + (f", {quiet} clean lead(s) shown as one line each — "
+                 f"--verbose for the evidence" if quiet else ""))
     sys.exit(1 if failed else 0)
 
 
@@ -1710,8 +1722,29 @@ def cmd_select(args) -> None:
 # -------------------------------------------------------------------- fetching
 
 
+def _apify_slug(args, cmd: str) -> str:
+    """A deterministic file name for one (lead, target) fetch.
+
+    Deterministic rather than timestamped on purpose: the retrieve-once
+    invariant says the same page is fetched once, so the same fetch overwriting
+    its own file is right, and two different targets for one lead must not
+    collide. The hash is of the target, so both hold.
+    """
+    import hashlib
+
+    target = ""
+    for attr in ("url", "urls", "addresses"):
+        value = getattr(args, attr, None)
+        if value:
+            target = "|".join(value) if isinstance(value, (list, tuple)) else str(value)
+            break
+    digest = hashlib.sha1(target.encode("utf-8", "replace")).hexdigest()[:8]
+    lead = re.sub(r"[^A-Za-z0-9._-]", "-", getattr(args, "lead", "") or "").strip("-")
+    return f"{lead}-{digest}" if lead else digest
+
+
 def cmd_apify(args) -> None:
-    """No-login third-party fetch layer. Prints JSON for the calling skill.
+    """No-login third-party fetch layer. Writes JSON, prints a summary.
 
     Every run is cost-gated: a call whose estimate is unknown or over the
     approval threshold exits 3 rather than running.
@@ -1771,7 +1804,38 @@ def cmd_apify(args) -> None:
     except apify.ApifyError as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         sys.exit(1)
-    print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+
+    payload = json.dumps(out, indent=2, ensure_ascii=False, default=str)
+    # `limits` and `actors` are the answer, not a payload — a budget check that
+    # wrote its number to a file would be absurd. Everything else is a dataset.
+    if cmd in ("limits", "actors") or getattr(args, "print_payload", False):
+        print(payload)
+        return
+
+    target = Path(getattr(args, "out", "") or ledger.artifact(
+        f"-apify-{cmd}-{_apify_slug(args, cmd)}.json",
+        batch=getattr(args, "batch", "") or ""))
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(payload, encoding="utf-8")
+    except OSError as exc:
+        # Falling back to stdout is the expensive path, so it says so rather
+        # than silently doing the thing this change exists to stop.
+        print(f"APIFY: could not write {target} ({exc}) — printing instead, "
+              f"which is the path that costs context.")
+        print(payload)
+        return
+    summary = apify.summarise(out)
+    print(f"APIFY {cmd}: {summary['items']} item(s), {summary['with_text']} "
+          f"with text"
+          + (f", {summary['oldest'][:10]} to {summary['newest'][:10]}"
+             if summary["newest"] else "")
+          + f", {len(payload):,} bytes")
+    if summary["keys"]:
+        print(f"  fields: {', '.join(summary['keys'])}")
+    print(f"  wrote {target}")
+    print(f"  Read it, or grep it. It is not printed here on purpose: this "
+          f"command used to put its whole dataset in your context.")
 
 
 def cmd_classify_footprint(args) -> None:
@@ -1872,7 +1936,7 @@ def cmd_ledger(args) -> None:
               f"not read.")
         sys.exit(2)
     print(ledger.report(records, batch=args.batch, malformed=malformed,
-                        leads=args.leads))
+                        leads=args.leads, verbose=args.verbose))
 
 
 def cmd_metrics(args) -> None:
@@ -2139,6 +2203,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("research", help="validate a worker's research object")
     p.add_argument("input", help="JSON file, or '-' for stdin")
+    p.add_argument("--verbose", action="store_true",
+                   help="the full block for every lead, not just the ones with "
+                        "a problem or a blocker. One lead is always full")
     p.set_defaults(func=cmd_research)
 
     p = sub.add_parser("observe", help="validate what a worker actually fetched")
@@ -2375,6 +2442,10 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--leads", type=int, default=0,
                    help="the batch's real lead count, so cost/lead is not "
                         "computed over only the leads that needed a fetch")
+    a.add_argument("--verbose", action="store_true",
+                   help="every duplicate pair, not the shapes they fall into. "
+                        "129 pairs in one batch were three shapes, and the "
+                        "shape is what the fix reads")
 
     p_ledger.set_defaults(func=cmd_ledger)
 
@@ -2453,6 +2524,16 @@ def build_parser() -> argparse.ArgumentParser:
         """
         parser_.add_argument("--lead", default="",
                              help="the lead this retrieval is for (ledger)")
+        # The payload goes to a file and a summary goes to stdout, like every
+        # other bulk stage here. This was the one command that printed its whole
+        # dataset into the caller's context.
+        parser_.add_argument("--out", default="",
+                             help="where to write the payload (default "
+                                  "data/runs/<batch>-apify-<cmd>-<lead>.json)")
+        parser_.add_argument("--print", dest="print_payload", action="store_true",
+                             help="print the payload instead of writing it. For "
+                                  "debugging by hand: in an agent this is the "
+                                  "300 KB that made a batch expensive")
         parser_.add_argument("--stage", default="research",
                              help="fetch | research | hook | verify (ledger)")
         parser_.add_argument("--purpose", default="observe",
