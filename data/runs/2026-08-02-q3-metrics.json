@@ -44,18 +44,18 @@
   "after_dedupe": 34,
   "warm": 0,
   "passed_floors": 28,
-  "written": 5,
-  "rejected": 12,
+  "written": 13,
+  "rejected": 4,
   "tier0_rate": 0.59,
   "source_list": "batch_queue_03+04_of_4",
-  "agent_passes": 137,
+  "agent_passes": 185,
   "passes_by_stage": {
-    "draft": 91,
+    "draft": 139,
     "hook": 41,
     "research": 5
   },
   "passes_by_model": {
-    "opus": 91,
+    "opus": 139,
     "sonnet": 46
   },
   "gaps": [

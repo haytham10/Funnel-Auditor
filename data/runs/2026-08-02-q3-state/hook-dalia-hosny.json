@@ -2,7 +2,7 @@
   "lead_key": "dalia-hosny",
   "observation_id": "cfede30d2284",
   "quote": "the first Arab professional Thai Boxing fighter",
-  "line": "Nobody hands you that one. You went and took it.",
+  "line": "Nobody ahead of you to ask how, so I'll skip the advice.",
   "hook_type": "WORK",
   "source_url": "https://thebusinessfighters.com/bio",
   "published_at": "",
@@ -12,6 +12,6 @@
     "Took the only candidate offered (rank 1, About page) after the paid LinkedIn rung came back empty (too_short).",
     "Skipped the hero-copy sentence ('adopting the mission of bringing positivity and productivity to workplaces') as generic segment copy, and skipped the MBA line as unremarkable among coaches.",
     "Chose the Muay Thai fighter fact over the Electronics Engineer fact and over the full career-arc sentence: unswappable, short enough to fit the 26-word hook room, and legible standalone without naming a third party.",
-    "2026-08-02 draft stage: clause rewritten on cold read. The original named her an executive coach, which contradicts coach_type Business and the identity beat two sentences later, and it commented on where the quote sits rather than taking anything from it. New clause keeps the certified quote word for word and carries the going-first nerve forward into beat 2."
+    "2026-08-02 third draft pass: clause rewritten again. The previous one ('Nobody hands you that one. You went and took it.') was admiration narrated back, and survived the deletion test. The new clause takes the consequence of 'first' (nobody ahead to ask) and spends it on what Haytham will not send, which beat 2 then answers."
   ]
 }

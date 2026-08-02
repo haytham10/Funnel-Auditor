@@ -1,60 +1,67 @@
-# 2026-08-02-q3 — batch state, snapshotted because `work/` and `out/` are gitignored
+# 2026-08-02-q3 — final state, snapshotted because `work/` and `out/` are gitignored
 
-The container is ephemeral and both directories are in `.gitignore`, so without
-this the whole batch would be gone: 34 researched leads, 17 verified hooks, and
-the emails that passed a cold read. Committed mid-run because a session limit
-stopped the redraft with work outstanding.
+`leads.csv` here is the finished, uploadable Smartlead file: **13 rows**, all
+lint PASS, all through `export --anchors`, all independently cold read.
+`preview.txt` is the gate and should be read before uploading.
 
-## Where the batch actually is
+## Outcome
 
-**Shipped, 5.** `leads.csv` here is the same file as `out/leads.csv`, complete
-and uploadable: Sam Eid, Anas Mounir, Stefania Brunori, Leila Atbi, Lisa Zevi.
-All five passed lint, `export --anchors`, and an independent cold read.
-`preview.txt` is the gate and should be read before any upload.
+- **13 shipped** of 34 raw, from 17 verified hooks.
+- **4 held**, each with a certified hook and dealt lines, so each is cheap to
+  finish later and needs no retrieval:
+  - **Amjad Saijary** — withdrawn by his own drafter. The post the hook cites
+    says he open-sourced the project "not to sell it", so no honest bridge to a
+    prospecting offer exists, and he has no evidenced buyer profile. Do not
+    re-attempt without evidence of something he sells and to whom.
+  - **David Singleton** — two mechanical words away. "in this city" should name
+    Dubai (the linter bans "here" against the offer line's "Real people here",
+    not the city's name), and the subject restates the hook's first sentence.
+  - **Amanda Slade** — an upstream mismatch, not a drafting failure. See below.
+  - **Solene Anglaret** — the hardest seam in the batch. The current clause
+    ("Improv is mostly about who else is there") was cleared by the last read;
+    what failed was the identity beat opening on a slogan, "I pick who you
+    should meet."
 
-**Held with a verified hook, 11.** Every one has a certified hook, a dealt set
-of four lines and a research object. Only the drafting failed. Nothing needs
-re-fetching to finish them.
+## The finding this batch exists to record
 
-**Withdrawn, 1.** Amjad Saijary, by his own drafter: the post his hook cites
-says he open-sourced the project "not to sell it", so no honest bridge to a
-prospecting offer exists. Do not re-attempt without new evidence of something
-he sells and to whom.
+**Every one of 17 drafts failed its first cold read.** The findings repeated
+almost word for word, which made it an instruction gap rather than 17 accidents:
+the hook's connecting clause commented on the quote instead of taking something
+from it, and the identity beat arrived as the copy line with a "your" bolted on.
 
-## What was in flight when the limit hit
+`.claude/agents/draft-worker.md` was corrected for both (commit a5ddf4d) and the
+11 held leads were redrafted against it. **Nine of the eleven were recovered**,
+most on the first attempt. Same leads, same hooks, same dealt lines — the only
+thing that changed was the agent file.
 
-All 17 drafts failed their first cold read, on two failures that repeat almost
-word for word. `.claude/agents/draft-worker.md` was corrected for both (commit
-a5ddf4d) and the 11 held leads were relaunched against the corrected file.
+## Two things for the next batch
 
-Two landed and are in this directory, both linting PASS and **neither yet cold
-read**:
+**`hook_room` is stale and reads roughly half the real budget.** Four drafters
+independently recomputed it: David 20 vs 47, Stephan 16 vs 41, Anita 18 vs 41,
+Chris 17 vs 37. Drafters were cutting "I worked with" and "here" out of identity
+beats to buy room they already had, and some first-round failures trace to that.
 
-- `draft-govind-abkari.json` — figures split across three sentences instead of
-  stacked, "practices" replaced with "coaches", "pitch" gone from the clause.
-- `draft-stephan-melchior.json` — the clause now points at a decision only he
-  made (he published the diagnostic free) rather than at diagnostics generally.
+**`id-life-2` cannot be honestly written for an established coach.** Its claim
+is `Life:first_client_days` and its line is "landed their first client in week
+1". For Amanda Slade — a master coach with high-net-worth clients — dropping
+"first" makes the speed claim evaporate ("week 1 of what, a client out of how
+many"), and keeping it reads as beginner advice. Two verifiers reached that
+independently. `deal` balances declared weights and has no notion of career
+stage, so this recurs until the Life segment has a line whose proof is not a
+first client.
 
-Nine did not run: David Singleton, Dalia Hosny, Solene Anglaret, Anita
-O'Connor-Roberts, Sarah Zakzouk, Amanda Slade, Meg Juma, Bahar Selman, Chris
-De Nil. Their files here are the **held** versions, not redrafts.
+## One deliberate deviation, recorded
 
-## To resume
-
-1. Cold read the two redrafts above. They have had no verifier.
-2. Redraft the nine, then cold read them.
-3. Rebuild `work/drafts.json` from every draft that reaches SEND, re-run
-   `export --anchors work/anchors.json --rebalance-ps`, then `crm-rows` and
-   `metrics`. The per-lead findings each of the nine has to answer are in
-   `docs/journal.md` and in the session that produced them.
-
-`anchors.json` is the deal this batch was written against. **Do not re-deal.**
-The drafts and CRM rows are written against it, and a second allocation makes
-them disagree — which is what `export --anchors` exists to catch.
+`cta-02` came out at 38% against the 35% cap because four leads held after the
+deal was made. `--rebalance-ps` only moves the ps, by design. Rather than drop a
+cold-read-passed email, **Sam Eid's cta was reallocated from `cta-02` to
+`cta-03` by hand in `anchors.json`**, and he was re-read cold with the new close
+(SEND, no problems). That is a single-beat edit to the deal, not a re-deal — no
+identity line moved and no email was re-drafted — but it was done by hand and
+should not become a habit. A `--rebalance-cta` would need to re-voice the beat,
+which is why it does not exist.
 
 ## Not done
 
 `wall-add` and `copy-usage` have NOT been run, because nothing has been
-uploaded. Run them only after the upload actually happens: walling a lead who
-received nothing silently excludes them from every future batch, and
-`copy-usage` is additive rather than idempotent.
+uploaded. Run them only after the upload actually happens.
