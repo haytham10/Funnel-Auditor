@@ -88,21 +88,36 @@ def test_the_ladder_is_in_cost_order():
     assert max(free) < min(paid)
 
 
-def test_the_about_rung_offers_the_page_as_well_as_a_framework():
-    """F5's narrowing, reversed on batch evidence. `2026-08-01-q1` MISSED three
-    leads and all three were `kind: about` observations an independent verifier
-    had VERIFIED. What the verifier refuses is the generic, not the location.
+def test_the_about_rung_is_walked_for_the_floors_not_for_a_hook():
+    """The rung still yields both kinds, and only one of them can be quoted.
 
-    Pinned against `select` rather than restated, so the two cannot drift: the
-    rung offers what the ranker will accept."""
+    F5's narrowing was reversed on `2026-08-01-q1` evidence — three MISSED
+    leads, all `kind: about`, all VERIFIED — and then reversed back on
+    `2026-08-02-q2` evidence, which is stronger because it is mechanical rather
+    than a judgement about genericness: `outbound/hook.py` requires a
+    `published_at` from every proposal, an About page has none, and the three
+    VERIFIED hooks could only have been dated by hand. Two workers on that
+    batch did exactly that, unprompted.
+
+    So the rung stays. Reading somebody's About page is free and it settles
+    `uae_based`, `is_coach` and `coach_type`. What it no longer does is feed the
+    shortlist. Pinned against `select` so the two cannot drift."""
     from outbound import select
 
     about = next(r for r in plan.LADDER if r.name == "about")
     assert about.kinds == ("framework", "about")
-    assert all(select.ban_for(observe.Observation(
-        lead_key="a@x.ae", platform="site", kind=kind, author="self",
-        text=" ".join(["word"] * 40)), today=date(2026, 8, 1)) == ""
-        for kind in about.kinds)
+
+    def ban(kind, published_at):
+        return select.ban_for(observe.Observation(
+            lead_key="a@x.ae", platform="site", kind=kind, author="self",
+            published_at=published_at,
+            text=" ".join(["word"] * 40)), today=date(2026, 8, 1))
+
+    # A dated framework off the same page is still a candidate.
+    assert ban("framework", "2026-07-20") == ""
+    # The About text itself never is, at any date.
+    assert ban("about", "2026-07-20") == "about_page"
+    assert ban("about", "") == "about_page"
 
 
 def test_the_paid_rungs_carry_the_hook_window_in_their_flags():

@@ -1,3 +1,72 @@
+## 2026-08-02 (D29) — the About-page exemption is gone, and select now bans what hook would reject
+
+Haytham, after reading the `2026-08-02-q2` brief: fix the gate so About pages
+are not shortlisted, there are plenty of hook sources.
+
+Right on both counts, and the second one is what makes the first safe.
+
+**The contradiction, stated mechanically.** `outbound/hook.py` requires a
+non-empty `published_at` from every proposal and exempts no kind. `select`
+exempted `about` and `framework` from the date rule entirely. So an About page
+could be ranked, shortlisted and handed to a hook-worker, and then could not
+become a hook. The exemption never widened what could ship; it manufactured
+candidates the next gate was obliged to refuse.
+
+**The exemption's own evidence was the bug.** It was added on 2026-08-01 because
+three MISSED leads were `about` observations "an independent verifier had
+VERIFIED". But the verifier checks the date, and an About page has none — so
+those hooks must have been dated by hand. `2026-08-02-q2` caught the mechanism
+live: two hook workers, independently, on different leads, wrote **today's date
+for a page that has none**, and one cited the other's file as precedent. `hook`
+rejects only *future* dates, so a stand-in of today clears everything.
+
+**What changed.** `EVERGREEN_KINDS = ()` — every kind proves recency, because
+nothing downstream is exempt. `NOT_CITABLE_KINDS = ("about",)` with a new
+`about_page` ban, placed after `boilerplate` (which is the more useful verdict
+when both apply) and **before** the date checks, so a supplied date cannot
+rescue the kind. Belt and braces, because a date-only ban is defeated by exactly
+the move two workers already made unprompted.
+
+**Re-scored against the committed corpus, which is why it was committed.**
+
+    before   14 leads with a candidate
+    after     4 leads with a candidate  (geeta, linda, max, sabine)
+    excluded  21 about_page, 1 no_date (an undated framework)
+
+And the check that matters, `select --against` on the verified hooks:
+
+    AGAINST: 3 verified hook(s) — 2 agreed, 1 shortlisted, 0 missed
+
+**Zero missed.** The shipped file would have been byte-identical — the same
+three emails — while ten hook-worker passes were never spent and neither
+fabricated date could have been proposed. A ban that costs nothing and closes a
+fabrication route is not a trade.
+
+**The cost is moved onto retrieval, deliberately.** A lead with only About text
+now shows an empty shortlist at `select`, before a pass is spent, instead of one
+stage later dressed as a hook-worker's failure. So `research-worker` gained a
+section naming where dated material actually is — LinkedIn posts, Instagram
+posts (`--mode posts` returns real timestamps), podcast and interview pages,
+their own `/blog` and `/press`, and a plain WebSearch on name plus "interview",
+"panel", "launched", "award". The last is free, unlimited and the least used
+thing the agent has. And `outbound-batch` now says to read the `about_page`
+count and **push a slice back to research before fanning out hook-workers**,
+because re-running one research slice is cheaper than ten wasted passes.
+
+**What did not change.** `about` is still a legal `observe` kind and the `about`
+rung is still on the ladder. Reading somebody's About page is free and settles
+`uae_based`, `is_coach` and `coach_type` — most of research's job. It is barred
+from becoming the sentence a stranger reads first, not from the record.
+
+Recorded as D29 with its reversal condition. `docs/hook-rules.md` requirement 2
+no longer grants the at-any-age pass, and ban #1 now carries the About-page note
+as a separate rule beside it rather than inside it — genericness and datedness
+are different objections and conflating them is how this got relaxed once
+already.
+
+960 tests, `doc-check` clean. The tests that encoded the old exemption were
+rewritten rather than deleted, so the reasoning on both sides stays readable.
+
 ## 2026-08-02 (batch 2026-08-02-q2) — the hook gate cannot accept the evidence the machine collects
 
 20 raw UAE coaches in, 3 emails out. The yield is the story, and it is not a

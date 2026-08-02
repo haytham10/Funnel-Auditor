@@ -380,6 +380,13 @@ a selection, including one with no observations. **Exit 2** if the input is not
 research objects, **exit 1** only if its own output fails its own schema — a
 disagreement is never a failure. Owned by `outbound/select.py`.
 
+**A candidate must be able to survive `hook`.** Every ban here mirrors something
+the next gate enforces, which is why the date rule now applies to every kind and
+why `about` is barred outright: `hook` requires a real `published_at` and an
+About page has none. Offering one asked a worker to choose between abandoning
+the hook and inventing a date, and on `2026-08-02-q2` two chose the second. A
+shortlist this stage cannot stand behind is a pass the next stage wastes.
+
 **It runs before the hook stage and the hook stage consumes it** (D27). Each
 lead gets up to three candidates carrying their observations' stored text;
 `hook-worker` picks one, quotes it and writes the clause. Three, so that a

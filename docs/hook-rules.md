@@ -29,8 +29,11 @@ it, and the paragraph after it now has somewhere to start from.
 
 - **Specific to them.** If it could go to another coach in the same segment
   unedited, it is not a hook.
-- **Recent.** Inside ~90 days for a post. An evergreen framework or an
-  About-page line they wrote themselves is fine at any age.
+- **Recent.** Inside ~90 days, for everything. There is no longer an
+  at-any-age exemption for an evergreen framework or an About-page line: the
+  hook gate requires a real `published_at` from every proposal, so an exempt
+  candidate is one the next gate is obliged to reject. **An About page is not a
+  hook source at all** — see the note under ban #1.
 - **Cited.** A URL actually fetched, the quote verbatim, and a date.
 - **Theirs.** Something they wrote, said, built or named — not something
   written about them, and not their website's marketing copy.
@@ -42,11 +45,20 @@ email fail even when the hook is technically true.
 
 1. **No generic site copy.** "I saw you help women find their purpose" is the
    hero section of a thousand coach sites. **This is a ban on the writing, not
-   on the page it sits on.** `outbound/select.py` spent one batch enforcing it
-   as "nothing from an About page", and every lead it cost had a hook a verifier
-   went on to confirm. The mechanical half is now the same text appearing for
+   on the page it sits on.** The mechanical half is the same text appearing for
    two different leads, which is this ban's own test — could it be sent unedited
    to another coach — settled on evidence.
+
+   **Separately, and for a different reason, an About page cannot be a hook
+   source.** This is not a judgement about genericness, which is why it is not
+   really part of ban #1. It is arithmetic: requirement 3 wants a date, an About
+   page has none and never will, and `outbound/hook.py` exempts no kind. The
+   rule was relaxed once, on `2026-08-01-q1`, because three MISSED leads were
+   About observations a verifier had VERIFIED — but a VERIFIED undated page can
+   only have been dated by hand, and on `2026-08-02-q2` two workers were caught
+   doing exactly that, one citing the other as precedent. Twenty-six of that
+   batch's forty-two observations were About text and **none carried a date**.
+   The ban is now on the `kind`, so a supplied date cannot rescue it.
 2. **No compliment with no object.** "Love your content" names nothing.
 3. **No invented specifics.** If it cannot be cited, it does not exist.
 4. **No inferred emotion.** You do not know they were nervous, proud or
@@ -65,9 +77,10 @@ email fail even when the hook is technically true.
     Peer to peer, not fan to celebrity.
 12. **No restating their offer back to them.** They know what they sell.
 
-**Four of these are now mechanical**, in `outbound/select.py`: #1 is a `kind`
-that is not `about` (and from a site, only a named framework survives), #6 is a
-date comparison, #7 is `author == "third_party"`, and #3 is the `obs_id` join —
+**Four of these are now mechanical**, in `outbound/select.py`: #1 is the
+repeated-text test above (with the separate `about_page` ban beside it), #6 is a
+date comparison that now applies to every kind, #7 is `author ==
+"third_party"`, and #3 is the `obs_id` join —
 a candidate names the observation it came from, so a hook citing a page nothing
 retrieved cannot be built. The other eight are still judgement, and this file is
 still the authority on all twelve.

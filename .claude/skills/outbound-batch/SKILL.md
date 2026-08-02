@@ -288,6 +288,21 @@ candidate**: a lead with none will produce a null hook or an escalation, and
 knowing which leads those are before you spend an agent pass on them is most of
 what this stage buys.
 
+**Read the `about_page` count in the rejections.** As of 2026-08-02 an About
+page can no longer be shortlisted at all — it has no publication date, `hook`
+requires one, and offering it asked a worker to invent the date, which two of
+them did. So a lead whose rejections are all `about_page` is not a hard lead; it
+is **a lead the research stage did not find a dated source for**, and that is a
+retrieval result, not a hook result.
+
+If a large share of the batch lands that way — on `2026-08-02-q2` it was 26 of
+42 observations and 10 of 14 leads — **push the slice back to research before
+fanning out a single hook-worker.** The fix is a dated source and there is no
+shortage of them: LinkedIn posts, Instagram posts, a podcast or interview page,
+a dated blog or press mention, a plain WebSearch on their name. Ten hook-worker
+passes on leads with nothing quotable is the exact waste this stage exists to
+prevent, and it is cheaper to re-run one research slice than to spend them.
+
 **`--batch` writes the corpus as well as the verdict**, into `data/runs/`.
 Commit both. On `2026-08-01-q1` only the verdict was kept and the corpus lived
 in `work/`, which does not survive the container — so when the ban that caused

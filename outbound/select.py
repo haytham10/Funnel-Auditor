@@ -78,11 +78,42 @@ at any age"* — had been narrowed away in code, so removing the location ban
 alone would have moved those three from `site_prose` to `no_date` and changed
 nothing.
 
-So the location ban is gone, `about` carries the same date exemption as
-`framework`, and `KIND_RANK` does the work the ban was doing badly: an About
-page ranks last and is offered only when the lead has nothing better. The
-mechanical half of ban #1 is now `boilerplate`, above, which fires on evidence
+So the location ban went and `about` was given the same date exemption as
+`framework`. **The location half of that was right and the exemption half was
+wrong**, for a reason nobody checked at the time: `outbound/hook.py` requires a
+non-empty `published_at` from every proposal and exempts no kind. An About page
+exempted here still could not become a hook one stage later.
+
+## The exemption was reversed by the batch that measured it (2026-08-02)
+
+`2026-08-02-q2` ran 42 observations. **26 were `about` and none carried a date**;
+the only dated ones were the 12 `post`s. Ten of the fourteen leads with a
+shortlist got nothing but undated About text, spent a hook-worker pass each, and
+produced a null — an outcome this module already had the facts to predict.
+
+Then the part that decided it. Two hook workers, independently, on different
+leads, did the only thing that resolves "quote this undated page" and "supply a
+publication date": they **wrote today's date for a page that has none**, and one
+cited the other's file as precedent. `hook` only rejects dates in the future, so
+a stand-in of today passes every mechanical check in the machine. That is, in
+all likelihood, how the three VERIFIED About-page hooks above were dated too.
+
+So the exemption did not surface hooks the ranker was missing. It surfaced hooks
+that could only survive by being dated by hand, inside a machine whose first
+rule is that **a hook is a citation or it is nothing**. `about` is now banned by
+kind (`about_page`) as well as by date, because a ban on the date alone is
+defeated by exactly the move those two workers already made unprompted.
+
+The mechanical half of ban #1 remains `boilerplate`, which fires on evidence
 that a line is generic rather than on where it was found.
+
+**The cost of this is borne by retrieval, deliberately.** A lead whose only
+material is an About page now has an empty shortlist and is visible as such at
+`select`, before any pass is spent — instead of one stage later, dressed as a
+hook-worker's failure. The answer is a dated source: a LinkedIn or Instagram
+post, a podcast episode, a dated article. `docs/hook-rules.md` calls LinkedIn
+"the richest source by a distance", and a plain WebSearch reaches the coaches
+who do not post there.
 
 ## Two rules taken from the codebase rather than invented
 
@@ -156,11 +187,41 @@ AUTHOR_RANK = {"self": 0, "unknown": 1}
 KIND_RANK = {"post": 0, "episode": 0, "video": 1, "framework": 2, "result": 3,
              "about": 9, "bio": 9}
 
-# Exempt from both date rules, per `docs/hook-rules.md`. `about` is here because
-# a page somebody wrote about themselves has no publication date and never will,
-# and requiring one is a way of banning the kind while appearing not to. It
-# still ranks last in `KIND_RANK`: exempt from the date, never preferred.
-EVERGREEN_KINDS = ("framework", "about")
+# Nothing is exempt from the date rule any more, because nothing downstream is.
+#
+# This used to be `("framework", "about")`, on the reasoning that a page somebody
+# wrote about themselves has no publication date and never will, so requiring one
+# bans the kind while appearing not to. That reasoning was sound about About
+# pages and wrong about this stage's job: `outbound/hook.py` requires a
+# non-empty `published_at` from EVERY proposal, with no exemption for any kind.
+# So an exemption here never widened what could ship. It produced candidates the
+# next gate was obliged to reject.
+#
+# The evidence that it was worse than a no-op arrived on `2026-08-02-q2`. Of 42
+# observations, 26 were `about` and **not one carried a date**; only the 12
+# `post` observations did. Ten of the fourteen leads with a shortlist were
+# offered nothing but undated About text, and every one of them spent a
+# hook-worker pass discovering what this module already knew.
+#
+# Two of those workers, independently, on different leads, resolved the
+# impossible instruction the only way it can be resolved: they supplied today's
+# date for a page that has none, and one cited the other's file as precedent.
+# The gate only rejects dates in the FUTURE, so a stand-in of today passes.
+# That is almost certainly how the three VERIFIED About-page hooks on
+# `2026-08-01-q1` — the batch this exemption was added for — got a date at all.
+# The exemption did not surface good hooks; it surfaced hooks that had to be
+# dated by hand to survive, in a machine whose first rule is that a hook is a
+# citation or it is nothing.
+EVERGREEN_KINDS: tuple[str, ...] = ()
+
+# Not offerable however dated. An About page is banned by KIND as well as by
+# date, which is belt and braces on purpose: the date ban alone is defeated by
+# exactly the move two workers already made unprompted, and a supplied date on
+# an undated page is indistinguishable here from a real one. `about` stays a
+# legal `observe` kind — the floors, `coach_type` and the activity check all
+# still read it. It is only barred from becoming the sentence a stranger reads
+# first.
+NOT_CITABLE_KINDS = ("about",)
 # Borrowed, not restated. `observe.PLATFORMS` already leads with linkedin, which
 # `docs/hook-rules.md` calls "the richest source by a distance", and a second
 # ordering of the same vocabulary is the drift this repo keeps finding.
@@ -177,6 +238,9 @@ BANS = {
                    "be sent unedited to another coach) settled on evidence",
     "third_party": "ban #7, no third-party coverage — a directory listing or an "
                    "article about them is not their voice",
+    "about_page": "an About page is not a hook source — it carries no "
+                  "publication date, so `hook` must reject it; offering one "
+                  "asks a worker to invent the date, which two of them did",
     "no_date": "requirement 3, cited — a post with no date cannot be shown to "
                "be recent",
     "stale": f"ban #6, no stale news as fresh — outside {HOOK_RECENCY_DAYS} days",
@@ -335,11 +399,18 @@ def ban_for(obs: Observation, *, today: date | None = None,
     if obs.author == "third_party":
         return "third_party"
 
-    # Evergreen, and `docs/hook-rules.md` grants both halves: "an evergreen
-    # framework OR an About-page line they wrote themselves is fine at any age".
-    # The code carried only the first half until 2026-08-01, which is why three
-    # verified About-page hooks were excluded — first as `site_prose`, and then,
-    # when that ban went, as `no_date`. Everything else has to prove recency.
+    # After `boilerplate`, which is the more useful answer when both apply — it
+    # names a template site rather than a barred kind. Before the DATE checks,
+    # though, so that a `published_at` somebody supplied for a page that has
+    # none cannot rescue it. That is not hypothetical: it is the move two
+    # workers made unprompted on `2026-08-02-q2`.
+    if obs.kind in NOT_CITABLE_KINDS:
+        return "about_page"
+
+    # Every kind proves recency now. `hook` requires `published_at` from every
+    # proposal with no exemption, so an exemption here only ever manufactured a
+    # candidate the next gate had to refuse — or, worse, one a worker kept by
+    # dating an undated page by hand. See EVERGREEN_KINDS above.
     if obs.kind not in EVERGREEN_KINDS:
         if not obs.published_at.strip():
             return "no_date"
