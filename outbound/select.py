@@ -1,22 +1,50 @@
-"""Which observation a hook would be made from, chosen without fetching anything.
+"""Which observation the hook is made from, chosen without fetching anything.
 
-The hook stage today is the one consequential stage that searches. `hook-worker`
-opens a context per lead, walks a ladder written in prose, and fetches — after
-`research-worker` has already fetched, for the same lead, and thrown the material
-away (F1, F2). This module is the other half of that: a ranking over the
-observations P1 kept, so that finding a hook becomes selection rather than search.
+The hook stage used to be the one consequential stage that searched.
+`hook-worker` opened a context per lead, walked a ladder written in prose, and
+fetched — after `research-worker` had already fetched, for the same lead, and
+thrown the material away (F1, F2). This module is the other half of that: a
+ranking over the observations research kept, so that finding a hook is selection
+rather than search.
 
-**It runs alongside the hook stage and nothing consumes it.** `hook-worker` still
-fetches, still proposes, and is not edited. What lands here is the ranker and one
-measurement, `--against`, which asks the only question that can settle whether
-the fetch is removable: **would this have picked the same evidence?**
+**This runs BEFORE the hook stage and the hook stage consumes it** (2026-08-01,
+D27). It hands each lead a shortlist of three candidates carrying their
+observations' verbatim text; `hook-worker` picks one, quotes it and writes the
+clause. The ranking is the whole of what a machine can honestly decide here —
+recency, authorship, kind, length against the room — and the clause is the whole
+of what it cannot.
 
-That question has never had a number. `data/runs/` has never recorded a
-`li_posts` fetch at all, so the duplicate P3 exists to remove has not been
-measured and `hook_yield` has no baseline. One batch answers both at once — the
-ledger's `DUPLICATE` line and this module's `AGAINST` line — and after that,
-flipping the hook stage over is an argument from evidence rather than from a
-diagram.
+**Three so that a rejected first pick needs no second retrieval.** That is the
+number's only justification and it is worth keeping in view: the shortlist is
+sized to make the escalation rare, not to give the model a menu.
+
+## What it still refuses to be
+
+**It verifies nothing, and the flip makes that matter more rather than less.**
+A quote found here is in the text *we stored*, put there by a different agent at
+a different hour. Whether those words are on the page is `hook-verifier`'s
+question and it answers it with a live re-fetch. That fetch is not overhead; it
+is the only mechanism in this system that has ever caught a fabricated claim,
+and reading this module's output as verification is exactly how it would be
+retired (R2).
+
+**And it does not decide who gets drafted.** A lead whose every observation is
+banned gets no candidate, which means a null hook — a good answer, and the lead
+holds rather than failing.
+
+## `--against` survives the flip, and now means something more useful
+
+It compared the ranker's pick to the hook the stage had already paid to find.
+Post-flip the hook comes from the shortlist, so the same five verdicts read as
+what the worker did with it:
+
+- **agreed** — it took rank 1.
+- **shortlisted** — it took rank 2 or 3, which is the shortlist earning its size.
+- **missed** — it used an observation this module banned. A ban to re-examine.
+- **unobserved** — **it escalated.** This is the escalation rate, and it is the
+  number that says whether the flip holds.
+- **no_pool** — research returned nothing for that lead. A fact about the
+  corpus, not about the ranker.
 
 ## Four of the twelve bans stop being something an agent must remember
 
@@ -85,13 +113,14 @@ and recent this person did, **plus a clause that says what you took from it**",
 and that clause is the only genuinely authorial part of the beat. Nothing here
 authors it, so nothing here emits a `HookProposal` — a proposal type whose `line`
 was empty on every record would be a schema built around a gate it cannot
-enforce. `Candidate` is what a ranker can honestly produce, and F4 closes when
-the authorship arrives.
+enforce. `Candidate` is what a ranker can honestly produce; `hook-worker` turns
+one into a proposal and `outbound/hook.py` gates it.
 
-**And a quote found in our stored text is not a verified quote.** Every line this
-module prints says "in the retrieved text" for that reason. The verifier's live
-re-fetch is the only thing that has ever caught a fabricated claim, and the day
-somebody reads this module's output as verification, R2 has happened.
+**The join back is what makes ban #3 mechanical.** A proposal names the `obs_id`
+it came from, and `hook --against` checks the quote really is a contiguous piece
+of that candidate's text. "No invented specifics" was a sentence an agent was
+asked to remember for as long as there was nothing to check it against. There
+is now.
 """
 
 from __future__ import annotations
@@ -607,6 +636,13 @@ def report(selections: list[LeadSelection], *, hook_room: int = 0,
                 lines.append(f"  {selection.agreement.upper():10} "
                              f"{selection.lead_key or selection.name} — "
                              f"{selection.agreement_note}")
+        # The word means the opposite thing it used to and the same line prints
+        # it, so the reading is stated rather than assumed. Before the flip an
+        # unobserved hook was a fetch selection could not have replaced; now it
+        # is a fetch selection did not manage to avoid.
+        lines.append(f"  {counts['unobserved']} of {len(compared)} escalated "
+                     f"— UNOBSERVED post-flip is the escalation rate, not a "
+                     f"fetch this stage could not have replaced")
 
     if hook_room:
         lines.append(f"  hook room {hook_room} words, advisory only")
@@ -620,7 +656,8 @@ def report(selections: list[LeadSelection], *, hook_room: int = 0,
         lines.append(f"  SCHEMA  {problem}")
     if problems:
         lines.append(schema_help())
-    lines.append("  ADVISORY. Nothing here writes a hook, nothing reads this "
-                 "file, and a quote found here is in the text we stored — not "
-                 "verified on the page. That is still the verifier's live fetch.")
+    lines.append("  The hook stage reads this file. Nothing here writes a hook "
+                 "or verifies one: a quote found here is in the text WE STORED, "
+                 "and whether those words are on the page is the verifier's "
+                 "live re-fetch, which is unchanged and matters more now.")
     return "\n".join(lines)

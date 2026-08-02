@@ -636,12 +636,17 @@ def test_select_disagreeing_with_a_verified_hook_is_never_a_failure():
 
 def test_select_never_calls_a_stored_quote_verified():
     """R2. The verifier's live re-fetch is the only thing that has ever caught
-    a fabricated claim, and a report that reads as verification retires it."""
+    a fabricated claim, and a report that reads as verification retires it.
+
+    More load-bearing since the flip, not less: the quote a hook cites now comes
+    out of text a different agent stored hours earlier, so the live fetch is the
+    only check that the stored text was ever real."""
     with tempfile.TemporaryDirectory() as tmp:
         path = write(tmp, "researched.json", json.dumps([{"email": "a@x.ae"}]))
         out = run("select", path)
         assert out.returncode == 0, out.stdout
-        assert "not verified on the page" in out.stdout
+        assert "STORED" in out.stdout
+        assert "re-fetch" in out.stdout
 
 
 def test_select_exits_2_on_something_that_is_not_a_research_object():

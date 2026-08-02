@@ -457,9 +457,17 @@ def test_a_selection_survives_json_and_back():
 
 def test_the_report_never_claims_a_quote_is_verified():
     """R2 in one assertion. The moment this output reads as verification, the
-    verifier's live fetch starts looking like overhead."""
-    result = select.select_all([research(obs())], today=TODAY)
-    assert "not verified on the page" in result["report"]
+    verifier's live fetch starts looking like overhead.
+
+    Asserted on the property rather than a sentence: the report has to say the
+    text is *stored*, and it has to name the live re-fetch as the thing that
+    checks the page. Post-flip this is the more important of the two — the quote
+    now comes from text a different agent wrote down hours earlier."""
+    report = select.select_all([research(obs())], today=TODAY)["report"]
+    lowered = report.lower()
+    assert "stored" in lowered
+    assert "re-fetch" in lowered or "live" in lowered
+    assert "verified on the page" not in lowered.replace("are on the page", "")
 
 
 def test_the_report_names_the_missed_pages_rather_than_only_counting_them():
@@ -468,6 +476,22 @@ def test_the_report_names_the_missed_pages_rather_than_only_counting_them():
                   hook_source_url="https://linkedin.com/posts/nadia-1")],
         against=True, today=TODAY)
     assert "MISSED" in result["report"]
+
+
+def test_unobserved_reads_as_the_escalation_rate_after_the_flip():
+    """The same word, the opposite meaning. Before the flip an `unobserved` hook
+    was a fetch selection could not have replaced — the number that decided
+    whether the flip could go at all. After it, the hook comes from the
+    shortlist, so a hook citing a page no observation carries is one the worker
+    escalated to get.
+
+    The verdict needs no code change to say that; the report has to."""
+    result = select.select_all(
+        [research(obs(), hook_verified="verified",
+                  hook_source_url="https://podcast.fm/ep/12")],
+        against=True, today=TODAY)
+    assert "1 of 1 escalated" in result["report"]
+    assert "escalation rate" in result["report"]
 
 
 def test_the_report_asks_for_the_hook_room_rather_than_assuming_it():
