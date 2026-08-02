@@ -547,3 +547,75 @@ def test_an_authored_identity_sentence_does_not_trip_the_wrong_line_check():
                                  dealt=dealt_for([d]),
                                  bank=anchors.CopyBank.from_csv())
         assert out["written"] == 1, Path(tmp, "rejected.txt").read_text()
+
+
+def test_rebalance_ps_rewrites_the_body_not_only_the_id():
+    """A ps swap must reach the shipped text, not just `anchor_ids`.
+
+    `export` prefers a `body` the drafter already assembled over rebuilding one
+    from `beats`. `--rebalance-ps` writes the new ps into `beats`, so a draft
+    carrying a stale `body` used to ship the OLD ps sentence while
+    `anchor_ids`, `line-usage.csv` and the CRM row all named the NEW one.
+
+    `--anchors` cannot catch it: that check compares `beats` against the deal,
+    and `beats` is the half the allocator moved. So every gate passed and the
+    file was still wrong — the "CRM row describing an email nobody received"
+    failure, arriving from the allocator rather than from a drafter.
+
+    Caught on batch 2026-08-02-q2, where 12 of 15 leads held and the rebalance
+    moved 2 of 3 ps lines.
+    """
+    import json
+    import re
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parent.parent
+    bank = anchors.CopyBank.load()
+    ps_text = {line.id: line.line for line in bank.ps}
+
+    def draft(email, first, ps_line, nth):
+        b = beats()
+        b["ps"] = ps_line
+        # Distinct per lead: a reused subject blocks the batch, and a shared
+        # hook phrase is what the template check is for. Neither is what this
+        # test is about.
+        b["hook"] = (f"You wrote that the {first} method took you "
+                     f"{nth + 3} years to settle on.")
+        return {
+            "slug": first.lower(), "name": f"{first} Test", "first_name": first,
+            "last_name": "Test", "email": email,
+            "subject": f"the {first} method",
+            # The stale half: assembled BEFORE any reallocation.
+            "body": export.assemble_body(b, greeting_name=first),
+            "beats": b, "allowed_numbers": sorted(ALLOWED),
+            "anchor_ids": {"identity": "id-any-1", "offer": "b4-01",
+                           "cta": "cta-01", "ps": "ps-03"},
+        }
+
+    stale_ps = ps_text["ps-03"]
+    rows = [draft(f"coach{n}@example.com", f"Coach{n}", stale_ps, n)
+            for n in range(3)]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / "drafts.json"
+        src.write_text(json.dumps(rows), encoding="utf-8")
+        out = Path(tmp) / "out"
+        proc = subprocess.run(
+            [sys.executable, "main.py", "export", str(src),
+             "--rebalance-ps", "--out", str(out), "--batch", "2026-01-01"],
+            cwd=root, capture_output=True, text=True,
+        )
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        preview = (out / "preview.txt").read_text(encoding="utf-8")
+        with (out / "leads.csv").open(encoding="utf-8", newline="") as handle:
+            shipped = {r["email"]: r["body"] for r in csv.DictReader(handle)}
+
+    assert shipped, "nothing was written"
+    for email, body in shipped.items():
+        claimed = re.search(
+            re.escape(email) + r">.*?lines: ([^\n]+)", preview, re.S
+        ).group(1).split(",")[3].strip()
+        last = body.strip().splitlines()[-1].strip()
+        assert last == ps_text[claimed].strip(), (
+            f"{email} reports {claimed} but shipped {last!r}")
