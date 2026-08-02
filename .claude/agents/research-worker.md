@@ -127,39 +127,32 @@ at all. `select` ranks what you return and `hook-worker` quotes it. So:
 - **Return the whole text, not the part that settled the floor.** The sentence
   that proves somebody is a coach is rarely the sentence worth quoting to them,
   and the hook stage cannot go back for the rest.
-- **`kind` decides how it ranks, and two kinds can no longer be quoted at all.**
-  `post` and `episode` rank above `video` and `framework`. `bio` and `result`
-  are not content. **`about` is barred outright as of 2026-08-02** — see below.
-  Label honestly rather than upward: a profile fact labelled `post` gets ranked
-  as material it is not, and mislabelling an About page as a `post` to get it
-  past the ban produces a hook a verifier refutes on the date.
+- **`kind` decides how it ranks.** `post` and `episode` rank above `video`,
+  `framework` and `about`; `bio` and `result` are not content and never reach a
+  shortlist. Label honestly rather than upward — a profile fact labelled `post`
+  gets ranked as material it is not.
 
-### An observation with no date is not a hook, so go and find one that has one
+### An About page is the fallback. Go and find something better first.
 
-This is the change that matters most to how you spend your time.
+An About page is a legal hook source and always has been: `select` ranks it
+below everything datable, so a lead is offered one only when nothing recent
+survived. That is the right shape, and it is also why **returning three About
+pages and nothing else is the same as returning a lead with no hook material.**
 
-`hook` requires a real `published_at` from every proposal, and `select` now
-enforces the same thing: **every kind must carry a date inside 90 days, and
-`about` is banned whatever its date.** An About page has no publication date and
-never will, so it can no longer reach a shortlist.
+`2026-08-02-q2` measured what that costs: **26 of 42 observations were `about`
+and none carried a date**, ten of fourteen leads reached the hook stage with
+nothing else, and the batch shipped 3 emails from 20 rows. Not because those
+coaches were unreachable — because nobody went and looked where the dated
+things are.
 
-On `2026-08-02-q2` this was measured: **26 of 42 observations were `about` and
-not one carried a date.** Ten of fourteen leads reached the hook stage with
-nothing quotable, and two workers, told to quote an undated page and supply a
-date, invented one. That is the failure this closes.
-
-So an About page is still worth reading — it settles `uae_based`, `is_coach` and
-`coach_type`, which is most of your job. **It is no longer worth returning as
-hook material, and returning three of them is the same as returning none.**
-
-**There is no shortage of dated sources. Go and get them:**
+**There is no shortage of dated sources. Spend your time on these first:**
 
 1. **LinkedIn posts** — `docs/hook-rules.md` calls this "the richest source by a
    distance", and a post is dated by construction. Already on your ladder.
 2. **Instagram posts** — `apify ig <url> --mode posts` returns real timestamps.
-   Coaches who never touch LinkedIn post here constantly. On `2026-08-02-q2` the
-   one lead whose site belonged to a stranger was rescued by finding his real
-   personal Instagram through a plain search.
+   Coaches who never touch LinkedIn post here constantly, and on this batch the
+   one lead whose website belonged to a stranger was rescued by finding his real
+   personal account through a plain search.
 3. **Podcast and interview appearances** — already required of you, still the
    rung that reaches coaches who do not post. The episode page carries a date.
 4. **A plain WebSearch.** Free, unlimited, and the least used thing you have.
@@ -172,11 +165,13 @@ hook material, and returning three of them is the same as returning none.**
    clicks in. The homepage is where you stop looking; it should be where you
    start.
 
-**If a lead has no dated material after you have genuinely walked those, say so
-in `notes` and return the lead thin.** That is a real finding about the lead and
-it is worth recording. What is not acceptable is settling for an About page and
-leaving the emptiness to be discovered a stage later, by an agent that cannot
-fetch.
+**On dates, one rule that is now enforced rather than assumed.** An observation's
+`published_at` is what the page says, or empty. **Never fill it in to make a
+record look complete.** An About page has no publication date and the hook stage
+now accepts an empty one from it — but it also rejects a *non-empty* date on a
+source that carries none, as a fabrication. Two workers on `2026-08-02-q2`
+supplied today's date for an undated page, one copying the other. You do not
+have to, and now you cannot.
 - **Text you summarised is worse than no observation.** A tidied sentence
   reaches the reader as a quote, and the verifier re-fetches the page and
   refutes it. Verbatim or leave it out.

@@ -584,54 +584,50 @@ would turn an ownership verdict into the inclusion gate D21 forbids.
 hooks at about the rate everyone else does — which would mean the ownership
 verdict does not predict the waste, and `plan` should not gate on it at all.
 
-### D29 · An About page is not a hook source, and nothing is exempt from the date
+### D29 · The hook's date comes from the source, and an undated source takes none
 
-**2026-08-02.** `select` bans `kind == "about"` outright (`about_page`) and
-applies the 90-day date rule to every kind. `EVERGREEN_KINDS` is empty. This
-reverses the exemption added on 2026-08-01, which had given `about` and
-`framework` an at-any-age pass.
+**2026-08-02.** `outbound/hook.py` no longer requires a `published_at` from
+every proposal. It takes the date from the observation the proposal cites:
+required and matching when the source carries one, **empty when the source
+carries none**, and a non-empty date on a dateless source is rejected as
+fabricated. Where no source can be joined — no `--against`, or a declared
+escalation — the old rule stands and a date is required.
 
-**Why the exemption was wrong, and it is arithmetic rather than taste.**
-`outbound/hook.py` requires a non-empty `published_at` from every proposal and
-exempts no kind. So an About page exempted at `select` still could not become a
-hook one stage later. The exemption never widened what could ship — it
-manufactured candidates the next gate was obliged to reject.
+**The defect.** `select` offers About pages on purpose: ranked below everything
+datable, so a lead sees one only when nothing recent survived.
+`docs/hook-rules.md` has always allowed it ("an About-page line they wrote
+themselves is fine at any age"). But `hook` demanded a date from every proposal,
+and an About page has none. So a worker holding a legitimate fallback had two
+moves: abandon the hook, or invent the date.
 
-**Why the evidence for the exemption was itself the bug.** It was added because
-`2026-08-01-q1` MISSED three leads whose `about` observations an independent
-verifier had VERIFIED. But a VERIFIED undated page must have been given a date
-by somebody, because the verifier checks the date. On `2026-08-02-q2` that
-mechanism was caught in the open: two hook workers, independently, on different
-leads, supplied **today's date for a page that has none**, and one cited the
-other's file as precedent. `hook` rejects only dates in the *future*, so a
-stand-in of today clears every mechanical check in the machine.
+**Two workers invented it.** On `2026-08-02-q2`, independently, on different
+leads, both wrote **today's date for a page that has none**, and one cited the
+other's file as precedent. The only date rule was "not in the future", so a
+stand-in of today cleared every mechanical check in the machine. Both were
+caught by hand and withdrawn before export. That is very likely also how the
+three VERIFIED About-page hooks on `2026-08-01-q1` were dated.
 
-**The measurement.** Of that batch's 42 observations, **26 were `about` and none
-carried a date**; only the 12 `post`s did. Ten of the fourteen leads with a
-shortlist were offered nothing else and each spent a hook-worker pass to
-discover it. Re-scoring the committed corpus under this decision drops
-candidate-carrying leads from 14 to 4 and **leaves the shipped file identical** —
-the same three emails, ten passes saved, and the fabrication route closed.
+**An impossible instruction gets resolved dishonestly, and that is a gate defect
+rather than a worker defect.** The first attempt at this fix banned About pages
+from the shortlist instead, which removed the symptom and the fallback together
+and was reverted the same day. The ranker was doing its job; the gate was not.
 
-**Banned by kind, not only by date**, because a date ban alone is defeated by
-exactly the move those two workers already made unprompted, and a supplied date
-on an undated page is indistinguishable at this stage from a real one.
+**What it buys.** Replayed against the batch's committed corpus, both withdrawn
+proposals are now rejected with `carries no date at all`, and both are accepted
+once their `published_at` is empty. The fabrication became mechanically
+detectable in the same change that made it unnecessary.
 
-**The half that does not change.** `about` stays a legal `observe` kind and the
-`about` rung stays on the ladder. Reading somebody's About page is free and it
-settles `uae_based`, `is_coach` and `coach_type`. It is barred from becoming the
-sentence a stranger reads first, not from the record.
+**The half that does not change.** `EVERGREEN_KINDS` still exempts `about` and
+`framework` from `select`'s date rules, `KIND_RANK` still ranks `about` last,
+and ban #6 still applies in full to everything with a date. A missing
+`published_at` **key** on a shortlist entry is treated as unknown rather than
+undated — `resolve.py`'s "`unknown` never means the tell said no", one stage
+over — so an incomplete record can never convict a worker of inventing a date.
 
-**The cost is moved onto retrieval on purpose.** A lead with only About text now
-has an empty shortlist visible at `select`, before a pass is spent, rather than
-one stage later dressed as a hook-worker's failure. The answer is a dated
-source, and they are not scarce: LinkedIn posts, Instagram posts, podcast and
-interview pages, dated blog or press mentions, a plain WebSearch.
-
-**Reversed by** a batch where leads carrying dated sources are as rare as this
-one suggests *and* a verifier can confirm an About-page hook against a date that
-was on the page rather than supplied — which would mean About pages carry dates
-this machine is failing to read, and the ban should become a date check again.
+**Reversed by** a batch where undated evergreen hooks are refuted by the live
+verifier at a materially higher rate than dated ones, which would mean the
+recency the date was standing in for was load-bearing after all, and the
+fallback should be narrowed rather than dated honestly.
 
 ---
 

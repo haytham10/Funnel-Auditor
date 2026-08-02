@@ -93,36 +93,37 @@ def test_an_about_page_is_offered_and_ranked_last():
     is offered — and `KIND_RANK` keeps it behind anything else the lead has,
     which is the job the ban was doing badly."""
     about = obs(platform="site", kind="about", published_at="")
-    assert select.ban_for(about, today=TODAY) == "about_page"
+    assert select.ban_for(about, today=TODAY) == ""
     assert select.sort_key(about, today=TODAY) > select.sort_key(obs(), today=TODAY)
 
 
-def test_an_about_page_is_not_a_hook_source_however_it_is_dated():
-    """The reversal of the evergreen exemption, and why it is by KIND.
+def test_an_about_page_carries_the_evergreen_date_exemption():
+    """Removing the location ban alone changes nothing: a page somebody wrote
+    about themselves has no publication date, so those same three leads would
+    have moved from `site_prose` to `no_date`. `docs/hook-rules.md` grants both
+    halves and the code carried only one.
 
-    `outbound/hook.py` requires a non-empty `published_at` from every proposal
-    and exempts no kind, so an About page exempted here could never become a
-    hook one stage later — the exemption only manufactured candidates the next
-    gate had to refuse.
-
-    Banning on the date alone would not hold. `hook` rejects only dates in the
-    FUTURE, so today's date passes every mechanical check, and on
-    `2026-08-02-q2` two workers independently supplied exactly that for an
-    undated page, one citing the other as precedent. So the ban is on the kind
-    and it fires whatever the date says."""
-    assert "about" not in select.EVERGREEN_KINDS
-    assert "about" in select.NOT_CITABLE_KINDS
-    for dated in ("", "2019-03-01", TODAY.isoformat()):
-        assert select.ban_for(obs(platform="site", kind="about",
-                                  published_at=dated), today=TODAY) == "about_page"
+    Briefly reversed on 2026-08-02 and restored the same day. The batch that
+    prompted it exposed a real defect, but the defect was `outbound/hook.py`
+    demanding a date from every proposal — which left a worker handed a
+    legitimate undated page choosing between abandoning the hook and inventing
+    the date. Deleting the fallback removes the symptom and the fallback. The
+    gate was fixed instead; this exemption stays."""
+    assert "about" in select.EVERGREEN_KINDS
+    assert select.ban_for(obs(platform="site", kind="about", published_at=""),
+                          today=TODAY) == ""
+    assert select.ban_for(obs(platform="site", kind="about",
+                              published_at="2019-03-01"), today=TODAY) == ""
 
 
-def test_an_about_page_is_still_a_legal_observation():
-    """Barred from the shortlist, not from the record. The floors, `coach_type`
-    and the activity check all still read About text; it is only barred from
-    becoming the sentence a stranger reads first."""
-    from outbound import observe
-    assert "about" in observe.CONTENT_KINDS
+def test_an_about_page_is_the_fallback_and_never_the_preference():
+    """What makes offering it safe: it is ranked below everything datable, so a
+    lead only ever sees one when nothing recent survived."""
+    fresh = obs(published_at="2026-07-28")
+    about = obs(platform="site", kind="about", published_at="",
+                url="https://nadiacoaching.ae/about")
+    ranked, _ = select.rank([about, fresh], today=TODAY)
+    assert [c.kind for c in ranked] == ["post", "about"]
 
 
 def test_a_post_on_their_own_site_is_content():
@@ -139,13 +140,9 @@ def test_the_same_text_on_two_leads_pages_is_generic_by_evidence():
     """Ban #1's mechanical half, and the only proxy for "generic" that is not a
     guess: the verifier's own test is whether it could be sent unedited to
     another coach in the segment, and two leads carrying it is that, proven."""
-    # `post`, not `about`: an About page is now barred by kind, and this test is
-    # about the generic-text evidence rather than the kind. `boilerplate` is
-    # checked BEFORE `about_page` so that a template site still reports the more
-    # useful of the two verdicts when both apply.
     shared = "Book a free discovery call and let us start your journey today."
-    mine = obs(lead_key="a@x.ae", platform="site", kind="post", text=shared)
-    theirs = obs(lead_key="b@y.ae", platform="site", kind="post", text=shared)
+    mine = obs(lead_key="a@x.ae", platform="site", kind="about", text=shared)
+    theirs = obs(lead_key="b@y.ae", platform="site", kind="about", text=shared)
     boilerplate = select.boilerplate_of([(o.lead_key, o.text)
                                          for o in (mine, theirs)])
     assert select.ban_for(mine, today=TODAY, boilerplate=boilerplate) \
@@ -153,11 +150,6 @@ def test_the_same_text_on_two_leads_pages_is_generic_by_evidence():
     # And judged alone, with no corpus to compare against, it is not generic —
     # the test needs evidence and says so rather than guessing from one record.
     assert select.ban_for(mine, today=TODAY) == ""
-    # The ordering, pinned: generic About text names the template, not the kind.
-    generic_about = obs(lead_key="a@x.ae", platform="site", kind="about",
-                        text=shared)
-    assert select.ban_for(generic_about, today=TODAY,
-                          boilerplate=boilerplate) == "boilerplate"
 
 
 def test_one_leads_page_fetched_twice_is_not_boilerplate():
@@ -193,18 +185,14 @@ def test_a_post_with_no_date_cannot_prove_it_is_recent():
     assert select.ban_for(obs(published_at=""), today=TODAY) == "no_date"
 
 
-def test_nothing_is_exempt_from_the_date_rule_because_hook_exempts_nothing():
-    """`framework` carried the exemption longest and loses it for the same
-    reason `about` did: `hook` requires `published_at` from every proposal, so
-    an undated candidate is one the next gate is obliged to reject."""
+def test_an_evergreen_framework_is_exempt_from_both_date_rules():
+    """`docs/hook-rules.md` grants it: an evergreen framework or a line they
+    wrote themselves is fine at any age."""
     text = "The Four Doors model is how I sequence a founder's first ninety days."
-    assert select.EVERGREEN_KINDS == ()
     assert select.ban_for(obs(platform="youtube", kind="framework", text=text,
-                              published_at=""), today=TODAY) == "no_date"
+                              published_at=""), today=TODAY) == ""
     assert select.ban_for(obs(platform="youtube", kind="framework", text=text,
-                              published_at="2019-03-01"), today=TODAY) == "stale"
-    assert select.ban_for(obs(platform="youtube", kind="framework", text=text,
-                              published_at="2026-07-28"), today=TODAY) == ""
+                              published_at="2019-03-01"), today=TODAY) == ""
 
 
 def test_the_recency_window_is_the_hook_window_not_the_activity_floor():
@@ -309,17 +297,11 @@ def test_an_undated_framework_sorts_last_rather_than_crashing():
     """`days_old` is None for both 'no date' and 'unparseable date', and a None
     in a sort key raises TypeError on the first evergreen framework."""
     text = "The Four Doors model is how I sequence a founder's first ninety days."
-    # Dated now, since an undated one is banned outright — but the sort key is
-    # still asked for a `days_old` it cannot always compute, so the guard stays.
-    evergreen = obs(platform="site", kind="framework", text=text,
-                    published_at="2026-06-20",
+    evergreen = obs(platform="site", kind="framework", text=text, published_at="",
                     url="https://nadiacoaching.ae/method")
     ranked, _ = select.rank([evergreen, obs()], today=TODAY)
     assert ranked[0].kind == "post"
     assert [c.kind for c in ranked][-1] == "framework"
-    # The original crash: None in a sort key on an unparseable date.
-    assert select.sort_key(obs(platform="site", kind="framework", text=text,
-                               published_at="not-a-date"), today=TODAY)
 
 
 def test_the_shortlist_is_three():

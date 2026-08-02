@@ -1,71 +1,69 @@
-## 2026-08-02 (D29) — the About-page exemption is gone, and select now bans what hook would reject
+## 2026-08-02 (D29) — the date comes from the source, and I fixed the wrong end first
 
-Haytham, after reading the `2026-08-02-q2` brief: fix the gate so About pages
-are not shortlisted, there are plenty of hook sources.
+Haytham, after the `2026-08-02-q2` brief: fix the gate so About pages are not
+shortlisted. Then, on seeing what I did: *About pages are a valid hook, but only
+if we can't find any recent or good posts on social media.*
 
-Right on both counts, and the second one is what makes the first safe.
+He was right and my first attempt was wrong, so both are recorded.
 
-**The contradiction, stated mechanically.** `outbound/hook.py` requires a
-non-empty `published_at` from every proposal and exempts no kind. `select`
-exempted `about` and `framework` from the date rule entirely. So an About page
-could be ranked, shortlisted and handed to a hook-worker, and then could not
-become a hook. The exemption never widened what could ship; it manufactured
-candidates the next gate was obliged to refuse.
+**What I did first, and why it was wrong.** I banned `kind == "about"` in
+`select` outright and emptied `EVERGREEN_KINDS`. It looked well-evidenced —
+re-scoring the corpus dropped candidate-carrying leads 14 → 4 with `0 missed`
+against the verified hooks, so the shipped file would have been identical. But
+"costs nothing measurable" is not the same as "is right". It deleted a real
+fallback to remove a symptom, and the ranker was never the thing misbehaving:
+`KIND_RANK` already put `about` last, so a lead only ever saw one when nothing
+recent survived. That is exactly the behaviour Haytham described wanting.
 
-**The exemption's own evidence was the bug.** It was added on 2026-08-01 because
-three MISSED leads were `about` observations "an independent verifier had
-VERIFIED". But the verifier checks the date, and an About page has none — so
-those hooks must have been dated by hand. `2026-08-02-q2` caught the mechanism
-live: two hook workers, independently, on different leads, wrote **today's date
-for a page that has none**, and one cited the other's file as precedent. `hook`
-rejects only *future* dates, so a stand-in of today clears everything.
+**The actual defect was one stage later.** `outbound/hook.py` required a
+non-empty `published_at` from *every* proposal. `select` legitimately offers
+undated evergreen sources. So a worker handed a legitimate About page had two
+moves: abandon the hook, or invent the date. **Two workers invented it** — same
+batch, different leads, one citing the other's file as precedent — and since the
+only date rule was "not in the future", a stand-in of today passed everything.
 
-**What changed.** `EVERGREEN_KINDS = ()` — every kind proves recency, because
-nothing downstream is exempt. `NOT_CITABLE_KINDS = ("about",)` with a new
-`about_page` ban, placed after `boilerplate` (which is the more useful verdict
-when both apply) and **before** the date checks, so a supplied date cannot
-rescue the kind. Belt and braces, because a date-only ban is defeated by exactly
-the move two workers already made unprompted.
+An impossible instruction gets resolved dishonestly. That is a gate defect, not
+a worker defect, and the fix is to stop asking for the impossible.
 
-**Re-scored against the committed corpus, which is why it was committed.**
+**What shipped instead.** `hook.check_date` now takes the date from the cited
+observation:
 
-    before   14 leads with a candidate
-    after     4 leads with a candidate  (geeta, linda, max, sabine)
-    excluded  21 about_page, 1 no_date (an undated framework)
+- source has a date → the proposal must carry the same one (a disagreement is
+  now caught too, which it was not before)
+- source has none → `published_at` must be **empty**, and a non-empty one is
+  rejected as fabricated, because there was nowhere to read it from
+- nothing joinable (no `--against`, or an escalation) → the old rule stands,
+  since an unjoinable "the page had no date" cannot be told apart from not
+  having looked
 
-And the check that matters, `select --against` on the verified hooks:
+Replayed against the batch's own corpus, both withdrawn proposals are rejected
+with `carries no date at all`, and both are accepted the moment their date is
+empty. **The fabrication became mechanically detectable in the same change that
+made it unnecessary.**
 
-    AGAINST: 3 verified hook(s) — 2 agreed, 1 shortlisted, 0 missed
+One subtlety worth keeping: a **missing** `published_at` key is unknown, not
+undated. `resolve.py`'s rule — "`unknown` never means the tell said no" — one
+stage over. A thin record must never convict a worker of inventing a date.
+`select` always writes the field, so real batches take the strict branch; a
+minimal test fixture caught this and it would have been a nasty false positive.
 
-**Zero missed.** The shipped file would have been byte-identical — the same
-three emails — while ten hook-worker passes were never spent and neither
-fabricated date could have been proposed. A ban that costs nothing and closes a
-fabrication route is not a trade.
+**Everything in `select` is back where it was**: `EVERGREEN_KINDS = ("framework",
+"about")`, `about` ranked last, no `about_page` ban. The tests that briefly
+encoded the ban were reverted rather than left as dead history, and the module
+docstring now carries the half-day round trip so the next person does not
+re-derive the same wrong fix from the same real evidence.
 
-**The cost is moved onto retrieval, deliberately.** A lead with only About text
-now shows an empty shortlist at `select`, before a pass is spent, instead of one
-stage later dressed as a hook-worker's failure. So `research-worker` gained a
-section naming where dated material actually is — LinkedIn posts, Instagram
-posts (`--mode posts` returns real timestamps), podcast and interview pages,
-their own `/blog` and `/press`, and a plain WebSearch on name plus "interview",
-"panel", "launched", "award". The last is free, unlimited and the least used
-thing the agent has. And `outbound-batch` now says to read the `about_page`
-count and **push a slice back to research before fanning out hook-workers**,
-because re-running one research slice is cheaper than ten wasted passes.
+**The retrieval half stands on its own merits.** `research-worker` gained a
+section saying an About page is the *fallback* and naming where dated material
+actually is — LinkedIn posts, Instagram `--mode posts` (real timestamps),
+podcast and interview pages, their own `/blog` and `/press`, and a plain
+WebSearch on name plus "interview", "panel", "launched", "award". Free,
+unlimited, least used. `outbound-batch` now says to look at what the shortlists
+are *made of*, not just how many exist, and to push a slice back to research
+before spending ten hook-worker passes on leads whose only material is an About
+page. On this batch that was 26 of 42 observations and 10 of 14 leads.
 
-**What did not change.** `about` is still a legal `observe` kind and the `about`
-rung is still on the ladder. Reading somebody's About page is free and settles
-`uae_based`, `is_coach` and `coach_type` — most of research's job. It is barred
-from becoming the sentence a stranger reads first, not from the record.
-
-Recorded as D29 with its reversal condition. `docs/hook-rules.md` requirement 2
-no longer grants the at-any-age pass, and ban #1 now carries the About-page note
-as a separate rule beside it rather than inside it — genericness and datedness
-are different objections and conflating them is how this got relaxed once
-already.
-
-960 tests, `doc-check` clean. The tests that encoded the old exemption were
-rewritten rather than deleted, so the reasoning on both sides stays readable.
+966 tests, `doc-check` clean. D29 rewritten to describe the gate change.
 
 ## 2026-08-02 (batch 2026-08-02-q2) — the hook gate cannot accept the evidence the machine collects
 

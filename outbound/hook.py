@@ -192,6 +192,100 @@ def check_join(proposal: HookProposal, shortlists: dict) -> list[str]:
     return []
 
 
+def cited_observation(proposal: HookProposal, shortlists: dict | None) -> dict | None:
+    """The shortlist entry this proposal names, or None if it cannot be joined.
+
+    Separate from `check_join` because two checks need it and neither should
+    re-derive it: the quote comparison, and the date rules below.
+    """
+    if not shortlists or not proposal.observation_id.strip():
+        return None
+    lead = shortlists.get(proposal.lead_key) or []
+    return next((c for c in lead
+                 if (c.get("obs_id") or "") == proposal.observation_id), None)
+
+
+def check_date(proposal: HookProposal, shortlists: dict | None = None, *,
+               today: date | None = None) -> list[str]:
+    """The date, and the two ways it goes wrong in opposite directions.
+
+    This used to be one rule: a proposal must carry a `published_at`, full stop.
+    That is right for a post and impossible for an About page, and
+    `outbound/select.py` offers About pages on purpose — ranked last, as the
+    fallback for a lead with nothing recent, which `docs/hook-rules.md` has
+    always allowed ("an About-page line they wrote themselves is fine at any
+    age").
+
+    Requiring a date from a source that has none left a worker two moves:
+    abandon a legitimate hook, or invent the date. On `2026-08-02-q2` two
+    workers, independently, on different leads, **wrote today's date for a page
+    that has none**, one citing the other's file as precedent — and since the
+    only date check was "not in the future", a stand-in of today passed
+    everything. The instruction was impossible, so it got resolved dishonestly.
+    That is a gate defect, not a worker defect.
+
+    So the rule is now conditional on what the cited source actually is:
+
+    - The source carries a date → the proposal must carry the SAME one.
+    - The source carries none and is evergreen (`about`, `framework`) → an empty
+      `published_at` is correct and required. **A non-empty one is a
+      fabrication**, because there was nowhere to read it from. This is the
+      check that would have caught both workers.
+    - Nothing to join against (no `--against`, or an escalation) → fall back to
+      the old rule and demand a date, because an unjoinable claim of "the page
+      had no date" cannot be distinguished from not having looked.
+    """
+    today = today or date.today()
+    problems: list[str] = []
+    supplied = proposal.published_at.strip()
+    source = cited_observation(proposal, shortlists)
+
+    # A MISSING key is not an empty one. `resolve.py`'s rule — "`unknown` never
+    # means the tell said no" — applies here too: a shortlist entry that never
+    # carried `published_at` tells us nothing about the page, and accusing a
+    # worker of inventing a date on that basis would be a false positive of the
+    # worst kind. `select` always writes the field, so the strict branch below
+    # is the one real batches take.
+    if source is not None and "published_at" in source:
+        stored = (source.get("published_at") or "").strip()
+        if not stored:
+            if supplied:
+                return [
+                    f"published_at={proposal.published_at!r} but the observation "
+                    f"it cites carries no date at all — there was nowhere to "
+                    f"read that from. An undated source takes an EMPTY "
+                    f"published_at; supplying one is the invented date this "
+                    f"check exists to catch. `select` offers undated evergreen "
+                    f"sources on purpose and `hook` accepts them"]
+            return []
+        if supplied and supplied != stored:
+            problems.append(
+                f"published_at={proposal.published_at!r} disagrees with the "
+                f"observation it cites ({stored!r}) — the date is the source's, "
+                f"not the writer's")
+            return problems
+
+    if not supplied:
+        if source is not None and "published_at" in source:
+            return problems
+        return ["no published_at — requirement 3 is that a hook is cited, and a "
+                "post with no date cannot be shown to be recent. If the source "
+                "genuinely carries no date, name its observation_id and run "
+                "--against, so the gate can see that rather than take it on "
+                "trust"]
+
+    try:
+        published = date.fromisoformat(supplied)
+    except ValueError:
+        problems.append(f"published_at={proposal.published_at!r} is not an ISO date")
+    else:
+        if published > today:
+            problems.append(
+                f"published_at={proposal.published_at} is in the future — "
+                f"a date nobody could have read is a date nobody fetched")
+    return problems
+
+
 def validate(proposal: HookProposal, *, today: date | None = None,
              shortlists: dict | None = None) -> list[str]:
     """Everything mechanical, before a verifier is spent on it.
@@ -227,21 +321,7 @@ def validate(proposal: HookProposal, *, today: date | None = None,
     if unusable:
         problems.append(unusable)
 
-    if not proposal.published_at.strip():
-        problems.append(
-            "no published_at — requirement 3 is that a hook is cited, and a "
-            "post with no date cannot be shown to be recent")
-    else:
-        try:
-            published = date.fromisoformat(proposal.published_at)
-        except ValueError:
-            problems.append(
-                f"published_at={proposal.published_at!r} is not an ISO date")
-        else:
-            if published > today:
-                problems.append(
-                    f"published_at={proposal.published_at} is in the future — "
-                    f"a date nobody could have read is a date nobody fetched")
+    problems.extend(check_date(proposal, shortlists, today=today))
 
     # The voice rules, run here rather than three stages later. `check_voice`
     # returns (failures, warnings) over a whole body; the hook beat is a

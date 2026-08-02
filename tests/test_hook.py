@@ -287,3 +287,75 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}: {exc}")
     print(f"\n{failures} failure(s)")
     sys.exit(1 if failures else 0)
+
+
+def test_an_undated_evergreen_source_takes_an_empty_published_at():
+    """The gate defect behind `2026-08-02-q2`'s two invented dates.
+
+    `select` offers About pages on purpose — ranked last, the fallback for a
+    lead with nothing recent, which `docs/hook-rules.md` has always allowed
+    ("an About-page line they wrote themselves is fine at any age"). This gate
+    then demanded a `published_at` from every proposal.
+
+    A worker handed a legitimate undated page therefore had two moves: abandon
+    the hook, or invent the date. Two workers, independently, on different
+    leads, took the second and one cited the other as precedent. An impossible
+    instruction gets resolved dishonestly; that is a gate defect, not a worker
+    defect.
+    """
+    lists = {"lucy@x.ae": [{"obs_id": "abc123", "quote": OBS_TEXT, "rank": 1,
+                            "published_at": ""}]}
+    got = hook.validate(proposal(observation_id="abc123", published_at=""),
+                        today=TODAY, shortlists=lists)
+    assert got == [], got
+
+
+def test_a_date_on_a_source_that_has_none_is_the_invented_date():
+    """The other half, and the check that would have caught both workers.
+
+    A stand-in of today passed everything before this, because the only date
+    rule was "not in the future". Here the source is on file and carries no
+    date, so there was nowhere to read one from.
+    """
+    lists = {"lucy@x.ae": [{"obs_id": "abc123", "quote": OBS_TEXT, "rank": 1,
+                            "published_at": ""}]}
+    got = hook.validate(
+        proposal(observation_id="abc123", published_at=TODAY.isoformat()),
+        today=TODAY, shortlists=lists)
+    assert any("carries no date at all" in p for p in got), got
+
+
+def test_a_date_that_disagrees_with_its_source_is_caught():
+    """The date belongs to the source, not to the writer."""
+    lists = {"lucy@x.ae": [{"obs_id": "abc123", "quote": OBS_TEXT, "rank": 1,
+                            "published_at": "2026-07-20"}]}
+    got = hook.validate(proposal(observation_id="abc123",
+                                 published_at="2026-07-25"),
+                        today=TODAY, shortlists=lists)
+    assert any("disagrees with the observation" in p for p in got), got
+
+
+def test_a_dated_source_still_requires_its_own_date():
+    lists = {"lucy@x.ae": [{"obs_id": "abc123", "quote": OBS_TEXT, "rank": 1,
+                            "published_at": "2026-07-20"}]}
+    assert hook.validate(proposal(observation_id="abc123",
+                                  published_at="2026-07-20"),
+                         today=TODAY, shortlists=lists) == []
+
+
+def test_a_missing_published_at_key_is_unknown_not_undated():
+    """`resolve.py`'s rule one stage over: "`unknown` never means the tell said
+    no". A shortlist entry that never carried the field tells us nothing about
+    the page, so it must not convict a worker of inventing a date. `select`
+    always writes the field, so real batches take the strict branch."""
+    lists = {"lucy@x.ae": [{"obs_id": "abc123", "quote": OBS_TEXT, "rank": 1}]}
+    assert hook.validate(proposal(observation_id="abc123",
+                                  published_at="2026-07-20"),
+                         today=TODAY, shortlists=lists) == []
+
+
+def test_with_no_shortlist_to_check_against_a_date_is_still_required():
+    """An unjoinable "the page had no date" cannot be told apart from not having
+    looked, so the old rule stands wherever the gate cannot see the source."""
+    problems = hook.validate(proposal(published_at=""), today=TODAY)
+    assert any("no published_at" in p for p in problems), problems

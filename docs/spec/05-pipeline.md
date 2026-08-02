@@ -346,6 +346,14 @@ has no text to name it, and it 404s. The content can be real, paid for, and
 still impossible to cite — that failure cost a lead and a full verifier pass to
 discover.
 
+**The date comes from the cited observation, not from the writer.** An undated
+evergreen source (an About page, a framework) takes an empty `published_at`, and
+a non-empty one on such a source is **rejected as fabricated**. Requiring a date
+from a page that has none is what produced two invented dates on
+`2026-08-02-q2`. Where the gate cannot see the source — no `--against`, or a
+declared escalation — the old rule stands and a date is required, because an
+unjoinable claim of "the page had no date" is indistinguishable from not looking.
+
 **`--against work/select.json` checks the quote against the observation it
 names**, and that closes ban #3 — *"no invented specifics"* — which was a
 sentence an agent was asked to remember for as long as there was nothing to
@@ -379,13 +387,6 @@ nothing, writes no hook, and never changes which lead is drafted; every lead get
 a selection, including one with no observations. **Exit 2** if the input is not
 research objects, **exit 1** only if its own output fails its own schema — a
 disagreement is never a failure. Owned by `outbound/select.py`.
-
-**A candidate must be able to survive `hook`.** Every ban here mirrors something
-the next gate enforces, which is why the date rule now applies to every kind and
-why `about` is barred outright: `hook` requires a real `published_at` and an
-About page has none. Offering one asked a worker to choose between abandoning
-the hook and inventing a date, and on `2026-08-02-q2` two chose the second. A
-shortlist this stage cannot stand behind is a pass the next stage wastes.
 
 **It runs before the hook stage and the hook stage consumes it** (D27). Each
 lead gets up to three candidates carrying their observations' stored text;
