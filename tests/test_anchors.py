@@ -9,6 +9,7 @@ process, which would make every rebuild draw different lines — so "the same
 batch" would never be the same batch and no A/B result would mean anything.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -424,3 +425,52 @@ def test_the_column_vocabulary_comes_from_the_fact_table():
                    "still_working", "first_client_days"):
         assert column in anchors.CLAIM_COLUMNS
     assert "segment" not in anchors.CLAIM_COLUMNS
+
+
+def test_the_deal_publishes_the_pool_as_well_as_the_floor(tmp_path):
+    """`hook_room` alone is half an answer, and the missing half reads as a bug.
+
+    `hook_room` is the floor that survives an identity beat written to the top
+    of its range; `authored_budget` is the pool the hook and the identity beat
+    share. The difference between them is exactly the identity range. Publishing
+    only the floor made four drafters on 2026-08-02-q3 independently recompute
+    the pool and report the field as stale — David 20 vs 47, Stephan 16 vs 41,
+    Anita 18 vs 41, Chris 17 vs 37. Every one of those pairs is self-consistent;
+    none of them was a wrong number. They were two different quantities with one
+    of them missing from the file a drafter actually reads.
+    """
+    import json
+    import subprocess
+    import sys
+
+    leads = [{"slug": "a-coach", "email": "a@example.ae", "name": "A Coach",
+              "first_name": "A", "coach_type": "Business",
+              "hook_verified": "verified"}]
+    src = tmp_path / "draftable.json"
+    src.write_text(json.dumps(leads), encoding="utf-8")
+    out = tmp_path / "anchors.json"
+
+    env = dict(os.environ, OUTBOUND_COPY_SOURCE="csv")
+    result = subprocess.run(
+        [sys.executable, "main.py", "deal", str(src), "--out", str(out),
+         "--allow-cached-copy"],
+        cwd=ROOT, capture_output=True, text=True, env=env)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    entry = next(iter(json.loads(out.read_text(encoding="utf-8")).values()))
+    assert "hook_room" in entry
+    assert "authored_budget" in entry
+    assert "identity_budget" in entry
+
+    lo, hi = entry["identity_budget"]
+    # The relationship that makes the two figures legible rather than
+    # contradictory. If this ever stops holding, one of them is being
+    # computed against something else and a drafter will be right to say so.
+    assert entry["hook_room"] == entry["authored_budget"] - hi
+    assert lo <= hi
+    assert entry["authored_budget"] > entry["hook_room"]
+
+    # And the printed line names which is which, because relaying the floor as
+    # though it were the pool is the other half of the same confusion.
+    assert "guaranteed floor" in result.stdout
+    assert "authored" in result.stdout

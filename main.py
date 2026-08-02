@@ -553,7 +553,11 @@ def cmd_anchors(args) -> None:
             "ps": {"id": anchor.ps.id, "line": anchor.ps.line},
             "segment": anchor.segment,
             "allowed_numbers": sorted(anchor.allowed_numbers),
+            # Same pair as `deal --out`. A drafter reading either file needs
+            # the floor and the pool, not one of them.
             "hook_room": anchor.hook_room(),
+            "authored_budget": anchor.authored_budget(),
+            "identity_budget": list(anchor.identity_budget()),
         }, indent=2))
         return
 
@@ -779,6 +783,18 @@ def cmd_deal(args) -> None:
             # drafter that knows it has 14 words writes a 14-word hook, and one
             # that does not writes 20 and gets refused for length.
             "hook_room": a.hook_room(),
+            # BOTH figures, because publishing only the floor made four
+            # drafters on 2026-08-02-q3 independently "discover" that the
+            # number was wrong. It was not wrong. `hook_room` is the floor that
+            # survives an identity beat written to the top of its range, and
+            # `authored_budget` is the pool the two beats share; the difference
+            # is exactly the identity range, and every one of them reverse-
+            # engineered it and reported the gap as a stale field. The prompt
+            # block has always said this in prose. This file is what a drafter
+            # actually reads, and it was handing over one of the two numbers a
+            # drafter needs to allocate between its own beats.
+            "authored_budget": a.authored_budget(),
+            "identity_budget": list(a.identity_budget()),
         }
         for email, a in dealt.items()
     }
@@ -837,7 +853,17 @@ def cmd_deal(args) -> None:
               f"words for a hook and no legal swap existed ({', '.join(short[:3])}) "
               f"— shorten a line in that beat or the lint will reject them")
     if rooms:
-        print(f"  hook room  {min(rooms.values())} to {max(rooms.values())} words")
+        budgets = [a.authored_budget() for a in dealt.values()]
+        # Both, and labelled, because the printed line was the other half of
+        # the confusion: an orchestrator reading "hook room 13 to 32" relays a
+        # tight number, a drafter computes the pool and reports the field is
+        # stale, and neither is wrong. The floor and the pool are different
+        # quantities and the line now says which is which.
+        print(f"  hook room  {min(rooms.values())} to {max(rooms.values())} "
+              f"words, guaranteed floor per lead")
+        print(f"  authored   {min(budgets)} to {max(budgets)} words shared by "
+              f"the hook and the identity beat — hand BOTH to a drafter, it "
+              f"allocates between its own two beats")
     for beat, per_line in shares.items():
         top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
         top_share = next(iter(per_line.values()), 0)
