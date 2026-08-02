@@ -786,6 +786,46 @@ agent pass, the same blind spot that makes a worker's own WebSearch invisible to
 the ledger, and `ledger add`'s answer applies here too: record it, keep it
 distinguishable from what was measured.
 
+**`tokens` is the same bill, MEASURED**, read from `<batch>-usage.json` and
+printed apart from the reported block so the two authorities never share a line.
+`tokens_per_email` divides by `written`, which is `?` until a stage supplies it.
+
+### `usage`
+**In** the session's own transcripts. **Out** what the batch cost in Claude
+tokens — totals by bucket and model, the orchestrator/subagent split, and a
+per-agent-type breakdown — plus `data/runs/<batch>-usage.json`. **Guarantees** a
+transcript it cannot parse is an error naming where it looked, never a zero.
+**Exit 2** on that. **Never exit 1.** Owned by `outbound/usage.py`.
+
+**A pass count is not a magnitude.** `ledger pass` records that an agent ran,
+because neither an orchestrator nor a worker can see its own token usage. So the
+model side had a count and nothing else: `2026-08-02-q2` reported 99 passes and
+`2026-08-02-q3` reported 185, both true, and neither could say that the two
+batches spent about 410M tokens to ship 22 emails.
+
+**The orchestrator is the largest stage and reports no passes at all**, because
+nobody records a pass for the loop they are typing in. Measured, it was 75% of
+both batches — one thread whose context reached 578k-684k tokens, re-read on
+every one of ~390 turns. That is the line `ledger pass` cannot express and the
+reason this command reads transcripts rather than asking.
+
+**Tokens, not dollars**, for the reason `ledger pass` gives and one more. Model
+prices are a value this repo does not own and would go stale in a file nobody
+updates — that argument is about *prices*. A token count is a measurement this
+repo does own, it does not go stale, and a reader who wants dollars applies a
+rate the way they would to any other input.
+
+**Deduplicated on `requestId`, last record winning.** A streamed response emits
+several records under one id with `output_tokens` growing across them. Counting
+records inflates the request count 2-4x; keeping the first undercounts output by
+about 4x. Both forensics runs found this independently and one of them found it
+after publishing a wrong total.
+
+**Transcripts die with the container**, so this runs before the session ends or
+the batch's largest cost is unrecoverable. `--transcripts` points it elsewhere
+when the harness moves the layout, which is why the layout is sniffed rather
+than assumed — the same reason `replies` sniffs Smartlead's columns.
+
 ### `replies`
 **In** a Smartlead replies export and the batch's leads. **Out** reply rate
 overall, by `hook_type`, and by the rung the hook came from. **Guarantees** a

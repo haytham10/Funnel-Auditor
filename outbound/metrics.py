@@ -142,6 +142,19 @@ class BatchMetrics:
     passes_by_stage: dict = field(default_factory=dict)
     passes_by_model: dict = field(default_factory=dict)
 
+    # --- the same bill, MEASURED, from `usage` ------------------------------
+    # A pass count is a count of invocations and says nothing about magnitude:
+    # `2026-08-02-q3` reported 185 passes, and the transcript showed 75% of the
+    # batch went to a thread that reports no passes at all because nobody thinks
+    # to record one for the loop they are typing in. These come from
+    # `data/runs/<batch>-usage.json` and are measured, which is why they are
+    # kept apart from the reported block above rather than summed into it.
+    tokens_total: object = UNKNOWN
+    tokens_orchestrator: object = UNKNOWN
+    tokens_subagents: object = UNKNOWN
+    orchestrator_share: float | None = None
+    tokens_per_shipped: object = UNKNOWN
+
     # --- what could not be computed, named rather than left as a zero ------
     gaps: list = field(default_factory=list)
 
@@ -305,6 +318,34 @@ def add_passes(out: BatchMetrics, entries: list) -> BatchMetrics:
     return out
 
 
+def add_usage(out: BatchMetrics, usage: dict) -> BatchMetrics:
+    """The model bill, MEASURED — the other half of `add_passes`.
+
+    Kept separate from `add_passes` for the same reason `add_passes` is kept out
+    of `add_ledger`: different authorities must not print with the same
+    confidence. Those numbers were typed by an orchestrator; these were read out
+    of the transcript that billed for them.
+
+    **`tokens_per_shipped` is the control number.** Cost per verified hook
+    measures the retrieval side; this measures the side that turned out to be
+    three orders of magnitude larger. It divides by `written`, which is `?`
+    until a stage supplies it — so an unsupplied denominator stays `?` rather
+    than becoming a flattering number.
+    """
+    if not isinstance(usage, dict) or not usage.get("totals"):
+        return out
+    totals = usage.get("totals") or {}
+    out.tokens_total = int(totals.get("tokens") or 0)
+    out.tokens_orchestrator = int((usage.get("orchestrator") or {}).get("tokens") or 0)
+    out.tokens_subagents = int((usage.get("subagents") or {}).get("tokens") or 0)
+    out.orchestrator_share = usage.get("orchestrator_share")
+    if isinstance(out.written, int) and out.written:
+        out.tokens_per_shipped = int(out.tokens_total / out.written)
+    for gap in usage.get("gaps") or []:
+        out.gaps.append(gap)
+    return out
+
+
 def add_ledger(out: BatchMetrics, records: list, *, verified_leads: set) -> BatchMetrics:
     """The cost half, and the one number this whole proposal set out to move.
 
@@ -456,6 +497,22 @@ def report(out: BatchMetrics) -> str:
                      + " — REPORTED, not measured")
     else:
         lines.append(f"  passes_by_model   {UNKNOWN}  nothing reported")
+    # The measured half. A pass count says an agent ran; this says what it cost,
+    # and it is the only line here that can see the orchestrator.
+    if out.tokens_total is UNKNOWN:
+        lines.append(f"  tokens            {UNKNOWN}  no usage read "
+                     f"(`usage --batch <b>`) — a pass count is not a magnitude, "
+                     f"and the largest stage reports no passes at all")
+    else:
+        share = ("" if out.orchestrator_share is None
+                 else f" ({out.orchestrator_share * 100:.0f}%)")
+        lines.append(f"  tokens            {out.tokens_total:,} — MEASURED")
+        lines.append(f"  orchestrator      {out.tokens_orchestrator:,}{share} "
+                     f"vs {out.tokens_subagents:,} in subagents")
+        lines.append(
+            f"  tokens_per_email  "
+            + (f"{UNKNOWN}  pass --written" if out.tokens_per_shipped is UNKNOWN
+               else f"{out.tokens_per_shipped:,}"))
     if out.duplicates:
         lines.append(f"  duplicates        {out.duplicates} — quote "
                      f"`ledger report` for which")

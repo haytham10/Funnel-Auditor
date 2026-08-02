@@ -36,6 +36,9 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     ledger      what each retrieval cost and how long it took
     metrics     what the hook stage yielded, and what the leads that yielded
                 nothing cost. `?` for a count nobody supplied, never 0
+    usage       what the batch cost in Claude tokens, MEASURED from the session
+                transcript — the half `ledger pass` cannot see, including the
+                orchestrator, which reports no passes and is usually the largest
     replies     join a Smartlead replies export on email — reply rate by hook
                 type and by the rung the hook came from
     apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
@@ -1928,6 +1931,21 @@ def cmd_metrics(args) -> None:
         # orchestrator, and the report says so on every line.
         metrics.add_passes(out, ledger.read_passes(args.batch))
 
+    # The measured half of the same bill. Absent is `?`, never 0 — a batch whose
+    # session ended before `usage` ran did not cost nothing, and the artifact is
+    # the only part of a transcript that outlives its container.
+    usage_path = Path(args.usage or ledger.artifact("-usage.json", batch=args.batch))
+    if usage_path.is_file():
+        try:
+            metrics.add_usage(out, json.loads(usage_path.read_text(encoding="utf-8")))
+        except ValueError:
+            out.gaps.append(f"{usage_path} is not readable JSON — token counts "
+                            f"are ?, and ? is not zero")
+    else:
+        out.gaps.append(f"no {usage_path.name} — run `usage --batch "
+                        f"{args.batch or '<batch>'}` before this session ends, "
+                        f"or the batch's largest cost dies with the container")
+
     # D21's reversal condition. The declines bind as of D27, so this is the
     # evidence the gate was held back for two batches waiting on.
     if args.plan:
@@ -1948,6 +1966,52 @@ def cmd_metrics(args) -> None:
                           if args.batch else "")
     if target:
         print(f"  wrote {metrics.write_artifact(out, target)}")
+    sys.exit(0)
+
+
+def cmd_usage(args) -> None:
+    """The Claude bill, measured from this session's transcript.
+
+    `ledger pass` records that an agent ran and cannot record what it cost —
+    neither an orchestrator nor a worker can see its own token usage. So the
+    model side had a count and no magnitude, and `2026-08-02-q3` reported 185
+    passes while 75% of the batch went to a thread that reports no passes at all.
+
+    **Exit 2 when it cannot read a transcript**, naming where it looked. The
+    layout belongs to the harness and can move; a zero here would read as "this
+    batch used no agents", which is the wall's asymmetry again. **Never exit 1** —
+    an accounting command that can halt a send file gets routed around.
+
+    Transcripts live on the session's own container and die with it. Run this
+    before the session ends, or the batch's largest cost is unrecoverable.
+    """
+    from outbound import ledger, usage
+
+    try:
+        sources = usage.discover(args.transcripts)
+    except usage.TranscriptsUnreadable as exc:
+        print(f"USAGE: FAIL — {exc}")
+        sys.exit(2)
+
+    turns = usage.read_turns(sources)
+    if not turns:
+        print(f"USAGE: FAIL — read {len(sources.main)} transcript(s) and "
+              f"{len(sources.subagents)} subagent file(s) under {sources.root}, "
+              f"and found no assistant record carrying `message.usage`. That is "
+              f"a shape this does not recognise, not a batch that cost nothing.")
+        sys.exit(2)
+
+    out = usage.summarise(turns, batch=args.batch or "", sources=sources)
+    print(usage.report(out))
+
+    target = args.out or (ledger.artifact("-usage.json", batch=args.batch)
+                          if args.batch else "")
+    if target:
+        print(f"  wrote {usage.write_artifact(out, target)}")
+        print(f"  `metrics --written <n>` reads it for tokens_per_email, which "
+              f"is the control number for any change to the orchestration.")
+    if args.json:
+        print(json.dumps(out, indent=2, default=str))
     sys.exit(0)
 
 
@@ -2340,7 +2404,22 @@ def build_parser() -> argparse.ArgumentParser:
                                   "carrying a declined rung, how many produced "
                                   "a verified hook — D21's reversal condition, "
                                   "and the evidence the decline gate binds on")
+    p.add_argument("--usage", help="usage --out's file (default "
+                                   "data/runs/<batch>-usage.json). The MEASURED "
+                                   "token bill, against the REPORTED pass counts")
     p.set_defaults(func=cmd_metrics)
+
+    p = sub.add_parser("usage",
+                       help="what the batch cost in Claude tokens, measured "
+                            "from the session transcript")
+    p.add_argument("--batch", help="batch label (default OUTBOUND_BATCH, then today)")
+    p.add_argument("--transcripts",
+                   help="the session's project directory, when it is not where "
+                        "this expects it (~/.claude/projects/<slug>)")
+    p.add_argument("--out", help="where to write the JSON artifact "
+                                 "(default data/runs/<batch>-usage.json)")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_usage)
 
     p = sub.add_parser("replies",
                        help="join a Smartlead replies export to the batch, "
