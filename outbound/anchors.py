@@ -40,6 +40,12 @@ COPY_DIR = Path(__file__).resolve().parent.parent / "copy"
 
 EXACT_MATCH_RATIO = 0.70    # segment-matched line 70% of the time, generic 30%
 
+# How far above the reference an authored identity sentence may run. The drafter
+# writes that beat, so every length figure here is really a figure about this
+# slack: `Deal.hook_room()` promises the room that survives the top of it, and
+# `_resolve_length` repairs against the same number so the promise holds.
+IDENTITY_SLACK = 3
+
 # The loaded bank, cached for the life of the process. See CopyBank.load.
 _BANK: "CopyBank | None" = None
 
@@ -833,21 +839,54 @@ class Anchor:
     # the drafter's prompt says so rather than quietly dropping the constraint.
     claim: "ClaimSpec | None" = None
 
-    def hook_room(self) -> int:
-        """Words this lead's hook actually has, given the lines it drew.
+    def authored_budget(self) -> int:
+        """Words the hook and the identity beat have BETWEEN them.
 
-        Still measured on the REFERENCE identity line even though the drafter
-        now authors that sentence. The budget is therefore an estimate on one
-        beat, which is why the prompt hands the drafter an identity budget too:
-        stay within a few words of the reference and this number stays true. A
-        joint hook+identity budget is the cleaner answer and it moves
-        MIN_HOOK_WORDS, `copy_sync._check_hook_room` and `_resolve_length`, so
-        it is a change of its own rather than a rider on this one.
+        This is the only length figure here that is true at deal time, because
+        it depends on nothing the drafter has yet written: the ceiling, less the
+        three hand-written lines, the greeting and the sign-off.
+
+        **Subtracting a separately-counted identity sentence from it gets close
+        and not exact**, and that is not a bug to iron out. `lint.word_count`
+        runs on the assembled body, which is why `lint.hook_room` measures the
+        body rather than summing lines — the joins are worth a word or two
+        either way. On `2026-08-02-q2` one shipped email came out a word over
+        its derived budget and still landed at 94 of 95.
+
+        So this is a guide and `WORD_MAX` is the enforcement. `hook_room()`
+        below is deliberately conservative enough to absorb the difference.
         """
         from outbound.lint import hook_room
 
-        return hook_room({"identity": self.identity.line, "offer": self.offer.line,
+        return hook_room({"identity": "", "offer": self.offer.line,
                           "cta": self.cta.line, "ps": self.ps.line})
+
+    def hook_room(self) -> int:
+        """Words this lead's hook is GUARANTEED, whatever the drafter writes.
+
+        Measured against the top of `identity_budget()` rather than against the
+        reference identity line. The difference matters because the drafter
+        authors that sentence: a number computed on the reference is the room a
+        hook has only if the identity beat comes out exactly reference length,
+        and drafters write to the top of a range far more often than to its
+        middle.
+
+        `2026-08-02-q2` is the evidence. Every lead in it wrote at or above the
+        reference, so every printed figure overstated the room, and three
+        different drafters independently recomputed it and told the
+        orchestrator the instruction was wrong. They were right every time:
+        Sabine was told 18 and had 16, John was told 32 and had 22. The cost
+        was rounds — a drafter trims to a number, is told the real one, and
+        trims again — and the orchestrator relaying it got it wrong twice more
+        even after being corrected.
+
+        So this returns the floor. A hook that fits in fewer is better anyway,
+        and a drafter who writes a short identity beat finds room it did not
+        expect, which is the harmless direction to be wrong in.
+
+        `authored_budget()` is the exact figure and the prompt hands over both.
+        """
+        return self.authored_budget() - self.identity_budget()[1]
 
     def identity_budget(self) -> tuple[int, int]:
         """The word range an authored identity sentence has to land in, so
@@ -855,7 +894,7 @@ class Anchor:
         reference: enough to re-shape a sentence, not enough to move the
         ceiling."""
         words = len(self.identity.line.split())
-        return max(1, words - 3), words + 3
+        return max(1, words - IDENTITY_SLACK), words + IDENTITY_SLACK
 
     def _identity_prompt_lines(self) -> list[str]:
         """The identity beat, as three things rather than one.
@@ -922,13 +961,24 @@ class Anchor:
             f"  cta      [{self.cta.id}]: {self.cta.line}",
             f"  ps       [{self.ps.id}]: {self.ps.line}",
             "",
-            f"HOOK ROOM: {self.hook_room()} words. That is what is left of the "
-            "95-word ceiling",
-            "after these four lines, the greeting and the sign-off. It is a real "
-            "budget, not",
-            "a target — a hook that fits in fewer is better, and going over gets "
-            "the email",
-            "refused for length.",
+            f"WORD BUDGET. The hook and the identity beat share "
+            f"{self.authored_budget()} words between",
+            "them. That figure is exact: it is the 95-word ceiling less the "
+            "three lines above,",
+            "the greeting and the sign-off, none of which you write.",
+            "",
+            f"  HOOK ROOM: {self.hook_room()} words, guaranteed. That is the "
+            "budget less the top of",
+            f"  the identity range above, so it holds however long you write "
+            "that sentence.",
+            f"  Write a shorter identity beat and the hook has more: the exact "
+            "figure is",
+            f"  {self.authored_budget()} minus whatever your identity sentence "
+            "comes out at.",
+            "",
+            "Neither is a target. A hook that fits in fewer is better, and the "
+            "95-word",
+            "ceiling is enforced — going over gets the email refused for length.",
         ])
 
 
@@ -1361,6 +1411,13 @@ def _resolve_length(fixed: dict[str, dict[str, Line]], identity: dict[str, Line]
     """
     from outbound.lint import check_echo, hook_room, MIN_HOOK_WORDS
 
+    # The floor `Deal.hook_room()` promises, not the reference-length estimate.
+    # The drafter authors the identity beat and may write to the top of its
+    # range, so a combination that leaves MIN_HOOK_WORDS only when that sentence
+    # comes out exactly reference length is a combination the linter can still
+    # refuse. Repairing against the promise is what makes the promise true.
+    floor = MIN_HOOK_WORDS + IDENTITY_SLACK
+
     counts: dict[str, dict[str, int]] = {}
     for beat in ("cta", "ps"):
         counts[beat] = {}
@@ -1377,12 +1434,12 @@ def _resolve_length(fixed: dict[str, dict[str, Line]], identity: dict[str, Line]
             continue
         beats = {"identity": drawn.line, "offer": offer.line,
                  "cta": cta.line, "ps": ps.line}
-        if hook_room(beats) >= MIN_HOOK_WORDS:
+        if hook_room(beats) >= floor:
             continue
 
         def legal(trial: dict) -> bool:
             return (not check_echo(trial)
-                    and hook_room(trial) >= MIN_HOOK_WORDS)
+                    and hook_room(trial) >= floor)
 
         # Least-used replacement first, so the displaced share stays spread
         # instead of piling onto whichever line happens to be shortest. Ties

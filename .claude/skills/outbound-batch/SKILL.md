@@ -265,7 +265,14 @@ disagree.
 Note the `hook room <lo> to <hi> words` line. The room is **per lead** — it
 depends on how long that lead's four lines came out — and each lead's own number
 is the `hook_room` field on its entry in `work/anchors.json`. Stage 3 hands each
-hook-worker its lead's number. Stage 3b takes one number for the batch, and the
+hook-worker its lead's number.
+
+**That number is a floor and the drafter usually has more.** It subtracts the
+top of the identity range, because the drafter authors that sentence. Do not
+recompute it yourself and do not relay a tighter figure: on `2026-08-02-q2` the
+orchestrator relayed a stale number, was corrected by three separate drafters,
+and then got the correction wrong twice more. Hand over the `hook_room` field
+as it stands. Stage 3b takes one number for the batch, and the
 low end is the one to pass: its check is a warning about a pick that will not
 fit, so the tighter figure is the honest input.
 

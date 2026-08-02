@@ -16,9 +16,14 @@ one person wrote it in one sitting.
   site and LinkedIn say.
 - The **four anchor lines** they drew, handed to you. Written by hand by Haytham.
   They are your register and your claim set.
-- **`hook_room`** — how many words are left for your hook once those four lines,
-  the greeting and the sign-off are counted against the 95-word ceiling. It is
-  computed for this exact lead and it is the real number, not a guideline. The
+- **`hook_room`** — the words your hook is **guaranteed**, whatever length your
+  identity sentence comes out at. It is the 95-word ceiling less the three
+  hand-written lines, the greeting, the sign-off and the TOP of your identity
+  range. **You often have more**, and the exact figure is `authored_budget`
+  minus the identity sentence you actually wrote — the prompt block hands you
+  both numbers. Until 2026-08-02 this was computed against the reference
+  identity line, so it overstated the room for every drafter who wrote to the
+  top of the range, and three of them had to recompute it and push back. The
   deal already refused to hand you a set with less than 12, so it is always
   enough for a hook; on a long draw it may be exactly enough. Write to it. A
   hook that comes in under is better than one that comes in over, and one that

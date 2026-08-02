@@ -1,3 +1,94 @@
+## 2026-08-02 (fixes) — the three things `2026-08-02-q2` found, and the one I did not fix
+
+Haytham: fix the hook_room calculation in deal, make sure everything is fixed
+based on this run.
+
+### 1. `hook_room` was a projection sold as a budget
+
+`Deal.hook_room()` measured the room against the **reference** identity line.
+The drafter authors that sentence, so the figure was only true if the beat came
+out exactly reference length — and drafters write to the top of a range.
+
+Measured on the batch: every lead wrote at or above the reference. Sabine was
+told 18 and had 16. John was told 32 and had 22. **Three different drafters
+independently recomputed it and told me the instruction was wrong**, and they
+were right every time; I then relayed the correction wrong twice more, once by
+costing a 6-word quote as 7 and once by forgetting the 3-word citation frame is
+not part of the quote.
+
+What shipped:
+
+- **`Deal.authored_budget()`** — the words hook and identity share. The only
+  length figure true at deal time, because it depends on nothing the drafter has
+  written.
+- **`Deal.hook_room()`** now returns the **floor**: the budget less the top of
+  `identity_budget()`. It holds however the beat is written, and a drafter who
+  writes short finds room it did not expect, which is the harmless direction.
+- **`_resolve_length` repairs against the same floor.** A promise the allocator
+  does not honour is not a promise. This tightened the guard by `IDENTITY_SLACK`
+  and the live bank still satisfies it — the extreme combination now escalates
+  from a ps swap to ps-plus-cta, which is the documented order, not a defect.
+- The prompt block hands over **both** numbers and says which is exact.
+
+One thing recorded so nobody irons it out: **subtracting a separately-counted
+identity from the budget is close, not exact.** `word_count` runs on the
+assembled body — which is why `lint.hook_room` measures the body rather than
+summing lines — and the joins are worth a word or two. One shipped email came
+in a word over its derived budget and still landed at 94 of 95. The budget is a
+guide; `WORD_MAX` is the enforcement, and the floor absorbs the difference.
+
+### 2. The `b4-01` + `ps-05` echo, and the guard that was hiding it
+
+A cold read named the pair rather than the wording: *"b4-01 and ps-05 should not
+be dealt to the same lead."* `_ECHO_PHRASES` had no pattern for it, so
+`echo_pairs()` reported none and the deal could pair them freely.
+
+I tried this once mid-batch and reverted it, because adding the phrase made a
+test fail that asserts the live bank has **no** colliding pair — and that test's
+history shows the repo's answer to a collision is to rewrite the copy, which
+lives in Airtable and is not mine to edit.
+
+The resolution is an allowlist. `KNOWN_ECHO_PAIRS` records the one real
+collision with its evidence; anything else still fails the build. The value of
+the original assertion was that a new collision cannot arrive unnoticed, and
+that survives. `deal` now prints the pair on every run, and a second test proves
+the two are never dealt together, so **the emails stay clean while the copy is
+wrong**. The fix is still three cells in Copy Assets.
+
+### 3. The one I did not fix, and why
+
+`qualify` returned `yes` on `uae_based` for Trudy Rowe off an incidental
+**"Dubai Evening News"** mention — on a page that was not even hers.
+`check_uae`'s bare marker scan matches any word-bounded city name anywhere in
+the text, and the module already carries scars from exactly this family
+(`aeon.co`, `Marina Bay`, `michae.com`).
+
+I left it, on the repo's own asymmetry: **a false pass costs one research call
+and a false kill is permanent and invisible.** Every fix I could construct —
+capitalised-compound detection, a publications list, downgrading the bare scan
+to `unclear` — trades a cheap error for the expensive one or needs an unbounded
+list. "Dubai Knowledge Park" is a real place and "Dubai Evening News" is not,
+and no rule I can write separates them reliably.
+
+The sharper version of the finding is not about substrings at all: **the text
+came from a page `resolve` had already flagged as not the lead's.** Feeding
+owner-check-failed pages to the floors is the real defect, and it is a
+qualify/resolve integration decision rather than a quiet patch. Left for a
+decision, not smuggled in as a fix.
+
+### Checked and not a bug
+
+Jodie drew `id-lead-2` (`coach_type: Leadership, sells_to: any`) while selling
+to corporates, with `id-lead-4` (Leadership + corporates) available. `any` means
+fits either audience by design, and the 70/30 ratio draws a non-exact line by
+design. Working as intended.
+
+`crm-rows` printing `Body 0/19` was my process error, not a code defect — I had
+stripped `body` so `export` would reassemble it after the ps rebalance. The
+coverage block is the only reason it was visible, which is what it is for.
+
+969 tests, `doc-check` clean.
+
 ## 2026-08-02 (final) — 9 of 20, and two rules that cost more than they protected
 
 Haytham, after the 7-lead file: **fix john and fatima too, i want all 9.** Both

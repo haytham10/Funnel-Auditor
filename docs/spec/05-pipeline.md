@@ -434,7 +434,15 @@ against; `facts` prints the client-result table and the numbers it licenses.
 Owned by `docs/spec/04-email.md`.
 
 `deal` runs on the draftable set, before the hook stage, and prints the
-`HOOK ROOM` the hook stage and `select --hook-room` are then given. **Its cost
+`HOOK ROOM` the hook stage and `select --hook-room` are then given. **That
+figure is a floor, not an estimate** (2026-08-02): the drafter authors the
+identity beat, so a room computed against the reference identity line is only
+true if that sentence comes out reference length, and drafters write to the top
+of a range. `Deal.authored_budget()` is the exact joint budget for hook and
+identity together and is the only length figure true at deal time;
+`Deal.hook_room()` subtracts the top of the identity range from it so the number
+holds however the beat is written. `_resolve_length` repairs against the same
+floor, because a promise the allocator does not honour is not a promise. **Its cost
 is that lines are allocated to leads that later hold on a refuted hook**, so the
 shipped batch drifts from the declared weights. `export --rebalance-ps` is the
 existing mitigation and now fires on most batches rather than some; re-dealing
