@@ -328,6 +328,15 @@ def test_metrics_prints_cost_per_email_when_it_can():
     assert "model_cost        $40.00, $4.00/email" in metrics.report(out)
 
 
+def test_an_empty_run_is_unpriceable_not_free():
+    """Summing an empty loop yields $0.00, and printing that beside exact token
+    counts is the wrong zero wearing the rate card's clothes."""
+    priced = usage.price({"by_model": {}, "totals": {"input_tokens": 0}},
+                         on=usage.RATES_AS_OF)
+    assert priced["usd"] is None
+    assert any("nothing to price" in r for r in priced["unpriceable"])
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

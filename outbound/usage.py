@@ -161,6 +161,14 @@ def price(out: dict, *, on: date | None = None) -> dict:
 
     if result["unpriceable"]:
         return result
+    if not result["by_model"]:
+        # Nothing to price is not a batch that cost nothing. Falling through
+        # would sum an empty loop to $0.00 and print it beside exact token
+        # counts, which is the wrong zero wearing the rate card's clothes.
+        result["unpriceable"].append(
+            "no model was named in the run, so there is nothing to price — "
+            "tokens are still exact")
+        return result
 
     # Bucket totals are run-wide, not per model. Attribute them by each model's
     # share of tokens — exact when one model dominates, which is every batch
