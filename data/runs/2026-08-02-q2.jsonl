@@ -150,3 +150,4 @@
 {"lead_key": "fatima@istoria.app", "stage": "research", "platform": "web", "url": "websearch: Fatima Alzaabi podcast/speaker (ICA48 claim unverifiable, not used)", "retrieved_by": "websearch", "cost_usd": 0.0, "secs": 0.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T11:12:47+00:00"}
 {"kind": "pass", "stage": "research", "agent": "research-worker", "model": "sonnet", "count": 2, "at": "2026-08-02T11:13:25+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-worker", "model": "sonnet", "count": 5, "at": "2026-08-02T11:15:43+00:00"}
+{"lead_key": "sofie@sodacoaching.com", "stage": "hook", "platform": "site", "url": "https://sodacoaching.com", "retrieved_by": "webfetch", "cost_usd": 0.0, "secs": 0.0, "outcome": "error", "purpose": "observe", "at": "2026-08-02T11:17:00+00:00"}
