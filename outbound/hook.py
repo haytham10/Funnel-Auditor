@@ -301,9 +301,11 @@ def schema_help() -> str:
     return ("  one object per proposed hook:\n" + "\n".join(rows)
             + f"\n  hook_type is one of {HOOK_TYPES}\n"
               "  quote is VERBATIM theirs. line is the clause YOU wrote.\n"
-              "  observation_id may be blank — the hook stage still fetches, "
-              "and a hook\n  with no stored observation behind it is what "
-              "`select --against` counts.")
+              "  observation_id names the shortlist entry the quote came from. "
+              "It may be\n  blank ONLY with escalated=true and an "
+              "escalation_rung: post-flip a hook\n  comes from the shortlist or "
+              "from a rung you walked and named, and a hook\n  with neither has "
+              "no provenance. Escalations are what `metrics` counts.")
 
 
 def report(proposals: list, *, today: date | None = None,

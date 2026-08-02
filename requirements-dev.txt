@@ -4,7 +4,12 @@
 # run the suite" is a fact about this repo, and a fact with one home does not
 # drift; the same reason copy/results.csv is not a number typed into an email.
 #
-# Every test file also runs standalone (`python tests/test_lint.py`), so the
-# suite works without pytest — this makes `python -m pytest` work too.
+# Most test files also run standalone (`python tests/test_lint.py`), so the
+# suite works without pytest — this makes `python -m pytest` work too. The
+# exceptions are the files whose tests take a pytest fixture (`tmp_path`, a
+# monkeypatched resolver): `test_metrics.py` and `test_email_local.py` today.
+# A standalone runner there would call them with no argument and fail on its
+# own convention, which is worse than not having one — so the rule is "runs
+# standalone unless it needs a fixture", said here rather than discovered.
 -r requirements.txt
 pytest>=8.0

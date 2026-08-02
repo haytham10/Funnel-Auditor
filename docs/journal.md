@@ -1,3 +1,102 @@
+## 2026-08-02 (pre-flight) — the write-back nobody was told to do
+
+Haytham, before running the first real batch since the flip: walk the whole
+codebase, find the orphans, confirm the safeguards, **we produce a list of 2
+today**. Nothing had been put to work all week.
+
+`doc-check` and 951 tests were green on arrival and stayed green. The gates that
+had tests were fine. What was not fine was a join between two stages that no
+test and no gate looked at, because it runs through a human.
+
+**`crm-rows` and `metrics` read the hook verdict off the research object and
+nowhere else.** Not off the drafts, which carry `hook_type`, `hook_source_url`
+and `hook_quote` on every row. Those fields reach the research object only when
+the orchestrator writes them back at stage 3b, by hand, because the verdict
+lives in an agent and Python cannot see it. The skill told you to write back two
+things: the hook's **date** and its **observation_id**. It never mentioned
+`hook_verified`, `hook_type` or `hook_source_url`.
+
+Skip that step and nothing errors, which is the whole problem. A research worker
+returns `hook_verified: "proposed"` — a legal value that reads like an answer —
+so the numbers get **computed** rather than skipped. Reproduced end to end on a
+2-lead run that shipped 2 verified hooks and 2 emails:
+
+    hook_yield        0%    (0 verified of 2 attempted)
+    null_hook_rate    100%  (2 found nothing)
+    Hooks Verified    0
+    escalation_rate   0%    ← D27's number, on the batch run to produce it
+
+Every one of those is a measurement, not a `?`. **This is the `?`-not-`0` rule
+defeated from underneath**: the rule protects a count nobody supplied, and this
+count *was* supplied, from a field nobody was told to update. `Hooks Verified 0`
+goes into Airtable and gets believed, and `Hook Type` lands empty — the field
+`replies` exists to join on, per the skill's own line about it.
+
+Three fixes, in the order they catch it:
+
+1. **The skill.** Stage 3b now names all six fields in a table with who reads
+   each one, and says the step is a step. That is the actual fix; the other two
+   are for when somebody misses it anyway.
+2. **`crm-rows` exits 1** on any row that is `Exported` with `Hook Verified`
+   not `verified`. An exported email has a verified hook by construction — a
+   refuted one is not drafted — so this is mechanical, and it is the same join
+   this module was written for, one field over and quieter.
+3. **`metrics` prints `SUSPECT`** when `--written` is above zero and no hook
+   reads as verified, naming the fields to put back. Fail-open, never exit 1,
+   same rule as the ledger: an observer that can halt a send file gets routed
+   around.
+
+Both land *after* the upload file exists and neither can block one.
+
+**Three smaller things, all found by running the machine rather than reading
+it.**
+
+`deal` printed `OVER CAP` on all four beats for a batch of 2, where a line is
+50% by arithmetic. `check_batch` already knew this and warns rather than fails
+below 8 leads (`MIN_BATCH_FOR_SHARES`); `deal` did not consult it, so the two
+halves told different stories and the fixes on offer were re-dealing, which the
+skill forbids once drafts exist, or writing copy nothing needs. It now says
+`under 8 leads ... not a batch to fix`. **This mattered today specifically** —
+today's batch is 2.
+
+`outbound/hook.py`'s schema help still said *"observation_id may be blank — the
+hook stage still fetches"*. Pre-flip language, and it is printed to a
+`hook-worker` at the moment its proposal was rejected for exactly that: a blank
+`observation_id` is legal only with `escalated` and a rung. The recovery
+instruction contradicted the rule that had just fired.
+
+`audit/airtable.py` carried a **`create_records`** that nothing had ever called
+and no test covered, added the same day as `update_records`. Generic POST, so
+`create_records(LEADS_TABLE, rows)` would have written Lead rows from Python —
+the one thing the module docstring says it does not do — sitting two screens
+below the constant naming that table. Deleted, with the reason in its place. The
+boundary was a sentence while the capacity to cross it was right there. Same
+rule as `audit/apify.py`'s: **surface area, not capability.**
+
+**What was checked and was genuinely fine**, so nobody re-audits it: every
+module has a live importer; every documented flag parses against the real parser
+(a flag checker `doc-check` does not have — three hits, all prose); the warm-hit
+stop exits 1 and a missing wall exits 2; `export --anchors` caught a drafter
+reproducing a different line under the assigned id; `hook --against` caught a
+one-word edit to a quote and a blank provenance; `qualify` fails closed on a
+list and settles activity from an observation date, upward only; the missing
+ledger exits 2; `wall-add`/`copy-usage` `--dry-run` write nothing;
+`copy-check` read 46 live lines from Airtable and matched the cache.
+`data/runs/2026-08-01-q1-research.json` is absent because that batch predates
+`select --batch` writing the corpus, which is what its docstring says.
+
+`audit/draft_lint.py`'s **`scan()` is dead** — `bare_links` and `EM_DASH` are
+imported individually by `lint.py` and `copy_sync.py`, so both rules are
+enforced and the wrapper is redundant. Left alone: it is the documented entry
+point of a module whose whole purpose is defining each rule once, and deleting
+it is a coin flip nobody needed today.
+
+Three test files have no standalone runner because their tests take a pytest
+fixture; `requirements-dev.txt` claimed every file has one. The claim is now the
+rule it actually is. `test_replies.py` took no fixture and got its runner.
+
+958 tests, `doc-check` clean, nothing in `data/` or `copy/` touched.
+
 ## 2026-08-01 (the flip) — P3 on, one batch before its own gate
 
 Haytham, immediately after the previous session recorded D26 (*the flip stays

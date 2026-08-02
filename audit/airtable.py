@@ -211,23 +211,16 @@ def update_records(table: str, updates: list[dict], *,
     return written
 
 
-def create_records(table: str, records: list[dict], *,
-                   base_id: str = BASE_ID) -> int:
-    """POST new records. `records` is [{"fields": {...}}]. Batched at 10."""
-    if not records:
-        return 0
-    url = f"{API_ROOT}/{base_id}/{requests.utils.quote(table)}"
-    written = 0
-    for start in range(0, len(records), 10):
-        chunk = records[start:start + 10]
-        try:
-            response = requests.post(url, headers={**_headers(),
-                                                   "Content-Type": "application/json"},
-                                     json={"records": chunk}, timeout=TIMEOUT)
-        except requests.RequestException as exc:
-            raise AirtableError(f"Airtable unreachable: {exc}") from exc
-        if response.status_code != 200:
-            raise AirtableError(
-                f"Airtable returned {response.status_code}: {response.text[:200]}")
-        written += len(response.json().get("records", []))
-    return written
+# There is deliberately no `create_records` here.
+#
+# One existed from the day `update_records` was written, was never called by
+# anything, and had no test. It was a generic POST, so `create_records(
+# LEADS_TABLE, rows)` would have written Lead rows from Python — the one thing
+# the docstring above says this module does not do — and it sat two screens
+# below the constant naming that table. Nothing was wrong with the code; the
+# problem was that the boundary was a sentence in a docstring while the capacity
+# to cross it was right there, untested, waiting for a session in a hurry.
+#
+# `outbound/crm.py` builds the Leads rows and stops. A human writes them. That
+# is the boundary, and the absence of a writer is what enforces it. Same rule as
+# `audit/apify.py`'s: an actor is surface area, not capability.

@@ -346,3 +346,51 @@ def test_no_plan_read_prints_a_question_mark_and_never_a_zero():
     text = metrics.report(out)
     assert f"declined_and_dry  {metrics.UNKNOWN}" in text
     assert "declined_and_dry  0" not in text
+
+
+def test_written_emails_with_no_verified_hook_is_called_out_as_suspect():
+    """The `?`-not-`0` rule defeated from underneath.
+
+    That rule protects a count nobody supplied. This one *is* supplied — from
+    `hook_verified`, which a research worker defaults to `proposed` and which
+    only the orchestrator can set to `verified`, by hand, at stage 3b. Skip that
+    and every ratio here is computed off the default: `hook_yield 0%`,
+    `null_hook_rate 100%` and a `Hooks Verified 0` that goes into the CRM as a
+    measurement rather than a gap.
+
+    `written` is the cross-check because it comes from `export`, which counted
+    rows it actually wrote, and an exported email has a verified hook.
+    """
+    out = metrics.from_research([lead(state="proposed"), lead(state="proposed",
+                                                              key="b@x.ae")])
+    out.written = 2
+    text = metrics.report(out)
+    assert "SUSPECT" in text
+    assert "write-back" in text, "it has to name the step that was skipped"
+    assert "hook_verified" in text, "and the fields to put back"
+
+
+def test_suspect_is_silent_on_a_batch_that_verified_its_hooks():
+    out = metrics.from_research([lead(), lead(key="b@x.ae")])
+    out.written = 2
+    assert "SUSPECT" not in metrics.report(out)
+
+
+def test_suspect_is_silent_when_nothing_was_written():
+    """A batch where every hook was refuted writes no emails and is a real
+    outcome, not a missing write-back. Without `written` there is nothing to
+    contradict, and an unsupplied count must never manufacture a finding."""
+    out = metrics.from_research([lead(state="refuted")])
+    assert "SUSPECT" not in metrics.report(out)
+    out.written = 0
+    assert "SUSPECT" not in metrics.report(out)
+
+
+def test_suspect_never_fails_the_batch():
+    """Same rule as the ledger: this is an observer. A gate that can halt a send
+    file over an accounting line is one people learn to route around."""
+    out = metrics.from_research([lead(state="proposed")])
+    out.written = 1
+    assert "SUSPECT" in metrics.report(out)
+    assert out.hook_yield == 0.0, "it reports the number, it does not repair it"
+

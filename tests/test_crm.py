@@ -194,6 +194,45 @@ def test_a_disqualified_lead_is_disqualified_and_names_the_floor():
     assert "Dunbar" in row["Evidence"], "a verdict carries the source that settled it"
 
 
+def test_an_exported_row_whose_hook_is_not_verified_fails_closed():
+    """The same join defect, one field over, and quieter.
+
+    `hook_verified` / `hook_type` / `hook_source_url` are read off the research
+    object and nowhere else — the drafts carry them and are not consulted. They
+    get there only when the orchestrator writes the verifier's verdict back at
+    stage 3b, by hand, because the verdict lives in an agent.
+
+    Skip that and a research worker's default `proposed` stands. It is a legal
+    value that reads like an answer, so nothing errors: the row ships with
+    `Hook Type` empty, and `metrics` computes `null_hook_rate 100%` off the same
+    field on a batch that shipped. An exported email has a verified hook by
+    construction, which is what makes this mechanical.
+    """
+    built = crm.build([lead()], [research(hook_verified="proposed")],
+                      [draft()])
+    assert built.rows[0]["Status"] == "Exported"
+    assert not built.ok
+    problem = " ".join(built.problems)
+    assert "Exported but Hook Verified" in problem
+    assert "'proposed'" in problem, "it has to name the value it actually found"
+    assert "write-back" in problem, "and the step that was skipped"
+
+
+def test_an_exported_row_with_the_write_back_done_passes():
+    """The other half: the check must not fire on a correctly written batch."""
+    built = crm.build([lead()], [research()], [draft()])
+    assert built.rows[0]["Status"] == "Exported"
+    assert built.ok, built.problems
+
+
+def test_a_held_lead_is_not_caught_by_the_exported_check():
+    """A refuted hook is not drafted, so its row is not Exported and the check
+    must leave it alone — the invariant is about exported rows only."""
+    built = crm.build([lead()], [research(hook_verified="refuted")])
+    assert built.rows[0]["Status"] != "Exported"
+    assert not any("Exported but Hook Verified" in p for p in built.problems)
+
+
 def test_the_batch_is_reported_and_never_put_in_a_row():
     """`Batch` is a linked-record field. Its value is a Batches record id that
     does not exist until that row is created, so a label here would fail the
