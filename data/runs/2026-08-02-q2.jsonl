@@ -151,3 +151,7 @@
 {"kind": "pass", "stage": "research", "agent": "research-worker", "model": "sonnet", "count": 2, "at": "2026-08-02T11:13:25+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-worker", "model": "sonnet", "count": 5, "at": "2026-08-02T11:15:43+00:00"}
 {"lead_key": "sofie@sodacoaching.com", "stage": "hook", "platform": "site", "url": "https://sodacoaching.com", "retrieved_by": "webfetch", "cost_usd": 0.0, "secs": 0.0, "outcome": "error", "purpose": "observe", "at": "2026-08-02T11:17:00+00:00"}
+{"lead_key": "sk@cm4c.co", "stage": "verify", "platform": "linkedin", "url": "https://linkedin.com/posts/sabine-karunanithy_blindspots-can-cost-you-your-career-that-activity-7487719619064020992-9fou", "retrieved_by": "apify:li_posts", "cost_usd": 0.01, "secs": 15.32, "outcome": "ok", "purpose": "verify", "at": "2026-08-02T11:19:05+00:00"}
+{"lead_key": "max@themaxmethod.com", "stage": "verify", "platform": "instagram", "url": "https://instagram.com/p/DbV2MnGjXFQ", "retrieved_by": "apify:ig_post", "cost_usd": 0.0015, "secs": 7.57, "outcome": "ok", "purpose": "verify", "at": "2026-08-02T11:19:32+00:00"}
+{"lead_key": "geeta@coachingwithgeeta.com", "stage": "hook", "platform": "podcast", "url": "https://open.spotify.com/episode/0KjMboC31gZaBQ2wAJMyGV", "retrieved_by": "webfetch", "cost_usd": 0.0, "secs": 0.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T11:20:11+00:00"}
+{"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 2, "at": "2026-08-02T11:20:27+00:00"}
