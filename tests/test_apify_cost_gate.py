@@ -861,6 +861,86 @@ def test_the_ledger_names_the_actor_key_not_the_rest_api_id(monkeypatch, tmp_pat
     assert records[0].platform == "linkedin"
 
 
+def test_a_failed_run_keeps_the_pages_it_already_wrote(monkeypatch, tmp_path):
+    """A FAILED or TIMED-OUT run still returns whatever reached its dataset.
+
+    `run-sync-get-dataset-items` answers a failed run with a 400 and no items,
+    so a render crawl that finished nine of ten pages handed back nothing. The
+    boot is the bill and it is already paid; the retry then bought the same
+    pages again. Three runs on `2026-08-02-q3` went that way.
+    """
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+    monkeypatch.setattr(apify, "_require_cost_approval", lambda *a, **k: 0.01)
+    monkeypatch.setattr(apify.requests, "post", lambda *a, **k: _FakeResponse(
+        None, ok=False, status_code=400,
+        text='{"error":{"message":"Actor run did not succeed '
+             '(run ID: abc123XYZ, status: TIMED-OUT)."}}'))
+
+    def fake_get(url, **kwargs):
+        if "/actor-runs/abc123XYZ" in url:
+            return _FakeResponse({"data": {"defaultDatasetId": "ds1"}})
+        if "/datasets/ds1/items" in url:
+            return _FakeResponse([{"url": "https://a.example", "text": "hi"}])
+        raise AssertionError(f"unexpected GET {url}")
+
+    monkeypatch.setattr(apify.requests, "get", fake_get)
+
+    items = apify.crawl_render(["https://a.example"], approved=True)
+    assert len(items) == 1
+    assert items[0]["url"] == "https://a.example"
+
+
+def test_an_unsalvageable_failure_still_raises(monkeypatch):
+    """Salvage is best-effort and must never turn a real failure into silence.
+
+    A run whose dataset cannot be read, or that wrote nothing at all, has to
+    raise exactly as it did before — an empty list would read to every caller
+    as "this site has no pages" rather than "this run died".
+    """
+    monkeypatch.setattr(apify, "_auth_headers", lambda: {})
+    monkeypatch.setattr(apify, "_require_cost_approval", lambda *a, **k: 0.01)
+    monkeypatch.setattr(apify.requests, "post", lambda *a, **k: _FakeResponse(
+        None, ok=False, status_code=400,
+        text='{"error":{"message":"Actor run did not succeed '
+             '(run ID: dead000, status: FAILED)."}}'))
+    monkeypatch.setattr(apify.requests, "get",
+                        lambda url, **k: _FakeResponse([], ok=True)
+                        if "/datasets/" in url
+                        else _FakeResponse({"data": {"defaultDatasetId": "ds"}}))
+
+    try:
+        apify.crawl_render(["https://a.example"], approved=True)
+    except apify.ApifyError:
+        return
+    raise AssertionError("a failed run with an empty dataset must still raise")
+
+
+def test_render_gets_a_browsers_worth_of_memory_and_time(monkeypatch):
+    """The render actor launches Chromium; the static one does not.
+
+    At 1024 MB it was SIGKILLed (exit 137) before its first page on every run,
+    so the render half of every escalation silently bought nothing. At the
+    default 240s sync window a 10-URL batch rendered 5 pages and TIMED-OUT,
+    which discards them. Both are properties of this call site, not of the
+    caller, so both are asserted here.
+    """
+    seen = {}
+    monkeypatch.setattr(apify, "_require_cost_approval", lambda *a, **k: 0.01)
+
+    def fake_run_actor(actor_id, run_input, **kwargs):
+        seen.update(kwargs)
+        seen["actor"] = actor_id
+        return []
+
+    monkeypatch.setattr(apify, "run_actor", fake_run_actor)
+    apify.crawl_render([f"https://s{i}.example" for i in range(10)],
+                       approved=True)
+
+    assert seen["memory_mbytes"] == 4096
+    assert seen["timeout_secs"] >= 540
+    assert seen["timeout_secs"] > apify._SYNC_TIMEOUT_SECS
+
+
 def test_every_actor_key_survives_the_round_trip():
     """The reverse map is built from ACTORS, so an actor added without a key —
     or a duplicate id across two keys — would silently mislabel its spend."""

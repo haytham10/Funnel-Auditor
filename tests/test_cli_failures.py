@@ -699,6 +699,43 @@ def test_escalate_only_reads_nothing_at_tier_0():
             "a run that fetched nothing must leave no retrieval lines"
 
 
+def test_escalate_only_does_not_buy_a_plan_that_already_ran():
+    """A retry is for the half that failed.
+
+    On `2026-08-02-q3` the render plan died three times and the static plan
+    beside it succeeded every time, so each retry bought the same 12 pages
+    again. The free tier-0 re-read was only the version of this duplicate that
+    got caught first; the paid one is worse and was never checked for.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [
+                {"actor_key": "site_static", "urls": ["https://a.ae"],
+                 "why": "1 url(s) unreachable"},
+                {"actor_key": "site_render", "urls": ["https://b.ae"],
+                 "why": "1 url(s) returned 200 with no text"}],
+            "escalated": {"site_static": [{"url": "https://a.ae", "text": "x"}]}})
+        result = run("fetch", sites, "--escalate-only")
+        assert result.returncode == 0, result.stdout
+        assert "SKIP" in result.stdout and "site_static" in result.stdout
+        # The one that has not run is still offered.
+        assert "ESCALATE" in result.stdout
+
+
+def test_escalate_only_when_every_plan_has_already_run():
+    """Nothing left to retry is a success, not an empty purchase."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [{"actor_key": "site_static",
+                                "urls": ["https://a.ae"], "why": "1 url(s)"}],
+            "escalated": {"site_static": [{"url": "https://a.ae"}]}})
+        result = run("fetch", sites, "--escalate-only", "--approve-cost")
+        assert result.returncode == 0, result.stdout
+        assert "already run" in result.stdout
+
+
 def test_escalate_only_with_no_plans_is_not_an_error():
     """A batch whose tier 0 read everything has nothing to retry, and that is a
     success rather than a missing file."""
