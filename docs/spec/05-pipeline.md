@@ -346,6 +346,14 @@ has no text to name it, and it 404s. The content can be real, paid for, and
 still impossible to cite — that failure cost a lead and a full verifier pass to
 discover.
 
+**The date comes from the cited observation, not from the writer.** An undated
+evergreen source (an About page, a framework) takes an empty `published_at`, and
+a non-empty one on such a source is **rejected as fabricated**. Requiring a date
+from a page that has none is what produced two invented dates on
+`2026-08-02-q2`. Where the gate cannot see the source — no `--against`, or a
+declared escalation — the old rule stands and a date is required, because an
+unjoinable claim of "the page had no date" is indistinguishable from not looking.
+
 **`--against work/select.json` checks the quote against the observation it
 names**, and that closes ban #3 — *"no invented specifics"* — which was a
 sentence an agent was asked to remember for as long as there was nothing to
@@ -426,7 +434,15 @@ against; `facts` prints the client-result table and the numbers it licenses.
 Owned by `docs/spec/04-email.md`.
 
 `deal` runs on the draftable set, before the hook stage, and prints the
-`HOOK ROOM` the hook stage and `select --hook-room` are then given. **Its cost
+`HOOK ROOM` the hook stage and `select --hook-room` are then given. **That
+figure is a floor, not an estimate** (2026-08-02): the drafter authors the
+identity beat, so a room computed against the reference identity line is only
+true if that sentence comes out reference length, and drafters write to the top
+of a range. `Deal.authored_budget()` is the exact joint budget for hook and
+identity together and is the only length figure true at deal time;
+`Deal.hook_room()` subtracts the top of the identity range from it so the number
+holds however the beat is written. `_resolve_length` repairs against the same
+floor, because a promise the allocator does not honour is not a promise. **Its cost
 is that lines are allocated to leads that later hold on a refuted hook**, so the
 shipped batch drifts from the declared weights. `export --rebalance-ps` is the
 existing mitigation and now fires on most batches rather than some; re-dealing

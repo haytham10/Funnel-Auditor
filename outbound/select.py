@@ -84,6 +84,31 @@ page ranks last and is offered only when the lead has nothing better. The
 mechanical half of ban #1 is now `boilerplate`, above, which fires on evidence
 that a line is generic rather than on where it was found.
 
+## The half-day this was banned outright, and why that was wrong (2026-08-02)
+
+`2026-08-02-q2` produced a real contradiction and one wrong reading of it.
+
+The measurement: of 42 observations, **26 were `about` and none carried a date**.
+Ten of fourteen leads with a shortlist were offered nothing else, and two hook
+workers — independently, on different leads — **wrote today's date for a page
+that has none**, one citing the other's file as precedent.
+
+The wrong reading was that About pages should stop being shortlisted. They were
+banned by kind for about an hour. That is the wrong end of the pipe: the ranker
+was doing its job, offering a weak fallback last, exactly as designed.
+
+**The contradiction lived in `outbound/hook.py`, which required a non-empty
+`published_at` from every proposal and exempted no kind.** So a worker handed a
+legitimate undated About page had two moves: abandon the hook, or invent a date.
+Two took the second. Deleting the fallback removes the symptom and the fallback;
+fixing the gate removes the impossible instruction.
+
+So `hook` now accepts an empty `published_at` when the observation it cites is
+evergreen and genuinely carries none — and, with `--against`, **rejects a
+non-empty date on a source that has none**, which is the fabrication itself made
+mechanical. This module is unchanged: an About page is a valid hook, ranked
+last, offered when nothing recent survives.
+
 ## Two rules taken from the codebase rather than invented
 
 **No score.** `resolve.py` states it: *"Not a number — nothing in this repo
@@ -159,7 +184,14 @@ KIND_RANK = {"post": 0, "episode": 0, "video": 1, "framework": 2, "result": 3,
 # Exempt from both date rules, per `docs/hook-rules.md`. `about` is here because
 # a page somebody wrote about themselves has no publication date and never will,
 # and requiring one is a way of banning the kind while appearing not to. It
-# still ranks last in `KIND_RANK`: exempt from the date, never preferred.
+# still ranks last in `KIND_RANK`: exempt from the date, never preferred — an
+# About page is what a lead gets offered when nothing recent survives, which is
+# exactly the job it should do.
+#
+# This exemption was briefly removed on 2026-08-02 and put straight back. See
+# the docstring section below: the contradiction it was blamed for lived in
+# `outbound/hook.py`, not here, and deleting the fallback was the wrong end to
+# fix it from.
 EVERGREEN_KINDS = ("framework", "about")
 # Borrowed, not restated. `observe.PLATFORMS` already leads with linkedin, which
 # `docs/hook-rules.md` calls "the richest source by a distance", and a second

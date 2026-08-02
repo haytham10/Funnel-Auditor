@@ -1,3 +1,457 @@
+## 2026-08-02 (fixes) — the three things `2026-08-02-q2` found, and the one I did not fix
+
+Haytham: fix the hook_room calculation in deal, make sure everything is fixed
+based on this run.
+
+### 1. `hook_room` was a projection sold as a budget
+
+`Deal.hook_room()` measured the room against the **reference** identity line.
+The drafter authors that sentence, so the figure was only true if the beat came
+out exactly reference length — and drafters write to the top of a range.
+
+Measured on the batch: every lead wrote at or above the reference. Sabine was
+told 18 and had 16. John was told 32 and had 22. **Three different drafters
+independently recomputed it and told me the instruction was wrong**, and they
+were right every time; I then relayed the correction wrong twice more, once by
+costing a 6-word quote as 7 and once by forgetting the 3-word citation frame is
+not part of the quote.
+
+What shipped:
+
+- **`Deal.authored_budget()`** — the words hook and identity share. The only
+  length figure true at deal time, because it depends on nothing the drafter has
+  written.
+- **`Deal.hook_room()`** now returns the **floor**: the budget less the top of
+  `identity_budget()`. It holds however the beat is written, and a drafter who
+  writes short finds room it did not expect, which is the harmless direction.
+- **`_resolve_length` repairs against the same floor.** A promise the allocator
+  does not honour is not a promise. This tightened the guard by `IDENTITY_SLACK`
+  and the live bank still satisfies it — the extreme combination now escalates
+  from a ps swap to ps-plus-cta, which is the documented order, not a defect.
+- The prompt block hands over **both** numbers and says which is exact.
+
+One thing recorded so nobody irons it out: **subtracting a separately-counted
+identity from the budget is close, not exact.** `word_count` runs on the
+assembled body — which is why `lint.hook_room` measures the body rather than
+summing lines — and the joins are worth a word or two. One shipped email came
+in a word over its derived budget and still landed at 94 of 95. The budget is a
+guide; `WORD_MAX` is the enforcement, and the floor absorbs the difference.
+
+### 2. The `b4-01` + `ps-05` echo, and the guard that was hiding it
+
+A cold read named the pair rather than the wording: *"b4-01 and ps-05 should not
+be dealt to the same lead."* `_ECHO_PHRASES` had no pattern for it, so
+`echo_pairs()` reported none and the deal could pair them freely.
+
+I tried this once mid-batch and reverted it, because adding the phrase made a
+test fail that asserts the live bank has **no** colliding pair — and that test's
+history shows the repo's answer to a collision is to rewrite the copy, which
+lives in Airtable and is not mine to edit.
+
+The resolution is an allowlist. `KNOWN_ECHO_PAIRS` records the one real
+collision with its evidence; anything else still fails the build. The value of
+the original assertion was that a new collision cannot arrive unnoticed, and
+that survives. `deal` now prints the pair on every run, and a second test proves
+the two are never dealt together, so **the emails stay clean while the copy is
+wrong**. The fix is still three cells in Copy Assets.
+
+### 3. The one I did not fix, and why
+
+`qualify` returned `yes` on `uae_based` for Trudy Rowe off an incidental
+**"Dubai Evening News"** mention — on a page that was not even hers.
+`check_uae`'s bare marker scan matches any word-bounded city name anywhere in
+the text, and the module already carries scars from exactly this family
+(`aeon.co`, `Marina Bay`, `michae.com`).
+
+I left it, on the repo's own asymmetry: **a false pass costs one research call
+and a false kill is permanent and invisible.** Every fix I could construct —
+capitalised-compound detection, a publications list, downgrading the bare scan
+to `unclear` — trades a cheap error for the expensive one or needs an unbounded
+list. "Dubai Knowledge Park" is a real place and "Dubai Evening News" is not,
+and no rule I can write separates them reliably.
+
+The sharper version of the finding is not about substrings at all: **the text
+came from a page `resolve` had already flagged as not the lead's.** Feeding
+owner-check-failed pages to the floors is the real defect, and it is a
+qualify/resolve integration decision rather than a quiet patch. Left for a
+decision, not smuggled in as a fix.
+
+### Checked and not a bug
+
+Jodie drew `id-lead-2` (`coach_type: Leadership, sells_to: any`) while selling
+to corporates, with `id-lead-4` (Leadership + corporates) available. `any` means
+fits either audience by design, and the 70/30 ratio draws a non-exact line by
+design. Working as intended.
+
+`crm-rows` printing `Body 0/19` was my process error, not a code defect — I had
+stripped `body` so `export` would reassemble it after the ps rebalance. The
+coverage block is the only reason it was visible, which is what it is for.
+
+969 tests, `doc-check` clean.
+
+## 2026-08-02 (final) — 9 of 20, and two rules that cost more than they protected
+
+Haytham, after the 7-lead file: **fix john and fatima too, i want all 9.** Both
+had verified hooks and were held at the draft stage on known, small faults. I
+had held them on the skill's one-rewrite rule. He overrode it; that is his call,
+and both shipped after a fresh cold read found nothing wrong.
+
+Recording it because the rule is not wrong, but **it is a drafting-quality rule
+being applied to leads whose defect was a single sentence.** John needed three
+words cut. Fatima needed "the ones who taught you" opened to "among your
+teachers", because her page says "name few but not limited to" and the closed
+set wrote out the teacher she foregrounds. Worth considering whether the rule
+should count *rounds where the finding was new* rather than rounds.
+
+Fatima is also the case against my own reasoning earlier in the day. I let her
+have one repair because the damage was mine — my re-deal cost her seven words of
+hook room. That repair then surfaced a third, deeper fault. So "the damage was
+mine" was a fair reason to allow the round and **not** evidence the email was
+one round from done.
+
+### Adding two leads cost two re-deals, and both were cheap
+
+Seven holds left `b4-02` at 38% and `cta-03` at 50% against a 35% cap, and
+`export` blocked the file. Correctly. Re-dealt for 8; then adding John and
+Fatima meant re-dealing for 9.
+
+**The skill's warning that re-dealing forces a re-draft of everything is
+overstated.** Both times only ONE identity line moved — identity is the beat
+woven into the seam and the only one that forces a rebuild. Everything else was
+library copy needing a re-voice. The 9-lead deal touched 3 of 9 drafts.
+
+### The hook_room defect, caught three times by three different drafters
+
+`deal` prints `hook_room` computed against the **19-word reference identity
+line**. A drafter who writes a longer identity beat eats the difference, and
+nothing tells them. Measured this batch:
+
+    Sabine   printed 18   real 16   (identity 27)
+    John     printed 32   real 22   (identity 25)
+    Fatima   printed 24   real 21   (identity 22)
+
+Three drafters independently computed the real number and told me my instruction
+was wrong. They were right every time. **The honest number is what is left of
+the 95-word ceiling once the greeting, sign-off and the four dealt lines are
+assembled with an empty hook.** That is a `deal` fix, not something orchestrators
+should keep rediscovering — and I got it wrong twice more even after being told,
+once by costing a 6-word quote as 7 and once by forgetting the 3-word citation
+frame is not part of the quote.
+
+### What the drafters got right that I did not ask for
+
+Sabine's worker refused both cuts I offered and showed the arithmetic instead.
+Jodie's worker reversed its own earlier decision on a repeated word and said so
+plainly: *"I was wrong about it then rather than that the instruction changed."*
+John's worker removed an aside with nothing in its place rather than replacing
+it. None of that was instructed.
+
+### Final
+
+9 written of 20 raw. hook_yield 60%, refute 7%, null 33%, escalation 0%.
+$0.3637 over 171 retrievals. Every beat inside the 35% cap at 9 leads.
+
+Still open, both for Airtable rather than code: **`b4-01` + `ps-05` collide** and
+should never be dealt together, and **Jodie drew a `sells_to: any` identity line
+while selling to corporates** when corporate-specific lines exist.
+
+## 2026-08-02 (re-run) — the same 20 leads, 3 emails to 7, on one gate change
+
+Haytham: re-run the batch with the fixed gate. Same research corpus, no fresh
+crawl — the change was `hook` accepting an empty `published_at` from a source
+that genuinely has none (D29).
+
+**hook_yield 20% -> 60%.** Nine verified hooks of fifteen attempted, against
+three. Six leads that had produced nothing now had a hook, and **not one of them
+needed new retrieval** — the material was already on disk and the gate had been
+refusing it.
+
+**The five nulls that stayed null are the better evidence.** Danyal, Sofie,
+Ahmed, Sharon and Yaser all came back empty again, every one of them on ban #1
+or on authorship, never on the date. Sofie's worker quoted her entire About
+section to show it was mission-statement copy end to end. Yaser's applied the
+test it was given — *does this sentence have Yaser in it, or the club in it* —
+and found both candidates were the gym describing itself, the same voice that
+refuted him the first time. Ahmed's is a profile card with no About paragraph
+behind it, researched twice and empty twice. The fix removed the date as a
+reason to reject and left every quality ban standing, which is exactly what it
+was supposed to do.
+
+**`escalation_rate` stayed 0%.** No verified hook needed a paid escalation.
+
+### The drafting stage is where this batch actually got expensive
+
+**Nine first drafts, nine linter passes, nine REWRITEs from the cold read.** Not
+one survived a human-equivalent read on the first attempt. Recurring shapes,
+worth naming because they will recur:
+
+- **Flattery routed through unnamed peers.** Three drafters independently wrote
+  "Most coaches can't/never…". A verifier drew the line precisely: John's
+  survived because it points at *an observable decision he made*; Geeta's and
+  Fatima's failed because they point at *other coaches' ignorance*. Fatima's was
+  also false — her own page names Tony Robbins' teams two paragraphs above.
+- **Telling the recipient what their own work is for.** Toleen's first draft said
+  her lecture hall was full of people who cannot pay her. "The seam works and
+  what it delivers is a verdict on her teaching."
+- **Discovery frames** — "Your profile says", "Noticed you also teach". Three.
+- **The sharpest catch, and unlintable:** John's identity beat read "Finding you
+  more of them is my job", where the nearest antecedent to "them" was
+  **Filipinos** — read by a man who very likely belongs to that group. Plus a
+  lowercased demonym in his subject, where the batch's house style of
+  lowercasing proper nouns collides with a word that is not a brand name.
+
+### Two leads held with verified hooks, and I let them
+
+**John** came back REWRITE a second time over a three-word aside ("capitals and
+all", which concedes a blemish before the compliment). The skill says back to
+the drafter **once**, then it passes or it holds. I had told the verifier in
+advance that it was the final pass. Inventing an exception after seeing the
+verdict is how a rule stops meaning anything, so he held.
+
+**Fatima** is the more interesting one. She passed, then my re-deal cost her
+seven words of hook room, the compression left a pronoun with no antecedent, and
+the repair surfaced a *third* fault: "the ones who taught you" closes a set her
+own page leaves open ("name few but not limited to"). I allowed one repair
+because the damage was mine, not hers — but four rounds each finding something
+new says the material is thin, not the wording unlucky. Both are small known
+fixes and should lead the next batch at near-zero cost.
+
+### The re-deal, and why `--rebalance-ps` was not enough
+
+Seven of fifteen held, so the deal made for fifteen left `b4-02` at 38% and
+`cta-03` at 50% against a 35% cap, and `export` **blocked the whole file**.
+Correctly. `--rebalance-ps` only moves the ps, which is the one beat with no part
+in the seam.
+
+Re-dealing across the shipping set lands every beat at 25%. The cost was smaller
+than the skill's warning implies: **only one lead's identity line moved**, and
+identity is the beat woven into the seam. The rest were library copy, so five
+leads needed a targeted re-voice and one needed a genuine rebuild.
+
+Worth recording for next time: `deal`'s `hook_room` is a projection off the
+**reference** identity length. A drafter who writes a longer identity beat eats
+the difference, so the real room can be several words tighter than the anchors
+file says. Fatima's drafter caught this and was right; my number was stale.
+
+### Two findings I could not act on inside the rules
+
+- **`b4-01` and `ps-05` collide** — "…before writing this" and "I read your work
+  before I wrote this one", same construction two sentences apart. A cold read
+  named it as an anchor-pairing fault. I added the phrase to `_ECHO_PHRASES`, it
+  worked, and it made `echo_pairs()` report a live pair — which fails a test
+  asserting the live bank has none. That test's history shows the repo's answer
+  to a collision is to **rewrite the copy in Airtable**, which is not mine to
+  edit. Reverted. **It is a three-cell fix in Copy Assets.**
+- **Jodie drew a `sells_to: any` identity line while selling to corporates**,
+  with corporate-specific lines available. An allocation question for the 70/30
+  exact-match ratio, not a draft defect.
+
+### Numbers
+
+7 written of 20 raw. hook_yield 60%, refute_rate 7%, null 33%, escalation 0%,
+declined_and_dry 1 of 2. $0.3637 over 171 retrievals, $0.0404 per verified hook.
+**91 agent passes: draft 49, hook 38, research 4** — the draft stage cost more
+than everything else combined, which is what nine unanimous REWRITEs buy.
+
+`crm-rows` caught me shipping `Body 0/19` — I had stripped `body` so `export`
+would reassemble it after the rebalance, and the CRM would have recorded seven
+emails with no text. The coverage block is the only reason that was visible.
+
+## 2026-08-02 (D29) — the date comes from the source, and I fixed the wrong end first
+
+Haytham, after the `2026-08-02-q2` brief: fix the gate so About pages are not
+shortlisted. Then, on seeing what I did: *About pages are a valid hook, but only
+if we can't find any recent or good posts on social media.*
+
+He was right and my first attempt was wrong, so both are recorded.
+
+**What I did first, and why it was wrong.** I banned `kind == "about"` in
+`select` outright and emptied `EVERGREEN_KINDS`. It looked well-evidenced —
+re-scoring the corpus dropped candidate-carrying leads 14 → 4 with `0 missed`
+against the verified hooks, so the shipped file would have been identical. But
+"costs nothing measurable" is not the same as "is right". It deleted a real
+fallback to remove a symptom, and the ranker was never the thing misbehaving:
+`KIND_RANK` already put `about` last, so a lead only ever saw one when nothing
+recent survived. That is exactly the behaviour Haytham described wanting.
+
+**The actual defect was one stage later.** `outbound/hook.py` required a
+non-empty `published_at` from *every* proposal. `select` legitimately offers
+undated evergreen sources. So a worker handed a legitimate About page had two
+moves: abandon the hook, or invent the date. **Two workers invented it** — same
+batch, different leads, one citing the other's file as precedent — and since the
+only date rule was "not in the future", a stand-in of today passed everything.
+
+An impossible instruction gets resolved dishonestly. That is a gate defect, not
+a worker defect, and the fix is to stop asking for the impossible.
+
+**What shipped instead.** `hook.check_date` now takes the date from the cited
+observation:
+
+- source has a date → the proposal must carry the same one (a disagreement is
+  now caught too, which it was not before)
+- source has none → `published_at` must be **empty**, and a non-empty one is
+  rejected as fabricated, because there was nowhere to read it from
+- nothing joinable (no `--against`, or an escalation) → the old rule stands,
+  since an unjoinable "the page had no date" cannot be told apart from not
+  having looked
+
+Replayed against the batch's own corpus, both withdrawn proposals are rejected
+with `carries no date at all`, and both are accepted the moment their date is
+empty. **The fabrication became mechanically detectable in the same change that
+made it unnecessary.**
+
+One subtlety worth keeping: a **missing** `published_at` key is unknown, not
+undated. `resolve.py`'s rule — "`unknown` never means the tell said no" — one
+stage over. A thin record must never convict a worker of inventing a date.
+`select` always writes the field, so real batches take the strict branch; a
+minimal test fixture caught this and it would have been a nasty false positive.
+
+**Everything in `select` is back where it was**: `EVERGREEN_KINDS = ("framework",
+"about")`, `about` ranked last, no `about_page` ban. The tests that briefly
+encoded the ban were reverted rather than left as dead history, and the module
+docstring now carries the half-day round trip so the next person does not
+re-derive the same wrong fix from the same real evidence.
+
+**The retrieval half stands on its own merits.** `research-worker` gained a
+section saying an About page is the *fallback* and naming where dated material
+actually is — LinkedIn posts, Instagram `--mode posts` (real timestamps),
+podcast and interview pages, their own `/blog` and `/press`, and a plain
+WebSearch on name plus "interview", "panel", "launched", "award". Free,
+unlimited, least used. `outbound-batch` now says to look at what the shortlists
+are *made of*, not just how many exist, and to push a slice back to research
+before spending ten hook-worker passes on leads whose only material is an About
+page. On this batch that was 26 of 42 observations and 10 of 14 leads.
+
+966 tests, `doc-check` clean. D29 rewritten to describe the gate change.
+
+## 2026-08-02 (batch 2026-08-02-q2) — the hook gate cannot accept the evidence the machine collects
+
+20 raw UAE coaches in, 3 emails out. The yield is the story, and it is not a
+drafting problem or a hook-worker problem. **It is a contradiction between three
+modules that nobody had hit hard enough to see.**
+
+- `plan` offers an `about` rung and describes it as potentially strong: "the
+  hero section is generic, the founding story is not."
+- `select` ranks `about` observations into shortlists. This batch: **26 of 42
+  observations were `about` kind.**
+- `hook` hard-requires `published_at` ("a post with no date cannot be shown to
+  be recent"), and **no About page ever carries one.** Measured here: of 42
+  observations, the only dated ones were the 12 `post`-kind. `about` scored
+  0/26.
+
+So research retrieves About-page material, the ranker shortlists it, and the
+gate structurally cannot accept it. **10 of the 14 leads with a shortlist had no
+dated candidate at all** and were unreachable the moment research finished.
+
+### The part that matters most: the gate was producing the fabrication it exists to stop
+
+Two hook workers, independently, on different leads, invented a stand-in
+`published_at` of today for an undated page. **One of them cited the other's
+file as precedent.** The gate only rejects dates in the *future*, so today
+sails through.
+
+Both were withdrawn before export and both leads re-picked or nulled. But the
+pressure is structural, not a worker defect: faced with an undated source, a
+worker's only options are to invent a date or abandon the hook, and nothing in
+the gate's wording says which. **Assume this pattern exists in earlier batches
+and check `Hook Date` against the cited page before trusting it.**
+
+Suggested fix, not made here because it is a design call: either `select` stops
+shortlisting undated kinds, or `hook` states plainly that an undated page is not
+an eligible source. Right now the rule is enforced by a check whose message
+sounds like a field-formatting complaint.
+
+### What was NOT wrong
+
+**`refute_rate` on quote accuracy was 0.** Every quote a research worker stored
+was really on the page when a verifier re-fetched it live. Retrieval quality was
+not the constraint; availability was.
+
+The single refute was **authorship, not text**: Yaser Jeish's quote was verbatim
+and correctly dated, but published by the gym's account in organisational "we"
+voice signed "Abu Dhabi Muay Thai Team / ADMT", and the club's own page lists
+seven coaches. The verifier traced the account through `identity.json` and the
+coaches page rather than taking `author: self` on trust. That is the check
+earning its cost.
+
+**The cold reads earned theirs too.** All three drafts passed the mechanical
+linter and all three came back REWRITE:
+
+- a clause that flattered a non-distinction (telling a Hogan practitioner that
+  naming Hogan is "rarer" — it is table stakes and she knows it)
+- a semicolon, in the second sentence, in a register built on periods
+- "**Another** leadership coach in Dubai" — quietly enrolling the recipient in a
+  client list she was never in
+- a clause that graded an ICF PCC / ORSCC on whether she spoke from experience
+- a retained `@berlinmarathon` handle inside a quoted Instagram caption, which
+  the reader called the exact detail that tips an email from noticing to being
+  watched
+
+None of those are lintable. All three passed on the second pass.
+
+### A real bug, found and fixed: `--rebalance-ps` never reached the body
+
+`export` prefers a `body` the drafter pre-assembled over rebuilding from
+`beats`. `--rebalance-ps` writes the new ps into `beats` only. So a rebalanced
+lead shipped the **old** ps sentence while `anchor_ids`, `line-usage.csv` and
+the CRM row all named the **new** one.
+
+`--anchors` cannot catch it: that check compares `beats` against the deal, and
+`beats` is the half the allocator moved. Every gate passed and the file was
+still wrong — the "CRM row describing an email nobody received" failure the
+anchors check exists to stop, arriving from the allocator instead of a drafter.
+
+Caught here because 12 of 15 held, so the rebalance moved 2 of 3 ps lines and
+the mismatch was visible in a 3-line preview. On a 40-lead batch moving 2 lines
+it would have been invisible. Fixed in `main.py`; regression test in
+`tests/test_export.py` fails without the fix.
+
+### The list itself
+
+**Three of twenty rows carried a `companyWebsite` belonging to somebody else** —
+Max Mears's domain serves an unrelated tutor in New Jersey, Trudy Rowe's is a
+Vancouver company she merely licenses a program from, John Allego's is a
+templated AU agency site with Lorem ipsum still in it. `intake` profiled all 20
+as "live site". A 200 is not evidence the site is theirs; `resolve`'s owner-check
+is the thing that knows, and it flagged 4.
+
+All three UAE kills were sound and all three rested on a first-person current-role
+statement: Kuala Lumpur, Panama, and a dated French post saying "je rentre en
+France". No kill rested on a site.
+
+**One gate weakness worth naming:** `qualify` returned `yes` on UAE for Trudy
+Rowe off an incidental "Dubai Evening News" mention on a third party's page. A
+substring match on a news-outlet name drove a floor verdict. The worker
+overrode it correctly, but the mechanism is a false-pass generator.
+
+**Sharon Holmes is the near-miss to learn from.** A worker set `is_coach: no`
+because her LinkedIn is a cruise-tourism consultancy with no mention of
+coaching. Her actual site returned **zero text** — not thin, empty. Killing a
+lead on "her other business is X" when her coaching site never loaded is exactly
+the false kill the asymmetry exists to prevent. Corrected to `unclear`, which
+passes. The LinkedIn-wins rule is scoped to `coach_type`; it was never a rule
+for settling a floor against an unread primary source.
+
+### Numbers
+
+hook_yield 20%, null_hook_rate 73%, refute_rate 7%, **escalation_rate 0%** (no
+verified hook needed an escalation), declined_and_dry 1 of 2. $0.3437 over 160
+retrievals, $0.0181/lead. 37 agent passes: hook 21, draft 12, research 4.
+
+**16 duplicate (lead, url) pairs, and 10 of them are one structural pattern:**
+`li_profile` then `li_posts` against the same profile URL. Two different actors
+legitimately hitting one URL — the ledger keys on (lead, url) and cannot tell
+that apart from a wasteful re-fetch. Worth either keying on (lead, url, actor)
+or naming the pair as expected, before somebody "optimises" it away.
+
+### Toleen is the counter-example to the whole yield story
+
+She has genuinely quotable dated material — a Bloomberg Asharq TV interview and
+a dated LinkedIn post — and **the ranker excluded both**, one as `stale` and one
+as `too_short`, leaving her shortlist entirely undated About text. Her null is a
+ban artefact, not an evidence problem. If the undated-source contradiction gets
+fixed, check the bans next.
+
 ## 2026-08-02 (pre-flight) — the write-back nobody was told to do
 
 Haytham, before running the first real batch since the flip: walk the whole

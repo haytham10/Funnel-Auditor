@@ -1,0 +1,636 @@
+{
+  "selections": [
+    {
+      "lead_key": "giuseppe@longevity-uk.com",
+      "name": "Giuseppe",
+      "shortlist": [],
+      "rejected": [],
+      "observed": 0,
+      "observed_urls": [],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "no observations \u2014 nothing to rank, which is a fact about the research return rather than about this lead"
+      ]
+    },
+    {
+      "lead_key": "geeta@coachingwithgeeta.com",
+      "name": "Geeta Ramakrishnan",
+      "shortlist": [
+        {
+          "lead_key": "geeta@coachingwithgeeta.com",
+          "obs_id": "806611098bb3",
+          "platform": "instagram",
+          "url": "https://instagram.com/p/DbhWEQ5jGOE",
+          "published_at": "2026-08-02",
+          "author": "self",
+          "kind": "post",
+          "quote": "Everyone needs that one person who pushes them to keep going when their energy runs out. The friend who celebrates your wins, steadies you through the setbacks and reminds you how strong you really are. They lift you on the days you cannot lift yourself. \n\nHere is to the ones in your corner. Happy Friendship Day.\n\n#CoachGeeta #FriendshipDay #InYourCorner #LiftEachOther #StrongerTogether",
+          "words": 61,
+          "rank": 1,
+          "why": "self post on instagram, 0d old"
+        },
+        {
+          "lead_key": "geeta@coachingwithgeeta.com",
+          "obs_id": "92c0ac5baac8",
+          "platform": "instagram",
+          "url": "https://instagram.com/p/DbViwmQiMwC",
+          "published_at": "2026-07-28",
+          "author": "self",
+          "kind": "post",
+          "quote": "Your daily routine predicts your future much better than your grand ambitions ever will. What you do every single day is exactly who you become.\n\nHi, I'm Coach Geeta, a certified motivation and wellness coach. I help individuals easily deal with stress and change so that they can grow and succeed. \n\nDM me today to begin your journey.\n\n#coachgeeta #dailyhabits #growthmindset #consistency",
+          "words": 62,
+          "rank": 2,
+          "why": "self post on instagram, 5d old"
+        },
+        {
+          "lead_key": "geeta@coachingwithgeeta.com",
+          "obs_id": "7b936485f469",
+          "platform": "site",
+          "url": "https://coachingwithgeeta.com/book",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "ABOUT THE AUTHOR\nGeeta Ramakrishnan grew up in Mumbai, India. Her marriage brought her to Dubai. Keenly interested and intrigued by human behavior, she focused on human capital management of the family business.\nHer curiosity and passion led her to attend an ontological coach training program from Newfield Asia, Singapore. She offers coaching and also conducts workshops on her favorite subject \u2018Change\u2019. It took her\n50 years\nto realize her dreams on how to be happy while holding her own in her family business and in this world. She offers her experiences, demonstrating the balancing act of nurturing success with happiness.",
+          "words": 101,
+          "rank": 3,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 4,
+      "observed_urls": [
+        "https://coachingwithgeeta.com",
+        "https://coachingwithgeeta.com/book",
+        "https://instagram.com/p/DbViwmQiMwC",
+        "https://instagram.com/p/DbhWEQ5jGOE"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "wendy@mbrain.me",
+      "name": "Wendy Shaw",
+      "shortlist": [
+        {
+          "lead_key": "wendy@mbrain.me",
+          "obs_id": "ef6c51aeab09",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/wendyashaw",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "\u2764 Coaching Coaches, Training Trainers and Mentoring Leaders to make this a better planet \ud83c\udf0f\n\n\ud83d\udcf1wendy@mbrain.me\n\ud83d\udcbb www.mbrain.me\n\n1\u20e3 The 1st mBraining Trainer in the UAE\n3\u20e3 Work with the 3 intelligences of the Head, Heart & Gut\n2\u20e32\u20e3Years living in the Middle East\n3\u20e30\u20e3 Years experience in the field of Learning & Development",
+          "words": 56,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        },
+        {
+          "lead_key": "wendy@mbrain.me",
+          "obs_id": "4767bb91ffbf",
+          "platform": "site",
+          "url": "https://mbrain.me",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Clarity Starts Here!\nExpert coaching and corporate training designed to help you overcome challenges, improve decision-making, and achieve meaningful breakthroughs with Wendy Shaw.\nMeet The Founder\n30 Years Of Unlocking Human Potential\nWendy Shaw is a highly experienced coach and trainer dedicated to helping people overcome challenges, improve decision making, and achieve meaningful breakthroughs through the power of neuroscience and mBraining.",
+          "words": 61,
+          "rank": 2,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/wendyashaw",
+        "https://mbrain.me"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "danyal@stockilm.com",
+      "name": "Danyal Islam",
+      "shortlist": [
+        {
+          "lead_key": "danyal@stockilm.com",
+          "obs_id": "b8a41fed46f4",
+          "platform": "site",
+          "url": "https://stockilm.com",
+          "published_at": "",
+          "author": "self",
+          "kind": "framework",
+          "quote": "Helping Muslims\nbuild wealth\nthrough\nhalal trading\nStockilm helps serious Muslims trade high growth stocks with professional precision,\nwithout compromising their deen, their discipline, or their peace of mind.\n\nThe standard has three non negotiables\nThe stock must pass halal qualification before execution.\nThe trade must have defined risk, invalidation, and target.\nThe result must be reviewed so errors become data.",
+          "words": 61,
+          "rank": 1,
+          "why": "self framework on site, undated"
+        },
+        {
+          "lead_key": "danyal@stockilm.com",
+          "obs_id": "31cf74148154",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/danyalislam",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "With a robust track record spanning over a decade at All Communications, my expertise in leadership development and marketing strategy has empowered thousands of entrepreneurs to unlock their potential and achieve financial liberation. Engaging with a global audience, I've honed a deep understanding of what drives business growth and personal success.\n\nMy coaching philosophy is rooted in cultivating self-motivation, coachability, and a commitment to results. By leveraging a 25-year-old proven system, the teams I mentor realize not just financial freedom, but also significant improvements in leadership and communication skills, paving the way for them to thrive on their own terms.",
+          "words": 100,
+          "rank": 2,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/danyalislam",
+        "https://stockilm.com"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "sofie@sodacoaching.com",
+      "name": "Sofie Dahlman",
+      "shortlist": [
+        {
+          "lead_key": "sofie@sodacoaching.com",
+          "obs_id": "050f3f3ba1dd",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/sofie-dahlman-07737627",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Hi there, \nI\u2019m passionate about helping people unlock their potential,  to lead careers that are not only successful but also deeply fulfilling.\n\nWith 15+ years in HR, talent acquisition, and people development, and as a certified coach, I\u2019ve seen firsthand how the right conversations can transform confidence, performance, and purpose. My approach is always human-centered: everyone deserves to feel seen, heard, and valued.\n\nThrough Soda Coaching, I partner with individuals and teams to spark growth, build confidence, and create meaningful impact. I design coaching programs and workshops that help people set purposeful goals, stay motivated, and take bold steps forward.",
+          "words": 102,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "f2530a539ef4",
+          "ban": "not_content",
+          "url": "https://instagram.com/sodacoaching"
+        },
+        {
+          "obs_id": "d0032c727ffd",
+          "ban": "stale",
+          "url": "https://instagram.com/p/C68k1yeJN0g"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://instagram.com/p/C68k1yeJN0g",
+        "https://instagram.com/sodacoaching",
+        "https://linkedin.com/in/sofie-dahlman-07737627"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "sk@cm4c.co",
+      "name": "Sabine Karunanithy",
+      "shortlist": [
+        {
+          "lead_key": "sk@cm4c.co",
+          "obs_id": "04439234befb",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/sabine-karunanithy_leadership-map-progress-activity-7488806151606767617-mr80",
+          "published_at": "2026-07-31",
+          "author": "self",
+          "kind": "post",
+          "quote": "Leaders love the word \"progress.\" And yet only a few can actually point to what changed.\n\nAttending a workshop isn't progress. \nFeeling inspired for a week isn't progress. \n\nProgress is a specific behaviour, done differently, that you can point to a month later.\n\nThis is where most leadership development fails: insight without a mechanism to turn it into a new default behaviour.\n\nTheoretical learning is important. Putting it into practice once is even better. What will make a lasting change is continuous repetition. That will build a new habit, and hence that will be real progress. \n\nWhat's one thing you did differently this month that you can actually point to?\nAnd if there's nothing - what is the first thing you want to change? \n\n#Leadership #MAP #Progress",
+          "words": 126,
+          "rank": 1,
+          "why": "self post on linkedin, 2d old"
+        },
+        {
+          "lead_key": "sk@cm4c.co",
+          "obs_id": "6f6ffd2c157c",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/sabine-karunanithy_blindspots-can-cost-you-your-career-that-activity-7487719619064020992-9fou",
+          "published_at": "2026-07-28",
+          "author": "self",
+          "kind": "post",
+          "quote": "Blindspots can cost you your career. \n\nThat is not because you're incompetent. It is because you're the last person to see the pattern everyone else already sees.\n\nThe colleague who thinks they're \"direct\" but reads as dismissive in every meeting. The manager who believes they're empowering their team but is actually avoiding hard conversations. The leader convinced they thrive under pressure while their team quietly burns out around them.\n\nNobody chooses these patterns on purpose. That's what makes a blindspot a blindspot: it is invisible from the inside. In a career, invisible patterns don't stay invisible. They show up as the promotion you didn't get, the feedback that keeps repeating, the team that keeps turning over. By the time it's obvious to you, it's been obvious to everyone else for years.\n\nThis is where the Hogan assessment earns its reputation. It doesn't just measure how you see yourself. It gives you three lenses: how you come across at your best (bright side), how you derail under pressure (dark side), and what actually drives you (values and motives).\n\nThat dark side data is the one most people never get honestly. Those traits hide behind your strengths until pressure exposes them and by then, they're already shaping how people see you.\n\nWhat changes when you see it clearly: you stop mistaking self-awareness for actual awareness, get language for patterns you'd only felt vaguely uneasy about, and get the chance to manage a trait before it manages you: in the meeting, the 1:1, the moment that decides whether you get the room or lose it.\n\nCareers rarely stall from a lack of talent. They stall because a blindspot quietly outpaces it. Hogan won't fix that for you, but it hands you the mirror most people never get.\n\nWant to see your own blindspots before they cost you? Send me a DM or comment \"hogan\" and I'll set you up with a Hogan assessment.",
+          "words": 321,
+          "rank": 2,
+          "why": "self post on linkedin, 5d old"
+        },
+        {
+          "lead_key": "sk@cm4c.co",
+          "obs_id": "eb8670ce886f",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/sabine-karunanithy",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "When leaders reach the stage in their career in which hard skills alone won't suffice anymore, the importance of self- awareness, emotional intelligence, and the smart application of communication becomes key. \n\nPromotions are based on influence, on inspirational leadership, and the ability to read the room. \n\nMy trainings and coaching focuses exactly on that: how to prepare leaders for their next step in their careers. \n\nI am the accountability partner who helps turn intention into action.\n\nFind out more at https://programs.cm4c.co/joinus",
+          "words": 85,
+          "rank": 3,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 4,
+      "observed_urls": [
+        "https://cm4c.co",
+        "https://linkedin.com/in/sabine-karunanithy",
+        "https://linkedin.com/posts/sabine-karunanithy_blindspots-can-cost-you-your-career-that-activity-7487719619064020992-9fou",
+        "https://linkedin.com/posts/sabine-karunanithy_leadership-map-progress-activity-7488806151606767617-mr80"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 126 words against 19 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "yaser@abudhabimuaythai.com",
+      "name": "Yaser Jeish",
+      "shortlist": [
+        {
+          "lead_key": "yaser@abudhabimuaythai.com",
+          "obs_id": "212189c194fd",
+          "platform": "site",
+          "url": "https://abudhabimuaythai.com/about",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "About Us\nAbu Dhabi Muay Thai Sports Club was founded in 2007. We hope to\nand are working hard towards bringing a change in the United\nArab Emirates Martial Arts Scene and its wonderful people. We\nwish to share our love for everything martial arts, healthy\nliving, promote respect, lifelong learning, discipline, love for\nother cultures, history and good relations between people.\nOur Locations\nAbu DhabiDowntown\nNational Cinema Building,\nNajda Street, Abu Dhabi, United Arab Emirates",
+          "words": 76,
+          "rank": 1,
+          "why": "self about on site, undated"
+        },
+        {
+          "lead_key": "yaser@abudhabimuaythai.com",
+          "obs_id": "69cc9db1b882",
+          "platform": "site",
+          "url": "https://abudhabimuaythai.com/coaches",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "our expert coaches\nYASER ABU JEISH\nFounder & Head Coach\nALAA ABU JEISH\nMuay Thai Coach\nOMAR ABU JEISH\nMuay Thai Coach\nTANTAWI AHMAD\nMuay Thai Coach\nJUNLEOFIL\nMuay Thai Coach\nLOLITO\nKickboxing Coach\nIsmail\nKickboxing Coach",
+          "words": 36,
+          "rank": 2,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://abudhabimuaythai.com/about",
+        "https://abudhabimuaythai.com/coaches"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "ahmed@najahtrain.com",
+      "name": "Ahmed Shateri",
+      "shortlist": [
+        {
+          "lead_key": "ahmed@najahtrain.com",
+          "obs_id": "d10f8643e8fe",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/ahmed-al-shateri-a39015219",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Coach & Mentor \u062e\u0628\u064a\u0631 \u0627\u0631\u0634\u0627\u062f \u0648\u0636\u064a\u0641\u064a\nNajah Train\nAbu Dhabi, Abu Dhabi Emirate, United Arab Emirates",
+          "words": 15,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/ahmed-al-shateri-a39015219"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "max@themaxmethod.com",
+      "name": "Max Mears",
+      "shortlist": [
+        {
+          "lead_key": "max@themaxmethod.com",
+          "obs_id": "09903f07b72d",
+          "platform": "instagram",
+          "url": "https://instagram.com/p/DbV2MnGjXFQ",
+          "published_at": "2026-07-28",
+          "author": "self",
+          "kind": "post",
+          "quote": "9 weeks until I get to dance again @berlinmarathon \n\nPracticing fuelling plan with @cadence \n\nSession,\n10km progressive\n20km @ 3:40min/km\n6km steady \n\n1 gel every 3km \n3 bottles of 40g fuel mix \n408g carbs total \n\n.\n.\n.\n.\n.\n.\n.\n.\n.\n\n#running #run #lifestyle #aesthetic #marathon",
+          "words": 41,
+          "rank": 1,
+          "why": "self post on instagram, 5d old"
+        },
+        {
+          "lead_key": "max@themaxmethod.com",
+          "obs_id": "1f8a9f7f0d12",
+          "platform": "instagram",
+          "url": "https://instagram.com/p/DYUvfp_CICA",
+          "published_at": "2026-05-14",
+          "author": "self",
+          "kind": "post",
+          "quote": "Finally back in the mix. \nFor the past 5 weeks post-race, I\u2019ve been nursing an injury. Thankfully just muscular. In a way, it forced me to slow down \u2014 something I probably needed more than I realised. Had things gone differently, I would\u2019ve rolled straight into another training block or race. Instead this period became about recovery, resetting and listening to my body properly.\n\n37 hours of moving teaches you a lot \u2014 mainly how important recovery becomes once the work is done.\n\n@whoop showed me the reality of it:\nlow HRV, elevated resting heart rate, sleep debt.\n\nNow, for the first time since the race,\nconsecutive green recoveries, zero pain in the leg, and running properly again. \n\nNow onto the next. \n\n#run #running #aesthetic #lifestyle #health",
+          "words": 127,
+          "rank": 2,
+          "why": "self post on instagram, 80d old"
+        },
+        {
+          "lead_key": "max@themaxmethod.com",
+          "obs_id": "db04b86a3e7b",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/max-mears-021713256",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Performance and physique coach. Online Fitness Coach \n\n10 Years experience helping high performers build a sustainable physique",
+          "words": 17,
+          "rank": 3,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "af9c6895ce6c",
+          "ban": "not_content",
+          "url": "https://instagram.com/maximusmears"
+        }
+      ],
+      "observed": 4,
+      "observed_urls": [
+        "https://instagram.com/maximusmears",
+        "https://instagram.com/p/DYUvfp_CICA",
+        "https://instagram.com/p/DbV2MnGjXFQ",
+        "https://linkedin.com/in/max-mears-021713256"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "toleen@theexecutivemonk.com",
+      "name": "Toleen Icf-Pcc",
+      "shortlist": [
+        {
+          "lead_key": "toleen@theexecutivemonk.com",
+          "obs_id": "098f11dc6bec",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/toleen-badawi-30794626",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I'm a catalyst for transformation (a change agent), empowering professionals to evolve into the leaders that every company dreams of and every team wishes to follow. My journey begins with a simple yet profound conversation, diving deep into the eco-system, values, and aspirations of those I guide. It's all about alignment - from organization to individual and back, ensuring a seamless fusion of goals and personal growth. With a track record of driving performance and fostering organizational development, I leverage my skills to boost employee productivity and overall well-being. Recognized as an accomplished leader, I coach/consult cross-functional teams and guide them in achieving critical business objectives, enhancing performance through genuine collaboration. Beyond the boardroom, I share my insights as a lecturer at Middlesex University in Dubai, fostering a connection with students that goes beyond the conventional teacher-student dynamic.\n\nMy life outside work is just as vibrant, filled with moments spent with my kids, figuring out this fitness world, exploring new languages, and immersing myself in a world of knowledge through audiobooks during my walks. My curiosity for meeting new people and experiencing their stories fuels my personal and professional growth.\n\nHow do you push your boundaries? Connect with me, and let's embark on a journey of growth and discovery together.",
+          "words": 210,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        },
+        {
+          "lead_key": "toleen@theexecutivemonk.com",
+          "obs_id": "cc51768e882d",
+          "platform": "site",
+          "url": "https://theexecutivemonk.com",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Hi. I\u2019m Toleen, Dubai based ICF-PCC (Professional Certified Coach) Executive Coach, Professional coach and Organizational development consultant. I provide programs for working professionals stemming from C-level, executives, leaders and their team who want to increase their performance and develop their career and unlock their potential.\nI run the Executive Monk and I am passionate about helping executives become the best leaders they can be. The sort of leaders that companies love to hire, and people love to follow. It is essential that are fulfilled, both professionally and personally.\nAlthough there are many ideals to follow we embrace the ideals of an executive monk.\n\u200b\nBut I am not all about the business I work with individuals on their own personal development because lets face it you are the core engine of your life if we develop that then all other areas of your life begin to operate in the way that you envisioned them to be.",
+          "words": 156,
+          "rank": 2,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "27022cfef87d",
+          "ban": "stale",
+          "url": "https://theexecutivemonk.com/post/emotional-intelligence-in-leadership-my-interview-with-bloomberg-asharq"
+        },
+        {
+          "obs_id": "936912c71942",
+          "ban": "too_short",
+          "url": "https://linkedin.com/posts/toleen-badawi-30794626_eid-mubarak-activity-7465242645217497088-cZyP"
+        },
+        {
+          "obs_id": "7399122734af",
+          "ban": "third_party",
+          "url": "https://linkedin.com/posts/dr-anita-kashi-0b06842a3_it-was-with-great-pleasure-that-we-hosted-ugcPost-7472966750632992772-TIMn"
+        }
+      ],
+      "observed": 5,
+      "observed_urls": [
+        "https://linkedin.com/in/toleen-badawi-30794626",
+        "https://linkedin.com/posts/dr-anita-kashi-0b06842a3_it-was-with-great-pleasure-that-we-hosted-ugcPost-7472966750632992772-TIMn",
+        "https://linkedin.com/posts/toleen-badawi-30794626_eid-mubarak-activity-7465242645217497088-cZyP",
+        "https://theexecutivemonk.com",
+        "https://theexecutivemonk.com/post/emotional-intelligence-in-leadership-my-interview-with-bloomberg-asharq"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 210 words against 19 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "jodie@jodiemccormac.com",
+      "name": "Jodie Mccormac",
+      "shortlist": [
+        {
+          "lead_key": "jodie@jodiemccormac.com",
+          "obs_id": "3a25b88fcf5a",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/jodiemccormac",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Leadership and Professional Performance Coach, Jodie McCormac Coaching and Consulting, 7 yrs 5 mos.\nLeadership Coaching\n\nI work with leaders to fulfil their potential, achieve sustainable success, develop team performance, balance their time, energy and stress levels, improve communication, relationships and conflict resolution, improve efficiency, productivity and overall job satisfaction.\n\nProfessional Performance Coach\n\nI work with individuals who are experiencing change in their careers whether this is starting a new job in the same company, moving companies or setting up on their own. It takes confidence, self-belief and courage to successfully manoeuvre to and through new and unknown territories. I help individuals develop confidence and establish meaningful and resilient approaches to create positive and sustainable change, growth and success professionally and personally.\n\nI work with individuals either through 1-2-1 or through team coaching.",
+          "words": 133,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        },
+        {
+          "lead_key": "jodie@jodiemccormac.com",
+          "obs_id": "b13de53b25da",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/jodiemccormac",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Freelance Events Project Manager // Logistics Manager // Operations and Talent Specialist // Leadership and Performance Coach // UAE Based. With over 20 years of experience working within some of the most influential and award-winning UK  brand marketing and creative agencies, I am competent and efficient in running a project from start to finish. I am confident managing and running a highly skilled team and have experience across national and international branded live events (B2C and B2B) within music, sport, fashion, festivals, beauty and gaming.\n\nCurrently living in the UAE.",
+          "words": 86,
+          "rank": 2,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/jodiemccormac"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 133 words against 19 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "sharon.holmes@progresshq.com",
+      "name": "Sharon Holmes",
+      "shortlist": [
+        {
+          "lead_key": "sharon.holmes@progresshq.com",
+          "obs_id": "6d855fdc86fd",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/sharon-holmes-32b061b1",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Founder Progress International. Progress International  operates on a worldwide scale with an administration base in Dubai, UAE. \nOur company was designed to meet the growing demands of Cruise Ships, Superyachts Ports and Tourism orientated entities, through leading-edge strategies and a dynamic worldwide team of professionals.\nProgress International  is in particular one of the worlds leading Cruise Ship Industry specialists for the below-indicated services and in the broader sense within the Tourism and Service sector overall.\n\nOur business activities:\n\n1. CONSULTANCY \nCruise Tourism Destination Management, Revenue generation, Human Resources & Port Marketing \n\n2. TRAINING\nOnline Platform Development, Leadership, Technical, Vocational, Hospitality, Sales & Interpersonal skills\nNote: Over 70,000 Cruise ship Crew participated in one of our Training courses\n\n3. RECRUITMENT\nCruise Ships, Head Hunting, Sourcing, Global Companies and Hotels\n\nWe positively adopt a proactive mentality towards innovation and a personalized approach to our clients\u2019 individual needs.",
+          "words": 144,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/sharon-holmes-32b061b1"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 144 words against 19 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "john@digitalmarketing.com",
+      "name": "John Allego",
+      "shortlist": [
+        {
+          "lead_key": "john@digitalmarketing.com",
+          "obs_id": "3cd3ecaa4f22",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/johnbertallego",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "\u201cBe in Yourself and Be Great.\u201d Jb is an Pinoy internet Marketer and Online Coach His main goal is to inspire and help People create Success in their Lives.\n\nBusiness Coach, Digital + Online Marketing, Dubai, 8 yrs 11 mos. We Educate Filipinos How To Start & Grow A Profitable Online Business using Our Sales and Marketing System and our Business Training Program.",
+          "words": 61,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        },
+        {
+          "lead_key": "john@digitalmarketing.com",
+          "obs_id": "627a572b69bf",
+          "platform": "site",
+          "url": "https://digital-online-marketing.com.au/about",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Welcome to Digital Insights\nAt Digital Insights, we empower businesses in Australia and New Zealand to thrive in a digital world. With over 25 years of experience, our team is dedicated to crafting marketing strategies that resonate.\nOur Journey So Far\nDigital Insights was founded on the belief that every business can succeed in the digital space. Over the years, we\u2019ve transformed countless brands by implementing innovative marketing strategies tailored to their unique needs.",
+          "words": 75,
+          "rank": 2,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://digital-online-marketing.com.au/about",
+        "https://linkedin.com/in/johnbertallego"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "fatima@istoria.app",
+      "name": "Fatima Alzaabi",
+      "shortlist": [
+        {
+          "lead_key": "fatima@istoria.app",
+          "obs_id": "a72e1f741745",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/fatima-alzaabi-141b70156",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Welcome! I am Fatima Alzaabi. I am an NLP & RSCI Coach, Hypnotherapy and Trainer born and based in the UNITED ARAB EMIRATES.\n\nI specialised in helping entrepreneur and organisation to grow their business and harmonise its culture through understanding employees' mindset and emotions in order to leave an impact on people's quality of life, using the right strategies, tools and techniques in an easy and quick way.\n\nMy coaching journey started when I faced live death situation where I realise that I am living the world without a story. I found my life was very short for me and wasted on ineffective way of living towards material things without leaving an impact on changing people's quality of life.\n\nWorking one \u2013 on \u2013 one with Tony\u2019s Robbins Professional Coaching teams allowed me to admire the effect of coaching on transforming my life. It creates safe space to work through my internal road blocks in a compassionate way \u2013 beyond what usually takes place when you work things on your own.\n\nWhen I saw how valuable professional coaching I have been taught from different guru in different fields, name few but not limited to \"Dan Lok, T. Harv Eker, Eben Pagan\". It was inspiring me to live a heart print life, hence, my coaching business have been started.\n\nNow, I have devoted my life to enlighten people\u2019s lives through my one-to-one business coaching and group coaching on specific topics related to business growth, leadership & team development programmes to entrepreneur and organisations.",
+          "words": 249,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/fatima-alzaabi-141b70156"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 249 words against 19 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "linda@berlotgroup.com",
+      "name": "Linda Berlot",
+      "shortlist": [
+        {
+          "lead_key": "linda@berlotgroup.com",
+          "obs_id": "8315810cc475",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/linda-berlot-pcc-orscc-1aaa387_teamcoaching-teamcoachinguae-orscfundamentals-activity-7488949125506560001-_Whv",
+          "published_at": "2026-07-31",
+          "author": "self",
+          "kind": "post",
+          "quote": "Individual performance is a leadership illusion.\nWe have become incredibly good at measuring what individuals achieve.\n\nWho exceeded their targets?\nWho delivered the project?\nWho needs coaching?\nWho deserves the promotion?\n\nIt's neat. It's measurable. It gives us the comforting impression that performance belongs to individuals.\nI don't believe it does. I believe that while individuals need performance guidance, this is only part of the picture.\n\nI have worked with exceptionally talented people who looked like average performers because they were part of a dysfunctional team. I've also seen fairly ordinary individuals achieve extraordinary results because they were part of a team that trusted one another, challenged one another, and worked towards a common purpose.\n\nThe difference wasn't the individual.\nIt was the system they were operating in.\n\nWhen a team is struggling, we instinctively ask, \"Who's underperforming?\" We look for the weak link, the difficult employee, or the person who needs fixing. That question assumes performance lives inside people. It only partly does.\n\nWhat if there was more thought to the performance of the individuals in the team?\nWhat if performance is created, supported, or constrained by the relationships and team dynamics around them?\n\nWhat if, instead of asking who needs to change, we began asking what's happening within the team that's producing those results? If instead of fixing individuals, we became curious about the patterns, dynamics, and relationships influencing everyone's performance.\n\nHow different would your leadership conversations be if you stopped measuring people in isolation and started looking at the system they are part of?\n\n#TeamCoaching #TeamCoachingUAE #ORSCFundamentals #CRRGlobal",
+          "words": 261,
+          "rank": 1,
+          "why": "self post on linkedin, 2d old"
+        },
+        {
+          "lead_key": "linda@berlotgroup.com",
+          "obs_id": "f22aa106d03d",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/linda-berlot-pcc-orscc-1aaa387",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Leadership at the top is being redefined.I work with CEOs and C-Suite teams at the moments that matter most\u2026. when alignment is fragile, conflict is erosive, trust is strained, and the enterprise cannot afford division.After more than 20 years, nearly 500 executive teams, and close to 2,000 senior leaders coached across cultures and continents, I know this: strategy rarely fails on paper. It fails in the dynamics of the team responsible for leading it. When executive teams are misaligned, performance stalls, culture fractures, and transformation efforts quietly erode. In today\u2019s complexity, unity at the top is not optional. It is decisive.My work goes beyond coaching. I architect alignment.I surface what is unspoken.I help teams confront what is avoided.I transform leadership tension into collective clarity and strategic power.As CEO of Linda Berlot Group, a leading team coaching firm in the Middle East, I partner with multicultural executive teams navigating growth, change, succession, and enterprise-wide transformation. My specialization lies in working where the stakes are highest. In times of conflict, in complexity, and in culturally diverse environments where misalignment is costly.But my impact extends beyond the room.As a certified Team Coach, CRR Partner in the CRR and Faculty Development Director with CRR Global, I have trained and developed the majority of team coaches operating in the GCC region. Through leading an ICF-accredited coach training school in the GCC, I am shaping the next generation of systemic team coaches and advancing a new standard of collective leadership.We are entering the era of aligned, systemic executive teams.The heroic CEO model is fading. The future belongs to leadership teams that think, decide, and lead as one.I stand for that shift.And I build it \u2014 one executive team at a time.Unity at the Top. Power Everywhere.",
+          "words": 305,
+          "rank": 2,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "a1dfd291a6be",
+          "ban": "third_party",
+          "url": "https://waystogrowpodcast.com/organizationandrelationshipsystemscoaching"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/in/linda-berlot-pcc-orscc-1aaa387",
+        "https://linkedin.com/posts/linda-berlot-pcc-orscc-1aaa387_teamcoaching-teamcoachinguae-orscfundamentals-activity-7488949125506560001-_Whv",
+        "https://waystogrowpodcast.com/organizationandrelationshipsystemscoaching"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 261 words against 19 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    }
+  ]
+}

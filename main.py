@@ -1080,6 +1080,15 @@ def cmd_export(args) -> None:
                 moved += 1
             row.setdefault("anchor_ids", {})["ps"] = new_id
             row.setdefault("beats", {})["ps"] = by_id[new_id]
+            # Drop any body the drafter pre-assembled. Below, a present `body`
+            # wins over `assemble_body`, so a swap written into `beats` would
+            # never reach the shipped text: the email keeps the old ps while
+            # `anchor_ids`, `line-usage.csv` and the CRM row all name the new
+            # one. `--anchors` cannot see it either, because it compares
+            # `beats` against the deal and `beats` is the half that moved.
+            # That is the "CRM row describing an email nobody received" failure
+            # arriving from the allocator instead of from a drafter.
+            row.pop("body", None)
         print(f"REBALANCE: {moved} ps line(s) reallocated across "
               f"{len(drafts_raw)} shipped lead(s)")
 

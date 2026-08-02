@@ -30,7 +30,8 @@ it, and the paragraph after it now has somewhere to start from.
 - **Specific to them.** If it could go to another coach in the same segment
   unedited, it is not a hook.
 - **Recent.** Inside ~90 days for a post. An evergreen framework or an
-  About-page line they wrote themselves is fine at any age.
+  About-page line they wrote themselves is fine at any age, and **carries no
+  `published_at` at all** — see the note under ban #1.
 - **Cited.** A URL actually fetched, the quote verbatim, and a date.
 - **Theirs.** Something they wrote, said, built or named — not something
   written about them, and not their website's marketing copy.
@@ -42,11 +43,25 @@ email fail even when the hook is technically true.
 
 1. **No generic site copy.** "I saw you help women find their purpose" is the
    hero section of a thousand coach sites. **This is a ban on the writing, not
-   on the page it sits on.** `outbound/select.py` spent one batch enforcing it
-   as "nothing from an About page", and every lead it cost had a hook a verifier
-   went on to confirm. The mechanical half is now the same text appearing for
+   on the page it sits on.** The mechanical half is the same text appearing for
    two different leads, which is this ban's own test — could it be sent unedited
    to another coach — settled on evidence.
+
+   **An About page is a valid hook and the last one to reach for.**
+   `outbound/select.py` ranks it below everything datable, so a lead is offered
+   one only when nothing recent survived — which is the right shape: prefer a
+   LinkedIn or Instagram post, a podcast episode, a dated article, and fall back
+   to what they wrote about themselves.
+
+   **An undated source takes an EMPTY `published_at`, and that is not a
+   loophole — it is the requirement.** Until 2026-08-02 `outbound/hook.py`
+   demanded a date from every proposal, which left a worker holding a legitimate
+   About page choosing between abandoning the hook and inventing the date. Two
+   workers on `2026-08-02-q2` invented it, one citing the other as precedent,
+   and a stand-in of today passed because the only date rule was "not in the
+   future". The gate now takes the date from the cited observation: empty when
+   the source has none, and **a non-empty date on a source that carries none is
+   rejected as fabricated**.
 2. **No compliment with no object.** "Love your content" names nothing.
 3. **No invented specifics.** If it cannot be cited, it does not exist.
 4. **No inferred emotion.** You do not know they were nervous, proud or
@@ -65,9 +80,9 @@ email fail even when the hook is technically true.
     Peer to peer, not fan to celebrity.
 12. **No restating their offer back to them.** They know what they sell.
 
-**Four of these are now mechanical**, in `outbound/select.py`: #1 is a `kind`
-that is not `about` (and from a site, only a named framework survives), #6 is a
-date comparison, #7 is `author == "third_party"`, and #3 is the `obs_id` join —
+**Four of these are now mechanical**, in `outbound/select.py`: #1 is the
+repeated-text test above, #6 is a date comparison, #7 is `author ==
+"third_party"`, and #3 is the `obs_id` join —
 a candidate names the observation it came from, so a hook citing a page nothing
 retrieved cannot be built. The other eight are still judgement, and this file is
 still the authority on all twelve.

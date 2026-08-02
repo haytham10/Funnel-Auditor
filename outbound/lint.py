@@ -692,7 +692,22 @@ def check_subject(subject: str) -> list[str]:
 _ECHO_PHRASES = (
     r"lists?", r"pitch decks?", r"scraped", r"no hard feelings",
     r"costs? you nothing", r"worth the meeting", r"one at a time",
+    # b4-01 "I pulled 10 names for you BEFORE WRITING THIS" against ps-05
+    # "I read your work BEFORE I WROTE THIS ONE". Same construction, same
+    # position, two sentences apart in a five-sentence email, so the ps reads as
+    # a weaker restatement of the offer rather than a last note. Found by a cold
+    # read on `2026-08-02-q2`, which named the PAIR rather than the wording:
+    # "b4-01 and ps-05 should not be dealt to the same lead". That is exactly
+    # what this list is for, and it cost an opus pass to discover because the
+    # pattern was not in it.
+    r"before (?:writing|I wrote) this",
 )
+
+# A readable name for a pattern that is not readable as one. Only needed where
+# the regex carries syntax; every other label derives from the pattern itself.
+_ECHO_LABELS = {
+    r"before (?:writing|I wrote) this": "before writing this",
+}
 _ECHO_RES = [(p, re.compile(rf"\b{p}\b", re.I)) for p in _ECHO_PHRASES]
 
 
@@ -709,7 +724,8 @@ def check_echo(beats: dict[str, str]) -> list[str]:
     for phrase, pattern in _ECHO_RES:
         where = [b for b, text in drawn.items() if pattern.search(text)]
         if len(where) > 1:
-            label = phrase.replace(r"s?", "").replace(r"\b", "")
+            label = _ECHO_LABELS.get(
+                phrase, phrase.replace(r"s?", "").replace(r"\b", ""))
             problems.append(
                 f"the {' and '.join(where)} beats both say {label!r} — "
                 f"re-voice one of them"

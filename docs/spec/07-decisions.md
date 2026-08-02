@@ -584,6 +584,51 @@ would turn an ownership verdict into the inclusion gate D21 forbids.
 hooks at about the rate everyone else does — which would mean the ownership
 verdict does not predict the waste, and `plan` should not gate on it at all.
 
+### D29 · The hook's date comes from the source, and an undated source takes none
+
+**2026-08-02.** `outbound/hook.py` no longer requires a `published_at` from
+every proposal. It takes the date from the observation the proposal cites:
+required and matching when the source carries one, **empty when the source
+carries none**, and a non-empty date on a dateless source is rejected as
+fabricated. Where no source can be joined — no `--against`, or a declared
+escalation — the old rule stands and a date is required.
+
+**The defect.** `select` offers About pages on purpose: ranked below everything
+datable, so a lead sees one only when nothing recent survived.
+`docs/hook-rules.md` has always allowed it ("an About-page line they wrote
+themselves is fine at any age"). But `hook` demanded a date from every proposal,
+and an About page has none. So a worker holding a legitimate fallback had two
+moves: abandon the hook, or invent the date.
+
+**Two workers invented it.** On `2026-08-02-q2`, independently, on different
+leads, both wrote **today's date for a page that has none**, and one cited the
+other's file as precedent. The only date rule was "not in the future", so a
+stand-in of today cleared every mechanical check in the machine. Both were
+caught by hand and withdrawn before export. That is very likely also how the
+three VERIFIED About-page hooks on `2026-08-01-q1` were dated.
+
+**An impossible instruction gets resolved dishonestly, and that is a gate defect
+rather than a worker defect.** The first attempt at this fix banned About pages
+from the shortlist instead, which removed the symptom and the fallback together
+and was reverted the same day. The ranker was doing its job; the gate was not.
+
+**What it buys.** Replayed against the batch's committed corpus, both withdrawn
+proposals are now rejected with `carries no date at all`, and both are accepted
+once their `published_at` is empty. The fabrication became mechanically
+detectable in the same change that made it unnecessary.
+
+**The half that does not change.** `EVERGREEN_KINDS` still exempts `about` and
+`framework` from `select`'s date rules, `KIND_RANK` still ranks `about` last,
+and ban #6 still applies in full to everything with a date. A missing
+`published_at` **key** on a shortlist entry is treated as unknown rather than
+undated — `resolve.py`'s "`unknown` never means the tell said no", one stage
+over — so an incomplete record can never convict a worker of inventing a date.
+
+**Reversed by** a batch where undated evergreen hooks are refuted by the live
+verifier at a materially higher rate than dated ones, which would mean the
+recency the date was standing in for was load-bearing after all, and the
+fallback should be narrowed rather than dated honestly.
+
 ---
 
 ## What is unknown

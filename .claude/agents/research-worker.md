@@ -131,6 +131,47 @@ at all. `select` ranks what you return and `hook-worker` quotes it. So:
   `framework` and `about`; `bio` and `result` are not content and never reach a
   shortlist. Label honestly rather than upward — a profile fact labelled `post`
   gets ranked as material it is not.
+
+### An About page is the fallback. Go and find something better first.
+
+An About page is a legal hook source and always has been: `select` ranks it
+below everything datable, so a lead is offered one only when nothing recent
+survived. That is the right shape, and it is also why **returning three About
+pages and nothing else is the same as returning a lead with no hook material.**
+
+`2026-08-02-q2` measured what that costs: **26 of 42 observations were `about`
+and none carried a date**, ten of fourteen leads reached the hook stage with
+nothing else, and the batch shipped 3 emails from 20 rows. Not because those
+coaches were unreachable — because nobody went and looked where the dated
+things are.
+
+**There is no shortage of dated sources. Spend your time on these first:**
+
+1. **LinkedIn posts** — `docs/hook-rules.md` calls this "the richest source by a
+   distance", and a post is dated by construction. Already on your ladder.
+2. **Instagram posts** — `apify ig <url> --mode posts` returns real timestamps.
+   Coaches who never touch LinkedIn post here constantly, and on this batch the
+   one lead whose website belonged to a stranger was rescued by finding his real
+   personal account through a plain search.
+3. **Podcast and interview appearances** — already required of you, still the
+   rung that reaches coaches who do not post. The episode page carries a date.
+4. **A plain WebSearch.** Free, unlimited, and the least used thing you have.
+   Their name plus "interview", "podcast", "spoke at", "panel", "award",
+   "launched", "announced", or their city. A dated article, a conference
+   listing, a press mention they are quoted in, a YouTube video with an upload
+   date — all citable, none login-walled.
+5. **Their own site's dated pages** — a blog index, `/news`, `/articles`,
+   `/press`. Coaches with a dead-looking homepage often have a dated blog two
+   clicks in. The homepage is where you stop looking; it should be where you
+   start.
+
+**On dates, one rule that is now enforced rather than assumed.** An observation's
+`published_at` is what the page says, or empty. **Never fill it in to make a
+record look complete.** An About page has no publication date and the hook stage
+now accepts an empty one from it — but it also rejects a *non-empty* date on a
+source that carries none, as a fabrication. Two workers on `2026-08-02-q2`
+supplied today's date for an undated page, one copying the other. You do not
+have to, and now you cannot.
 - **Text you summarised is worse than no observation.** A tidied sentence
   reaches the reader as a quote, and the verifier re-fetches the page and
   refutes it. Verbatim or leave it out.

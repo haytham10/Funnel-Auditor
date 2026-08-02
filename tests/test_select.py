@@ -101,12 +101,29 @@ def test_an_about_page_carries_the_evergreen_date_exemption():
     """Removing the location ban alone changes nothing: a page somebody wrote
     about themselves has no publication date, so those same three leads would
     have moved from `site_prose` to `no_date`. `docs/hook-rules.md` grants both
-    halves and the code carried only one."""
+    halves and the code carried only one.
+
+    Briefly reversed on 2026-08-02 and restored the same day. The batch that
+    prompted it exposed a real defect, but the defect was `outbound/hook.py`
+    demanding a date from every proposal — which left a worker handed a
+    legitimate undated page choosing between abandoning the hook and inventing
+    the date. Deleting the fallback removes the symptom and the fallback. The
+    gate was fixed instead; this exemption stays."""
     assert "about" in select.EVERGREEN_KINDS
     assert select.ban_for(obs(platform="site", kind="about", published_at=""),
                           today=TODAY) == ""
     assert select.ban_for(obs(platform="site", kind="about",
                               published_at="2019-03-01"), today=TODAY) == ""
+
+
+def test_an_about_page_is_the_fallback_and_never_the_preference():
+    """What makes offering it safe: it is ranked below everything datable, so a
+    lead only ever sees one when nothing recent survived."""
+    fresh = obs(published_at="2026-07-28")
+    about = obs(platform="site", kind="about", published_at="",
+                url="https://nadiacoaching.ae/about")
+    ranked, _ = select.rank([about, fresh], today=TODAY)
+    assert [c.kind for c in ranked] == ["post", "about"]
 
 
 def test_a_post_on_their_own_site_is_content():
@@ -115,7 +132,7 @@ def test_a_post_on_their_own_site_is_content():
     about the host and not about the writing."""
     text = "The Four Doors model is how I sequence a founder's first ninety days."
     assert select.ban_for(obs(platform="site", kind="framework", text=text,
-                              published_at=""), today=TODAY) == ""
+                              published_at="2026-07-28"), today=TODAY) == ""
     assert select.ban_for(obs(platform="site", kind="post"), today=TODAY) == ""
 
 
