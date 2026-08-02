@@ -1840,6 +1840,17 @@ def cmd_metrics(args) -> None:
         # orchestrator, and the report says so on every line.
         metrics.add_passes(out, ledger.read_passes(args.batch))
 
+    # D21's reversal condition. The declines bind as of D27, so this is the
+    # evidence the gate was held back for two batches waiting on.
+    if args.plan:
+        plans = _load_json(args.plan, "METRICS")
+        if isinstance(plans, dict):
+            plans = plans.get("plans") or []
+        if not isinstance(plans, list):
+            print("METRICS: FAIL — --plan wants `plan --out`'s file.")
+            sys.exit(2)
+        metrics.add_plan(out, plans, rows)
+
     print(metrics.report(out))
     print(metrics.batches_block(out))
 
@@ -2237,6 +2248,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passes", type=int,
                    help="agent passes for the batch. REPORTED on trust — Python "
                         "cannot see them, the same blind spot as `ledger add`")
+    p.add_argument("--plan", help="plan --out's file. Reports, of the leads "
+                                  "carrying a declined rung, how many produced "
+                                  "a verified hook — D21's reversal condition, "
+                                  "and the evidence the decline gate binds on")
     p.set_defaults(func=cmd_metrics)
 
     p = sub.add_parser("replies",

@@ -647,6 +647,22 @@ those lines are **reported on trust** and `retrieved_by` keeps them
 distinguishable from the ones the code wrote itself. `ledger report` reads a
 batch back and writes nothing.
 
+**The flip's own two numbers** (D27). `escalation_rate` is the share of hooks
+carrying no `observation_id` — ones the shortlist did not hold and the worker
+went and fetched. Rising means selection is not reaching the material, and the
+fix that points at is research fetching deeper rather than a change to the
+ranker. It counts every attempt, not only the verified ones: an escalation that
+produced a refuted hook still cost the fetch the flip was meant to remove.
+
+`declined_and_dry` needs `--plan` and is **D21's reversal condition in D21's own
+words** — of the leads carrying a declined rung, how many produced no verified
+hook, against how many did. Declining is free where those are the same leads and
+wrong where they are not. Without a plan file it prints `?`, because a `0` there
+would read as "declining cost nothing", which is the claim being tested. A
+declined lead that never reached the hook stage is skipped rather than counted
+dry: it says nothing either way, and counting it would charge the gate for a
+lead the floors dropped.
+
 **`ledger pass` is the Claude bill, and nothing here could see it.** This module
 exists because every claim about what *retrieval* cost had been reconstructed by
 hand from a journal entry. The model side was in exactly that state one layer

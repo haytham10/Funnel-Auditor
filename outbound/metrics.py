@@ -93,6 +93,21 @@ class BatchMetrics:
     null_hook_rate: float | None = None
     yield_by_rung: dict = field(default_factory=dict)
     by_hook_type: dict = field(default_factory=dict)
+    # The flip's own number (D27). A hook with no `observation_id` is one the
+    # worker had to go and fetch because the shortlist did not hold, and rising
+    # means selection is not reaching the material — which points at research
+    # fetching deeper, not at the ranker. R1, made countable.
+    escalated: int = 0
+    escalation_rate: float | None = None
+
+    # --- D21's reversal condition, computable at last ----------------------
+    # Of the leads carrying a declined rung, how many produced a verified hook
+    # and how many produced none. `None` for both when no plan was passed: a
+    # zero here would read as "declining cost nothing", which is the claim the
+    # number exists to test.
+    declined_leads: object = UNKNOWN
+    declined_and_verified: object = UNKNOWN
+    declined_and_dry: object = UNKNOWN
 
     # --- cost, derived from the ledger -------------------------------------
     # `ledger_read` is what keeps $0.0000 from meaning two different things. A
@@ -204,6 +219,12 @@ def from_research(rows: list, *, batch: str = "") -> BatchMetrics:
         if state not in HOOK_STATES:
             continue
         out.attempted += 1
+        # Post-flip a hook either names the observation it was selected from or
+        # is one the worker escalated to get. Counted over every attempt rather
+        # than only the verified ones: an escalation that produced a refuted
+        # hook still cost the fetch the flip was meant to remove.
+        if has_hook and not (row.get("observation_id") or "").strip():
+            out.escalated += 1
         if state == "verified":
             out.verified += 1
             name = rung_of(row.get("hook_source_url") or "")
@@ -221,6 +242,46 @@ def from_research(rows: list, *, batch: str = "") -> BatchMetrics:
     out.hook_yield = _ratio(out.verified, out.attempted)
     out.refute_rate = _ratio(out.refuted, out.attempted)
     out.null_hook_rate = _ratio(out.none_found, out.attempted)
+    out.escalation_rate = _ratio(out.escalated, out.attempted)
+    return out
+
+
+def add_plan(out: BatchMetrics, plans: list, rows: list) -> BatchMetrics:
+    """D21's reversal condition, in its own words, finally computable.
+
+    *"A batch where declining to spend on low-confidence channels costs more
+    verified hooks than it saves scrapes."* The gate binds as of D27, and a gate
+    whose evidence nobody collects is exactly what `plan` spent two batches
+    refusing to become.
+
+    The join is on `lead_key`, and a declined lead with no research object is
+    skipped rather than counted as dry: it never reached the hook stage, so it
+    says nothing about whether the decline cost anything. Counting it would
+    charge the gate for a lead the floors dropped.
+    """
+    if not plans:
+        return out
+
+    declined = {(p.get("lead_key") or "").strip()
+                for p in plans
+                if any((s.get("decision") or "") == "decline"
+                       for s in (p.get("steps") or []))}
+    declined.discard("")
+
+    out.declined_leads = len(declined)
+    out.declined_and_verified = 0
+    out.declined_and_dry = 0
+    for row in rows or []:
+        key = (row.get("lead_key") or row.get("email") or "").strip()
+        if key not in declined:
+            continue
+        state = (row.get("hook_verified") or "").strip().lower()
+        if state not in HOOK_STATES:
+            continue
+        if state == "verified":
+            out.declined_and_verified += 1
+        else:
+            out.declined_and_dry += 1
     return out
 
 
@@ -301,6 +362,12 @@ def report(out: BatchMetrics) -> str:
         f"  null_hook_rate    {_pct(out.null_hook_rate)}  "
         f"({out.none_found} found nothing — a good answer, not a failure)",
     ]
+    lines.append(
+        f"  escalation_rate   {_pct(out.escalation_rate)}  "
+        f"({out.escalated} hook(s) the shortlist did not hold)")
+    lines.append("                    D27's number. Rising means selection is "
+                 "not reaching the material, and the fix is research fetching "
+                 "deeper rather than a change to the ranker")
     if out.proposed:
         lines.append(f"  proposed          {out.proposed} never reached a verifier")
 
@@ -317,6 +384,22 @@ def report(out: BatchMetrics) -> str:
     if out.by_hook_type:
         lines.append("  by_hook_type      "
                      + ", ".join(f"{k} {v}" for k, v in sorted(out.by_hook_type.items())))
+
+    # D21's reversal condition. `?` rather than 0 when no plan was passed: a
+    # zero here would read as "declining cost nothing", which is the claim.
+    if out.declined_leads is UNKNOWN:
+        lines.append(f"  declined_and_dry  {UNKNOWN}  no plan read — pass "
+                     f"--plan work/plan.json. This is D21's reversal condition "
+                     f"and the gate binds now, so a batch without it is a gate "
+                     f"running with nobody collecting its evidence")
+    else:
+        lines.append(
+            f"  declined_and_dry  {out.declined_and_dry} of "
+            f"{out.declined_leads} lead(s) with a declined rung produced no "
+            f"verified hook ({out.declined_and_verified} did)")
+        lines.append("                    declining is free where these are the "
+                     "same leads and wrong where they are not — D21's reversal "
+                     "condition, in its own words")
 
     if out.ledger_read:
         lines += [

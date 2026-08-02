@@ -268,3 +268,81 @@ def test_no_passes_reported_prints_a_question_mark_and_never_a_zero():
     text = metrics.report(out)
     assert f"passes_by_model   {metrics.UNKNOWN}" in text
     assert "passes_by_model   0" not in text
+
+
+# ---------------------------------------------------- the flip's own numbers
+
+
+def test_a_hook_with_no_observation_id_counts_as_an_escalation():
+    """D27's number. Post-flip a hook either names the observation it was
+    selected from or is one the worker escalated to get, and rising escalation
+    means selection is not reaching the material — which points at research
+    fetching deeper, not at the ranker. R1, made countable."""
+    out = metrics.from_research([
+        lead(key="a@x.ae") | {"observation_id": "o1"},
+        lead(key="b@x.ae"),
+    ])
+    assert out.escalated == 1
+    assert out.escalation_rate == 0.5
+    assert "escalation_rate   50%" in metrics.report(out)
+
+
+def test_an_escalation_that_produced_a_refuted_hook_still_counts():
+    """It cost the fetch the flip was meant to remove. Counting only the
+    verified ones would report the escalation rate as the rate of USEFUL
+    escalations, which flatters exactly the thing being judged."""
+    out = metrics.from_research([lead("refuted", key="a@x.ae")])
+    assert out.escalated == 1
+
+
+def test_a_lead_that_found_nothing_did_not_escalate():
+    """A null hook is a good answer and it is cheaper than an escalation.
+    Counting it as one would make the honest outcome look like the expensive
+    one."""
+    out = metrics.from_research([lead("none", key="a@x.ae", hook="")])
+    assert out.escalated == 0
+
+
+def test_declined_and_dry_is_d21s_reversal_condition():
+    """"A batch where declining to spend on low-confidence channels costs more
+    verified hooks than it saves scrapes." The gate binds as of D27, and a gate
+    whose evidence nobody collects is what `plan` spent two batches refusing to
+    become."""
+    rows = [lead("verified", key="a@x.ae") | {"observation_id": "o1"},
+            lead("none", key="c@x.ae", hook="")]
+    plans = [{"lead_key": "c@x.ae", "steps": [{"decision": "decline"}]},
+             {"lead_key": "a@x.ae", "steps": [{"decision": "take"}]}]
+    out = metrics.add_plan(metrics.from_research(rows), plans, rows)
+    assert out.declined_leads == 1
+    assert out.declined_and_dry == 1
+    assert out.declined_and_verified == 0
+    assert "1 of 1 lead(s) with a declined rung produced no verified hook" \
+        in metrics.report(out)
+
+
+def test_a_declined_lead_that_still_produced_a_hook_is_counted_apart():
+    """That is the case that says declining was wrong, and it has to be visible
+    next to the case that says it was free."""
+    rows = [lead("verified", key="c@x.ae") | {"observation_id": "o1"}]
+    plans = [{"lead_key": "c@x.ae", "steps": [{"decision": "decline"}]}]
+    out = metrics.add_plan(metrics.from_research(rows), plans, rows)
+    assert out.declined_and_verified == 1 and out.declined_and_dry == 0
+
+
+def test_a_declined_lead_that_never_reached_the_hook_stage_is_not_dry():
+    """It says nothing about whether the decline cost anything. Counting it
+    would charge the gate for a lead the floors dropped."""
+    rows = [{"lead_key": "c@x.ae", "email": "c@x.ae"}]
+    plans = [{"lead_key": "c@x.ae", "steps": [{"decision": "decline"}]}]
+    out = metrics.add_plan(metrics.from_research(rows), plans, rows)
+    assert out.declined_leads == 1
+    assert out.declined_and_dry == 0 and out.declined_and_verified == 0
+
+
+def test_no_plan_read_prints_a_question_mark_and_never_a_zero():
+    """A zero here would read as "declining cost nothing", which is the claim
+    the number exists to test. The wall's asymmetry, a fifth time."""
+    out = metrics.from_research([lead()])
+    text = metrics.report(out)
+    assert f"declined_and_dry  {metrics.UNKNOWN}" in text
+    assert "declined_and_dry  0" not in text
