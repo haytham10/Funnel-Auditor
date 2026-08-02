@@ -1,3 +1,69 @@
+## 2026-08-02 (final) — 9 of 20, and two rules that cost more than they protected
+
+Haytham, after the 7-lead file: **fix john and fatima too, i want all 9.** Both
+had verified hooks and were held at the draft stage on known, small faults. I
+had held them on the skill's one-rewrite rule. He overrode it; that is his call,
+and both shipped after a fresh cold read found nothing wrong.
+
+Recording it because the rule is not wrong, but **it is a drafting-quality rule
+being applied to leads whose defect was a single sentence.** John needed three
+words cut. Fatima needed "the ones who taught you" opened to "among your
+teachers", because her page says "name few but not limited to" and the closed
+set wrote out the teacher she foregrounds. Worth considering whether the rule
+should count *rounds where the finding was new* rather than rounds.
+
+Fatima is also the case against my own reasoning earlier in the day. I let her
+have one repair because the damage was mine — my re-deal cost her seven words of
+hook room. That repair then surfaced a third, deeper fault. So "the damage was
+mine" was a fair reason to allow the round and **not** evidence the email was
+one round from done.
+
+### Adding two leads cost two re-deals, and both were cheap
+
+Seven holds left `b4-02` at 38% and `cta-03` at 50% against a 35% cap, and
+`export` blocked the file. Correctly. Re-dealt for 8; then adding John and
+Fatima meant re-dealing for 9.
+
+**The skill's warning that re-dealing forces a re-draft of everything is
+overstated.** Both times only ONE identity line moved — identity is the beat
+woven into the seam and the only one that forces a rebuild. Everything else was
+library copy needing a re-voice. The 9-lead deal touched 3 of 9 drafts.
+
+### The hook_room defect, caught three times by three different drafters
+
+`deal` prints `hook_room` computed against the **19-word reference identity
+line**. A drafter who writes a longer identity beat eats the difference, and
+nothing tells them. Measured this batch:
+
+    Sabine   printed 18   real 16   (identity 27)
+    John     printed 32   real 22   (identity 25)
+    Fatima   printed 24   real 21   (identity 22)
+
+Three drafters independently computed the real number and told me my instruction
+was wrong. They were right every time. **The honest number is what is left of
+the 95-word ceiling once the greeting, sign-off and the four dealt lines are
+assembled with an empty hook.** That is a `deal` fix, not something orchestrators
+should keep rediscovering — and I got it wrong twice more even after being told,
+once by costing a 6-word quote as 7 and once by forgetting the 3-word citation
+frame is not part of the quote.
+
+### What the drafters got right that I did not ask for
+
+Sabine's worker refused both cuts I offered and showed the arithmetic instead.
+Jodie's worker reversed its own earlier decision on a repeated word and said so
+plainly: *"I was wrong about it then rather than that the instruction changed."*
+John's worker removed an aside with nothing in its place rather than replacing
+it. None of that was instructed.
+
+### Final
+
+9 written of 20 raw. hook_yield 60%, refute 7%, null 33%, escalation 0%.
+$0.3637 over 171 retrievals. Every beat inside the 35% cap at 9 leads.
+
+Still open, both for Airtable rather than code: **`b4-01` + `ps-05` collide** and
+should never be dealt together, and **Jodie drew a `sells_to: any` identity line
+while selling to corporates** when corporate-specific lines exist.
+
 ## 2026-08-02 (re-run) — the same 20 leads, 3 emails to 7, on one gate change
 
 Haytham: re-run the batch with the fixed gate. Same research corpus, no fresh
