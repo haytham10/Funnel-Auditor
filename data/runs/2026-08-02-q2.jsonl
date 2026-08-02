@@ -189,3 +189,5 @@
 {"kind": "pass", "stage": "hook", "agent": "hook-worker", "model": "sonnet", "count": 6, "at": "2026-08-02T12:27:03+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 6, "at": "2026-08-02T12:27:03+00:00"}
 {"lead_key": "john@digitalmarketing.com", "stage": "verify", "platform": "linkedin", "url": "https://linkedin.com/in/johnbertallego", "retrieved_by": "apify:li_profile", "cost_usd": 0.004, "secs": 4.18, "outcome": "ok", "purpose": "verify", "at": "2026-08-02T12:27:06+00:00"}
+{"lead_key": "geeta@coachingwithgeeta.com", "stage": "research", "platform": "site", "url": "https://coachingwithgeeta.com/book", "retrieved_by": "webfetch", "cost_usd": 0.0, "secs": 0.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T12:28:04+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 6, "at": "2026-08-02T12:30:01+00:00"}
