@@ -164,3 +164,6 @@
 {"lead_key": "yaser@abudhabimuaythai.com", "stage": "hook", "platform": "instagram", "url": "https://instagram.com/abudhabimuaythai", "retrieved_by": "apify:ig_post", "cost_usd": 0.0075, "secs": 50.12, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T11:24:43+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 1, "at": "2026-08-02T11:27:10+00:00"}
 {"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 3, "at": "2026-08-02T11:27:10+00:00"}
+{"lead_key": "yaser@abudhabimuaythai.com", "stage": "research", "platform": "instagram", "url": "https://www.instagram.com/p/DYflD6fS3Xc/", "retrieved_by": "webfetch", "cost_usd": 0.0, "secs": 0.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T11:27:24+00:00"}
+{"lead_key": "yaser@abudhabimuaythai.com", "stage": "verify", "platform": "instagram", "url": "https://www.instagram.com/p/DYflD6fS3Xc/", "retrieved_by": "apify:ig_post", "cost_usd": 0.0015, "secs": 6.03, "outcome": "ok", "purpose": "verify", "at": "2026-08-02T11:27:35+00:00"}
+{"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 1, "at": "2026-08-02T11:29:46+00:00"}
