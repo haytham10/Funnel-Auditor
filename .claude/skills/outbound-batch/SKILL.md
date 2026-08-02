@@ -347,15 +347,38 @@ in the brief. Do not substitute a weaker hook to keep the count up.
 the workers know you mean it; an orchestrator that reacts to null hooks by
 pushing for more escalation converts the honest outcome into the expensive one.
 
-**Write the verified hook's date back, for the CRM.** When a hook is VERIFIED
-with a real date newer than the lead's `last_activity`, put it on the lead
-before stage 4, so the row records when they were last seen. A hook dated
-outside the window is not a kill — the lead is already through the floor — but
-it is worth a line in the brief, because a coach whose newest public thing is
-five months old is a different prospect from one who posted yesterday.
+**Write the whole verified hook back onto the lead's research object, before
+stage 4.** This is a step, not a note. The verdict lives in an agent, nothing in
+Python can reach it, and **both `crm-rows` and `metrics` read these fields off
+the research object and nowhere else** — not off the drafts, which have them.
+Six fields, all of them:
 
-**Write `observation_id` back too.** It is what `metrics` counts escalations
-from: a hook with no `observation_id` is one the shortlist did not hold.
+| field | who reads it |
+|---|---|
+| `hook_verified` → `verified` | `crm-rows` (`Hook Verified`, `Status`), `metrics` (`hook_yield`) |
+| `hook_type` | `crm-rows` (`Hook Type`), `metrics` (`by_hook_type`), `replies` |
+| `hook_source_url` | `crm-rows` (`Hook Source URL`), `metrics` (`yield_by_rung`) |
+| `hook` / `hook_quote` | `crm-rows` (`Hook`, `Notes`) |
+| `hook_date` | the CRM's record of when they were last seen |
+| `observation_id` | `metrics` (`escalation_rate`) — D27's number |
+
+Skip it and nothing errors. A research worker returns `hook_verified:
+"proposed"`, which is a legal value that reads like an answer, so `metrics`
+computes off it and reports **`hook_yield 0%`, `null_hook_rate 100%` and
+`Hooks Verified 0` on a batch that shipped verified hooks** — measurements, not
+`?`, which is the `?`-not-`0` rule defeated from underneath. `Hook Type` lands
+empty, and it is the field the whole `replies` join exists for.
+
+Two gates catch it now, both after the send file and neither able to halt one:
+`crm-rows` **exits 1** naming each Exported row whose hook is not `verified`,
+and `metrics` prints a `SUSPECT` line when emails were written and no hook reads
+as verified. If you see either, you skipped this step. Fix the research objects
+and re-run both; do not hand-type the CRM values past it.
+
+On `hook_date` specifically: a hook dated outside the window is not a kill — the
+lead is already through the floor — but it is worth a line in the brief, because
+a coach whose newest public thing is five months old is a different prospect
+from one who posted yesterday.
 
 ## Stage 4 — draft
 

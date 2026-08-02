@@ -362,6 +362,26 @@ def report(out: BatchMetrics) -> str:
         f"  null_hook_rate    {_pct(out.null_hook_rate)}  "
         f"({out.none_found} found nothing — a good answer, not a failure)",
     ]
+    # The one shape these ratios cannot be trusted in. `hook_verified`,
+    # `hook_type`, `hook_source_url` and `observation_id` are written back onto
+    # the lead rows at stage 3b, by the orchestrator, by hand — nothing in
+    # Python can do it, because the verdict lives in an agent. Skip that step
+    # and every count above is computed from the research worker's defaults:
+    # `hook_yield 0%` and `null_hook_rate 100%` on a batch that shipped verified
+    # hooks, and a `Hooks Verified 0` that goes into the CRM as a measurement.
+    #
+    # That is the `?`-not-`0` rule defeated from underneath. The rule protects a
+    # count nobody supplied; this one *was* supplied, from a field nobody was
+    # told to update, so it prints as evidence. `written` is the cross-check
+    # because it comes from `export`, which counted rows it actually wrote.
+    if isinstance(out.written, int) and out.written > 0 and out.verified == 0:
+        lines.append(
+            f"  SUSPECT           {out.written} email(s) were written and 0 "
+            f"hook(s) read as verified. An exported email has a verified hook "
+            f"by construction, so the likely cause is the stage 3b write-back: "
+            f"put hook_verified / hook_type / hook_source_url / observation_id "
+            f"back on the lead rows and re-run. Every ratio above is computed "
+            f"from those fields and is wrong until you do")
     lines.append(
         f"  escalation_rate   {_pct(out.escalation_rate)}  "
         f"({out.escalated} hook(s) the shortlist did not hold)")

@@ -785,10 +785,22 @@ def cmd_deal(args) -> None:
     if args.out:
         Path(args.out).write_text(json.dumps(out, indent=2), encoding="utf-8")
 
-    from outbound.lint import FIXED_LINE_SHARE_CAP
+    from outbound.lint import FIXED_LINE_SHARE_CAP, MIN_BATCH_FOR_SHARES
 
     shares = anchors.batch_shares(list(dealt.values()))
     print(f"DEAL: {len(dealt)} leads")
+    # Under the enforcement floor every share is a function of the batch size:
+    # at 2 leads a line is 50% by arithmetic, and `check_batch` reports it as a
+    # warning rather than a failure for exactly that reason. Saying so here too
+    # keeps the two halves telling the same story — a bare `OVER CAP` on every
+    # beat reads as a batch to fix, and the fixes on offer are re-dealing, which
+    # the skill forbids once drafts exist, or writing copy nothing needs.
+    enforced = len(dealt) >= MIN_BATCH_FOR_SHARES
+    if not enforced:
+        print(f"  NOTE  under {MIN_BATCH_FOR_SHARES} leads any line is a large "
+              f"share by arithmetic. Shares below are reported, and `export` "
+              f"warns rather than blocks on them — OVER CAP here is not a "
+              f"batch to fix")
 
     # A ps that had to move because its offer already said the same thing. The
     # swap is correct and the drift it causes is real, so it is reported rather
@@ -829,7 +841,9 @@ def cmd_deal(args) -> None:
     for beat, per_line in shares.items():
         top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
         top_share = next(iter(per_line.values()), 0)
-        flag = "  OVER CAP" if top_share > FIXED_LINE_SHARE_CAP else ""
+        over = top_share > FIXED_LINE_SHARE_CAP
+        flag = ("  OVER CAP" if enforced else "  over cap, not enforced") \
+            if over else ""
         print(f"  {beat:<9} {top}{flag}")
 
     # Which segments cannot fill their 70% share without repeating a sentence.

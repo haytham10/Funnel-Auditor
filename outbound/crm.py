@@ -169,6 +169,29 @@ def build(leads: list, researches: list, drafts: list | None = None,
                 out.problems.append(
                     f"{row.get('Email') or '?'}: {name}={value!r} is not one of "
                     f"{'/'.join(allowed)} — Airtable will reject the row")
+        # An exported lead has a verified hook by construction: a refuted or
+        # inconclusive one is not drafted. So a row carrying a Body and a
+        # `Hook Verified` that is not `verified` is not a strange lead, it is
+        # the stage 3b write-back never having happened — the verdict lives in
+        # an agent and only the orchestrator can put it back on the row.
+        #
+        # It is the same join this module was written for, one field over. The
+        # first one lost First Name to a source that never had it; this one
+        # loses the three Hook fields to a source that has them only after a
+        # human copies them there, and it is quieter, because `proposed` is a
+        # legal value that reads like an answer. `metrics` computes its yield
+        # from the same fields and reports `null_hook_rate 100%` on a batch
+        # that shipped.
+        if str(row.get("Status") or "").strip() == "Exported" \
+                and str(row.get("Hook Verified") or "").strip() != "verified":
+            out.problems.append(
+                f"{row.get('Email') or '?'}: the row is Exported but Hook "
+                f"Verified is "
+                f"{str(row.get('Hook Verified') or '') or '(empty)'!r} — an "
+                f"exported email has a verified hook, so this is the stage 3b "
+                f"write-back missing. Put hook_verified / hook_type / "
+                f"hook_source_url / observation_id back on the research object "
+                f"and re-run; `metrics` reads the same fields")
 
     names = {name for row in out.rows for name in row}
     out.coverage = {

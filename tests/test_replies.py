@@ -183,3 +183,17 @@ def test_an_empty_export_is_unreadable_not_a_zero_reply_rate():
         rep.load_export("email,status\n")
     with pytest.raises(rep.RepliesUnreadable):
         rep.load_export("email,status\n,\n")
+
+
+if __name__ == "__main__":
+    failures = 0
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            try:
+                fn()
+                print(f"  ok    {name}")
+            except AssertionError as exc:
+                failures += 1
+                print(f"  FAIL  {name}: {exc}")
+    print(f"\n{failures} failure(s)")
+    sys.exit(1 if failures else 0)
