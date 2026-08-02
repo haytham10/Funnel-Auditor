@@ -228,11 +228,23 @@ tell them apart, so attribution is derived and never reported; a LinkedIn URL
 matching neither is named `linkedin_unattributed` rather than assigned, because
 falling back to the first rung would re-create the conflation quietly.
 
-**It declines nothing.** A step whose channel is `absent` is labelled `decline`
-and taken anyway. D21 says an ownership verdict may gate a purchase where it may
-not gate a kill, and it carries the reversal condition — whether declining costs
-more verified hooks than it saves scrapes. That has never been measured, and a
-gate shipped alongside its own measurement would generate the data judging it.
+**It declines, and the decline binds** (2026-08-01, D27). A step whose channel
+is `absent` is labelled `decline`, and `hook-worker` may not escalate onto one.
+Nothing in `plan` executes anything, so the enforcement lives in the consumer;
+the reason lives here.
+
+**It shipped advisory for two batches on purpose**, because a gate shipped
+alongside its own measurement generates the data judging it. That objection was
+paid off rather than dropped: `metrics --plan` now reports, of the leads
+carrying a declined rung, how many produced a verified hook and how many
+produced none — D21's reversal condition in D21's own words, finally computable.
+
+**A decline gates spend and never inclusion**, which is the half that does not
+change. A lead whose only paid rung is declined gets a null hook, a row and a
+Blocker, never a drop. `plan` still exits 0 when every rung on the batch is
+declined, because exit 1 there would turn an ownership verdict into the
+inclusion gate D21 forbids.
+
 `unknown` is never declined: it means no tell was available, not that the tell
 said no.
 

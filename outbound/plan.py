@@ -1,5 +1,5 @@
 """Which rungs are populated for this lead, what each would cost, and which
-paid ones we would decline.
+paid ones it declines.
 
 This is F6 of docs/proposals/2026-08-01-hook-retrieval.md. Where to look for a
 hook has never been a code path, a config or a data structure. It is prose, in
@@ -31,27 +31,32 @@ Three consequences fall out of having it typed rather than written down:
   and returned nothing. That is the correct answer and it cost three full agent
   passes; nothing knew it had happened.
 
-## It declines nothing, and that is the decision
+## It declines, and the decline binds (2026-08-01, D27)
 
 `resolve` established that an ownership verdict may gate a *purchase* where it
-may not gate a *kill* (D21). It did not establish that this verdict predicts
-this waste. Nobody has measured whether the leads with no confirmed channel are
-the leads that produce no hook — `data/runs/` has never recorded a `li_posts`
-fetch at all. If they are the same leads, declining is free. If they are not,
-`plan` should not gate on ownership at all, and that is much better learned
-before it is built.
+may not gate a *kill* (D21). A step whose channel is `absent` gets
+`decision="decline"`, and **`hook-worker` may not escalate onto a declined
+step.** That is the whole of the enforcement, and it lives in the consumer
+because nothing in this module executes anything — it describes a ladder, it
+does not walk one.
 
-So a step whose channel is `absent` gets `decision="decline"` and is **taken
-anyway**, because nothing reads this file. Shipping the gate and the measurement
-in one commit would have the gate generate the data that judges it.
+**This shipped advisory for two batches on purpose**, and the reason is worth
+keeping: shipping a gate and its measurement in one commit has the gate generate
+the data that judges it. That objection has not gone away; it has been paid for
+instead. `metrics --plan` reports, of the leads carrying a declined rung, how
+many produced a verified hook and how many produced none — which is D21's
+reversal condition, stated in D21's own words, finally computable. Turning the
+gate on without it would be the thing this module spent two batches refusing.
 
-This needs no decision of its own: D21 already states the posture and already
-carries the reversal condition — *"a batch where declining to spend on
-low-confidence channels costs more verified hooks than it saves scrapes"*. This
-module is the apparatus that measures it, not a new position.
+**A decline is about spend and never about inclusion.** A lead whose only paid
+rung is declined gets a null hook, which is a good answer, and it still gets a
+row and a Blocker. Nothing here drops anybody, and nothing downstream may read a
+decline as a reason to.
 
 `unknown` is never declined. It means no tell was available, not that the tell
-said no, and treating the two alike is the false-negative surface R3 names.
+said no, and treating the two alike is the false-negative surface R3 names —
+which is why `absent` is the only verdict that binds and why that is one word of
+code with a paragraph of reasoning behind it.
 
 ## What it costs to run
 
@@ -73,8 +78,9 @@ from outbound.resolve import CONFIDENCE, _default_of
 # is per lead. `li-posts --max 5` is what both agent files actually pass today.
 POSTS_PER_LEAD = 5
 
-# A step is taken unless something says otherwise. `decline` is advisory in the
-# strict sense: it is written down and nothing acts on it.
+# A step is taken unless something says otherwise. Since D27 a `decline` binds:
+# `hook-worker` may not escalate onto one. Nothing here enforces it, because
+# nothing here executes anything.
 DECISIONS = ("take", "decline")
 
 # The `cost_note` of a paid step nobody asked to price. Distinct from the cost
@@ -194,7 +200,7 @@ class Step:
     # string — which lost the pricing note the moment a step was declined.
     cost_note: str = ""
     confidence: str = "unknown"      # carried off the Channel, never re-derived
-    decision: str = "take"           # take | decline — ADVISORY, nothing reads it
+    decision: str = "take"           # take | decline — a decline BINDS (D27)
     reason: str = ""
 
     @property
@@ -383,8 +389,8 @@ def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
             decision, reason = "take", rung.note
             if rung.paid and channel.confidence == "absent":
                 decision = "decline"
-                reason = (f"would decline: {channel.evidence or 'ownership absent'} "
-                          f"(ADVISORY — taken anyway)")
+                reason = (f"declined: {channel.evidence or 'ownership absent'} "
+                          f"— spend only, never inclusion")
 
             lead_plan.steps.append(Step(
                 lead_key=lead_plan.lead_key, rung=rung.name,
@@ -509,7 +515,7 @@ def schema_help() -> str:
             + f"\n  rung is one of {tuple(r.name for r in LADDER)}, in cost order\n"
               f"  platform is one of {PLATFORMS}\n"
               f"  decision is one of {DECISIONS}\n"
-              "  a decline needs a reason, and is ADVISORY — nothing acts on it.\n"
+              "  a decline needs a reason, and it BINDS: no escalation onto it.\n"
               "  est_cost_usd of None means unpriceable, which is not the same "
               "as free.")
 
@@ -565,7 +571,7 @@ def report(plans: list[LeadPlan], *, budget: dict | None = None) -> str:
     lines = [
         f"PLAN: {head}, {len(plans)} lead(s), {len(steps)} step(s) — "
         f"{len(steps) - len(paid)} free, {len(paid)} paid",
-        f"  would decline {len(declines)} paid step(s) on ownership: {breakdown}",
+        f"  declined {len(declines)} paid step(s) on ownership: {breakdown}",
         _estimate_line(paid, priced, not_priced, unpriceable),
     ]
     per_lead = sum(1 for s in paid if s.rung == "li_posts")
@@ -585,8 +591,9 @@ def report(plans: list[LeadPlan], *, budget: dict | None = None) -> str:
         lines.append(f"  SCHEMA  {problem}")
     if problems:
         lines.append(schema_help())
-    lines.append("  ADVISORY. Nothing declines anything yet, and nothing reads "
-                 "this file — the declines are here to be correlated against "
-                 "the leads that produced no hook. That is D21's reversal "
-                 "condition, and this is the apparatus for it.")
+    lines.append("  A DECLINE BINDS (D27): hook-worker may not escalate onto "
+                 "one. It gates spend and never inclusion — a declined lead "
+                 "gets a null hook and a row, never a drop. Run `metrics "
+                 "--plan` after the batch: of the leads carrying a decline, how "
+                 "many produced a verified hook is D21's reversal condition.")
     return "\n".join(lines)

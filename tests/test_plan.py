@@ -214,11 +214,26 @@ def test_unknown_is_never_declined():
 
 
 def test_a_declined_step_is_still_in_the_plan():
-    """The whole posture. Nothing acts on a decline, so it is written down and
-    the step is kept — otherwise the gate would generate the data judging it."""
+    """It binds now (D27), and it is still written down with its URL rather than
+    dropped. A decline nobody can read back is a purchase refused for a reason
+    that has stopped existing — and `metrics --plan` needs the step to correlate
+    against the lead's hook outcome."""
     built = plan.plan_lead(identity(channel(confidence="absent",
                                             evidence="names somebody else")))
     assert built.steps and built.steps[0].url
+    assert built.steps[0].decision == "decline"
+    assert "names somebody else" in built.steps[0].reason
+
+
+def test_a_decline_gates_spend_and_never_inclusion():
+    """The half of D21 that does not change when the gate turns on. A lead whose
+    only paid rung is declined gets a null hook, which is a good answer, and it
+    still gets a plan, a row and a Blocker. Nothing here drops anybody."""
+    built = plan.plan_lead(identity(channel(confidence="absent",
+                                            evidence="names somebody else")))
+    assert built.lead_key, "the lead survives its own decline"
+    assert built.steps, "and its rungs are still described"
+    assert all(s.decision == "decline" for s in built.steps)
 
 
 def test_a_lead_with_no_channels_still_gets_a_plan():
@@ -355,12 +370,19 @@ def test_the_report_leads_with_the_decline_count():
     result = plan.plan_all([identity(channel(confidence="absent",
                                              evidence="somebody else"))])
     lines = result["report"].splitlines()
-    assert "would decline" in lines[1]
+    assert "declined 2 paid step(s)" in lines[1]
 
 
-def test_the_report_says_nothing_was_declined():
-    result = plan.plan_all([identity()])
-    assert "ADVISORY" in result["report"]
+def test_the_report_says_a_decline_binds_and_what_it_does_not_do():
+    """It shipped advisory for two batches and now it binds (D27), so the line
+    that used to say nothing acts on this has to say what does — and has to
+    keep saying the half that never changes, which is that a decline gates
+    spend and never inclusion."""
+    report = plan.plan_all([identity()])["report"]
+    assert "BINDS" in report
+    assert "never inclusion" in report
+    assert "metrics --plan" in report, \
+        "the gate names its own measurement, or nobody collects it"
 
 
 def test_an_unpriced_batch_does_not_report_a_dollar_figure():

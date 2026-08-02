@@ -556,10 +556,11 @@ def test_resolve_exits_2_when_the_sites_file_is_not_what_fetch_writes():
 # ---------------------------------------------------------------------- plan
 
 
-def test_plan_exits_0_when_every_paid_rung_would_be_declined():
-    """D21 in code, one stage after `resolve` pins the same rule. A decline is
-    about a purchase and never about a lead, so exit 1 here would turn an
-    ownership verdict into the inclusion gate the decision forbids."""
+def test_plan_exits_0_when_every_paid_rung_is_declined():
+    """D21 in code, one stage after `resolve` pins the same rule — and the half
+    that survives D27 turning the gate on. A decline is about a purchase and
+    never about a lead, so exit 1 here would turn an ownership verdict into the
+    inclusion gate the decision forbids, whether or not the decline binds."""
     with tempfile.TemporaryDirectory() as tmp:
         identities = {"identities": [{
             "lead_key": "rory@x.ae", "name": "Rory Buck",
@@ -572,7 +573,11 @@ def test_plan_exits_0_when_every_paid_rung_would_be_declined():
         path = write(tmp, "identity.json", json.dumps(identities))
         out = run("plan", path)
         assert out.returncode == 0, out.stdout
-        assert "would decline" in out.stdout and "ADVISORY" in out.stdout
+        # Two, because LinkedIn is two rungs: a profile scrape and a posts
+        # scrape are different actors at different prices, and an ownership
+        # verdict that refuses the channel refuses both purchases.
+        assert "declined 2 paid step(s)" in out.stdout
+        assert "never inclusion" in out.stdout
 
 
 def test_plan_does_not_price_a_paid_rung_unless_asked():
