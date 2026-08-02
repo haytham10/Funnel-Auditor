@@ -126,11 +126,22 @@ def build(leads: list, researches: list, drafts: list | None = None,
     Guessing that one of them carries all three is the defect this replaces.
     """
     out = CrmBuild(batch=batch)
+    # Indexed under BOTH keys, not just the preferred one. A research object's
+    # email is not guaranteed to be the one the Lead arrived with: the address
+    # is re-checked during research, so a hard bounce gets replaced by a
+    # verified one and a lead with no deliverable address ends up carrying no
+    # email at all. Either way the email-first key stops matching and the row
+    # fails to join, which reads as the missing-identity defect this function
+    # exists to catch when it is really just the two sides naming the same
+    # person differently. On 2026-08-02-q3 that was two of thirty-four: one
+    # whose bounced address was swapped for the site's, one with no address
+    # found. The slug is stable across both.
     by_key = {}
     for lead in leads or []:
-        key = _lead_key(lead)
-        if key:
-            by_key[key] = lead
+        for key in ((lead.get("email") or "").strip().lower(),
+                    (lead.get("slug") or "").strip()):
+            if key:
+                by_key.setdefault(key, lead)
     shipped = {}
     for draft in drafts or []:
         data = draft if isinstance(draft, dict) else draft.__dict__
@@ -146,7 +157,11 @@ def build(leads: list, researches: list, drafts: list | None = None,
                 f"carries neither email nor slug, so it cannot be joined to a "
                 f"lead — a row built from it would have no identity fields")
             continue
-        lead = by_key.get(key)
+        # Both keys on this side too, for the same reason the index carries
+        # both: the email is the better key when it matches and the slug is the
+        # only one that survives the address being re-checked.
+        lead = (by_key.get(key)
+                or by_key.get((research.get("slug") or "").strip()))
         if lead is None:
             # The defect itself. Building the row anyway is what produced 20
             # rows with five empty columns and no error.

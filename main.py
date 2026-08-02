@@ -553,7 +553,11 @@ def cmd_anchors(args) -> None:
             "ps": {"id": anchor.ps.id, "line": anchor.ps.line},
             "segment": anchor.segment,
             "allowed_numbers": sorted(anchor.allowed_numbers),
+            # Same pair as `deal --out`. A drafter reading either file needs
+            # the floor and the pool, not one of them.
             "hook_room": anchor.hook_room(),
+            "authored_budget": anchor.authored_budget(),
+            "identity_budget": list(anchor.identity_budget()),
         }, indent=2))
         return
 
@@ -779,6 +783,18 @@ def cmd_deal(args) -> None:
             # drafter that knows it has 14 words writes a 14-word hook, and one
             # that does not writes 20 and gets refused for length.
             "hook_room": a.hook_room(),
+            # BOTH figures, because publishing only the floor made four
+            # drafters on 2026-08-02-q3 independently "discover" that the
+            # number was wrong. It was not wrong. `hook_room` is the floor that
+            # survives an identity beat written to the top of its range, and
+            # `authored_budget` is the pool the two beats share; the difference
+            # is exactly the identity range, and every one of them reverse-
+            # engineered it and reported the gap as a stale field. The prompt
+            # block has always said this in prose. This file is what a drafter
+            # actually reads, and it was handing over one of the two numbers a
+            # drafter needs to allocate between its own beats.
+            "authored_budget": a.authored_budget(),
+            "identity_budget": list(a.identity_budget()),
         }
         for email, a in dealt.items()
     }
@@ -837,7 +853,17 @@ def cmd_deal(args) -> None:
               f"words for a hook and no legal swap existed ({', '.join(short[:3])}) "
               f"— shorten a line in that beat or the lint will reject them")
     if rooms:
-        print(f"  hook room  {min(rooms.values())} to {max(rooms.values())} words")
+        budgets = [a.authored_budget() for a in dealt.values()]
+        # Both, and labelled, because the printed line was the other half of
+        # the confusion: an orchestrator reading "hook room 13 to 32" relays a
+        # tight number, a drafter computes the pool and reports the field is
+        # stale, and neither is wrong. The floor and the pool are different
+        # quantities and the line now says which is which.
+        print(f"  hook room  {min(rooms.values())} to {max(rooms.values())} "
+              f"words, guaranteed floor per lead")
+        print(f"  authored   {min(budgets)} to {max(budgets)} words shared by "
+              f"the hook and the identity beat — hand BOTH to a drafter, it "
+              f"allocates between its own two beats")
     for beat, per_line in shares.items():
         top = ", ".join(f"{k} {v:.0%}" for k, v in list(per_line.items())[:4])
         top_share = next(iter(per_line.values()), 0)
@@ -1306,17 +1332,26 @@ def cmd_email_enrich(args) -> None:
 # ------------------------------------------------------------------ the fetch
 
 
-def _run_escalations(plans: list, *, approved: bool) -> dict:
+def _run_escalations(plans: list, *, approved: bool) -> tuple[dict, list]:
     """Execute the batched Apify plans. Shared by the full run and the retry.
 
-    Exits 3 on the cost gate and 1 on an actor error, exactly as the escalation
-    inside `cmd_fetch` always did — the two paths differ in what precedes them,
-    not in what a refused purchase means.
+    Exits 3 on the cost gate, because a refused purchase means nothing was
+    bought and there is nothing to keep.
+
+    **An actor error does not exit here, and that is the whole point.** It used
+    to, from inside the loop, which threw away every plan that had already
+    succeeded — including the paid ones. On `2026-08-02-q3` the static crawl
+    returned 12 pages and the render crawl then died of an OOM the caller could
+    not have predicted; the successful half was discarded, the retry ran static
+    a second time, and it was discarded again. Two paid runs, nothing kept.
+    A failing plan must cost its own results and no others, so the failures come
+    back to the caller, which writes what did land before it exits.
     """
     from audit.apify import ApifyCostApprovalRequired, ApifyError
     from outbound import fetch
 
-    escalated = {}
+    escalated: dict = {}
+    failures: list = []
     for plan in plans:
         try:
             escalated[plan["actor_key"]] = fetch.run_plan(plan, approved=approved)
@@ -1324,11 +1359,15 @@ def _run_escalations(plans: list, *, approved: bool) -> dict:
             print(f"FETCH: APPROVAL REQUIRED — {exc}")
             sys.exit(3)
         except ApifyError as exc:
-            print(f"FETCH: escalation failed ({exc})")
-            sys.exit(1)
+            failures.append((plan.get("actor_key"), str(exc)))
+            print(f"FETCH: escalation failed for {plan.get('actor_key')} ({exc})")
     for key, items in escalated.items():
         print(f"  ESCALATED {key}: {len(items)} page(s) back")
-    return escalated
+    if failures and escalated:
+        print(f"  KEPT {len(escalated)} plan(s) that succeeded; "
+              f"{len(failures)} failed. Re-run `fetch --escalate-only` and it "
+              f"will re-plan only what is still unread.")
+    return escalated, failures
 
 
 def cmd_escalate_only(args) -> None:
@@ -1354,19 +1393,42 @@ def cmd_escalate_only(args) -> None:
     if not plans:
         print("FETCH: nothing to escalate — this run's tier 0 read every site.")
         return
+
+    # A retry is for the half that failed. A plan whose pages are already in
+    # this file has been bought; running it again buys the same pages a second
+    # time, which is the duplicate this command exists to prevent — the free
+    # tier-0 re-read was only the version of it that got caught first.
+    done = payload.get("escalated") or {}
+    pending = [p for p in plans if not done.get(p.get("actor_key"))]
     for plan in plans:
-        print(f"  ESCALATE  {plan['why']}")
+        if plan in pending:
+            print(f"  ESCALATE  {plan['why']}")
+        else:
+            print(f"  SKIP      {plan['actor_key']}: "
+                  f"{len(done[plan['actor_key']])} page(s) already in "
+                  f"{args.leads}, not buying them twice")
+    if not pending:
+        print("FETCH: every plan in this file has already run.")
+        return
+    plans = pending
     if not args.approve_cost:
         print("  (pass --approve-cost to run these; they are paid)")
         return
 
-    payload["escalated"] = _run_escalations(plans, approved=args.approve_cost)
+    escalated, failures = _run_escalations(plans, approved=args.approve_cost)
+    # Merge rather than replace: a retry runs only the plans that failed last
+    # time, and overwriting would drop the half that already landed.
+    merged = dict(payload.get("escalated") or {})
+    merged.update(escalated)
+    payload["escalated"] = merged
     print("  no tier-0 read happened, so no page in this run can be a "
           "duplicate of one already in the ledger.")
     if args.out:
         Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
                                   encoding="utf-8")
         print(f"  wrote {args.out}")
+    if failures:
+        sys.exit(1)
 
 
 def cmd_fetch(args) -> None:
@@ -1446,12 +1508,15 @@ def cmd_fetch(args) -> None:
     # command again.** Re-running it re-reads every site first, which is 52
     # duplicate pairs in the ledger of a batch whose whole purpose was a
     # duplicate count.
-    escalated = _run_escalations(result["escalate_plans"],
-                                 approved=args.approve_cost)
+    escalated, failures = _run_escalations(result["escalate_plans"],
+                                           approved=args.approve_cost)
     if args.out:
         payload["escalated"] = escalated
         Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
                                   encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if failures:
+        sys.exit(1)
 
 
 # -------------------------------------------------------------------- resolve

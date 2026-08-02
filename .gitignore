@@ -16,3 +16,14 @@ scratch_*.txt
 
 # stray git worktree checkouts (nested repo copies, never tracked content)
 .claude/worktrees/
+
+# Per-lead working files. `work/` and `out/` are already ignored above; these
+# patterns catch the same files when a run copies them somewhere else, which is
+# what a mid-run snapshot did on 2026-08-02-q3 and put 51 per-lead drafts and a
+# deal file into the history. What a batch is worth keeping is its ledger, its
+# select corpus, its research corpus and its metrics — all batch-named at the
+# top of data/runs/ — plus the two CSVs that are still needed after the upload.
+data/runs/*-state/
+draft-*.json
+hook-*.json
+anchors.json

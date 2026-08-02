@@ -276,6 +276,41 @@ def _auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {_token()}"}
 
 
+def _salvage_dataset(resp: "requests.Response") -> list[dict]:
+    """Pull the dataset off a run that ended FAILED or TIMED-OUT.
+
+    `run-sync-get-dataset-items` answers a failed run with a 400 naming the run
+    and returns no items, so a crawl that rendered nine of ten pages and then
+    hit its wall handed back nothing at all. The container boot is the bill and
+    it has already been paid; throwing the pages away does not refund it, it
+    just means paying again for the same pages on the retry. That happened
+    three times on `2026-08-02-q3` before anyone looked at a run log.
+
+    Best-effort by construction: any trouble reading the run means the caller
+    raises exactly as it did before, so this can only add results, never mask a
+    failure with an empty list.
+    """
+    try:
+        run_id = re.search(r"run ID: ([A-Za-z0-9]+)", resp.text)
+        if not run_id:
+            return []
+        run = requests.get(f"{APIFY_BASE}/actor-runs/{run_id.group(1)}",
+                           headers=_auth_headers(), timeout=30)
+        if not run.ok:
+            return []
+        dataset_id = (run.json().get("data") or {}).get("defaultDatasetId")
+        if not dataset_id:
+            return []
+        items = requests.get(f"{APIFY_BASE}/datasets/{dataset_id}/items",
+                             headers=_auth_headers(), timeout=60)
+        if not items.ok:
+            return []
+        parsed = items.json()
+        return parsed if isinstance(parsed, list) else []
+    except (requests.RequestException, ValueError):
+        return []
+
+
 def run_actor(
     actor_id: str,
     run_input: dict[str, Any],
@@ -343,6 +378,13 @@ def run_actor(
             "Re-issue with a longer --timeout, a smaller limit, or the async path."
         )
     if not resp.ok:
+        salvaged = _salvage_dataset(resp)
+        if salvaged:
+            print(f"  APIFY: run failed but {len(salvaged)} page(s) were "
+                  f"already in its dataset — keeping them. The boot is paid "
+                  f"either way; discarding them buys nothing back.")
+            log("ok")
+            return salvaged
         raise ApifyError(f"{resp.status_code} from Apify: {resp.text[:400]}")
     try:
         data = resp.json()
@@ -1033,7 +1075,25 @@ def crawl_render(urls: list[str], *, approved: bool = False,
         "saveHtml": True,
         "saveMarkdown": False,
         "proxyConfiguration": {"useApifyProxy": True},
-    }, memory_mbytes=1024, cost_usd=est, platform="site",
+    },
+        # 4096, not 1024. A real browser does not fit in a gigabyte: at 1024
+        # the actor was SIGKILLed (exit 137) before its first page on every
+        # run, restarted three times and reported FAILED — so the render half
+        # of every escalation this machine has ever planned silently bought
+        # nothing. Only this wrapper launches Chromium; the static half is
+        # cheerio and stays where it is. Memory is a factor of the compute-unit
+        # bill, so this is 4x a run that previously cost its boot and died.
+        memory_mbytes=4096,
+        # The default sync timeout is sized for cheerio, which fetches a page
+        # in under a second. A browser render averages ~20s a page at
+        # concurrency 2, and a host that is simply dead — greatnessjourney.com
+        # on q3 — spends the budget on navigation retries rather than pages. At
+        # 240s a 10-URL batch got 5 pages back and then TIMED-OUT, and a
+        # timed-out run returns nothing: the pages it did render are discarded
+        # with it. Scale with the batch, keeping the default as the floor so a
+        # 1-URL escalation is no slower to fail than it is today.
+        timeout_secs=max(_SYNC_TIMEOUT_SECS, 90 + 45 * len(targets)),
+        cost_usd=est, platform="site",
         url=targets[0] if len(targets) == 1 else "")
     if raw:
         return items
