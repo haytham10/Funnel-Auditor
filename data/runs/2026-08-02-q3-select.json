@@ -1,0 +1,1077 @@
+{
+  "selections": [
+    {
+      "lead_key": "sam-eid",
+      "name": "Sam Eid",
+      "shortlist": [
+        {
+          "lead_key": "sam-eid",
+          "obs_id": "7fcfe82762f9",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/sam-eid-5ab26a33_ive-never-been-a-fan-of-elevator-pitches-activity-7487396580438994944-54hA",
+          "published_at": "2026-07-27",
+          "author": "self",
+          "kind": "post",
+          "quote": "I\u2019ve never been a fan of elevator pitches. I\u2019d rather pay attention, understand what\u2019s in front of me, and see if I can genuinely help. \n\nNo problem, no client.",
+          "words": 32,
+          "rank": 1,
+          "why": "self post on linkedin, 6d old"
+        },
+        {
+          "lead_key": "sam-eid",
+          "obs_id": "bd89e7a1d9bb",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/sam-eid-5ab26a33_happy-sunday-most-plans-dont-fail-because-activity-7487055061966295040-G72w",
+          "published_at": "2026-07-26",
+          "author": "self",
+          "kind": "post",
+          "quote": "Happy Sunday.\nMost plans don't fail because they're bad. They fail because no one executed on them.  Somewhere between the overthinking and the action, momentum just... stops. I wrote about why this happens (and what I would do instead). If you have 4 minutes, give it a read and let me know what you think.  Thank you.",
+          "words": 57,
+          "rank": 2,
+          "why": "self post on linkedin, 7d old"
+        },
+        {
+          "lead_key": "sam-eid",
+          "obs_id": "35ae30539508",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/sam-eid-5ab26a33",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I\u2019ve always been fascinated by why some people and teams seem to move forward with ease while others, despite all the effort, stay stuck.\n \nLong before I became a coach, I spent over 20 years producing advertising campaigns. My job wasn\u2019t just to make great films. It was to spot what wasn\u2019t working, bring the right people together and find better ways to make things happen. I still do exactly that today.\n \nOver the past decade I\u2019ve worked with executives and leadership teams across the Middle East, and one thing has become very clear. People don\u2019t change because someone gives them better advice. They change when they experience something that gives them their own proof.\n \nThat\u2019s why I created the EXP Method\u2122.  EXP is an evidence-based coaching approach built around carefully designed experiences that help people uncover blind spots, challenge old assumptions and create their own evidence for change.\n\nSometimes that\u2019s helping a leadership team discover the pattern that\u2019s been slowing decisions for years.\n \nSometimes it\u2019s a simple exercise that makes someone realise they\u2019re capable of far more than they believed just a few minutes earlier.\n \nThose moments matter because once people prove something to themselves, they rarely go back to thinking the same way.  If that resonates with you, let\u2019s connect. \n\nFounder, EXP Method\u2122",
+          "words": 226,
+          "rank": 3,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/in/sam-eid-5ab26a33",
+        "https://linkedin.com/posts/sam-eid-5ab26a33_happy-sunday-most-plans-dont-fail-because-activity-7487055061966295040-G72w",
+        "https://linkedin.com/posts/sam-eid-5ab26a33_ive-never-been-a-fan-of-elevator-pitches-activity-7487396580438994944-54hA"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "govind-abkari",
+      "name": "Govind Abkari",
+      "shortlist": [
+        {
+          "lead_key": "govind-abkari",
+          "obs_id": "8f7c64063be2",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/govindabkari_scrum-csm-agile-activity-7485933690296983552-Xlch",
+          "published_at": "2026-07-23",
+          "author": "self",
+          "kind": "post",
+          "quote": "Join my Certified ScrumMaster\u00ae (CSM\u00ae) workshop on 25\u201326 July 2026 and experience zero-slide, hands-on Scrum learning backed by 25+ years of industry experience.\nHope to see you there!\n#Scrum #CSM #Agile #LeadershipGovindGovindGovind AbkariAgile Acharya ConsultingScrum Alliance",
+          "words": 37,
+          "rank": 1,
+          "why": "self post on linkedin, 10d old"
+        },
+        {
+          "lead_key": "govind-abkari",
+          "obs_id": "755b86a43f67",
+          "platform": "site",
+          "url": "https://agileacharya.com/about",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Govind Abkari\nCST | RST | TBR-CT\n\u25cf Govind is a Senior Agile Trainer, Enterprise Agile Transformation Coach and has 25 years of experience in the Industry.\n\u25cf Trained more than 3000 students on Scrum Master and Product Owner in a Certified context\n\u25cf Responsible for helping organizations (IT and non-IT) in their Enterprise Agile adoption journey,\ndevelop strategies for Agile adoption in a distributed environment, building Agile teams efficiently and effectively as a Change and Transformation agent\n\u25cf Experience in leading and delivering Agile Transformation, leveraging Consulting and facilitation expertise for the implementation of Agile processes in technical and business teams.\nCommunity:\n\u2013 Advocate for equality and equity in the African tech ecosystem \u2013 https://africaagility.org/\n\u2013 Out Reach \u2013 Deliver Scrum Education to Military Veterans https://www.sambhavkadam.org/\n\u2013 Speaker, Volunteer and Reviewer \u2013 Various Global & Regional Scrum Gatherings\n\u2013 Mentor to Expert Panel Global Government Excellence \u2013 UAE",
+          "words": 139,
+          "rank": 2,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "7ae7f7ead10c",
+          "ban": "too_short",
+          "url": "https://linkedin.com/posts/govindabkari_join-our-upcoming-scrum-master-batch-scrum-activity-7482737656909594625-dmhG"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://agileacharya.com/about",
+        "https://linkedin.com/posts/govindabkari_join-our-upcoming-scrum-master-batch-scrum-activity-7482737656909594625-dmhG",
+        "https://linkedin.com/posts/govindabkari_scrum-csm-agile-activity-7485933690296983552-Xlch"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "david-singleton",
+      "name": "David Singleton",
+      "shortlist": [
+        {
+          "lead_key": "david-singleton",
+          "obs_id": "151f83e1391b",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/singletonsingleton_routines-executivecoaching-dubaibusiness-activity-7488827980635357184-ls0P",
+          "published_at": "2026-07-31",
+          "author": "self",
+          "kind": "post",
+          "quote": "Our 5,30 boot camp is something special to everyone involved at many levels; men working out at their own high performance pace at sunrise year round and connecting during and often after, away from the group. The connections we've formed are deeply meaningful.\nAnd it's to that point that Adam asked \"whats one routine that you'd never give up?\" Mine is 'community', who do I have around me. And again for many reasons. I ritually connect over coffee with at least five new people (or reconnect after some time) a week. Its often \"David, I think you'd like to meet X\" Which is how I met Paraic initially. I've met with many interesting and enterprising leaders this week.  \nIts important to me personally - who I surround myself with - its important to me professionally in my work with others, and not just my own circle. My network enables me to help others, which underline Adams other point 'you cannot coach what you don't practice'. \n\nThanks for sharing Adam, a lovely post.",
+          "words": 171,
+          "rank": 1,
+          "why": "self post on linkedin, 2d old"
+        },
+        {
+          "lead_key": "david-singleton",
+          "obs_id": "8b709726ef57",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/singletonsingleton_transformation-leadership-activity-7485571228355784704-R-Vs",
+          "published_at": "2026-07-22",
+          "author": "self",
+          "kind": "post",
+          "quote": "One of the things I work on is something I call \u2018Leadership Architecture\u2019. It\u2019s not unusual for entrepreneurs to build business \u2013 clever, smart businesses \u2013 with their genius. They carve out niches in their industry, build reputation which becomes their natural sales generation.\n\nBut it doesn\u2019t always stay that way. Very often, their myopic view of the world is such that they think \u2018their way is the way\u2019. They embrace technology and AI in a way they know and understand, they stay with their loyal team who scramble and often get left behind. Many make decisions to protect their own roles, some are simply in the wrong role causing harm to the business. I see terrible uses of technology and AI which very often makes for a shorter meeting and a cull of that supplier.\n\nSometimes they call someone like me to help them see the wider picture. That's Leadership Architecture. That some of their leaders need to be deployed in other roles or elsewhere, that new talent needs to be brought in (or developed) to help their business grow in ways they never thought possible, to evolve, embrace new pillars within their sector to protect the next generation of their business. To survive. In a market like the UAE right now, that\u2019s not a nice to have.\n\nI help leaders make the really tough calls, have the really tough conversations, and ask the tough questions. They\u2019re tough because really you know the answers and the output from them which is often uncomfortable. I don\u2019t need to be an expert in what you do, that\u2019s you. I\u2019ll guide you to making the right decisions to building a high performance business, beyond what you thought possible.\n\nIf you\u2019ve got this far, it might mean that this resonates, we\u2019re here to guide you, and have the transformational conversations.\n\nThis is Beyond Boundaries High Performance Leadership \n\nImago. oraculi.co #transformation #leadership",
+          "words": 326,
+          "rank": 2,
+          "why": "self post on linkedin, 11d old"
+        },
+        {
+          "lead_key": "david-singleton",
+          "obs_id": "6bdc29e7cf9c",
+          "platform": "site",
+          "url": "https://oraculi.co",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "David Singleton \u2014 Founder, Oraculi\nDavid Singleton\nFounder, Oraculi\nDavid has led and developed organisations across 40 countries, working with some of the world's most recognised brands. Today he works as a strategic advisor to brands, organisations, and ambitious senior executives in growth mode, and as an accredited leadership coach to C-suite leaders and their teams.\nHis career began in the UK, leading F&B brands nationally and in the US before completing his Masters at Coventry University, where he later joined the Advisory Board. From there his path took him international: to Moscow, as part of a board-level turnaround team for Russia and the CIS's largest restaurant group, then as a consultant designer for Mercedes-Benz on their first restaurant concept, built to launch the A-Class into the Russian market.\nHe moved to the UAE to join Al Tayer's Retail Board as Vice President of Hospitality, reporting to the CEO and a Board chaired by Obaid Al Tayer. His last corporate role was Vice President at Hard Rock Caf\u00e9 across 40 countries in EMEA and South Asia, working across a wide mix of franchisees, family offices, and investors.\nDavid founded Oraculi in 2020 \u2014 a thought leadership and strategic advisory practice he now leads as founder, advisor, non-executive director, and transformational growth coach. A key part of his work is guiding leaders and brands through market entry, cultural change, and boardroom dynamics \u2014 often evolving alongside his clients as they move from coachee to Board member, and his role shifts from coach to mentor and advisor.\nHis advisory work spans hospitality and F&B, where he's widely regarded as a subject matter expert, particularly in franchising, alongside AI technology, brand development, large-scale events, consumer brands, and a significant non-executive role in private equity.\nIn 2025, David delivered his TEDx talk, \u201cYou can think big and have balance \u2014 why the most successful people refuse to choose between success and balance.\u201d\nHe is currently authoring his first book, BEY\u014dND Boundaries \u2014 on forming authentic, purpose-driven goals.\nDavid has two daughters, both based in Dubai: Katie, a former teacher now with Cigna, and Hollie, a Marketing and PR Manager.",
+          "words": 352,
+          "rank": 3,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/posts/singletonsingleton_routines-executivecoaching-dubaibusiness-activity-7488827980635357184-ls0P",
+        "https://linkedin.com/posts/singletonsingleton_transformation-leadership-activity-7485571228355784704-R-Vs",
+        "https://oraculi.co"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 171 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "dalia-hosny",
+      "name": "Dalia Hosny",
+      "shortlist": [
+        {
+          "lead_key": "dalia-hosny",
+          "obs_id": "cfede30d2284",
+          "platform": "site",
+          "url": "https://thebusinessfighters.com/bio",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Dalia Hosny is an Electronics Engineer specialized in security systems, graduated from the faculty of engineering - Cairo University \u2013 Egypt, and worked in the field of integrated security solutions since then, while adopting another career as a professional Muay Thai (Thai Boxing) Fighter.\n\nDalia has been sponsored by several professional gyms in Thailand (the homeland of Muaythai), fought more than 50 professional fights in many cities around the globe including Bangkok, Kualalumpur, Phuket, Dubai, Koh Samui, Phangna, Hong Kong, Sydney and others.\n\nBeing the first Arab professional Thai Boxing fighter, who lived, trained and fought professionally in Thailand for years helped her creating history, while inspiring many fighters around the globe to fight for their dreams.\n\nAfter a long career of working as a sales professional, with a proven track record of overachieving her sales goals in more than 5 different countries, including many reputable multinational organizations, Dalia's performance has been recognized by many business leaders.\n\nDalia has earned her master's degree in business administration with merit from the University of Roehampton in London, and carried the mission of bringing positivity and productivity to workplaces through adopting a career in Executive coaching.\n\nDalia is a Certified Executive Coach and currently assisting business professionals to reach their full potential.",
+          "words": 207,
+          "rank": 1,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "4a9e4b48d11d",
+          "ban": "too_short",
+          "url": "https://linkedin.com/posts/dalia-dee-hosny-34505033_theabrbusinessabrfighters-winning-activity-7485191280474509312-1h3U"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/posts/dalia-dee-hosny-34505033_theabrbusinessabrfighters-winning-activity-7485191280474509312-1h3U",
+        "https://thebusinessfighters.com/bio"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 207 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "shereen-halbawi",
+      "name": "Shereen Halbawi",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "f768a2998f20",
+          "ban": "too_short",
+          "url": "https://linkedin.com/in/shereen-halbawi-237a4b45"
+        }
+      ],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/shereen-halbawi-237a4b45"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "stephan-melchior",
+      "name": "Stephan Melchior",
+      "shortlist": [
+        {
+          "lead_key": "stephan-melchior",
+          "obs_id": "56ecb2a6c686",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/stephanmelchior_salesdiagnostic-salesperformance-4s-activity-7488252040595542016-jRIt",
+          "published_at": "2026-07-29",
+          "author": "self",
+          "kind": "post",
+          "quote": "What if you could diagnose your entire sales engine in 10 minutes? Not a vague self-assessment and not a consultant guessing.\n\nA structured diagnostic across the 4 dimensions of sales excellence \u2014 with an instant maturity score and prioritised next steps. That is exactly what we built.\n\nThe 4S Sales Maturity Diagnostic. It is free with results in under 10 minutes.\n\nTake it today and share it with your team: 4s.mpulse.ch\n\n#SalesDiagnostic #SalesPerformance #4S #SalesLeadership #mpulse #SellingWithStephan  #RevenueGrowth",
+          "words": 79,
+          "rank": 1,
+          "why": "self post on linkedin, 4d old"
+        },
+        {
+          "lead_key": "stephan-melchior",
+          "obs_id": "7f39180c9478",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/stephanmelchior_b2bsales-salescoaching-gccsales-activity-7487524926577557504-i9iK",
+          "published_at": "2026-07-27",
+          "author": "self",
+          "kind": "post",
+          "quote": "Every rep on your team has access to the same AI tools now. That stopped being the advantage months ago. What separates the reps I coach across the Gulf is what they refuse to let AI touch.\n\nThe best B2B sales people I work with let AI handle account research, first drafts, CRM notes and call summaries. Then they rewrite the opener themselves before anything goes out. Nothing leaves their hands untouched.\n\nThe difference shows up in the numbers too. Teams doing this right are cutting prospect research time by a third and email drafting time by more than a third, then spending that time back on discovery, objection handling and negotiation. That part stays fully human. It has to.\n\nThis carousel breaks down the ways top reps are actually using AI in 2026, and exactly where they draw the line so outreach never feels mechanical.\n\nKeep this one. It's the difference between a message that gets a reply and one that gets ignored.\n\nWhere do you draw the line between AI and your own voice in outreach?\n\n#B2BSales #SalesCoaching #GCCSales #StephanMelchior #SellingwithStephan",
+          "words": 183,
+          "rank": 2,
+          "why": "self post on linkedin, 6d old"
+        },
+        {
+          "lead_key": "stephan-melchior",
+          "obs_id": "6b22727c77ad",
+          "platform": "site",
+          "url": "https://mpulse.ch",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "4.\nHow do you know what you're doing?\nStephan himself has more than 25 years of experience in the L&D sector and has helped numerous organizations execute their business strategy and see tangible results. Our team of consultants add more years and success stories to the list.",
+          "words": 48,
+          "rank": 3,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/posts/stephanmelchior_b2bsales-salescoaching-gccsales-activity-7487524926577557504-i9iK",
+        "https://linkedin.com/posts/stephanmelchior_salesdiagnostic-salesperformance-4s-activity-7488252040595542016-jRIt",
+        "https://mpulse.ch"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 79 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "suzanne-dpcc",
+      "name": "Suzanne Dpcc",
+      "shortlist": [
+        {
+          "lead_key": "suzanne-dpcc",
+          "obs_id": "2074e6205427",
+          "platform": "site",
+          "url": "https://emicaconsulting.com/about",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Founded in 2016 by Suzanne Gough, an executive coach and organisational psychologist, Emica was created to support senior leaders navigating change in complex, multicultural environments. In 2020, Suzanne was joined by Howard Gough, former CEO of Cigna Health Insurance MEA, adding deep senior executive and healthcare leadership expertise.\nWith established offices in Dubai and Saudi Arabia (KSA), Emica combines global experience with deep, lived understanding of the UAE and Saudi markets, enabling leaders to act with confidence in highly complex contexts.",
+          "words": 81,
+          "rank": 1,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "4967002282da",
+          "ban": "not_content",
+          "url": "https://emicaconsulting.com"
+        }
+      ],
+      "observed": 2,
+      "observed_urls": [
+        "https://emicaconsulting.com",
+        "https://emicaconsulting.com/about"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 81 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "solene-anglaret",
+      "name": "Solene Anglaret",
+      "shortlist": [
+        {
+          "lead_key": "solene-anglaret",
+          "obs_id": "9a54350bcc42",
+          "platform": "instagram",
+          "url": "https://instagram.com/p/DbHCjK0DHuo",
+          "published_at": "2026-07-22",
+          "author": "self",
+          "kind": "post",
+          "quote": "Botswana \ud83c\udde7\ud83c\uddfc Country #82! Did you know?\n\n\ud83c\udf0a Botswana is home to the Okavango Delta, the world\u2019s largest inland delta. We loved seeing it from above during a scenic flight. \n\n\ud83d\udef6 We also explored the traditional way by mokoro, quietly gliding through the channels while spotting birds and wildlife.\n\n\ud83d\udc18 Botswana is home to around 130,000 African elephants - the largest population of any country in the world. We saw many along the Chobe River.\n\n\ud83e\udd81 Around 40% of the country is protected through national parks and wildlife reserves.\n\n\ud83d\udc65 With just over 2.5 million people living in a country the size of France, Botswana is one of the most sparsely populated countries in the world.\n\n\ud83d\udc8e It is one of the world\u2019s biggest diamond producers - diamonds account for around 80% of Botswana\u2019s export earnings and have played a major role in transforming the country\u2019s economy since independence.\n\n\ud83e\udd93 The Makgadikgadi salt pans in Botswana are among the largest salt flats on Earth, remnants of an ancient lake.\n\n\u2764\ufe0f \u201cBotho\u201d is a core national value, meaning humanity, kindness, and respect for others. \n\n#BeYouBelong #Botswana #VisitBotswana #OkavangoDelta",
+          "words": 182,
+          "rank": 1,
+          "why": "self post on instagram, 11d old"
+        },
+        {
+          "lead_key": "solene-anglaret",
+          "obs_id": "4d4485980b2c",
+          "platform": "instagram",
+          "url": "https://instagram.com/p/DaPVb0_DFZs",
+          "published_at": "2026-07-01",
+          "author": "self",
+          "kind": "post",
+          "quote": "Back in Dubai for a few days\u2026 straight to the theatre \ud83c\udfad\n\n\u2022 Intensive with @kyleherselman at @courtyardplayhouse \n\u2022 Actors Gym with @ashrafi_ \n\u2022 OnAir practice with @mariahcdcosta @yousefae6 @courtashdale @al3awar & Obada\n\nSee you in a month for more shenanigans \ud83d\udcab",
+          "words": 36,
+          "rank": 2,
+          "why": "self post on instagram, 32d old"
+        },
+        {
+          "lead_key": "solene-anglaret",
+          "obs_id": "9ce9fd490ff6",
+          "platform": "site",
+          "url": "https://bebeyondborders.com/coaching",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "What kind of coaching do you offer?\nI offer\npersonalised coaching\nto support individuals navigating change - whether you're facing a transition, seeking clarity in your direction, or working through challenges around identity, confidence, or communication.\nSessions are designed to be\npractical, empowering, and rooted in your lived experience\n.\nWho is coaching for?\nCoaching is for\nanyone ready to explore, grow, or move forward\n.\nI work with\nprofessionals, entrepreneurs, creatives, expats, advocates\n- anyone finding themselves at a crossroads or simply wanting to reconnect with who they are and what they need. No prior experience with coaching is necessary.",
+          "words": 97,
+          "rank": 3,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 3,
+      "observed_urls": [
+        "https://bebeyondborders.com/coaching",
+        "https://instagram.com/p/DaPVb0_DFZs",
+        "https://instagram.com/p/DbHCjK0DHuo"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 182 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "brad-penner",
+      "name": "Brad Penner",
+      "shortlist": [
+        {
+          "lead_key": "brad-penner",
+          "obs_id": "6f338c6c05a1",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/brad-penner-mba-0619b873",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I\u2019m a career, executive and startup coach working with successful corporate employees, respected executives and dynamic entrepreneurs who want to grow in their roles. Through our partnership my clients are able to recognize blind spots, gain new insights and craft a desirable future. They reach their goals more efficiently by aligning their skills and experiences with their values and interests. \n \nMy training through a certified International Coaching Federation program, supported by my ten years of experience in project management, equips me to coach. Holding a BBA and an MBA makes business a natural area of focus for my coaching.\n \nMy desire is to bring out the best in people by being both empathetic and results-driven. I listen, filter ideas and challenge inconsistencies. This partnership aligns the client's goals with their purpose.\n \nVisit bradpennercoaching.com for a 20-minute complementary coaching session.",
+          "words": 141,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/brad-penner-mba-0619b873"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 141 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "viswa-prasanna",
+      "name": "Viswa Prasanna",
+      "shortlist": [
+        {
+          "lead_key": "viswa-prasanna",
+          "obs_id": "90ffd3c059cd",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/viswaprasanna",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Does your leadership truly reflect your ambition?\n\nMany executives excel in their roles but secretly struggle with feeling unrecognized and underutilized. \n\nDespite their high level of skill and commitment, they find themselves:\n\n\u2192 Overwhelmed by the day-to-day operational tasks that obscure their strategic vision.\n\u2192 Frustrated by a lack of acknowledgment from their peers and upper management.\n\u2192 Uncertain about how to transition from operational leadership to becoming strategic visionaries.\n\u2192 Feeling isolated as they bear the weight of leadership without adequate support.\n\nIf this strikes a chord with you, you\u2019re not alone.\nThe truth is, many leaders face these challenges.\n\nand the continuous struggle doesn\u2019t have to be your story.\n\nImagine transforming your leadership to inspire every layer of your organization.\n\nThis is where I step in:\n\n\u21b3 I don\u2019t just offer advice; I partner with you to craft a tailored leadership path. We delve deep into your unique challenges and aspirations to unlock your full leadership potential.\n\n\u21b3 Together, we will enhance your strategic vision, improve team dynamics, and ensure you are recognized for your contributions. My method involves one-on-one coaching sessions, actionable feedback, and strategic guidance that align with your personal and professional goals.\n\nSo, if you're ready to rise from being a high-potential leader to a high-impact visionary,\nYou are just one decision away.\n\nBook a 1:1 coaching session to start your transformation OR DM me. \n\nLet\u2019s elevate your leadership together.",
+          "words": 234,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/viswaprasanna"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 234 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "anas-mounir",
+      "name": "Anas Mounir",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "1d083dbd2f19",
+          "ban": "third_party",
+          "url": "https://teamnogueiradubai.com/trainer/anas-siraj-mounir"
+        }
+      ],
+      "observed": 1,
+      "observed_urls": [
+        "https://teamnogueiradubai.com/trainer/anas-siraj-mounir"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "diomelis-martinez",
+      "name": "Diomelis Martinez",
+      "shortlist": [
+        {
+          "lead_key": "diomelis-martinez",
+          "obs_id": "8a5e1c786b61",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/diomelis-martinez-33132219",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "My mission is to guide and mentor individuals to take responsibility for their health and supports them in making sustainable lifestyle choices.\n\nAs a Health Coach I do not prescribe one diet or one way of living, I rather help people develop a deeper understanding of the food and lifestyle choices that work best for their bodies. Some common areas where I can assist clients include, weight management, food cravings, sleep, energy, digestion, stress, and time management.",
+          "words": 77,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/diomelis-martinez-33132219"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "sarah-barinki",
+      "name": "Sarah Barinki",
+      "shortlist": [
+        {
+          "lead_key": "sarah-barinki",
+          "obs_id": "6024c699a275",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/sarah-may-barinki-2a8a10124",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Head Athletic Trainer at trainSHARPE health coaching. I coach business leaders and high achieving men to improve their body composition, cognitive performance, sleep and productivity.",
+          "words": 25,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/sarah-may-barinki-2a8a10124"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "leila-atbi",
+      "name": "Leila Atbi",
+      "shortlist": [
+        {
+          "lead_key": "leila-atbi",
+          "obs_id": "6f1e2f9a440a",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/leila-atbi-73b90519_zayeduniversity-summerbootcamp-professionaldevelopment-activity-7468256391217209344-H8FE",
+          "published_at": "2026-06-04",
+          "author": "self",
+          "kind": "post",
+          "quote": "Inviting all #ZayedUniversitystudents: level up your professional skills this summer!\n\n#interviewskills #Career #professionalism #leadership #powerofhobbies",
+          "words": 15,
+          "rank": 1,
+          "why": "self post on linkedin, 59d old"
+        },
+        {
+          "lead_key": "leila-atbi",
+          "obs_id": "137be1577532",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/leila-atbi-73b90519",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I empower professionals to reconnect with the meaningful and balanced life they look for, enhance their lifestyle and create a thriving career.",
+          "words": 22,
+          "rank": 2,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/leila-atbi-73b90519",
+        "https://linkedin.com/posts/leila-atbi-73b90519_zayeduniversity-summerbootcamp-professionaldevelopment-activity-7468256391217209344-H8FE"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "anita-oconnor-roberts",
+      "name": "Anita O'connor-Roberts O'Connor-roberts",
+      "shortlist": [
+        {
+          "lead_key": "anita-oconnor-roberts",
+          "obs_id": "5125d5123b8f",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/anita-o-connor-roberts_icf-member-badge-was-issued-by-international-activity-7457070949490757634-BMz9",
+          "published_at": "2026-05-04",
+          "author": "self",
+          "kind": "post",
+          "quote": "Renewed membership for another year following the renewal of my PCC credential.  When coaches have these badges, you know we are up to date with our membership and credentialing, aligned with the ethics and standards of the ICF, and keeping up to date with our professional development. View my verified achievement from International Coaching Federation.",
+          "words": 55,
+          "rank": 1,
+          "why": "self post on linkedin, 90d old"
+        },
+        {
+          "lead_key": "anita-oconnor-roberts",
+          "obs_id": "655c9df1a73a",
+          "platform": "site",
+          "url": "https://aocconsult.com/about",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Anita is an experienced HR, business planning and strategic organisational design and development specialist with a passion for people development, supporting individuals and organisations through change and growth.\n\u200b\nA Certified Professional Transformational Coach, Anita holds MSc degrees in Organisational Psychology, Supply Chain Management as well as a BA in HR Management. She brings over 20 years of strategic and practical experience in a variety of industries (government, logistics, cultural & creative industries, academic institutions, retail and hospitality) including strategic business planning, performance management, leadership development, Human Capital Advisory, management consultancy, coaching, training, professional development and assessments. She has supported hundreds of hiring managers, executive directors & senior management teams with critical hiring decisions. She has also coached leaders to the next level of performance in their current role, or in support of their advancement.",
+          "words": 132,
+          "rank": 2,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://aocconsult.com/about",
+        "https://linkedin.com/posts/anita-o-connor-roberts_icf-member-badge-was-issued-by-international-activity-7457070949490757634-BMz9"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "rima-taki",
+      "name": "Rima Taki",
+      "shortlist": [
+        {
+          "lead_key": "rima-taki",
+          "obs_id": "af719c050000",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/rima-al-taki-89180b47_what-is-loneliness-no-matter-how-connected-activity-7464907004566843392-ckQD",
+          "published_at": "2026-05-26",
+          "author": "self",
+          "kind": "post",
+          "quote": "What is loneliness? \n\nNo matter how connected we seem\u2026 most of us are lonely.",
+          "words": 14,
+          "rank": 1,
+          "why": "self post on linkedin, 68d old"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/posts/rima-al-taki-89180b47_what-is-loneliness-no-matter-how-connected-activity-7464907004566843392-ckQD"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "sarah-zakzouk",
+      "name": "Sarah Zakzouk",
+      "shortlist": [
+        {
+          "lead_key": "sarah-zakzouk",
+          "obs_id": "1555ef3e8f11",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/sarahzakzouk_wd-perspective-growth-isnt-built-on-always-activity-7486012501248204800-fOA0",
+          "published_at": "2026-07-23",
+          "author": "self",
+          "kind": "post",
+          "quote": "WD PERSPECTIVE\n\nGrowth isn\u2019t built on always getting it right.\nIt\u2019s built on trying again.\n\nOur brains are wired to prioritise safety. When we\u2019re faced with uncertainty, they naturally encourage us towards what\u2019s familiar and predictable.\n\nThat instinct has helped us survive. But in modern life, uncertainty is often where growth begins.\n\nWhether you\u2019re launching a business, introducing a new service, investing in equipment, hiring your first employee, returning from injury, preparing for competition, or learning a new skill - uncertainty is very much part of the process.\n\nConfidence rarely comes first. It develops through experience.\n\nEach time we step into uncertainty and discover we\u2019re capable of navigating it, our brains begin to update their expectations. Over time, what once felt unfamiliar becomes more familiar, and what once felt risky feels increasingly manageable.\n\nThe same principle applies to business.\n\nGrowth often means making decisions without complete certainty. Testing new ideas. Refining systems. Investing in people. Adapting to change.\n\nStrategy doesn\u2019t eliminate uncertainty. It helps us navigate it with greater clarity, confidence and purpose.\n\nAt Wellness Division we work alongside wellness businesses as they make those decisions - helping them build the strategy, systems and confidence to keep moving forwards.\n\nBecause growth isn\u2019t about waiting until you\u2019re certain. It\u2019s about knowing how to take the next step.",
+          "words": 224,
+          "rank": 1,
+          "why": "self post on linkedin, 10d old"
+        },
+        {
+          "lead_key": "sarah-zakzouk",
+          "obs_id": "d8f60d9eab77",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/sarahzakzouk_wellnessbusiness-businessstrategy-wellnessindustry-activity-7482027331335667712-SlX3",
+          "published_at": "2026-07-12",
+          "author": "self",
+          "kind": "post",
+          "quote": "Everyone is talking about the growth of the wellness industry.\n\nI\u2019m more interested in the health of the businesses within it.\n\nWorth $6.8 trillion today and projected to approach $9 trillion by 2029, the opportunity is undeniable.\n\nBut growth alone doesn\u2019t create sustainable businesses.\n\nThat\u2019s the conversation I want Wellness Division  to delve into. \n\nwww.wellnessdivision.com \n\n#perspective #wellness #wellnessconsultancy",
+          "words": 64,
+          "rank": 2,
+          "why": "self post on linkedin, 21d old"
+        },
+        {
+          "lead_key": "sarah-zakzouk",
+          "obs_id": "a1b968a820c8",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/sarahzakzouk",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I\u2019m the founder of Wellness Division, a consultancy focused on content, community, and education at the intersection of movement and personal development. With over a decade in the Pilates industry, I work with individuals and teams through coaching, education, and consultancy.\n\nI also run Pilates Middle East, an industry platform centred on Pilates education, recruitment, and talent development, connecting studios with practitioners across the region. I\u2019m a Level 4 personal trainer and teacher trainer, with a Master\u2019s degree in Publishing from UCL and a background in journalism. My coaching supports individuals and teams navigating growth, while my writing is evidence-based and community-driven, with a strong emphasis on expert interviews and practical knowledge-sharing.\n\nwww.wellnessdivision.com",
+          "words": 118,
+          "rank": 3,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/in/sarahzakzouk",
+        "https://linkedin.com/posts/sarahzakzouk_wd-perspective-growth-isnt-built-on-always-activity-7486012501248204800-fOA0",
+        "https://linkedin.com/posts/sarahzakzouk_wellnessbusiness-businessstrategy-wellnessindustry-activity-7482027331335667712-SlX3"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 224 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "amanda-slade",
+      "name": "Amanda Slade",
+      "shortlist": [
+        {
+          "lead_key": "amanda-slade",
+          "obs_id": "a959e96f3674",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/amanda-slade-18398b71",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "\u201cI am passionate about elevating people to achieve their full potential in every area of their life.\u201d\u200b \n\nI believe it's about you. For those that want to know a bit more ....\n\nHaving been responsible for running Christian Dior Jewellery within the UK and Ireland, and then holding an Exclusive UK & Ireland Agency for Luxury Jewellery and Fashion Brands including Christian Dior, (where I Increased Retail turnover for Christian Dior from \u00a31.2m to \u00a36m in 18 months), Guy Laroche, Casharel and others, Dealing with high end lux department stores and high net worth individuals.\n\nAfter change of scenery and adding a new different chapter in my life, I created Mini Moi, a successful unique children's boutique  later featured in Vogue for Style & Design.\n\nAnother change of scenery took me to Dubai, where I have been since and took a completely different route, and developed my skills over many years to become master coach.\n\nIt is here that I thrive. \n\nI am passionate about helping individuals unlock their fullest potential and achieve their desired outcomes. With a diverse skill set that includes being a Master NLP practitioner, hypnotist, and expert in identifying unconscious patterns and blockages through language analysis, I empower my clients to create sustainable, positive changes in their lives.\n\nMy approach to coaching is rooted in the latest findings in human physiology and psychology, including teaching neuroplasticity techniques that enable the brain to rewire and optimize its functions for growth and success. I excel in building easy rapport with my clients, creating a safe and trusting environment for open exploration and transformation.\n\nMy client base comprises high net worth individuals, industry leaders, and individuals seeking relationship coaching. With a dynamic and engaging coaching style, I help my clients develop new perspectives, strategies, and solutions that lead to tangible results. If you're looking to unlock your potential and create the life you want, I invite you to connect with me and explore how we can work together to achieve your goals. Let's embark on a transformative journey towards your success",
+          "words": 340,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/amanda-slade-18398b71"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 340 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "meg-juma",
+      "name": "Meg Juma",
+      "shortlist": [
+        {
+          "lead_key": "meg-juma",
+          "obs_id": "83310703748f",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/meg-juma-a4410a224",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I am a Learning & Development Strategist and Certified Professional Coach (ICF & CPCC) with over a decade of experience driving talent mobility and organisational excellence. My approach is rooted in behavioural psychology, allowing me to design learning solutions that bridge skill gaps while maximising business ROI.\n\nWhat I Do : \n\nFOR ORGANIZATIONS: I partner with leadership to identify functional capability gaps and design annual training portfolios that align with regional business priorities.\n\nFOR FEMALE PROFESSIONALS: I leverage a proprietary IP framework to provide strategic career-pathing and career development coaching, empowering women to navigate complex corporate transitions with confidence.",
+          "words": 96,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        },
+        {
+          "lead_key": "meg-juma",
+          "obs_id": "39ba270161df",
+          "platform": "site",
+          "url": "https://megjuma.com/pages/about-me",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "About Me\nTake a dive into who I am and what I do\nMY CAREER DEVELOPMENT JOURNEY.\nAs a seasoned Human Behavior Specialist and Co-active Coach, I am the proud founder of High on Ambition. My academic foundation is grounded in a Bachelor of Arts in Social Work, complemented by a Career Development Certification and a Certified Co-active Professional Coach Certification. Currently residing in the vibrant city of Dubai, I leverage the power of the internet to deliver my career development and organizational programs worldwide, focusing primarily on female professionals, entrepreneurs, and corporate entities.\nBefore launching High on Ambition in 2019, I accumulated extensive experience in the aviation industry, working with a global private jets company based in the UAE. This role enriched my knowledge and understanding of international business dynamics and client servicing.\nAdditionally, I have a rich background of seven years in non-profit organizations, government parastatals, and women's empowerment groups. My work has spanned across Africa, majorly contributing to initiatives directed towards women's economic empowerment. This experience has bestowed upon me a unique perspective on the interplay of individual ambition and societal growth.\nMy work has been recognized and featured in several media outlets, including Xpat Insider Dubai and Daily Nation. I consider it a privilege to have the opportunity to inspire and influence through these platforms.\nIn every endeavor, I am driven by my passion for understanding human behavior and helping individuals reach their highest potential. I remain committed to empowering those I work with, fostering a sense of ambition and encouraging them to rise above the status quo.",
+          "words": 262,
+          "rank": 2,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "db5a4a867f51",
+          "ban": "third_party",
+          "url": "https://bellanaija.com/2024/04/meg-juma-on-road-to-success-podcast"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://bellanaija.com/2024/04/meg-juma-on-road-to-success-podcast",
+        "https://linkedin.com/in/meg-juma-a4410a224",
+        "https://megjuma.com/pages/about-me"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 96 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "bahar-selman",
+      "name": "Bahar Selman",
+      "shortlist": [
+        {
+          "lead_key": "bahar-selman",
+          "obs_id": "992f56b71822",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/baharselman_i-thought-corporate-life-taught-me-everything-activity-7483182368472719360-6VoK",
+          "published_at": "2026-08-01",
+          "author": "self",
+          "kind": "post",
+          "quote": "I thought corporate life taught me everything about leadership.\n+10 years. Global brands. 8-figure portfolios. Teams across continents.\nBut...\n\nNothing prepared me for what I discovered in my first year as a coach.\n\nIn corporate, success was KPIs.\nIn coaching, it became transformation.\n\nI used to ask: \u201cWhat are your targets?\u201d\nNow I ask: \u201cWhat do you want to be remembered for?\u201d\n\nThat shift didn\u2019t just change my job.\n\nIt changed how I see people.\n\nBecause real leadership isn\u2019t about being the smartest in the room.\nIt\u2019s about making others feel smarter in your presence.\n\nWhat\u2019s one question you ask today that you never would\u2019ve asked 5 years ago?\n(Leadership is a conversation. Let\u2019s start one below.)",
+          "words": 123,
+          "rank": 1,
+          "why": "self post on linkedin, 1d old"
+        },
+        {
+          "lead_key": "bahar-selman",
+          "obs_id": "cd8e07d6f44e",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/baharselman_she-did-not-build-her-signature-brand-at-activity-7483909016922996737-O2u1",
+          "published_at": "2026-07-30",
+          "author": "self",
+          "kind": "post",
+          "quote": "She did not build her signature brand at 22.\nShe built it at 40.\n\nBefore everybody knew Vera Wang\u2019s name, she had already built multiple identities.\n\nFirst, she was a competitive figure skater.\n\nThen she worked for Vogue and Ralph Lauren.\n\nAfter all of these experiences, she launched the business that made her iconic.\n\nNow we are coming to the part that every corporate professional needs to hear.\n\nBecause so many people panic when their first path does not become their final path.\n\nI have coached hundreds of experienced professionals through career reinvention.\n\nMany of them were thinking at the beginning:\n\u201cI\u2019m behind.\u201d\n\u201cIf I change direction now, I\u2019m starting from zero.\n\nWhen you look at Vera Wang\u2019s story, it will tell you the opposite.\n\nA career with twists and turns does not mean you are lost.\n\nCareer paths are not linear.\nThere is no such thing.\n\nAt each point, you have built something: better taste, judgment, and the experience your next chapter will be built on.\n\nMany mid-senior professionals in transition see their past experience as random.\nBut this is not true.\n\nThe years in the wrong room, the years in the good-but-not-quite-right role, the years when you were learning without fully arriving\u2026\n\nThose years often become the foundation of your most aligned work.\n\nVera Wang did not \u201cstart late.\u201d\n\nShe started when her experience, identity, and perspective were finally strong enough to create something unique.\n\nCareer reinvention is all about bringing the pieces of your past together and making a new puzzle.\n\nConnecting the dots in a magical way.\n\nUnderstanding how to use your past for your future.\n\nThis is your reminder when your career path has been non-linear:\nYour first careers are not the destination.\nThey have been preparing you for what comes next.\n\nHave you seen someone build their next career chapter with courage?",
+          "words": 312,
+          "rank": 2,
+          "why": "self post on linkedin, 3d old"
+        },
+        {
+          "lead_key": "bahar-selman",
+          "obs_id": "4c63954fe1f1",
+          "platform": "site",
+          "url": "https://uphuman.co",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Become Up human : Unlock Your Human Capital and Become Up human !\nWe create energising coaching and training programs that move organisations and professionals forward so they become truly Up human.\nOur Solutions\nEngage Your Human Capital, Reach New Levels\nWe partner with ambitious professionals and teams needing to achieve immediate and lasting change. We work with you to create world-class corporate training and coaching to drive your success.\nCorporate Coaching Services\nUnlock Your Human Capital: Professional Coaching for Maximum Potential\nUphuman uses an evidence-based approach to help executives and team for transforming business results.\nOur coaching services are tailored to your needs and goals, providing you with the results you need to see in your people and organization.\nExecutive Coaching\nTeam Coaching\nContact Information\nDubai Marina, UAE\n+971585904110\ninfo@uphuman.co",
+          "words": 131,
+          "rank": 3,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 3,
+      "observed_urls": [
+        "https://linkedin.com/posts/baharselman_i-thought-corporate-life-taught-me-everything-activity-7483182368472719360-6VoK",
+        "https://linkedin.com/posts/baharselman_she-did-not-build-her-signature-brand-at-activity-7483909016922996737-O2u1",
+        "https://uphuman.co"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 123 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "marija-jovanovic",
+      "name": "Marija Jovanovic",
+      "shortlist": [
+        {
+          "lead_key": "marija-jovanovic",
+          "obs_id": "b2860a43d234",
+          "platform": "site",
+          "url": "https://abudhabipersonaltrainer.com",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Weight Loss Personal Trainers in Abu Dhabi & Dubai | Fitness Vibes\nVibe with us! Our clients on average lose 4-6 kg per month!\nTransform Your Body with A Personal Trainer in Abu Dhabi & Dubai\nAchieve real, lasting results with expert guidance - whether your goal is weight loss, body toning, strength, or flexibility.\nTrain at your home, in the gym, or outdoors with a certified personal trainer focused on your goal.\nMeet Our Experts\nPERSONAL TRAINERS IN ABU DHABI & DUBAI\nMarija\nBody transformation, weight loss, pre post natal, martial arts\nLearn More\nFitness Vibes\nPersonal trainers in Abu Dhabi & Dubai. Let's create your personalized training to transform your body and your life!\nService Areas:\nAbu Dhabi & Dubai",
+          "words": 115,
+          "rank": 1,
+          "why": "self about on site, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://abudhabipersonaltrainer.com"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 115 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "brandon-derrick",
+      "name": "Brandon Derrick",
+      "shortlist": [
+        {
+          "lead_key": "brandon-derrick",
+          "obs_id": "8d6fea34f39e",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/brandon-derrick-2b5a53181",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "FITNESS ENTHUSIAST \n\n\u2022Great knowledge about fitness and helping others reach their fitness goals.\n\n\u2022Easy to deal with and adaptive to any situation.\n\n\u2022Smart, intelligent and brilliant.\n\n\u2022 Aggressive, Reliable and able to work in busy and compacted places with different schedules.\n\n\u2022 Comprehensive knowledge of setting deadlines ensuring their timely completion of work.",
+          "words": 51,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/brandon-derrick-2b5a53181"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": []
+    },
+    {
+      "lead_key": "mina-asr",
+      "name": "Mina Asr",
+      "shortlist": [],
+      "rejected": [
+        {
+          "obs_id": "f4680621879f",
+          "ban": "third_party",
+          "url": "https://yourhomeofwellness.com/therapist/dr-mina-habibi"
+        }
+      ],
+      "observed": 1,
+      "observed_urls": [
+        "https://yourhomeofwellness.com/therapist/dr-mina-habibi"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "every observation was excluded \u2014 no hook found is a good answer, and the lead holds rather than failing"
+      ]
+    },
+    {
+      "lead_key": "silvia-coach",
+      "name": "Silvia Coach",
+      "shortlist": [
+        {
+          "lead_key": "silvia-coach",
+          "obs_id": "f1509cfcd0ea",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/silviabottini_leadership-leaders-leadershipdevelopment-activity-7480869201231011841-fxhZ",
+          "published_at": "2026-07-09",
+          "author": "self",
+          "kind": "post",
+          "quote": "\ud835\udc14\ud835\udc11\ud835\udc06\ud835\udc04\ud835\udc0d\ud835\udc02\ud835\udc18 \ud835\udc07\ud835\udc00\ud835\udc12 \ud835\udc00 \ud835\udc16\ud835\udc00\ud835\udc18 \ud835\udc0e\ud835\udc05 \ud835\udc02\ud835\udc0e\ud835\udc0d\ud835\udc15\ud835\udc08\ud835\udc0d\ud835\udc02\ud835\udc08\ud835\udc0d\ud835\udc06 \ud835\udc14\ud835\udc12 \ud835\udc13\ud835\udc07\ud835\udc00\ud835\udc13 \ud835\udc04\ud835\udc15\ud835\udc04\ud835\udc11\ud835\udc18\ud835\udc13\ud835\udc07\ud835\udc08\ud835\udc0d\ud835\udc06 \ud835\udc0c\ud835\udc00\ud835\udc13\ud835\udc13\ud835\udc04\ud835\udc11\ud835\udc12.\n\nIt interrupts.\nIt chases.\nIt creates noise.\n\nBut the decisions that shape our leadership, business, and our lives rarely arrive shouting.\n\nThey emerge quietly.\n\nAfter we've paused.\nAfter we've reflected.\nAfter we've given ourselves permission to think.\n\nUrgent competes for your attention.\u00a0Important asks for your intention. \n\nChoosing intentionally can change the course of your day, your week, and eventually your entire year.\n\nThat difference matters.\n\nSilvia - Executive Coach bCoached | Executive & Team Coaching | Leadership Development Coaching | Hogan Assessment Systems\n\n#Leadership #Leaders #LeadershipDevelopment #Career #Mindset  #LeadershipCoach #Business  #CareerTransition",
+          "words": 97,
+          "rank": 1,
+          "why": "self post on linkedin, 24d old"
+        },
+        {
+          "lead_key": "silvia-coach",
+          "obs_id": "fcdeb1d9a076",
+          "platform": "web",
+          "url": "https://bcoached.org",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "bCoached is an international executive, team and career coaching practice that blends emotional intelligence with business insight. We support professionals through key career transitions and help organizations build resilient, high-performing teams. Get In Touch With Us info@bcoached.org +971 56 180 0094 P.O. Box 336258, Dubai, UAE",
+          "words": 49,
+          "rank": 2,
+          "why": "self about on web, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://bcoached.org",
+        "https://linkedin.com/posts/silviabottini_leadership-leaders-leadershipdevelopment-activity-7480869201231011841-fxhZ"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 97 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "amjad-saijary",
+      "name": "Amjad Saijary",
+      "shortlist": [
+        {
+          "lead_key": "amjad-saijary",
+          "obs_id": "c72aed56adec",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/amjad-saijary",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "As a Robotics Trainer and STEM Coach at Pure Minds Academy, I developed interactive lessons on STEM, robotics, and programming for students aged 8-16. My work included teaching app development, 3D design, Python, LEGO, Arduino, artificial intelligence, and game design using Unreal Engine. I also prioritized hands-on learning by curating materials and engaging parents to foster a collaborative learning environment.  \n\nI hold a Bachelor\u2019s degree in Mechatronics, Robotics, and Automation Engineering from Tishreen University. My experience includes teaching programming, basic electronics, and STEM concepts with Arduino at Tishreen University and the Syrian Computer Society. I strive to empower the next generation of learners with practical knowledge and skills, combining my engineering expertise with a passion for education.",
+          "words": 118,
+          "rank": 1,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://linkedin.com/in/amjad-saijary"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 118 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "lisa-zevi",
+      "name": "Lisa Zevi",
+      "shortlist": [
+        {
+          "lead_key": "lisa-zevi",
+          "obs_id": "48c6b0532a19",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/posts/lisa-zevi_therealentrepreneur-getreal-coaching-activity-7488111142293336064-3MGC",
+          "published_at": "2026-07-29",
+          "author": "self",
+          "kind": "post",
+          "quote": "What do you measure in your business?\n\nIf you don\u2019t measure the critical elements of your business, you have no way of knowing where you are or where you're headed. Too much data can be just as bad as too little. It's not what you measure that's important but the meaning you give each measurement. \n\nMy Top Tips  on what and how to measure:- \n\ud83c\udf1f Focus on activity. It's easy to fixate on results but it's activity that leads to success. \n\ud83c\udf1f People. Without a team it's impossible to scale a business. How are you leveraging your people? \n\ud83c\udf1f Customer satisfaction. What's happening internally can never be more important than what your market is telling you. \n\ud83c\udf1f Productivity. How can you make your processes smoother, more consistent, less costly? \n\ud83c\udf1f Retention. Don't put all your focus on new clients. Look at retention metrics, cost of acquisition and client lifetime spend. \n\ud83c\udf1f Profit over revenue. The revenue number is the one everyone talks about but it's profit that'll keep you in business. \n\ud83c\udf1f Your expectations. What do you want from your business and how do you define success? \n\nHope you have a productive day!\n\n#therealentrepreneur #getreal #coaching #businessowner #selfcare #mentalhealth #entrepreneur #wednesdaywisdom",
+          "words": 195,
+          "rank": 1,
+          "why": "self post on linkedin, 4d old"
+        },
+        {
+          "lead_key": "lisa-zevi",
+          "obs_id": "5452d82d18cc",
+          "platform": "linkedin",
+          "url": "https://linkedin.com/in/lisa-zevi",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I work with business owners and professionals who are at moments of transition: -\n\n* Leaving employment and starting a business \u2013 confidence, focus, decision-making\n* Experiencing the growing pains of building a business \u2013 boundaries, time management, dealing with people\n* Raising money, growing fast and being pulled in multiple directions \u2013 trust, letting go, evolution of role, difficult conversations\n* Looking to take a step back and achieve a more balanced life \u2013 choices, handover, control\n\nBook in a Clarity Call to explore if my coaching will help you achieve the transition you desire.\n\nOrder your FREE copy of my bestselling books \u2018The REAL Entrepreneur: How to simplify, grow and enjoy your business\u2019 and 'The Business of Freedom: How to escape employment and build a business that works for you'.\n\nI help you free up your time, clear your head and get the best out of the people around you. I give you clarity and confidence. I help you simplify, grow and enjoy your business.\n\nEntrepreneur | TEDx Speaker | Bestselling Author | Operational Business Coach | COO in a BOX | Founder | Angel and Property Investor | Team Dynamics Partner | Lean Six Sigma Black Belt | Traveler | Scuba Diver | Optimist",
+          "words": 187,
+          "rank": 2,
+          "why": "self about on linkedin, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 2,
+      "observed_urls": [
+        "https://linkedin.com/in/lisa-zevi",
+        "https://linkedin.com/posts/lisa-zevi_therealentrepreneur-getreal-coaching-activity-7488111142293336064-3MGC"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 195 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "chris-de-nil",
+      "name": "Chris De Nil",
+      "shortlist": [
+        {
+          "lead_key": "chris-de-nil",
+          "obs_id": "cfbd3cc93de6",
+          "platform": "web",
+          "url": "https://triconnectcoaching.com/about",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "I am the Founder and Head Coach of TRI CONNECT COACHING, which I started in 2020. From a young age I was involved in sport, starting off in my younger years as an avid Rugby and Cricket player, which cultivated playing for the Golden Lions Rugby franchise in RSA. Shortly afterwards, I relocated to Dubai where I started taking an interest in endurance sport. It all started with running a few marathons, then riding a few Gran Fondos and then Triathlons were added to the mix. As I have shifted my own athletic focus to triathlon, my passion in coaching has started. This has led me to this point where I am now, dedicated in helping others realize their athletic aspirations. Belgian Born, South African raised, UAE career and current home... complicated but love all three countries dearly",
+          "words": 138,
+          "rank": 1,
+          "why": "self about on web, undated"
+        }
+      ],
+      "rejected": [],
+      "observed": 1,
+      "observed_urls": [
+        "https://triconnectcoaching.com/about"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 138 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    },
+    {
+      "lead_key": "stefania-brunori",
+      "name": "Stefania Brunori",
+      "shortlist": [
+        {
+          "lead_key": "stefania-brunori",
+          "obs_id": "63eff2d2df55",
+          "platform": "web",
+          "url": "https://stefaniabrunori.com/coaching-mentoring-and-personal-branding",
+          "published_at": "",
+          "author": "self",
+          "kind": "framework",
+          "quote": "The rise of digital content has made it possible to be seen 24 hours a day, 365 days a year \u2014 worldwide.\n\nWhether you\u2019re a solopreneur or a corporate executive, defining your identity, streamlining your potential, and aligning your personal values with your professional objectives empowers you with the focus, drive, and inspiration you need to rise above your current situation and reach your goals.\n\nBuilding your relevant story is a systematic process that we\u2019ll gently guide you through. First, we\u2019l start with an introductory kick-off coaching session. What is your service, your product? What are your goals? Then we\u2019ll audit your current brand and design your next steps. What makes you unique? How can we best communicate that to your target audience?\n\nWe also conduct group workshops and trainings upon request.",
+          "words": 135,
+          "rank": 1,
+          "why": "self framework on web, undated"
+        },
+        {
+          "lead_key": "stefania-brunori",
+          "obs_id": "400992450cad",
+          "platform": "web",
+          "url": "https://stefaniabrunori.com/about",
+          "published_at": "",
+          "author": "self",
+          "kind": "about",
+          "quote": "Brand Strategist and Marketing Specialist with over 15 years professional experience in managerial positions worldwide. Having worked extensively Europe and the Middle East, Stefania's core areas of expertise are Branding, Innovation, Social Media, Creativity and Integrated Marketing Practice. She develops and executes solid strategies and marketing campaigns to facilitate companies expand beyond their current limits. Born in Spain, Stefania relocated to Dubai, UAE, in 2009, where she has worked for multinational companies such as Teka and Nokia, as well as Middle East SME corporations with regional reach. Her most recent project has been to conceptualize and launch the online portal www.yoginfinity.com , the Middle East's most complete website for Yoga & Meditation.",
+          "words": 112,
+          "rank": 2,
+          "why": "self about on web, undated"
+        }
+      ],
+      "rejected": [
+        {
+          "obs_id": "eea433cbad02",
+          "ban": "stale",
+          "url": "https://open.spotify.com/show/4tYFIpwvXeMehD8UcLfwNq"
+        }
+      ],
+      "observed": 3,
+      "observed_urls": [
+        "https://open.spotify.com/show/4tYFIpwvXeMehD8UcLfwNq",
+        "https://stefaniabrunori.com/about",
+        "https://stefaniabrunori.com/coaching-mentoring-and-personal-branding"
+      ],
+      "agreement": "",
+      "agreement_note": "",
+      "notes": [
+        "TIGHT: the top pick is 135 words against 13 of room \u2014 a fair contraction, which is what the verifier allows, may not reach that far"
+      ]
+    }
+  ]
+}

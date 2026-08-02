@@ -352,3 +352,5 @@
 {"lead_key": "stefania-brunori", "stage": "research", "platform": "web", "url": "https://open.spotify.com/show/4tYFIpwvXeMehD8UcLfwNq", "retrieved_by": "websearch", "cost_usd": 0.0, "secs": 0.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T16:22:10+00:00"}
 {"lead_key": "amjad-saijary", "stage": "research", "platform": "web", "url": "https://stemforkids.ae", "retrieved_by": "webfetch", "cost_usd": 0.0, "secs": 0.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T16:22:10+00:00"}
 {"lead_key": "chris-de-nil", "stage": "research", "platform": "web", "url": "chris de nil triathlon coach dubai podcast", "retrieved_by": "websearch", "cost_usd": 0.0, "secs": 0.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T16:22:10+00:00"}
+{"kind": "pass", "stage": "hook", "agent": "hook-worker", "model": "sonnet", "count": 5, "at": "2026-08-02T16:27:55+00:00"}
+{"kind": "pass", "stage": "research", "agent": "research-worker", "model": "sonnet", "count": 1, "at": "2026-08-02T16:27:55+00:00"}
