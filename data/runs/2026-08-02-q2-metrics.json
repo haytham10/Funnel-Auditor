@@ -2,14 +2,20 @@
   "batch": "2026-08-02-q2",
   "leads": 15,
   "attempted": 15,
-  "verified": 3,
+  "verified": 9,
   "refuted": 1,
   "proposed": 0,
-  "none_found": 11,
-  "hook_yield": 0.2,
+  "none_found": 5,
+  "hook_yield": 0.6,
   "refute_rate": 0.067,
-  "null_hook_rate": 0.733,
+  "null_hook_rate": 0.333,
   "yield_by_rung": {
+    "about": {
+      "verified": 1
+    },
+    "li_profile": {
+      "verified": 5
+    },
     "li_posts": {
       "verified": 2
     },
@@ -18,7 +24,7 @@
     }
   },
   "by_hook_type": {
-    "WORK": 2,
+    "WORK": 8,
     "LIFE": 1
   },
   "escalated": 0,
@@ -27,30 +33,30 @@
   "declined_and_verified": 0,
   "declined_and_dry": 1,
   "ledger_read": true,
-  "retrievals": 160,
-  "cost_usd": 0.3437,
+  "retrievals": 171,
+  "cost_usd": 0.3637,
   "unpriced": 1,
-  "cost_per_verified_hook": 0.1146,
-  "wasted_retrieval_n": 51,
-  "wasted_retrieval_usd": 0.2781,
-  "duplicates": 16,
+  "cost_per_verified_hook": 0.0404,
+  "wasted_retrieval_n": 39,
+  "wasted_retrieval_usd": 0.1958,
+  "duplicates": 22,
   "raw": 20,
   "after_dedupe": 19,
   "warm": 0,
   "passed_floors": 16,
-  "written": 3,
-  "rejected": 0,
+  "written": 7,
+  "rejected": 2,
   "tier0_rate": 0.63,
   "source_list": "batch_queue_02_of_4_20.csv",
-  "agent_passes": 37,
+  "agent_passes": 91,
   "passes_by_stage": {
-    "hook": 21,
-    "draft": 12,
+    "draft": 49,
+    "hook": 38,
     "research": 4
   },
   "passes_by_model": {
-    "sonnet": 25,
-    "opus": 12
+    "opus": 49,
+    "sonnet": 42
   },
   "gaps": [
     "1 run(s) could not be priced \u2014 compute-billed actors are not a lookup failure, so the cost figures are a floor"

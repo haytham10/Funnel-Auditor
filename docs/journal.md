@@ -1,3 +1,105 @@
+## 2026-08-02 (re-run) — the same 20 leads, 3 emails to 7, on one gate change
+
+Haytham: re-run the batch with the fixed gate. Same research corpus, no fresh
+crawl — the change was `hook` accepting an empty `published_at` from a source
+that genuinely has none (D29).
+
+**hook_yield 20% -> 60%.** Nine verified hooks of fifteen attempted, against
+three. Six leads that had produced nothing now had a hook, and **not one of them
+needed new retrieval** — the material was already on disk and the gate had been
+refusing it.
+
+**The five nulls that stayed null are the better evidence.** Danyal, Sofie,
+Ahmed, Sharon and Yaser all came back empty again, every one of them on ban #1
+or on authorship, never on the date. Sofie's worker quoted her entire About
+section to show it was mission-statement copy end to end. Yaser's applied the
+test it was given — *does this sentence have Yaser in it, or the club in it* —
+and found both candidates were the gym describing itself, the same voice that
+refuted him the first time. Ahmed's is a profile card with no About paragraph
+behind it, researched twice and empty twice. The fix removed the date as a
+reason to reject and left every quality ban standing, which is exactly what it
+was supposed to do.
+
+**`escalation_rate` stayed 0%.** No verified hook needed a paid escalation.
+
+### The drafting stage is where this batch actually got expensive
+
+**Nine first drafts, nine linter passes, nine REWRITEs from the cold read.** Not
+one survived a human-equivalent read on the first attempt. Recurring shapes,
+worth naming because they will recur:
+
+- **Flattery routed through unnamed peers.** Three drafters independently wrote
+  "Most coaches can't/never…". A verifier drew the line precisely: John's
+  survived because it points at *an observable decision he made*; Geeta's and
+  Fatima's failed because they point at *other coaches' ignorance*. Fatima's was
+  also false — her own page names Tony Robbins' teams two paragraphs above.
+- **Telling the recipient what their own work is for.** Toleen's first draft said
+  her lecture hall was full of people who cannot pay her. "The seam works and
+  what it delivers is a verdict on her teaching."
+- **Discovery frames** — "Your profile says", "Noticed you also teach". Three.
+- **The sharpest catch, and unlintable:** John's identity beat read "Finding you
+  more of them is my job", where the nearest antecedent to "them" was
+  **Filipinos** — read by a man who very likely belongs to that group. Plus a
+  lowercased demonym in his subject, where the batch's house style of
+  lowercasing proper nouns collides with a word that is not a brand name.
+
+### Two leads held with verified hooks, and I let them
+
+**John** came back REWRITE a second time over a three-word aside ("capitals and
+all", which concedes a blemish before the compliment). The skill says back to
+the drafter **once**, then it passes or it holds. I had told the verifier in
+advance that it was the final pass. Inventing an exception after seeing the
+verdict is how a rule stops meaning anything, so he held.
+
+**Fatima** is the more interesting one. She passed, then my re-deal cost her
+seven words of hook room, the compression left a pronoun with no antecedent, and
+the repair surfaced a *third* fault: "the ones who taught you" closes a set her
+own page leaves open ("name few but not limited to"). I allowed one repair
+because the damage was mine, not hers — but four rounds each finding something
+new says the material is thin, not the wording unlucky. Both are small known
+fixes and should lead the next batch at near-zero cost.
+
+### The re-deal, and why `--rebalance-ps` was not enough
+
+Seven of fifteen held, so the deal made for fifteen left `b4-02` at 38% and
+`cta-03` at 50% against a 35% cap, and `export` **blocked the whole file**.
+Correctly. `--rebalance-ps` only moves the ps, which is the one beat with no part
+in the seam.
+
+Re-dealing across the shipping set lands every beat at 25%. The cost was smaller
+than the skill's warning implies: **only one lead's identity line moved**, and
+identity is the beat woven into the seam. The rest were library copy, so five
+leads needed a targeted re-voice and one needed a genuine rebuild.
+
+Worth recording for next time: `deal`'s `hook_room` is a projection off the
+**reference** identity length. A drafter who writes a longer identity beat eats
+the difference, so the real room can be several words tighter than the anchors
+file says. Fatima's drafter caught this and was right; my number was stale.
+
+### Two findings I could not act on inside the rules
+
+- **`b4-01` and `ps-05` collide** — "…before writing this" and "I read your work
+  before I wrote this one", same construction two sentences apart. A cold read
+  named it as an anchor-pairing fault. I added the phrase to `_ECHO_PHRASES`, it
+  worked, and it made `echo_pairs()` report a live pair — which fails a test
+  asserting the live bank has none. That test's history shows the repo's answer
+  to a collision is to **rewrite the copy in Airtable**, which is not mine to
+  edit. Reverted. **It is a three-cell fix in Copy Assets.**
+- **Jodie drew a `sells_to: any` identity line while selling to corporates**,
+  with corporate-specific lines available. An allocation question for the 70/30
+  exact-match ratio, not a draft defect.
+
+### Numbers
+
+7 written of 20 raw. hook_yield 60%, refute_rate 7%, null 33%, escalation 0%,
+declined_and_dry 1 of 2. $0.3637 over 171 retrievals, $0.0404 per verified hook.
+**91 agent passes: draft 49, hook 38, research 4** — the draft stage cost more
+than everything else combined, which is what nine unanimous REWRITEs buy.
+
+`crm-rows` caught me shipping `Body 0/19` — I had stripped `body` so `export`
+would reassemble it after the rebalance, and the CRM would have recorded seven
+emails with no text. The coverage block is the only reason that was visible.
+
 ## 2026-08-02 (D29) — the date comes from the source, and I fixed the wrong end first
 
 Haytham, after the `2026-08-02-q2` brief: fix the gate so About pages are not
