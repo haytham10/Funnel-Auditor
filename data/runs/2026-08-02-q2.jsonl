@@ -161,3 +161,6 @@
 {"lead_key": "linda@berlotgroup.com", "stage": "verify", "platform": "linkedin", "url": "https://linkedin.com/posts/linda-berlot-pcc-orscc-1aaa387_teamcoaching-teamcoachinguae-orscfundamentals-activity-7488949125506560001-_Whv", "retrieved_by": "apify:li_posts", "cost_usd": 0.01, "secs": 15.25, "outcome": "ok", "purpose": "verify", "at": "2026-08-02T11:22:32+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-worker", "model": "sonnet", "count": 11, "at": "2026-08-02T11:22:41+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 1, "at": "2026-08-02T11:22:41+00:00"}
+{"lead_key": "yaser@abudhabimuaythai.com", "stage": "hook", "platform": "instagram", "url": "https://instagram.com/abudhabimuaythai", "retrieved_by": "apify:ig_post", "cost_usd": 0.0075, "secs": 50.12, "outcome": "ok", "purpose": "observe", "at": "2026-08-02T11:24:43+00:00"}
+{"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 1, "at": "2026-08-02T11:27:10+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 3, "at": "2026-08-02T11:27:10+00:00"}
