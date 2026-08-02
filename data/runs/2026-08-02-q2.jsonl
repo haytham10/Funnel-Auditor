@@ -169,3 +169,5 @@
 {"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 1, "at": "2026-08-02T11:29:46+00:00"}
 {"kind": "pass", "stage": "draft", "agent": "draft-verifier", "model": "opus", "count": 1, "at": "2026-08-02T11:31:48+00:00"}
 {"kind": "pass", "stage": "draft", "agent": "draft-verifier", "model": "opus", "count": 1, "at": "2026-08-02T11:33:37+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-verifier", "model": "opus", "count": 1, "at": "2026-08-02T11:34:44+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 1, "at": "2026-08-02T11:34:44+00:00"}
