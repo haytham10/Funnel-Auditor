@@ -36,6 +36,14 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     ledger      what each retrieval cost and how long it took
     metrics     what the hook stage yielded, and what the leads that yielded
                 nothing cost. `?` for a count nobody supplied, never 0
+    verdict     validate a cold read before anything routes on it
+    redraft     route a wave of cold reads: who goes back, who holds, and the
+                one note that covers a beat several drafts failed on
+    collect     assemble a stage's state file from the per-lead files, instead
+                of out of the orchestrator's context
+    usage       what the batch cost in Claude tokens, MEASURED from the session
+                transcript — the half `ledger pass` cannot see, including the
+                orchestrator, which reports no passes and is usually the largest
     replies     join a Smartlead replies export on email — reply rate by hook
                 type and by the rung the hook came from
     apify       no-login LinkedIn / Instagram / YouTube / SERP fetch
@@ -51,6 +59,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -339,17 +348,28 @@ def cmd_research(args) -> None:
               "is a worker that returned nothing, not a slice that passed.")
         sys.exit(2)
 
-    failed = 0
+    # One lead is somebody debugging one lead; print everything. A slice is the
+    # orchestrator checking a worker, and there the full block for a lead that
+    # passed is four lines nobody acts on that stay in its context for the rest
+    # of the run. `--verbose` restores the old output.
+    full = args.verbose or len(data) == 1
+    failed = quiet = 0
     for entry in data:
         if not isinstance(entry, dict):
             print(f"RESEARCH: FAIL — array holds a {type(entry).__name__}, "
                   f"expected an object per lead.")
             sys.exit(2)
         obj = r.Research.from_dict(entry)
-        print(r.report(obj))
+        if full or r.needs_a_look(obj):
+            print(r.report(obj))
+        else:
+            print(r.headline(obj))
+            quiet += 1
         failed += 1 if r.validate(obj) else 0
     if len(data) > 1:
-        print(f"RESEARCH: {len(data) - failed}/{len(data)} valid")
+        print(f"RESEARCH: {len(data) - failed}/{len(data)} valid"
+              + (f", {quiet} clean lead(s) shown as one line each — "
+                 f"--verbose for the evidence" if quiet else ""))
     sys.exit(1 if failed else 0)
 
 
@@ -1707,8 +1727,29 @@ def cmd_select(args) -> None:
 # -------------------------------------------------------------------- fetching
 
 
+def _apify_slug(args, cmd: str) -> str:
+    """A deterministic file name for one (lead, target) fetch.
+
+    Deterministic rather than timestamped on purpose: the retrieve-once
+    invariant says the same page is fetched once, so the same fetch overwriting
+    its own file is right, and two different targets for one lead must not
+    collide. The hash is of the target, so both hold.
+    """
+    import hashlib
+
+    target = ""
+    for attr in ("url", "urls", "addresses"):
+        value = getattr(args, attr, None)
+        if value:
+            target = "|".join(value) if isinstance(value, (list, tuple)) else str(value)
+            break
+    digest = hashlib.sha1(target.encode("utf-8", "replace")).hexdigest()[:8]
+    lead = re.sub(r"[^A-Za-z0-9._-]", "-", getattr(args, "lead", "") or "").strip("-")
+    return f"{lead}-{digest}" if lead else digest
+
+
 def cmd_apify(args) -> None:
-    """No-login third-party fetch layer. Prints JSON for the calling skill.
+    """No-login third-party fetch layer. Writes JSON, prints a summary.
 
     Every run is cost-gated: a call whose estimate is unknown or over the
     approval threshold exits 3 rather than running.
@@ -1768,7 +1809,38 @@ def cmd_apify(args) -> None:
     except apify.ApifyError as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         sys.exit(1)
-    print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+
+    payload = json.dumps(out, indent=2, ensure_ascii=False, default=str)
+    # `limits` and `actors` are the answer, not a payload — a budget check that
+    # wrote its number to a file would be absurd. Everything else is a dataset.
+    if cmd in ("limits", "actors") or getattr(args, "print_payload", False):
+        print(payload)
+        return
+
+    target = Path(getattr(args, "out", "") or ledger.artifact(
+        f"-apify-{cmd}-{_apify_slug(args, cmd)}.json",
+        batch=getattr(args, "batch", "") or ""))
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(payload, encoding="utf-8")
+    except OSError as exc:
+        # Falling back to stdout is the expensive path, so it says so rather
+        # than silently doing the thing this change exists to stop.
+        print(f"APIFY: could not write {target} ({exc}) — printing instead, "
+              f"which is the path that costs context.")
+        print(payload)
+        return
+    summary = apify.summarise(out)
+    print(f"APIFY {cmd}: {summary['items']} item(s), {summary['with_text']} "
+          f"with text"
+          + (f", {summary['oldest'][:10]} to {summary['newest'][:10]}"
+             if summary["newest"] else "")
+          + f", {len(payload):,} bytes")
+    if summary["keys"]:
+        print(f"  fields: {', '.join(summary['keys'])}")
+    print(f"  wrote {target}")
+    print(f"  Read it, or grep it. It is not printed here on purpose: this "
+          f"command used to put its whole dataset in your context.")
 
 
 def cmd_classify_footprint(args) -> None:
@@ -1869,7 +1941,7 @@ def cmd_ledger(args) -> None:
               f"not read.")
         sys.exit(2)
     print(ledger.report(records, batch=args.batch, malformed=malformed,
-                        leads=args.leads))
+                        leads=args.leads, verbose=args.verbose))
 
 
 def cmd_metrics(args) -> None:
@@ -1928,6 +2000,21 @@ def cmd_metrics(args) -> None:
         # orchestrator, and the report says so on every line.
         metrics.add_passes(out, ledger.read_passes(args.batch))
 
+    # The measured half of the same bill. Absent is `?`, never 0 — a batch whose
+    # session ended before `usage` ran did not cost nothing, and the artifact is
+    # the only part of a transcript that outlives its container.
+    usage_path = Path(args.usage or ledger.artifact("-usage.json", batch=args.batch))
+    if usage_path.is_file():
+        try:
+            metrics.add_usage(out, json.loads(usage_path.read_text(encoding="utf-8")))
+        except ValueError:
+            out.gaps.append(f"{usage_path} is not readable JSON — token counts "
+                            f"are ?, and ? is not zero")
+    else:
+        out.gaps.append(f"no {usage_path.name} — run `usage --batch "
+                        f"{args.batch or '<batch>'}` before this session ends, "
+                        f"or the batch's largest cost dies with the container")
+
     # D21's reversal condition. The declines bind as of D27, so this is the
     # evidence the gate was held back for two batches waiting on.
     if args.plan:
@@ -1948,6 +2035,159 @@ def cmd_metrics(args) -> None:
                           if args.batch else "")
     if target:
         print(f"  wrote {metrics.write_artifact(out, target)}")
+    sys.exit(0)
+
+
+def cmd_collect(args) -> None:
+    """Assemble a stage's state file from the per-lead files on disk.
+
+    `work/researched.json`, `work/draftable.json` and `work/drafts.json` were
+    written by no command — the orchestrator serialised each one out of its own
+    context, which is the most expensive way to concatenate JSON and the reason
+    no stage here could be resumed by anything that was not present when it ran.
+
+    **Fails closed and prints coverage.** `crm-rows` is the precedent: twenty
+    rows once went in with five empty columns on all of them, and the check that
+    passed them reported 20/20 by looking only at fields that were populated.
+    """
+    from outbound import collect as co
+
+    expect = []
+    if args.expect:
+        rows = _load_json(args.expect, "COLLECT")
+        rows = rows if isinstance(rows, list) else [rows]
+        expect = [str(r.get("slug") or "").strip() for r in rows
+                  if isinstance(r, dict)]
+
+    got = co.collect(args.where, args.stage, expect=expect)
+    print(co.report(got))
+    if got.members:
+        print(f"  wrote {co.write(got, args.out)}")
+    sys.exit(1 if co.failed(got) else 0)
+
+
+def cmd_verdict(args) -> None:
+    """Validate what the cold read decided, before anything routes on it.
+
+    The draft verdict had no artifact until now: `draft-verifier` returned SEND,
+    REWRITE or REJECT as prose and had no `Write` tool, so the skill's own line
+    was "the verdict lives in an agent, nothing in Python can reach it". A
+    verdict only the orchestrator can read is a verdict only the orchestrator can
+    route, which is why every one of them arrived on its own turn inside a
+    600k-token context.
+
+    The shape is `draft-verifier.md`'s own contract. The one change is that
+    `beat` is an enum, because a wave's findings have to be counted by it and
+    free text does not cluster.
+    """
+    from outbound import verdict as v
+
+    data = _load_json(args.input, "VERDICT")
+    items = v.load(data)
+    if not items:
+        print("VERDICT: FAIL — no verdicts to validate. An empty wave is a "
+              "cold read that did not happen, not one where nothing was wrong.")
+        sys.exit(2)
+    print(v.report(items))
+    sys.exit(1 if v.validate_all(items) else 0)
+
+
+def cmd_redraft(args) -> None:
+    """Route a wave of cold reads: who goes back, who holds, and what to say.
+
+    Two things this replaces, both measured.
+
+    **The cap.** `SKILL.md` has always said a REWRITE goes back to the drafter
+    once and then the lead holds. Eight of nine leads exceeded it on
+    `2026-08-02-q2` and eight on `2026-08-02-q3`; the repeats were 68% and 46%
+    of those draft stages. It is a loop bound now.
+
+    **The clustering.** Seventeen of seventeen drafts on q3 failed their first
+    cold read on the same beat and were answered one at a time, because a reader
+    going lead by lead cannot see the seventeenth until they have paid for
+    sixteen. Counting makes the pattern visible on the first pass.
+
+    **Never exits 1 on a routing decision** — a wave where everything holds is a
+    real answer. Exit 1 is only its own output failing its own schema, the same
+    rule as `plan` and `select`.
+    """
+    from outbound import redraft as rd, verdict as v
+
+    if Path(args.input).is_dir():
+        items = v.read_dir(args.input)
+        source = f"{args.input} ({len(items)} verdict file(s))"
+    else:
+        items = v.load(_load_json(args.input, "REDRAFT"))
+        source = args.input
+    if not items:
+        print(f"REDRAFT: FAIL — no verdicts in {source}. An empty wave is a "
+              f"cold read that did not happen.")
+        sys.exit(2)
+
+    broken = [i for i in items if v.validate(i)]
+    if broken:
+        print(v.report(items))
+        print(f"REDRAFT: FAIL — {len(broken)} verdict(s) do not validate. "
+              f"Routing on a malformed verdict is how a lead gets redrafted "
+              f"against no instruction.")
+        sys.exit(2)
+
+    out = rd.plan(items, max_rounds=args.max_rounds, cluster_min=args.cluster_min)
+    print(rd.report(out, cluster_min=args.cluster_min))
+
+    if args.out:
+        Path(args.out).write_text(json.dumps(out.to_dict(), indent=2, default=str),
+                                  encoding="utf-8")
+        print(f"  wrote {args.out}")
+    sys.exit(0)
+
+
+def cmd_usage(args) -> None:
+    """The Claude bill, measured from this session's transcript.
+
+    `ledger pass` records that an agent ran and cannot record what it cost —
+    neither an orchestrator nor a worker can see its own token usage. So the
+    model side had a count and no magnitude, and `2026-08-02-q3` reported 185
+    passes while 75% of the batch went to a thread that reports no passes at all.
+
+    **Exit 2 when it cannot read a transcript**, naming where it looked. The
+    layout belongs to the harness and can move; a zero here would read as "this
+    batch used no agents", which is the wall's asymmetry again. **Never exit 1** —
+    an accounting command that can halt a send file gets routed around.
+
+    Transcripts live on the session's own container and die with it. Run this
+    before the session ends, or the batch's largest cost is unrecoverable.
+    """
+    from outbound import ledger, usage
+
+    try:
+        sources = usage.discover(args.transcripts)
+    except usage.TranscriptsUnreadable as exc:
+        print(f"USAGE: FAIL — {exc}")
+        sys.exit(2)
+
+    turns = usage.read_turns(sources)
+    if not turns:
+        print(f"USAGE: FAIL — read {len(sources.main)} transcript(s) and "
+              f"{len(sources.subagents)} subagent file(s) under {sources.root}, "
+              f"and found no assistant record carrying `message.usage`. That is "
+              f"a shape this does not recognise, not a batch that cost nothing.")
+        sys.exit(2)
+
+    out = usage.summarise(turns, batch=args.batch or "", sources=sources)
+    print(usage.headline(out) if args.quiet else usage.report(out))
+
+    target = args.out or (ledger.artifact("-usage.json", batch=args.batch)
+                          if args.batch else "")
+    if target:
+        written = usage.write_artifact(out, target)
+        print(f"  wrote {written}" if not args.quiet else f"  wrote {written.name}")
+        if not args.quiet:
+            print(f"  `metrics --written <n>` reads it for tokens_per_email, "
+                  f"which is the control number for any change to the "
+                  f"orchestration.")
+    if args.json:
+        print(json.dumps(out, indent=2, default=str))
     sys.exit(0)
 
 
@@ -2042,7 +2282,9 @@ def cmd_doc_check(args) -> None:
 def build_parser() -> argparse.ArgumentParser:
     # Imported for one default. `doc-check` builds this parser, so anything
     # heavy at import time here is paid by the test suite too.
+    from outbound import collect as collect_defaults
     from outbound import fetch as fetch_defaults
+    from outbound import redraft as redraft_defaults
     from outbound import select as select_defaults
 
     parser = argparse.ArgumentParser(
@@ -2075,6 +2317,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("research", help="validate a worker's research object")
     p.add_argument("input", help="JSON file, or '-' for stdin")
+    p.add_argument("--verbose", action="store_true",
+                   help="the full block for every lead, not just the ones with "
+                        "a problem or a blocker. One lead is always full")
     p.set_defaults(func=cmd_research)
 
     p = sub.add_parser("observe", help="validate what a worker actually fetched")
@@ -2311,6 +2556,10 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--leads", type=int, default=0,
                    help="the batch's real lead count, so cost/lead is not "
                         "computed over only the leads that needed a fetch")
+    a.add_argument("--verbose", action="store_true",
+                   help="every duplicate pair, not the shapes they fall into. "
+                        "129 pairs in one batch were three shapes, and the "
+                        "shape is what the fix reads")
 
     p_ledger.set_defaults(func=cmd_ledger)
 
@@ -2340,7 +2589,60 @@ def build_parser() -> argparse.ArgumentParser:
                                   "carrying a declined rung, how many produced "
                                   "a verified hook — D21's reversal condition, "
                                   "and the evidence the decline gate binds on")
+    p.add_argument("--usage", help="usage --out's file (default "
+                                   "data/runs/<batch>-usage.json). The MEASURED "
+                                   "token bill, against the REPORTED pass counts")
     p.set_defaults(func=cmd_metrics)
+
+    p = sub.add_parser("collect",
+                       help="assemble a stage's state file from the per-lead "
+                            "files, instead of out of the orchestrator's context")
+    p.add_argument("stage", choices=sorted(collect_defaults.STAGES),
+                   help="which state file to build")
+    p.add_argument("--where", default="work",
+                   help="the directory holding the per-lead files (default work/)")
+    p.add_argument("--out", help="override the output path")
+    p.add_argument("--expect", help="a JSON list carrying the slugs this stage "
+                                    "should produce. 'found six' and 'found six "
+                                    "of seventeen' are the whole check")
+    p.set_defaults(func=cmd_collect)
+
+    p = sub.add_parser("verdict",
+                       help="validate a cold read before anything routes on it")
+    p.add_argument("input", help="JSON file (one verdict, a list, or a "
+                                 "{slug: verdict} map), or '-' for stdin")
+    p.set_defaults(func=cmd_verdict)
+
+    p = sub.add_parser("redraft",
+                       help="route a wave of cold reads: who goes back, who "
+                            "holds, and the one note that covers a shared beat")
+    p.add_argument("input", help="a directory of verdict-<slug>.json, or one "
+                                 "JSON file holding them")
+    p.add_argument("--out", help="write the routing plan as JSON")
+    p.add_argument("--max-rounds", type=int, default=redraft_defaults.MAX_ROUNDS,
+                   help="rounds a lead may have before it holds. SKILL.md has "
+                        "always said one repair; as a sentence it lost on both "
+                        "measured batches")
+    p.add_argument("--cluster-min", type=int, default=redraft_defaults.CLUSTER_MIN,
+                   help="how many leads must share a beat before it is one "
+                        "stage problem rather than N lead problems")
+    p.set_defaults(func=cmd_redraft)
+
+    p = sub.add_parser("usage",
+                       help="what the batch cost in Claude tokens, measured "
+                            "from the session transcript")
+    p.add_argument("--batch", help="batch label (default OUTBOUND_BATCH, then today)")
+    p.add_argument("--transcripts",
+                   help="the session's project directory, when it is not where "
+                        "this expects it (~/.claude/projects/<slug>)")
+    p.add_argument("--out", help="where to write the JSON artifact "
+                                 "(default data/runs/<batch>-usage.json)")
+    p.add_argument("--quiet", action="store_true",
+                   help="one line instead of the block. For the stage-boundary "
+                        "checkpoint, where the artifact is the point and the "
+                        "reading is not")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_usage)
 
     p = sub.add_parser("replies",
                        help="join a Smartlead replies export to the batch, "
@@ -2374,6 +2676,16 @@ def build_parser() -> argparse.ArgumentParser:
         """
         parser_.add_argument("--lead", default="",
                              help="the lead this retrieval is for (ledger)")
+        # The payload goes to a file and a summary goes to stdout, like every
+        # other bulk stage here. This was the one command that printed its whole
+        # dataset into the caller's context.
+        parser_.add_argument("--out", default="",
+                             help="where to write the payload (default "
+                                  "data/runs/<batch>-apify-<cmd>-<lead>.json)")
+        parser_.add_argument("--print", dest="print_payload", action="store_true",
+                             help="print the payload instead of writing it. For "
+                                  "debugging by hand: in an agent this is the "
+                                  "300 KB that made a batch expensive")
         parser_.add_argument("--stage", default="research",
                              help="fetch | research | hook | verify (ledger)")
         parser_.add_argument("--purpose", default="observe",

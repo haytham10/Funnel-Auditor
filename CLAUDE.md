@@ -90,6 +90,13 @@ repair path.
 - **The preview is the gate.** No automated check replaces reading ten emails in
   full before uploading. The linter catches invented numbers and lost claims; it
   cannot catch a hook that lands wrong on a specific person.
+- **The orchestrator's context is the largest cost in a run, measured.** Across
+  `2026-08-02-q2` and `q3`, **75% of every token spent was the main loop** — not
+  the drafters, not the researchers. 410M tokens for 22 emails, and two-thirds of
+  what was re-read on each of ~390 turns was the orchestrator's own writing. So:
+  **fan out a whole wave in one message**, let a command read the files rather
+  than reading twelve objects into the loop, and never narrate per lead. None of
+  that trades away a check — the money was never in the work.
 - **Copy rules, every email:** no em-dashes. No operator jargon (funnel,
   conversion, audit, sequence). No weak closers. Sign off "Haytham". Numbers with
   separators. No gendered pronoun in an identity line.
@@ -207,6 +214,31 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   prints the Batches row as a paste-ready block and **does not write it** —
   Python computes, a human still sees the row land. Exit 2 on an unreadable
   ledger, **never exit 1**, same rule as the ledger.
+- `python main.py usage --batch <label>` — the Claude bill, **measured** from the
+  session's own transcripts, against `ledger pass`'s **reported** counts. A pass
+  is an invocation and says nothing about magnitude: q3 reported 185 passes
+  accurately and could not say the batch spent 182M tokens, or that **75% of them
+  were the orchestrator**, which reports no passes at all because nobody records
+  one for the loop they are typing in. Tokens, not dollars — `record_pass` is
+  right that prices go stale, and that argument is about prices. **Run it before
+  the session ends**: transcripts die with the container, and the artifact is the
+  only part that outlives them. Exit 2 on a shape it cannot read, never exit 1.
+- `python main.py verdict <file>` — the cold read's schema, which did not exist
+  until 2026-08-02. `problems[].beat` is an **enum** because a wave's findings
+  are counted by it, and a REWRITE naming no problem is rejected: it would re-run
+  a drafter against no instruction.
+- `python main.py redraft work/ --out work/redraft.json` — who goes back, who
+  holds, and **one shared note per beat several drafts failed on**. The one-repair
+  cap is a loop bound here rather than a sentence; as a sentence it lost on both
+  measured batches. Seventeen of seventeen q3 drafts failed on the same beat and
+  were repaired individually, because nothing counted them — a reader going lead
+  by lead cannot see the seventeenth until they have paid for sixteen. **Never
+  exits 1 on a routing decision.**
+- `python main.py collect <stage>` — builds `researched.json`, `draftable.json`
+  and `drafts.json`, which no command produced before: the orchestrator
+  serialised each out of its own context. `--expect` prints coverage and fails
+  closed, which is `crm-rows`' lesson — a count of what was found is not a count
+  of what should exist.
 - `python main.py replies <export.csv> --leads <research.json>` — the manual
   Smartlead bridge, the only path here to reply data. Reply rate by `hook_type`
   and by rung, which is what `Hook Type` has been a CRM select for since the

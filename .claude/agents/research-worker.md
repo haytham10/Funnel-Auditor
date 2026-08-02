@@ -62,6 +62,13 @@ In order. Stop as soon as the datum is settled.
    `python main.py apify li-posts <url> --max 5 --since 3months`,
    `apify li-profile <url>`, `apify ig <url> --mode details`.
 
+   **These write a file and print a summary. Read the file.** The summary gives
+   you the item count, how many carry text, and the date range — enough to know
+   whether it is worth opening. Grep it if you only want one field. It stopped
+   printing the payload because it was the only command here that did: three
+   Instagram runs on `2026-08-02-q2` put 914,685 bytes into a worker's context,
+   about a third of the whole window, and nothing downstream needed most of it.
+
    **The window on that call is not yours to pick.** It is
    `outbound/plan.py`'s, on the `li_posts` rung, and `doc-check` fails if this
    line drifts from it. It used to say `--max 5` with no window while the hook

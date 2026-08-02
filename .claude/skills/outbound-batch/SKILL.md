@@ -64,6 +64,25 @@ python main.py apify limits
 Pass the answer into every worker prompt. If it is near cap, tell the workers to
 prefer `unclear` over a paid call.
 
+## Checkpoint the token bill at every stage boundary
+
+At the end of stage 2, 3b, 4, 5 and 6 — one line, and move on:
+
+```
+python main.py usage --batch <label> --quiet
+```
+
+It rewrites `data/runs/<label>-usage.json` each time, so **a run that dies in
+stage 3 still leaves its accounting**. That is the ledger's rule applied to the
+model side, and it is the one way the two differ: the retrieval ledger appends a
+line at the moment of each fetch and is committed, while this is computed from
+transcripts that **die with the container**. Run it only at the end and a session
+that closes early leaves no record of its largest cost at all.
+
+`--quiet` is one line on purpose. Eleven lines five times over is sixty lines of
+your own context spent watching yourself, which would be a small version of the
+thing being measured.
+
 ## Stage 1 — the free site read
 
 ```
@@ -345,13 +364,26 @@ observation it names — ban #3, mechanical for the first time, because until th
 hook stage read a shortlist there was nothing to check a quote against. A worker
 that reports a hook with no PASS line has skipped it.
 
-Pipeline these: a hook can be verified while other hooks are still being found.
-Do not wait for all the workers before starting any verifier.
+**Work in waves, and fan out a whole wave in ONE message.** Put every
+`hook-worker` for the wave in a single message with multiple tool calls, wait for
+them, then fan out every `hook-verifier` the same way. Not one lead per turn.
 
-A REFUTED or INCONCLUSIVE hook means that lead is not drafted this round. Say so
-in the brief. Do not substitute a weaker hook to keep the count up.
+This used to say "pipeline these: do not wait for all the workers before starting
+any verifier", which is good advice about latency and turned out to be the single
+most expensive instruction in the file. Pipelining means a verdict arrives on its
+own turn, and every turn re-reads the whole context — measured at 578k-684k
+tokens by the end of a run, 75% of both batches' entire cost. Twenty leads
+pipelined is eighty turns at full context. Four waves of five is eight.
 
-**Two tripwires, and they mean different things.**
+**A wave is six leads.** This had been used as a tripwire boundary twice and
+never defined, so "the first wave" meant whatever the orchestrator had happened
+to run.
+
+A REFUTED or INCONCLUSIVE hook means that lead is not drafted this round. Do not
+substitute a weaker hook to keep the count up.
+
+**Two tripwires, and they mean different things.** Both are read off the wave's
+verdict files, not off what you remember of it.
 
 - **Refutes.** If the verifier refutes 2 or more of the first wave, stop and
   show Haytham before spending the rest of the queue. Post-flip this is the
@@ -366,11 +398,19 @@ in the brief. Do not substitute a weaker hook to keep the count up.
 the workers know you mean it; an orchestrator that reacts to null hooks by
 pushing for more escalation converts the honest outcome into the expensive one.
 
-**Write the whole verified hook back onto the lead's research object, before
-stage 4.** This is a step, not a note. The verdict lives in an agent, nothing in
-Python can reach it, and **both `crm-rows` and `metrics` read these fields off
-the research object and nowhere else** — not off the drafts, which have them.
-Six fields, all of them:
+**The verifier writes its verdict to `work/hookverdict-<slug>.json`.** It has
+`Write` now. This used to be six fields per lead that *you* copied out of the
+verifier's reply and onto the research object by hand, and the reason was that
+the verdict lived in an agent and nothing in Python could reach it. It can now.
+
+Merge them onto the research objects in one step, then check the result:
+
+```
+python main.py collect research --where work --expect work/draftable.json
+```
+
+**Both `crm-rows` and `metrics` read these fields off the research object and
+nowhere else** — not off the drafts, which have them. Six fields, all of them:
 
 | field | who reads it |
 |---|---|
@@ -409,12 +449,44 @@ would get the single-lead line rather than the dealt one, which breaks the
 balancing you just paid for and leaves the CRM record disagreeing with the email
 that shipped.
 
-Each draft goes to `draft-verifier`, which reads it cold.
+**One wave per message, same as stage 3b.** Every drafter for the wave in one
+message, then every `draft-verifier` in one message. The workers write
+`work/draft-<slug>.json`; the verifiers write `work/verdict-<slug>.json`. Their
+replies are one line each and you do not need more than that — everything is on
+disk.
+
+**Then route the wave with a command, not by reading verdicts one at a time:**
+
+```
+python main.py redraft work --out work/redraft.json
+```
+
+It prints who ships, who goes back and who holds — and, when several drafts fail
+on the same beat, **one shared correction covering all of them**. Send that one
+note to the whole group. Do not write a note per lead.
+
+This is the stage that made the last two batches expensive, and neither cause was
+carelessness. On `2026-08-02-q3` all seventeen first drafts failed their cold
+read on the same beat, and they were repaired seventeen separate times, because
+nothing counted them and a reader going lead by lead cannot see the seventeenth
+until they have paid for sixteen. The nineteen redraft prompts carried 1.6x the
+text of all seventeen original briefs. `redraft` shows that pattern on the first
+pass.
+
+**The cap is enforced now.** A lead already on round 2 holds; `redraft` will not
+put it back in the redraft set no matter how reasonable the exception looks at
+hour nine. Eight of nine leads exceeded the cap on q2 and eight on q3.
 
 - **SEND** → into the export set.
-- **REWRITE** → back to the drafter once, with the verifier's note. Then it
-  either passes or it holds.
+- **REWRITE** → back to the drafter once, with the note `redraft` gives you —
+  shared where the beat is shared. Then it either passes or it holds.
 - **REJECT** → holds. No row.
+
+When the loop settles, assemble the export set:
+
+```
+python main.py collect drafts --where work --expect work/redraft.json
+```
 
 ## Stage 5 — the file
 
@@ -644,6 +716,25 @@ One line per fan-out, `--count` for the size of it. `metrics` then prints
 readable at all — `2026-08-01-q1` cost about 64 passes for 20 leads and 5
 shipped rows, and the only record was the number 64.
 
+**Then measure it, before this session ends:**
+
+```
+python main.py usage --batch <label>
+```
+
+A pass count is not a magnitude. `2026-08-02-q3` reported 185 passes accurately
+and the number could not say that the batch spent 182M tokens, or that 75% of
+them went to this loop rather than to any worker — the orchestrator reports no
+passes at all, because nobody records one for the thread they are typing in.
+`usage` reads the session's own transcripts and writes
+`data/runs/<batch>-usage.json`, which `metrics` picks up.
+
+**This is the last of the checkpoints, not the only one.** You have been running
+`usage --batch <label> --quiet` at every stage boundary since stage 2, so the
+artifact already exists and this call is the final, complete one. Transcripts
+live on this container and die with it; the artifact is the only part that
+outlives them.
+
 Quote the `METRICS` block into the brief. Four lines matter most, and the first
 two are the ones this batch exists to produce:
 
@@ -729,11 +820,30 @@ sees a template no per-email reader can, `crm-rows` replaces a script and the
 audit of it. When something can be checked mechanically, it must not cost an
 agent pass.
 
-**Your own context is the largest single cost in a run.** Work from files and
-quoted gate lines, not inline payloads. The workers return typed objects and
-every gate prints one quotable line — that is what those two designs are for.
-Reading twelve research objects into the main loop to decide something a
-command already answered is the most expensive way to be sure.
+**Your own context is the largest single cost in a run, and it is not close.**
+This used to be an assertion. It was measured on 2026-08-02: across `q2` and
+`q3`, **75% of every token spent was this loop** — not the drafters, not the
+researchers, not the verifiers. Two batches, 410M tokens, 22 emails. The context
+reached 578k-684k and every turn re-read all of it, and about two-thirds of what
+was being re-read was the orchestrator's own writing.
+
+Four habits follow from that number, in order of what they cost:
+
+1. **Fan out a whole wave in one message.** Turns are the multiplier: every turn
+   pays for the entire context again. One message with six tool calls costs one
+   turn; six messages cost six, each more expensive than the last.
+2. **Let a command read the files.** `redraft`, `collect`, `select` and `metrics`
+   exist so that a decision over twelve objects costs one tool result instead of
+   twelve. Reading twelve research objects into this loop to decide something a
+   command already answered is the most expensive way to be sure.
+3. **Do not restate what a worker just told you.** A summary of a reply you
+   already have is a second copy of it, and you will carry both to the end of the
+   run. The workers' replies are one line each now for exactly this reason.
+4. **Do not narrate per lead.** Seventeen individual rewrite notes on `q3` cost
+   more than the drafting they were correcting.
+
+None of this trades away a check. Every gate, every verifier and every tier stays
+where it is — the money was never in the work, it was in the coordination.
 
 ## The rules that do not bend
 

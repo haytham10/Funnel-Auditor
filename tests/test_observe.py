@@ -257,6 +257,45 @@ def test_validate_all_says_which_observation_was_wrong():
     assert problems and problems[0].startswith("observation[1]")
 
 
+def test_a_clean_lead_reports_as_one_line_and_keeps_its_blockers():
+    """The full block is four lines of evidence nobody acts on when the schema
+    passed, and the orchestrator runs this once per slice AND again on the
+    merged file. On a 28-lead file that was 14,202 bytes; the headline form is
+    2,316. What gets read -- the blockers -- stays on the line."""
+    from outbound import research as r
+
+    obj = r.Research.from_dict({
+        "slug": "x", "name": "X", "uae_based": "yes",
+        "uae_based_source": "https://x/about", "is_coach": "yes",
+        "is_coach_source": "https://x/about", "active_recent": "yes",
+        "active_recent_source": "https://x/post"})
+    assert not r.needs_a_look(obj)          # schema is clean
+    line = r.headline(obj)
+    assert line.count("\n") == 0
+    assert "VALID" in line and "floors PASS" in line
+    assert "no hook" in line                # the blocker survives the trim
+
+
+def test_a_blocker_alone_does_not_trigger_the_full_block():
+    """This gate runs BEFORE the hook stage, so every lead is blocked on
+    `no hook` when it is validated. Triggering the full block on a blocker
+    printed all 28 of them and cut nothing."""
+    from outbound import research as r
+
+    obj = r.Research.from_dict({"slug": "x", "name": "X"})
+    assert obj.blockers()                   # it is blocked
+    assert not r.needs_a_look(obj)          # and that is not a reason to shout
+
+
+def test_a_schema_problem_does_trigger_the_full_block():
+    """A verdict outside the enum is what this gate exists to catch, and it is
+    never summarised away."""
+    from outbound import research as r
+
+    obj = r.Research.from_dict({"slug": "x", "name": "X", "uae_based": "maybe"})
+    assert r.needs_a_look(obj)
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

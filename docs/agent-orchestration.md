@@ -75,6 +75,18 @@ gets a send-capable tool. No worker spawns sub-workers — orchestration stays i
 the top-level skill. Research and hook work get `WebSearch` and `WebFetch`,
 because free fetching is the first rung of the ladder now that Firecrawl is gone.
 
+**Least privilege is about what an agent can *do*, not about whether it can save
+its own answer.** Three agents were write-less — `draft-worker`, `draft-verifier`
+and `hook-verifier` — and none of them was safer for it. `draft-worker` still had
+to produce a file, so it emitted drafts through Bash heredocs: 177 shell writes
+across 36 agents on `2026-08-02-q3`, each re-emitting the whole body as output.
+The two verifiers could not record a verdict at all, so every SEND, REWRITE and
+REJECT existed only inside the orchestrator's transcript, which is why each one
+arrived on its own turn and why the drafting loop cost more than every other
+stage combined. **A verdict that only one context can read is a verdict only that
+context can route.** All three have `Write` now, scoped to their own `work/`
+artifact. The rule that matters — no spawning, no sending — is untouched.
+
 **Check a shared budget once per batch.** Apify is cost-gated; the orchestrator
 reads the limit once and passes the answer into every worker prompt. Once per
 worker is how a quota gets rediscovered fifty times.

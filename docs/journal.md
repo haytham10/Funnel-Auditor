@@ -1,3 +1,141 @@
+## 2026-08-02 (token forensics) — the orchestrator was 75% of the bill
+
+Haytham: usage on the last two runs is not normal and I cannot track what is
+going on. He was right, and nothing in this repo could have told him why.
+
+`ledger pass` records that an agent ran. It cannot record what the agent cost —
+neither an orchestrator nor a worker can see its own token usage — so the model
+side had a count and no magnitude. q2 reported 99 passes and q3 reported 185.
+Both numbers were accurate. Neither was the answer.
+
+### What the transcripts said
+
+Ran a forensics prompt in both sessions against their own transcript JSONL,
+which carries `message.usage` per request and a separate file per subagent.
+
+| | q2 | q3 | both |
+|---|---|---|---|
+| tokens | 227.9M | 182.4M | **410.3M** |
+| shipped | 9 | 13 | 22 |
+| per email | | | **18.7M tokens** |
+| orchestrator | 77.6% | 72.8% | **~75%** |
+
+**410 million tokens to ship 22 emails of about 120 words.** And three quarters
+of it was the main thread, which reports no passes at all because nobody records
+one for the loop they are typing in. Main-thread cache read plus write alone was
+70% of everything — pure coordination.
+
+**The dollar figure needs a correction, and it is instructive.** I quoted
+**$354.70** for days. That number mixed two bases: q2's report priced Sonnet 5 at
+the introductory rate and q3's priced it at list, and neither knew which applied.
+On one basis it is **$349.30** (both intro) or **$361.96** (both list) — $15.88
+or $16.45 per email, against the $16.12 I was quoting. The orchestrator share is
+Opus-only and so unaffected in substance: 76.3% at intro, 73.6% at list.
+
+Nothing in the conclusions moves. What moves is the argument about rate tables.
+`ledger pass` refuses to store prices because "a rate table here would be a
+number going stale in a file nobody remembers to update" — and the failure that
+actually happened was the opposite shape: **no table at all, two agents guessing
+independently, and no way to tell they had guessed differently.** Sonnet 5's
+introductory rate expires 2026-08-31, twenty-nine days after these runs, so the
+next person to price a batch would have guessed a third way.
+
+So `usage` now carries a rate card that knows its own expiry: every rate has the
+date it was read, the introductory rate has the date it lapses, and pricing
+returns **nothing** once either has passed rather than a confident wrong number.
+A model with no rate withholds the whole total instead of reporting one that
+silently omits part of the run. Tokens stay exact throughout; only the dollars
+are ever withheld. That is the `?`-not-`0` rule applied to money, and it is the
+part of the doctrine worth keeping — not the refusal to write a price down, but
+the refusal to state one that cannot be checked.
+
+The mechanism: one session runs the whole pipeline for 10+ hours, context reaches
+578k-684k tokens, nothing compacts until after the work is done, every one of
+~390 turns re-reads all of it. q2's report put it exactly: of its 577,797-token
+final-quarter context, ~381k was **its own writing**. *"Two-thirds of what the
+batch paid to re-read was my own writing."*
+
+### Two hypotheses I had before the numbers, both wrong
+
+I went in expecting whole-file reads to be the cost — `hook-worker` pointed at
+`work/select.json` (73 KB), `research-worker` at `work/sites.json`. Measured:
+`hook-worker` read select.json 4 times in q3 and 0 in q2 (it reaches the
+shortlist through `hook --against` instead), and `research-worker` read
+sites.json 0 times in both. Worth nothing. That is what the measurement was for,
+and it is the reason the instrumentation shipped first.
+
+The other tempting fix was the opus pin on the draft stage. Priced: the whole
+draft stage is 14-18% of a batch and the sonnet swap saves $13-15. Model tier is
+**not** where the money is, and trading the cold read — which caught 11 of 12
+identity beats the linter passed — for 6% of a batch is a bad trade. Untouched.
+
+### What was actually wrong, in the order it cost
+
+**The verifiers could not write.** `draft-verifier` and `hook-verifier` had
+`Read, Bash, Grep` and no `Write`, so a SEND/REWRITE/REJECT existed only in the
+orchestrator's transcript. This file said so: *"the verdict lives in an agent,
+nothing in Python can reach it."* `REWRITE` appeared in zero Python. A verdict
+only one context can read is a verdict only that context can route — which is
+why every one arrived on its own turn, and why `SKILL.md` telling us to *"pipeline
+these, do not wait for all the workers"* was the single most expensive line in
+the file. Twenty leads pipelined is eighty turns at full context.
+
+**Three state files were assembled by hand.** `researched.json`,
+`draftable.json`, `drafts.json` — no command produced any of them. Serialised out
+of a 600k context and read back into it. Also why no stage here was resumable.
+
+**The redraft cap was a sentence.** Eight of nine leads exceeded it on q2 (one at
+five rounds), eight on q3 (three at three). Repeats were 68% and 46% of those
+draft stages. A long session talks itself past a sentence one reasonable
+exception at a time.
+
+**Seventeen identical findings, answered seventeen times.** Every q3 draft failed
+its first cold read on the same beat. The redraft prompts carried 1.6x the text
+of all seventeen original briefs. This entry's predecessor already diagnosed it —
+*"I answered the first finding per-lead, and the second, and the third, before
+treating the repetition as the signal it was"* — and what it did not say is that
+nobody could have done better: a reader going lead by lead cannot see the
+seventeenth until they have paid for sixteen. **Counting is the fix, not
+discipline.**
+
+**`apify` printed its whole dataset to stdout.** The only command here that did;
+every other bulk stage writes a file and prints a summary. q2 had three Instagram
+runs producing 914,685 bytes of tool-result, ~305 KB each where a trimmed result
+is 20-30 KB, and its forensics could not attribute them at all. Two causes:
+`--raw` bypasses trimming, and `_lean` did not recurse, so `latestPosts` and
+`author` came through carrying every blob `_NOISE_KEYS` exists to drop.
+
+### What shipped
+
+- **`usage`** — reads the session's transcripts, writes
+  `data/runs/<batch>-usage.json`, `metrics` prints it as MEASURED beside the
+  REPORTED passes. Deduped on `requestId` keeping the last record: counting
+  records inflates requests 2-4x, keeping the first undercounts output ~4x, and
+  one forensics run published a wrong total before catching that. **Tokens, not
+  dollars** — `record_pass` refuses a rate table because prices go stale, which
+  is right and is about prices; a token count is a measurement this repo owns.
+  **Run it before the session ends**: transcripts die with the container.
+- **`apify --out`** by default, `_lean` recurses, and `research` / `ledger
+  report` stopped printing per-lead and per-duplicate dumps (14,202 → 2,316
+  bytes; 15,905 → 1,474). `ledger report` groups duplicates by shape now, and q3's
+  dominant shape is the first line rather than an inference.
+- **`verdict`, `redraft`, `collect`**, and `Write` for the three agents that
+  lacked it. The cap is a loop bound. A beat that two or more of a wave fail on
+  produces **one** shared correction naming the leads.
+- **`SKILL.md`**: waves fan out in one message, a wave is six leads (it was used
+  as a tripwire boundary twice and never defined), and the cost section carries
+  the measured number instead of an assertion.
+
+### The number to beat
+
+`tokens_per_email`. q3 measured 14.0M. If the next batch does not halve it the
+model was wrong and this gets re-cut against the measurement rather than
+defended. Quality control on the same batch is the cold-read REWRITE rate and
+the count of leads held — if capping the loop or clustering the findings ships
+worse emails, those two say so before the preview does.
+
+None of this traded away a check. The money was never in the work.
+
 ## 2026-08-02 (batch q3) — 13 of 34, and the drafting stage failed 17 of 17 first reads
 
 Haytham dropped two queue files (20 + 14) and said run it. Ran as one batch so

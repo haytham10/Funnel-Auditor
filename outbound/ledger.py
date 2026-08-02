@@ -447,10 +447,13 @@ def summarise(records: list[Retrieval]) -> dict:
 
 
 def report(records: list[Retrieval], *, batch: str | None = None,
-           malformed: int = 0, leads: int = 0) -> str:
+           malformed: int = 0, leads: int = 0, verbose: bool = False) -> str:
     """The block a skill quotes. `leads` is the batch's real lead count when the
     caller knows it, so cost-per-lead is not silently computed over only the
-    leads that happened to need a fetch."""
+    leads that happened to need a fetch.
+
+    `verbose` prints every duplicate pair; the default groups them by shape,
+    which is the form the answer actually takes."""
     stats = summarise(records)
     denominator = leads or stats["leads"]
     per_lead = (stats["cost_usd"] / denominator) if denominator else 0.0
@@ -475,9 +478,28 @@ def report(records: list[Retrieval], *, batch: str | None = None,
         lines.append(f"  {stats['blocked']} run(s) BLOCKED by the cost gate")
     if stats["errors"]:
         lines.append(f"  {stats['errors']} retrieval(s) errored")
-    for dupe in stats["duplicates"]:
-        lines.append(f"  DUPLICATE  {dupe['lead_key'] or '?'}  {dupe['url']}  "
-                     f"{dupe['first']} then {dupe['again']}")
+    if stats["duplicates"] and not verbose:
+        # Grouped, because the pattern is the finding and the list is not.
+        # `2026-08-02-q3` had 129 duplicate pairs and its own journal entry
+        # names the answer in one sentence — "110 of this batch's 129 duplicate
+        # pairs are that" — which is a shape, arrived at by reading 129 lines
+        # that were identical except for a name. The orchestrator keeps every
+        # one of those lines for the rest of the run.
+        shapes: dict = {}
+        for dupe in stats["duplicates"]:
+            key = f"{dupe['first']} then {dupe['again']}"
+            shapes.setdefault(key, []).append(dupe["lead_key"] or "?")
+        for shape, leads in sorted(shapes.items(), key=lambda kv: -len(kv[1])):
+            shown = ", ".join(sorted(set(leads))[:3])
+            more = len(set(leads)) - 3
+            lines.append(f"  DUPLICATE  {len(leads)}x  {shape}"
+                         f"  [{shown}{f' +{more} more' if more > 0 else ''}]")
+        lines.append(f"  {len(stats['duplicates'])} duplicate pair(s) in "
+                     f"{len(shapes)} shape(s) — `--verbose` for every pair")
+    elif stats["duplicates"]:
+        for dupe in stats["duplicates"]:
+            lines.append(f"  DUPLICATE  {dupe['lead_key'] or '?'}  {dupe['url']}  "
+                         f"{dupe['first']} then {dupe['again']}")
     if not stats["duplicates"]:
         lines.append("  no duplicate fetch: every (lead, url) retrieved once, "
                      "or again only to verify")

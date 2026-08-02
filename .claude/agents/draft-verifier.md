@@ -1,7 +1,7 @@
 ---
 name: draft-verifier
 description: Reads ONE finished email as its recipient would, in a context that never saw it being written, and judges the one thing no linter can check — whether the beats connect and whether it still sounds like Haytham. Returns SEND / REWRITE / REJECT. It never edits the draft.
-tools: Read, Bash, Grep
+tools: Read, Write, Bash, Grep
 model: opus
 ---
 
@@ -73,11 +73,40 @@ Be willing to return REWRITE. A batch where every draft passes first time is
 evidence this stage is not doing anything, and a mediocre email that ships is
 more expensive than a good one that shipped a day later.
 
-## What you return
+## What you write
 
+**Write your verdict to `work/verdict-<slug>.json` before you return.** Then say
+one line — `<slug>: SEND` or `<slug>: REWRITE on identity, hook` — and nothing
+else.
+
+```json
+{
+  "slug": "meg-juma",
+  "verdict": "SEND | REWRITE | REJECT",
+  "round": 1,
+  "seam": "does beat 1 connect to beat 2 — yes or no, and why",
+  "voice": "one line on register",
+  "problems": [{"beat": "identity", "sentence": "the exact sentence",
+                "problem": "what is wrong, in one line"}]
+}
 ```
-verdict   SEND | REWRITE | REJECT
-seam      does beat 1 connect to beat 2 — yes or no, and why
-voice     one line on register
-problems  [ { beat, sentence, what is wrong } ]
-```
+
+`beat` is one of `hook | identity | offer | cta | ps` and the spelling is not
+free text. **A wave's findings are counted by it**: when several drafts fail on
+the same beat, `python main.py redraft work/` says so and one correction goes to
+all of them instead of one note each. On `2026-08-02-q3` seventeen of seventeen
+drafts failed on the same beat and were repaired seventeen separate times,
+because nothing could count them. "the identity line" and "identity beat" in two
+verdicts would be two buckets and the pattern would disappear again.
+
+`round` is which attempt this is — 1 for a first draft, 2 for a repair. It is
+what makes the one-repair cap enforceable rather than remembered.
+
+**Validate before you return**: `python main.py verdict work/verdict-<slug>.json`.
+A REWRITE with an empty `problems` list is rejected there, because it would send
+a drafter back with no instruction — a full opus pass that cannot improve on
+anything.
+
+Writing it down is not bookkeeping. A verdict that lives only in your reply can
+only be routed by the orchestrator holding it in context, which is how the
+drafting loop came to cost more than every other stage combined.
