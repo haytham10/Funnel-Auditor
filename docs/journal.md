@@ -1,3 +1,125 @@
+## 2026-08-01 (the flip) — P3 on, one batch before its own gate
+
+Haytham, immediately after the previous session recorded D26 (*the flip stays
+off, and the batch that would decide it is not this one*): **turn the flip on,
+apply everything.**
+
+So it is on, and the honest framing is in **D27**: the corrected `unobserved`
+number still does not exist and could not be produced — the corpus that would be
+re-scored lived in `work/` and did not survive the container. This is acting on
+the diagnosis, not on the measurement the diagnosis predicts. That is his call
+and it is recorded as one rather than folded into D26 as a change of mind.
+
+All three switches. `hook-worker` stops fetching and chooses from `select`'s
+shortlist; `select` runs before the hook stage and is consumed; a `plan` decline
+binds (**D28**).
+
+## The contradiction in the proposal, and how it resolves
+
+Part 5 says `select` writes the authored clause. Part 7 says do not make
+`select` a model call — rank mechanically and hand a model three candidates.
+Both cannot hold.
+
+Part 7 wins, and the result is cleaner than either: **`select` stays pure Python
+and `hook-worker` becomes an author instead of a searcher.** What it loses is
+the search. What it keeps is the only genuinely authorial part of the beat —
+deciding which piece of evidence is worth a stranger's first three seconds, and
+writing the sentence that proves a person read it. The shortlist was always
+justified as making a rejected first pick free, and now that is literally what
+it does.
+
+## The consequence nobody wrote down
+
+Removing `WebSearch` from `hook-worker` **deletes the podcast rung**, which is
+the free "their name plus podcast" search and the one that reaches coaches who
+do not post. Nothing in the proposal mentions it.
+
+It moved to `research-worker`, which is the proposal's own logic applied
+honestly — retrieval belongs to the stage that already fetches — and it is a
+real cost increase at stage 2, against a batch Haytham had already called
+expensive. It is also R1's mitigation in practice: the retrieval pass now
+carries the hook criteria and not only the floor questions.
+
+`research-worker` says so at the top now. **An observation it does not return is
+a hook that cannot be found**, and it will present as the lead's fault rather
+than the retrieval's. Three things follow that it is told explicitly: return the
+whole text rather than the part that settled the floor, because the hook stage
+cannot go back for the rest; label `kind` honestly rather than upward, because it
+decides how the observation ranks; and a summarised observation is worse than
+none, because it reaches the reader as a quote and the verifier refutes it.
+
+## Ban #3 stopped being a sentence
+
+*"No invented specifics — if it cannot be cited, it does not exist."* That has
+been something an agent was asked to remember for as long as there was nothing
+to check it against. `select` hands the worker the observation's stored text, so
+now there is: **`hook --against work/select.json`** requires the quote to be a
+contiguous piece of the observation it names.
+
+Whitespace is normalised and nothing else. A scraped post carries line breaks a
+quote will not, but a changed word is precisely the drift this exists to catch,
+so forgiving case or punctuation would forgive the failure. It also catches two
+sentences welded into one quote, which is a real refusal from `2026-08-01-q1`
+that cost a verifier pass to find.
+
+Exercised against the real committed batch rather than a fixture: a verbatim
+quote from Mirella's stored LinkedIn post passes; the same quote with `stay
+consistent` changed to `stay focused` fails naming the drift.
+
+**A blank `observation_id` now means one of two opposite things** — an
+escalation the worker walked, or a hook composed from nothing — so it has to be
+declared. `escalated` plus `escalation_rung`, or it is a failure.
+
+## What the flip makes riskier, and the one thing that did not move
+
+`hook-verifier` is untouched. That is not conservatism: the worker no longer
+reads the page it cites, so **nothing confirms the stored record was ever real
+except the live re-fetch**. If a research worker summarised a post instead of
+copying it, every mechanical check downstream passes. That paragraph is in the
+agent file now.
+
+`refute_rate` changes meaning accordingly. It used to mean a worker misread a
+page it had open; now it means the stored text did not match the page, which is
+a research-stage failure reaching the reader. The skill says to name it as one.
+
+## The declines, and why they could turn on now
+
+`plan` shipped advisory for two batches on an explicit argument: a gate shipped
+alongside its own measurement generates the data that judges it. That objection
+was **paid off rather than dropped**. `metrics --plan` reports, of the leads
+carrying a declined rung, how many produced a verified hook and how many
+produced none — D21's reversal condition in D21's own words.
+
+The half that does not change is stated three times because it is the one that
+would do real damage if it drifted: a decline gates **spend**, never inclusion.
+A declined lead still gets researched, still gets a row and a Blocker, and gets
+a null hook rather than a purchase. `plan` still exits 0 when every rung on a
+batch is declined.
+
+## The numbers that judge all of this
+
+`escalation_rate` — hooks the shortlist did not hold. It counts every attempt,
+not only the verified ones: an escalation that produced a refuted hook still
+cost the fetch the flip was meant to remove, and counting only the useful ones
+would report the rate of *successful* escalations under the name of the
+escalation rate. A null hook is not an escalation either — it is the cheaper,
+honest outcome and must not be made to look like the expensive one.
+
+`declined_and_dry` — `?` and never `0` without a plan file, because a zero there
+would read as "declining cost nothing", which is the claim being tested. The
+wall's asymmetry, a fifth time.
+
+The skill gained a second tripwire to match: a third of the first wave
+escalating is the flip failing, not those leads being hard.
+
+**Where this can go wrong, and the three different answers**: a high
+`escalation_rate` means research must fetch deeper, not that the ranker is
+wrong; a high `refute_rate` means observations are being summarised rather than
+kept verbatim; a high `null_hook_rate` with neither means selection genuinely
+cannot replace the search and P3 was wrong. D27 carries all three.
+
+951 tests (+20), `doc-check` clean at 30 commands.
+
 ## 2026-08-01 (post-mortem, acted on) — both blocking numbers were artefacts
 
 Haytham dropped the post-mortem back in: fix this, make sure the proposal is

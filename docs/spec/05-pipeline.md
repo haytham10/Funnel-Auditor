@@ -41,12 +41,14 @@ Every gate fails closed: a check that cannot run is a failure, never a pass.
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
-resolve     which channels are plausibly theirs, typed and evidenced. Advisory
-plan        which hook rungs a lead has, and what each would cost. Advisory
-research    research-worker per slice -> typed objects, schema-validated
+resolve     which channels are plausibly theirs, typed and evidenced
+plan        which hook rungs a lead has and what each costs. A decline BINDS
+research    research-worker per slice -> typed objects AND the observations
+            every later stage reads. The machine's retrieval stage
 deal        the four hand-written lines, allocated for the whole batch at once
-hook        hook-worker proposes -> hook-verifier re-fetches the citation
-select      which observation a hook would come from, without fetching. Advisory
+select      rank the observations -> a shortlist of 3 per lead. No fetching
+hook        hook-worker quotes the shortlist and writes the clause -> gated by
+            `main.py hook --against` -> hook-verifier re-fetches the citation LIVE
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
 lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
@@ -295,12 +297,28 @@ The object may also carry the observations behind those verdicts, and they are
 validated here through the same call — capped, so one worker that got an enum
 wrong cannot bury the floor violation that actually drops a row. See `observe`.
 
+**This is the machine's retrieval stage as of D27**, which is a change in what
+the objects are *for* rather than in what validates them. Nothing downstream
+fetches for a hook: `select` ranks what research returned and `hook-worker`
+quotes it. **An observation a worker does not return is a hook nobody can
+find**, and it will present as the lead's fault rather than the retrieval's. The
+podcast search moved here for the same reason — it was `hook-worker`'s free
+rung, it reaches the coaches who do not post, and removing that agent's
+`WebSearch` would otherwise have deleted it silently.
+
 ### hook
-Two agents **and** a command. `hook-worker` proposes with an exact quote, URL
-and date; `hook-verifier` re-fetches the citation in a context that never saw
-the search and defaults to refuted. **Three verdicts, not two** — INCONCLUSIVE
-holds the lead where it is rather than killing it. **No hook found is a good
-answer**: the lead holds and gets no row. `docs/hook-rules.md` owns the rest.
+Two agents **and** a command. `hook-worker` chooses from `select`'s shortlist,
+quotes it verbatim and writes the clause that says what it took; `hook-verifier`
+re-fetches the citation in a context that never saw that choice and defaults to
+refuted. **Three verdicts, not two** — INCONCLUSIVE holds the lead where it is
+rather than killing it. **No hook found is a good answer**: the lead holds and
+gets no row, and post-flip it is explicitly the cheaper answer than an
+escalation. `docs/hook-rules.md` owns the rest.
+
+**The worker does not search** (D27). It has no `WebSearch`; it keeps `WebFetch`
+for one bounded escalation against a URL `plan` already named, which may not be
+a rung `plan` declined. Every retrieval left at this stage is one somebody can
+see and price.
 
 **In** a proposal, or a list of them. **Out** a pass or the list of what has to
 change. **Guarantees** it fetches nothing, rewrites nothing, and never touches
@@ -362,11 +380,18 @@ a selection, including one with no observations. **Exit 2** if the input is not
 research objects, **exit 1** only if its own output fails its own schema — a
 disagreement is never a failure. Owned by `outbound/select.py`.
 
-**It runs alongside the hook stage, not in place of it.** `hook-worker` still
-fetches and is not edited. `--against` is the measurement the phase exists for:
-it asks whether the ranker would have picked the same evidence the hook stage
-paid for, and reports five verdicts because `missed` and `unobserved` say
-opposite things about whether that fetch can be removed.
+**It runs before the hook stage and the hook stage consumes it** (D27). Each
+lead gets up to three candidates carrying their observations' stored text;
+`hook-worker` picks one, quotes it and writes the clause. Three, so that a
+rejected first pick needs no second retrieval — the shortlist is sized to make
+the escalation rare, not to offer a menu.
+
+**`--against` survives with its verdicts re-read.** It compared the ranker's
+pick to a hook the stage had already paid to find; now the hook comes from the
+shortlist, so the same five words say what the worker did with it. `agreed` is
+rank 1, `shortlisted` is rank 2 or 3, `missed` is a ban to re-examine, `no_pool`
+is a fact about the corpus — and **`unobserved` is the escalation rate**, which
+is the number D27 is judged on.
 
 **Four of the twelve bans stop being something an agent must remember** —
 third-party coverage, stale news, generic site copy, and invented specifics,

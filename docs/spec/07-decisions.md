@@ -363,6 +363,11 @@ check becomes the line everybody scrolls past.
 **Reversed by** a batch where declining to spend on low-confidence channels
 costs more verified hooks than it saves scrapes.
 
+**The gating half is live as of D28**, and that reversal condition is now
+computable: `metrics --plan` prints `declined_and_dry`. The inclusion half is
+unchanged and is not up for revision — nothing drops a lead on an ownership
+verdict, and D28 restates that rather than qualifying it.
+
 ---
 
 ### D22 · A stage never re-fetches what an earlier stage read free
@@ -515,6 +520,69 @@ alongside the verdict** so that this is the last time.
 nudge and no re-read retry — reporting `unobserved` and `missed` apart. If
 `unobserved` stays high the fetch is not removable and the answer is research
 fetching deeper, which is what the number pointed at before the flag was found.
+
+**REVERSED the same day by D27**, without that batch. See below — this entry
+stands as written because the reasoning in it is still the reasoning, and what
+changed is who decided to act on it.
+
+### D27 · The flip is on, taken on the diagnosis rather than the measurement
+
+**2026-08-01.** P3 lands, all three switches. `hook-worker` stops fetching and
+chooses from `select`'s shortlist; `select` runs before the hook stage and is
+consumed; a `plan` decline binds. `hook-verifier` is untouched.
+
+**Why, stated exactly.** Haytham's call, made after reading D26. The corrected
+`unobserved` number **still does not exist** and could not be produced, because
+the corpus that would be re-scored lived in `work/` and did not survive the
+container. So this is a decision to act on the diagnosis — that both blocking
+numbers were artefacts with known, fixed causes — rather than on the measurement
+that diagnosis predicts. That is a legitimate call and it is a different one
+from what D26 recommended, which is why it gets its own entry instead of an edit
+to that one.
+
+**What makes it recoverable rather than a guess.** Everything the flip could
+break is now counted. `escalation_rate` is R1: the shortlist not holding.
+`refute_rate` changes meaning and becomes sharper — post-flip a refuted quote
+means the *stored text* did not match the page, which is a research-stage
+failure reaching the reader. `null_hook_rate` and `hook_yield` are the headline
+pair, unchanged. And `select --batch` now commits the corpus, so the next batch
+is re-scorable even if the one after it changes the ranking.
+
+**What did not move, and must not.** `hook-verifier` still re-fetches the cited
+page live. Its independence was always the mechanism; post-flip it is also the
+*only* check that a stored observation was ever real, because the worker no
+longer reads the page it cites. Letting it read the observation instead would
+save one fetch and retire the only thing in this system that has ever caught a
+fabricated claim (R2).
+
+**Reversed by** the next batch's numbers, and the three failures have three
+different answers: a high `escalation_rate` means research must fetch deeper,
+not that the ranker is wrong; a high `refute_rate` means observations are being
+summarised rather than kept verbatim; a high `null_hook_rate` with neither means
+selection genuinely cannot replace the search and P3 was wrong.
+
+### D28 · A decline binds, and it ships with its own evidence
+
+**2026-08-01.** A `plan` step whose channel is `absent` is declined for real:
+`hook-worker` may not escalate onto it. `unknown` is still never declined.
+
+**Why now and not before.** D21 established that an ownership verdict may gate a
+purchase where it may not gate a kill, and `plan` shipped advisory for two
+batches on the explicit reasoning that a gate shipped alongside its own
+measurement generates the data that judges it. That objection was not dropped —
+it was paid off. `metrics --plan` reports, of the leads carrying a declined
+rung, how many produced a verified hook and how many produced none, which is
+D21's reversal condition in D21's own words.
+
+**The half that does not change.** A decline gates **spend**, never inclusion. A
+lead whose every paid rung is declined still gets researched, still gets a plan,
+still gets a row and a Blocker, and gets a null hook rather than a purchase.
+`plan` exits 0 when every rung on a batch is declined, because exit 1 there
+would turn an ownership verdict into the inclusion gate D21 forbids.
+
+**Reversed by** `declined_and_dry` showing that declined leads produce verified
+hooks at about the rate everyone else does — which would mean the ownership
+verdict does not predict the waste, and `plan` should not gate on it at all.
 
 ---
 

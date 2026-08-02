@@ -45,13 +45,14 @@ and a deterministic linter made that safe.**
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
-resolve     which channels are plausibly theirs, typed and evidenced. Advisory
-plan        which hook rungs a lead has, and what each would cost. Advisory
-research    research-worker per slice -> typed objects, schema-validated
+resolve     which channels are plausibly theirs, typed and evidenced
+plan        which hook rungs a lead has and what each costs. A decline BINDS
+research    research-worker per slice -> typed objects AND the observations
+            every later stage reads. This is the retrieval stage
 deal        the four hand-written lines, allocated for the whole batch at once
-hook        hook-worker proposes -> gated by `main.py hook` BEFORE certification
-            -> hook-verifier re-fetches the citation
-select      which observation a hook would come from, without fetching. Advisory
+select      rank the observations -> a shortlist of 3 per lead. No fetching
+hook        hook-worker quotes the shortlist and writes the clause -> gated by
+            `main.py hook --against` -> hook-verifier re-fetches the citation
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
 lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
@@ -119,20 +120,21 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   the duplicate fetch it makes unnecessary can be removed against a measurement.
 - `python main.py plan <identity.json>` — which hook rungs a lead actually has,
   what each would cost, and which paid ones point at somebody else's channel.
-  **It declines nothing.** D21 says an ownership verdict may gate a purchase
-  where it may not gate a kill, and carries the reversal condition; nobody has
-  measured whether the leads with no confirmed channel are the leads that
-  produce no hook, and a gate shipped beside its own measurement would generate
-  the data judging it. `unknown` is never declined. Pricing is opt-in.
+  **A decline binds** (D28): `hook-worker` may not escalate onto one. It gates
+  **spend and never inclusion** — a declined lead gets a null hook, a row and a
+  Blocker, never a drop, and `plan` still exits 0 when every rung is declined.
+  It shipped advisory for two batches because a gate beside its own measurement
+  generates the data judging it; `metrics --plan` is that measurement and is why
+  it could turn on. `unknown` is never declined. Pricing is opt-in.
 - `python main.py select <research.json>` — ranks the observations already
-  retrieved and says which one a hook would come from, fetching nothing. Four of
-  the twelve bans become mechanical here. **`--against` is the measurement**: it
-  reports whether the ranker reaches the hook the stage paid to fetch, and
-  splits `missed` (observed, ranked out — fixable) from `unobserved` (never
-  fetched — the call that cannot be removed). **Additive; nothing consumes it
-  and `hook-worker` still fetches.** A quote it finds is in the text we stored,
-  never verified on the page. `--hook-room` takes the low end of the range
-  `deal` prints, which is knowable here since D24 moved the deal earlier.
+  retrieved into a shortlist of three per lead, fetching nothing. Four of the
+  twelve bans are mechanical here. **The hook stage reads this** (D27) — three
+  candidates so a rejected first pick needs no second retrieval. `--against`
+  survives with its verdicts re-read: `agreed` is rank 1, `shortlisted` is rank
+  2 or 3, `missed` is a ban to re-examine, and **`unobserved` is the escalation
+  rate**. A quote it finds is in the text we stored, never verified on the page.
+  `--hook-room` takes the low end of the range `deal` prints. `--batch` commits
+  the corpus beside the verdict, so a later ranking change is re-scorable.
 - `python main.py hook <proposal.json>` — the hook, checked **before** an
   independent verifier certifies its wording. F4's gate: research and
   observations both had a schema and the one sentence a stranger reads first did
@@ -140,7 +142,10 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   for word. Every finding says **pick a different quote**, never edit theirs —
   one stage later the drafter has neither the alternatives nor the authority. It
   also refuses a LinkedIn post URL with an empty slug, which 404s however true
-  the quote is. **A pass is not verification** and the report says so.
+  the quote is. **`--against <select.json>` closes ban #3**: the quote must be a
+  contiguous piece of the observation it names, which was unenforceable until
+  the hook stage read a shortlist. A blank `observation_id` is legal only with
+  `escalated` and a rung. **A pass is not verification** and the report says so.
 - `python main.py lint <drafts.json>` — traceability, claim preservation, the
   bridge, voice, and batch repetition. **A figure in the hook beat that is also
   in the certified quote is exempt**: quoting is not claiming, and the rule
@@ -196,9 +201,12 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   the wall's asymmetry a third time, because a zero is a measurement and a block
   that zero-fills looks like evidence. `yield_by_rung` is the number that
   settles F5; `wasted_retrieval` is the one the retrieve-once work is trying to
-  move. It also prints the Batches row as a paste-ready block and **does not
-  write it** — Python computes, a human still sees the row land. Exit 2 on an
-  unreadable ledger, **never exit 1**, same rule as the ledger.
+  move. **`escalation_rate` is what judges the flip** (D27) — hooks the
+  shortlist did not hold — and **`--plan` reports `declined_and_dry`**, which is
+  D21's reversal condition and the evidence D28's decline gate turns on. It also
+  prints the Batches row as a paste-ready block and **does not write it** —
+  Python computes, a human still sees the row land. Exit 2 on an unreadable
+  ledger, **never exit 1**, same rule as the ledger.
 - `python main.py replies <export.csv> --leads <research.json>` — the manual
   Smartlead bridge, the only path here to reply data. Reply rate by `hook_type`
   and by rung, which is what `Hook Type` has been a CRM select for since the

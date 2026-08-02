@@ -81,6 +81,23 @@ does not list them, because it used to and the list drifted: it once opened with
 the **paid** rung under a heading that said cost order, so the sentence and the
 list disagreed and the list won. That is D23 in `docs/spec/07-decisions.md`.
 
+**The ladder is walked by the research stage now** (D27). `hook-worker` does not
+search: it chooses from a shortlist `select` ranks over what research retrieved,
+quotes it verbatim and writes the clause. The ladder still describes where hook
+material comes from — it is just that one stage earlier gathers it and one
+stage later uses it, instead of both fetching the same profile.
+
+Three consequences worth stating rather than discovering:
+
+- **The podcast rung is `research-worker`'s.** It was the free "their name plus
+  podcast" search and it belonged to the agent that no longer has `WebSearch`.
+  It reaches the coaches who do not post, so leaving it behind would have
+  narrowed where a hook can come from without anybody deciding to.
+- **An observation nobody returned is a hook nobody can find**, and it presents
+  as the lead's fault rather than the retrieval's.
+- **One bounded escalation** remains, against a URL the plan named and never a
+  rung it declined. A null hook is the cheaper answer and is still a good one.
+
 What stays here is the judgement the code cannot hold. **Free before paid,
 always** — an About page already on disk is read before anything is bought.
 **Instagram is a rung, not a fallback**: for a coach whose whole presence is
