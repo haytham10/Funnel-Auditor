@@ -320,6 +320,23 @@ def _n(value) -> str:
     return f"{int(value or 0):,}"
 
 
+def headline(out: dict) -> str:
+    """One line, for a checkpoint mid-run.
+
+    A batch checkpoints this at every stage boundary so a container that dies
+    mid-run still leaves its token accounting — the ledger's asymmetry applied
+    to the model side. Eleven lines five times over is sixty lines of the
+    orchestrator's own context spent watching itself, which would be a small
+    version of the thing being measured.
+    """
+    total = out["totals"]
+    share = out.get("orchestrator_share")
+    return (f"USAGE {out.get('batch') or 'unlabelled'}: {_n(total['tokens'])} "
+            f"token(s) over {_n(total['requests'])} request(s), "
+            f"{'?' if share is None else f'{share * 100:.0f}%'} orchestrator "
+            f"— MEASURED")
+
+
 def report(out: dict) -> str:
     """The block a skill quotes. Every number here was measured, and says so."""
     total = out["totals"]

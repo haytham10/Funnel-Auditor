@@ -2175,14 +2175,17 @@ def cmd_usage(args) -> None:
         sys.exit(2)
 
     out = usage.summarise(turns, batch=args.batch or "", sources=sources)
-    print(usage.report(out))
+    print(usage.headline(out) if args.quiet else usage.report(out))
 
     target = args.out or (ledger.artifact("-usage.json", batch=args.batch)
                           if args.batch else "")
     if target:
-        print(f"  wrote {usage.write_artifact(out, target)}")
-        print(f"  `metrics --written <n>` reads it for tokens_per_email, which "
-              f"is the control number for any change to the orchestration.")
+        written = usage.write_artifact(out, target)
+        print(f"  wrote {written}" if not args.quiet else f"  wrote {written.name}")
+        if not args.quiet:
+            print(f"  `metrics --written <n>` reads it for tokens_per_email, "
+                  f"which is the control number for any change to the "
+                  f"orchestration.")
     if args.json:
         print(json.dumps(out, indent=2, default=str))
     sys.exit(0)
@@ -2634,6 +2637,10 @@ def build_parser() -> argparse.ArgumentParser:
                         "this expects it (~/.claude/projects/<slug>)")
     p.add_argument("--out", help="where to write the JSON artifact "
                                  "(default data/runs/<batch>-usage.json)")
+    p.add_argument("--quiet", action="store_true",
+                   help="one line instead of the block. For the stage-boundary "
+                        "checkpoint, where the artifact is the point and the "
+                        "reading is not")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_usage)
 

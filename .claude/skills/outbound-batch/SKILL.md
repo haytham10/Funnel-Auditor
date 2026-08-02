@@ -64,6 +64,25 @@ python main.py apify limits
 Pass the answer into every worker prompt. If it is near cap, tell the workers to
 prefer `unclear` over a paid call.
 
+## Checkpoint the token bill at every stage boundary
+
+At the end of stage 2, 3b, 4, 5 and 6 — one line, and move on:
+
+```
+python main.py usage --batch <label> --quiet
+```
+
+It rewrites `data/runs/<label>-usage.json` each time, so **a run that dies in
+stage 3 still leaves its accounting**. That is the ledger's rule applied to the
+model side, and it is the one way the two differ: the retrieval ledger appends a
+line at the moment of each fetch and is committed, while this is computed from
+transcripts that **die with the container**. Run it only at the end and a session
+that closes early leaves no record of its largest cost at all.
+
+`--quiet` is one line on purpose. Eleven lines five times over is sixty lines of
+your own context spent watching yourself, which would be a small version of the
+thing being measured.
+
 ## Stage 1 — the free site read
 
 ```
@@ -710,9 +729,11 @@ passes at all, because nobody records one for the thread they are typing in.
 `usage` reads the session's own transcripts and writes
 `data/runs/<batch>-usage.json`, which `metrics` picks up.
 
-**Run it before the session ends.** Transcripts live on this container and die
-with it; the artifact is the only part that outlives them. A batch whose session
-closed without this has no recoverable record of its largest cost.
+**This is the last of the checkpoints, not the only one.** You have been running
+`usage --batch <label> --quiet` at every stage boundary since stage 2, so the
+artifact already exists and this call is the final, complete one. Transcripts
+live on this container and die with it; the artifact is the only part that
+outlives them.
 
 Quote the `METRICS` block into the brief. Four lines matter most, and the first
 two are the ones this batch exists to produce:

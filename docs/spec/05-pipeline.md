@@ -927,6 +927,16 @@ the batch's largest cost is unrecoverable. `--transcripts` points it elsewhere
 when the harness moves the layout, which is why the layout is sniffed rather
 than assumed — the same reason `replies` sniffs Smartlead's columns.
 
+**It is checkpointed at every stage boundary, not run once at the end.** This is
+the one way it differs from the retrieval ledger and the difference is a real
+gap: the ledger appends a line at the moment of each fetch and is committed, so
+a batch that dies in stage 3 still leaves its accounting. `usage` computes a
+snapshot on demand and writes nothing until it is called, so a session that
+closed early would leave no record of the largest cost in the run. Rewriting the
+artifact at each boundary closes that. `--quiet` prints one line for those
+calls, because eleven lines five times over is sixty lines of the orchestrator's
+own context spent watching itself — a small version of the thing being measured.
+
 ### `replies`
 **In** a Smartlead replies export and the batch's leads. **Out** reply rate
 overall, by `hook_type`, and by the rung the hook came from. **Guarantees** a

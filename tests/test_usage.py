@@ -206,6 +206,41 @@ def test_the_measured_half_is_labelled_apart_from_the_reported_half():
     assert "orchestrator      400 (80%) vs 100 in subagents" in text
 
 
+def test_the_checkpoint_headline_is_one_line():
+    """A batch checkpoints this at five stage boundaries so a container that
+    dies mid-run still leaves its accounting. The full block five times over is
+    sixty lines of the orchestrator watching itself, which would be a small
+    version of the thing being measured."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sources = project(tmp, [assistant("m1", read=900)],
+                          {"aaa": [assistant("s1", read=100, sidechain=True)]})
+        out = usage.summarise(usage.read_turns(sources), batch="b", sources=sources)
+        line = usage.headline(out)
+        assert line.count("\n") == 0
+        assert "MEASURED" in line and "orchestrator" in line
+        # The full block stays available and stays fuller.
+        assert len(usage.report(out).splitlines()) > 5
+
+
+def test_the_artifact_is_rewritten_not_appended():
+    """Each checkpoint replaces the previous one -- the transcript is re-read
+    whole every time, so the newest snapshot is always the complete one. An
+    append would double-count every earlier turn."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sources = project(tmp, [assistant("m1", read=100)])
+        target = Path(tmp) / "usage.json"
+        first = usage.summarise(usage.read_turns(sources), batch="b", sources=sources)
+        usage.write_artifact(first, target)
+
+        write_jsonl(Path(tmp) / "session.jsonl",
+                    [assistant("m1", read=100), assistant("m2", read=100)])
+        second = usage.summarise(usage.read_turns(usage.discover(tmp)), batch="b")
+        usage.write_artifact(second, target)
+
+        on_disk = json.loads(target.read_text(encoding="utf-8"))
+        assert on_disk["totals"]["requests"] == 2      # not 1, and not 3
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
