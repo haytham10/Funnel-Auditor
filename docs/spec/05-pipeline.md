@@ -316,10 +316,29 @@ has no text to name it, and it 404s. The content can be real, paid for, and
 still impossible to cite — that failure cost a lead and a full verifier pass to
 discover.
 
-**A pass is not verification and says so on every run.** Nothing here has looked
-at the page. `observation_id` may be blank, deliberately: the hook stage still
-fetches, and a hook with no stored observation behind it is exactly what
-`select --against` counts as `unobserved`.
+**`--against work/select.json` checks the quote against the observation it
+names**, and that closes ban #3 — *"no invented specifics"* — which was a
+sentence an agent was asked to remember for as long as there was nothing to
+check it against. The quote must be a contiguous piece of that candidate's
+stored text, compared on normalised whitespace only: a scraped post carries line
+breaks a quote will not, but a changed word is the exact drift the check exists
+to catch, so case and punctuation are not forgiven. It also catches two
+sentences welded together, which is a real refusal from `2026-08-01-q1`.
+
+**A blank `observation_id` now means one of two opposite things**, so it has to
+be declared. Before the flip it was ordinary — the hook stage did its own
+fetching and most hooks had no stored observation behind them. Now it is either
+a bounded escalation the worker walked and named, or a hook composed from
+nothing, and only the worker can say which. `escalated` with an
+`escalation_rung` is legal; neither is a failure. Declaring both an escalation
+and an `observation_id` is a contradiction and is refused.
+
+Without `--against` the join is not checked and the report **says so on that
+run**, because a PASS that checked less has to be tellable from one that checked
+more. The single-lead repair path in `outbound-draft` has no batch behind it and
+uses that.
+
+**A pass is still not verification.** Nothing here has looked at the page.
 
 ### `select`
 **In** research objects, which after the hook stage carry both halves — the

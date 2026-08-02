@@ -141,11 +141,122 @@ def test_the_fragment_rules_are_the_linters_own_and_not_a_second_copy():
 # ------------------------------------------------------------------- the joins
 
 
-def test_a_blank_observation_id_is_legal_and_is_the_measurement():
-    """`hook-worker` still fetches, so a hook can be real and have no stored
-    observation behind it — that is precisely what `select --against` counts as
-    `unobserved`, and refusing it here would make the measurement impossible."""
+def test_a_blank_observation_id_is_legal_with_no_shortlist_to_check_against():
+    """The single-lead repair path in `outbound-draft` has no batch behind it,
+    so the join check is opt-in. A batch run passes `--against`."""
     assert hook.validate(proposal(observation_id=""), today=TODAY) == []
+
+
+# --------------------------------------------------------------------- the join
+
+
+OBS_TEXT = ("I put my phone on airplane mode 10 days ago and left it there. "
+            "The first three days were genuinely unpleasant.")
+
+
+def shortlists(text: str = OBS_TEXT, obs_id: str = "abc123") -> dict:
+    return {"lucy@x.ae": [{"obs_id": obs_id, "quote": text, "rank": 1}]}
+
+
+def test_a_verbatim_quote_from_the_named_observation_passes():
+    """Ban #3 — "no invented specifics" — was a sentence an agent was asked to
+    remember, for as long as there was nothing to check it against. `select`
+    hands the worker the observation's text, so now there is."""
+    got = hook.validate(proposal(observation_id="abc123"), today=TODAY,
+                        shortlists=shortlists())
+    assert got == [], got
+
+
+def test_a_quote_that_drifted_by_one_word_is_caught():
+    """Every way this fails downstream is the same way: the verifier refutes a
+    citation this stage has already paid to produce."""
+    edited = proposal(observation_id="abc123",
+                      quote="I put my phone on airplane mode 10 days ago and "
+                            "kept it there")
+    got = hook.validate(edited, today=TODAY, shortlists=shortlists())
+    assert any("not a contiguous piece" in p for p in got), got
+
+
+def test_two_sentences_fused_into_one_quote_is_caught():
+    """A real refusal from `2026-08-01-q1`: a hook that welded two separate
+    sentences together read perfectly and was not on the page in that form."""
+    fused = proposal(observation_id="abc123",
+                     quote="I put my phone on airplane mode 10 days ago. The "
+                           "first three days were genuinely unpleasant.")
+    got = hook.validate(fused, today=TODAY, shortlists=shortlists())
+    assert any("not a contiguous piece" in p for p in got), got
+
+
+def test_line_breaks_do_not_count_as_drift():
+    """A scraped post carries newlines the quote will not. Whitespace is the one
+    thing that legitimately differs; case and punctuation are not, because a
+    comparison that forgave a changed word would forgive the drift it exists to
+    catch."""
+    wrapped = shortlists("I put my phone on airplane mode\n10 days ago and left "
+                         "it there.")
+    got = hook.validate(
+        proposal(observation_id="abc123",
+                 quote="I put my phone on airplane mode 10 days ago and left it "
+                       "there"),
+        today=TODAY, shortlists=wrapped)
+    assert got == [], got
+
+
+def test_an_observation_id_outside_the_shortlist_names_what_was_offered():
+    got = hook.validate(proposal(observation_id="nope"), today=TODAY,
+                        shortlists=shortlists())
+    assert any("not in this lead's shortlist" in p for p in got), got
+    assert any("abc123" in p for p in got), "it has to name what WAS offered"
+
+
+def test_a_lead_with_no_shortlist_at_all_says_so_differently():
+    """"the ranker offered something else" and "the ranker offered nothing" are
+    different problems with different fixes."""
+    got = hook.validate(proposal(observation_id="abc123"), today=TODAY,
+                        shortlists={})
+    assert any("has no shortlist" in p for p in got), got
+
+
+# --------------------------------------------------------------- the escalation
+
+
+def test_no_observation_id_and_no_escalation_is_a_hook_from_nowhere():
+    """Before the flip a blank id was ordinary. Now it means one of two opposite
+    things — the worker went and got something the shortlist did not have, or it
+    composed a hook from nothing — and only the worker can say which."""
+    got = hook.validate(proposal(observation_id=""), today=TODAY,
+                        shortlists=shortlists())
+    assert any("no provenance" in p for p in got), got
+
+
+def test_a_declared_escalation_passes_and_is_named_in_the_report():
+    escalated = proposal(observation_id="", escalated=True,
+                         escalation_rung="podcast")
+    assert hook.validate(escalated, today=TODAY, shortlists=shortlists()) == []
+    text = hook.report([escalated], today=TODAY, shortlists=shortlists())
+    assert "ESCALATED" in text and "podcast" in text
+
+
+def test_an_escalation_with_no_rung_named_is_indistinguishable_from_a_guess():
+    got = hook.validate(proposal(observation_id="", escalated=True),
+                        today=TODAY, shortlists=shortlists())
+    assert any("no rung named" in p for p in got), got
+
+
+def test_escalating_and_joining_at_once_is_a_contradiction():
+    """If the shortlist held it was not an escalation; if it did not, the
+    observation_id belongs to something else."""
+    got = hook.validate(proposal(observation_id="abc123", escalated=True,
+                                 escalation_rung="podcast"),
+                        today=TODAY, shortlists=shortlists())
+    assert any("one or the other" in p for p in got), got
+
+
+def test_the_report_says_when_the_join_was_not_checked():
+    """A PASS with no shortlist passed a weaker check than a PASS with one, and
+    the two lines have to be tellable apart."""
+    text = hook.report([proposal()], today=TODAY)
+    assert "NOT checked" in text
 
 
 def test_a_hook_type_outside_the_crm_enum_is_caught_here():

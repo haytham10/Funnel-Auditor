@@ -453,9 +453,18 @@ def cmd_hook(args) -> None:
                   f"expected one object per proposal.")
             sys.exit(2)
 
+    shortlists = None
+    if args.against:
+        selections = _load_json(args.against, "HOOK")
+        shortlists = hook.shortlists_from(selections)
+        if not shortlists:
+            print(f"HOOK: FAIL — {args.against} carries no lead with a "
+                  f"shortlist; it should be `select --out`'s file.")
+            sys.exit(2)
+
     proposals = hook.load(data)
-    print(hook.report(proposals))
-    sys.exit(1 if hook.validate_all(proposals) else 0)
+    print(hook.report(proposals, shortlists=shortlists))
+    sys.exit(1 if hook.validate_all(proposals, shortlists=shortlists) else 0)
 
 
 # ------------------------------------------------------------------ crm-rows
@@ -1976,6 +1985,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("hook",
                        help="check a proposed hook BEFORE a verifier certifies it")
     p.add_argument("input", help="JSON file (one proposal or a list), or '-' for stdin")
+    p.add_argument("--against", help="select --out's file. Checks the quote is "
+                                     "really a contiguous piece of the "
+                                     "observation it names — ban #3, which was "
+                                     "unenforceable until there was something "
+                                     "to check it against. A batch run passes "
+                                     "it; the single-lead repair path need not")
     p.set_defaults(func=cmd_hook)
 
     p = sub.add_parser("crm-rows",

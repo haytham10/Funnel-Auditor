@@ -64,16 +64,21 @@ class HookProposal:
 
     lead_key: str = ""
     # The join that proves this came from something actually retrieved rather
-    # than composed. Blank is legal and says so in the report: `hook-worker`
-    # still does its own fetching, so a hook can be real and have no stored
-    # observation behind it — that is exactly what `select --against` counts as
-    # `unobserved`, and refusing it here would make the measurement impossible.
+    # than composed. Post-flip it is required unless the proposal declares an
+    # escalation, and `validate(..., shortlists=...)` checks the quote really is
+    # a piece of that observation's stored text.
     observation_id: str = ""
     quote: str = ""              # verbatim, theirs
     line: str = ""               # the authored clause — what the writer took
     hook_type: str = ""          # one of HOOK_TYPES
     source_url: str = ""
     published_at: str = ""       # ISO date
+    # The bounded escalation. A hook with no `observation_id` is legal only when
+    # the worker says it went and got one, and names the rung it walked — the
+    # difference between "the shortlist did not hold" and "this came from
+    # nowhere" is the whole of what `select --against`'s `unobserved` counts.
+    escalated: bool = False
+    escalation_rung: str = ""
     notes: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -87,8 +92,9 @@ class HookProposal:
             if key not in known:
                 continue
             if value is None:
-                value = [] if key == "notes" else ""
+                value = [] if key == "notes" else False if key == "escalated" else ""
             fields[key] = value
+        fields["escalated"] = bool(fields.get("escalated"))
         return cls(**fields)
 
 
@@ -119,16 +125,91 @@ def unusable_citation(url: str) -> str:
     return ""
 
 
-def validate(proposal: HookProposal, *, today: date | None = None) -> list[str]:
+def _flatten(text: str) -> str:
+    """Whitespace-normalised, for comparing a quote against stored text.
+
+    Only whitespace. Not case, not punctuation: a quote is meant to be verbatim,
+    and a comparison that forgave a changed word would forgive exactly the drift
+    it exists to catch. Line breaks are the one thing that legitimately differs
+    between a scraped post and a sentence pulled out of it.
+    """
+    return " ".join((text or "").split())
+
+
+def check_join(proposal: HookProposal, shortlists: dict) -> list[str]:
+    """The quote against the observation it names. Ban #3, made mechanical.
+
+    "No invented specifics — if it cannot be cited, it does not exist" was a
+    sentence an agent was asked to remember, for as long as there was nothing to
+    check it against. Post-flip there is: `select` hands the worker three
+    candidates carrying their observations' verbatim text, so a quote either is
+    a contiguous piece of one of them or it is not.
+
+    `shortlists` maps `lead_key` to that lead's candidates, from `select --out`.
+
+    **An escalation is the one legal way to have no `observation_id`**, and it
+    has to be declared. Before the flip a blank id was ordinary — the hook stage
+    did its own fetching and most hooks had no stored observation behind them.
+    Now a blank id means one of two opposite things: the worker went and got
+    something the shortlist did not have, or it composed a hook from nothing.
+    Only the worker can say which, so it has to.
+    """
+    lead = shortlists.get(proposal.lead_key) or []
+
+    if not proposal.observation_id.strip():
+        if not proposal.escalated:
+            return ["no observation_id and no escalation declared — post-flip a "
+                    "hook comes from the shortlist or from a rung you walked and "
+                    "named. A hook with neither has no provenance at all"]
+        if not proposal.escalation_rung.strip():
+            return ["escalated with no rung named — which rung was walked is "
+                    "what makes the escalation rate readable, and an escalation "
+                    "nobody can attribute is indistinguishable from a guess"]
+        return []
+
+    if proposal.escalated:
+        return ["escalated AND joined to an observation — one or the other. If "
+                "the shortlist held, this was not an escalation; if it did not, "
+                "the observation_id belongs to something else"]
+
+    match = next((c for c in lead
+                  if (c.get("obs_id") or "") == proposal.observation_id), None)
+    if match is None:
+        if not lead:
+            return [f"observation_id {proposal.observation_id!r} names nothing — "
+                    f"this lead has no shortlist, so there was nothing to pick "
+                    f"from and any hook here is an escalation or an invention"]
+        return [f"observation_id {proposal.observation_id!r} is not in this "
+                f"lead's shortlist of {len(lead)} — the ranker offered "
+                f"{', '.join(c.get('obs_id', '?') for c in lead)}"]
+
+    if _flatten(proposal.quote) not in _flatten(match.get("quote", "")):
+        return ["the quote is not a contiguous piece of the observation it "
+                "names. Either it was edited, or two sentences were fused, or "
+                "it came from somewhere else — and all three produce a citation "
+                "the verifier will refute after this stage has already paid for "
+                "it. Quote it exactly, or pick a different candidate"]
+    return []
+
+
+def validate(proposal: HookProposal, *, today: date | None = None,
+             shortlists: dict | None = None) -> list[str]:
     """Everything mechanical, before a verifier is spent on it.
 
     Ordered structural first, then voice, so a worker reading the list fixes the
     thing that makes the rest moot.
+
+    `shortlists` turns on the join check. It is optional so the single-lead
+    repair path in `outbound-draft` still works on a proposal with no batch
+    behind it — but a batch run passes it, and the batch skill says so.
     """
     from outbound import lint
 
     problems: list[str] = []
     today = today or date.today()
+
+    if shortlists is not None:
+        problems.extend(check_join(proposal, shortlists))
 
     if not proposal.quote.strip():
         problems.append("no quote — a hook is quoted from their own words")
@@ -174,12 +255,33 @@ def validate(proposal: HookProposal, *, today: date | None = None) -> list[str]:
     return problems
 
 
-def validate_all(proposals: list, *, today: date | None = None) -> list[str]:
+def validate_all(proposals: list, *, today: date | None = None,
+                 shortlists: dict | None = None) -> list[str]:
     problems = []
     for index, proposal in enumerate(proposals):
-        for problem in validate(proposal, today=today):
+        for problem in validate(proposal, today=today, shortlists=shortlists):
             problems.append(f"hook[{index}] ({proposal.lead_key or '?'}) {problem}")
     return problems
+
+
+def shortlists_from(selections) -> dict:
+    """`lead_key` -> that lead's candidate dicts, from a `select --out` file.
+
+    Accepts the file's own shape (`{"selections": [...]}`) or the bare list, the
+    same tolerance every loader here has, because the two are equally likely to
+    be what somebody has in hand.
+    """
+    rows = selections.get("selections") if isinstance(selections, dict) \
+        else selections
+    out = {}
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        key = (row.get("lead_key") or "").strip()
+        if key:
+            out[key] = [c for c in (row.get("shortlist") or [])
+                        if isinstance(c, dict)]
+    return out
 
 
 def load(data) -> list:
@@ -204,16 +306,28 @@ def schema_help() -> str:
               "`select --against` counts.")
 
 
-def report(proposals: list, *, today: date | None = None) -> str:
+def report(proposals: list, *, today: date | None = None,
+           shortlists: dict | None = None) -> str:
     """The quotable summary, in the shape `observe.report` already uses."""
-    problems = validate_all(proposals, today=today)
+    problems = validate_all(proposals, today=today, shortlists=shortlists)
     head = "VALID" if not problems else f"INVALID ({len(problems)})"
     joined = sum(1 for p in proposals if p.observation_id.strip())
+    escalated = sum(1 for p in proposals if p.escalated)
 
     lines = [
         f"HOOK: {head}, {len(proposals)} proposal(s), "
-        f"{joined} joined to a stored observation",
+        f"{joined} joined to a stored observation, {escalated} escalated",
     ]
+    if shortlists is None:
+        lines.append("  no shortlist given, so the quote was NOT checked "
+                     "against the observation it names — pass --against "
+                     "work/select.json on a batch run")
+    for proposal in proposals:
+        if proposal.escalated:
+            lines.append(f"  ESCALATED {proposal.lead_key or '?'} on "
+                         f"{proposal.escalation_rung or '(unnamed rung)'} — the "
+                         f"shortlist did not hold, which is the number the flip "
+                         f"is judged on")
     for problem in problems:
         lines.append(f"  CHECK   {problem}")
     if problems:
