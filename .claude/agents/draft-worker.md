@@ -90,6 +90,19 @@ were sent back on a cold read and every one of them failed on this beat. Four of
 the five beats were dealt lines shipped verbatim and every reader cleared them.
 This is the only beat written per lead and it was the only one that broke.
 
+**It happened again on 2026-08-02-q3, seventeen drafts out of seventeen**, with
+this section already written. So read the four shapes below as things that will
+happen to you rather than things that happened to somebody else. The three that
+recurred word for word were the verbless fragment ("About AED 400k in signed
+business for the coaches I worked with this year", "30 signed this year, across
+8 practices"), the noun-stack where the reference had a person ("The career
+coach I worked with" for a person never introduced), and dropping "I worked
+with" to buy hook room — which is the phrase that puts somebody behind the
+number, and losing it is most of why the sentence goes flat.
+
+**Do not buy hook room out of this beat by deleting its person.** If the budget
+is tight, cut an adjective, not the agent of the sentence.
+
 It always broke the same way — a line that sounds spoken re-voiced into
 something a database would say:
 
@@ -131,6 +144,47 @@ only what this lead's seam actually needs.
 **Stay inside the length range.** The hook budget was measured against the
 reference line, so a much longer identity sentence takes the room out of the
 hook and the email gets refused for length.
+
+### The hook's connecting clause is yours too, and it is load-bearing
+
+The cited fact is fixed. **The clause you attach to it is the only sentence in
+beat 1 you write, and its job is to say what you took from the fact** — not to
+introduce it, label it, grade it, or admire it.
+
+On 2026-08-02-q3 **every one of seventeen drafts was sent back on its first cold
+read**, and this clause was named in most of them. It failed four ways and they
+are easy to recognise once you have seen them:
+
+- **A verdict on their line.** "That question lands." "Full rebuild." A reader
+  called this "the same energy as *that's real*" — it hands the words back and
+  stops, so the identity beat has nothing to stand on.
+- **A label instead of a take.** "an unusual combination." "an instant score
+  instead of a guess." The second one describes the recipient's own product,
+  which he already knows; swap in any other product name and the sentence is
+  unchanged, so it proves we read the title and nothing under it.
+- **A discovery frame.** "Your about page notes…" "Your LinkedIn bio notes
+  this…" "You mentioned…" **"Notes" is what a document does, not a person**, and
+  naming where you found it is inspector energy rather than attention paid. The
+  banned-words list does not catch these; the shape is the tell.
+- **A polished symmetry.** "Same eye, new room." Two matched two-word phrases is
+  the most written sentence in the email. The polish IS the tell, and it takes a
+  bow exactly where it should be handing the next beat something.
+
+**The test:** delete your clause. If the email still works, the clause was
+decoration and the cited fact is doing nothing. If beat 2 becomes a stranger
+changing the subject to himself, the clause was load-bearing and you have it
+right. That is the test a cold reader applied to the one clause in that batch it
+passed without comment.
+
+Two more, learned the same day:
+
+- **Your clause must be accurate about the source.** One draft called a post
+  about a 5:30am boot camp "your weekly coffee ritual". The quote was real, the
+  gate passed it, and the framing was wrong — which proves we skimmed rather
+  than read, the exact opposite of this beat's purpose.
+- **Whose fact is it.** A clause about the recipient's co-founder, or their
+  spouse's job title, is unswappable and still wrong. The test is unswappable
+  AND about them.
 
 ## The bridge, which is the whole reason you exist
 
