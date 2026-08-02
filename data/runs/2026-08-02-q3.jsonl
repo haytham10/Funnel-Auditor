@@ -382,3 +382,6 @@
 {"kind": "pass", "stage": "hook", "agent": "hook-worker", "model": "sonnet", "count": 14, "at": "2026-08-02T16:36:53+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 13, "at": "2026-08-02T16:36:53+00:00"}
 {"lead_key": "cnarabi@gmail.com", "stage": "verify", "platform": "linkedin", "url": "https://linkedin.com/in/amanda-slade-18398b71", "retrieved_by": "apify:li_profile", "cost_usd": 0.004, "secs": 10.59, "outcome": "ok", "purpose": "verify", "at": "2026-08-02T16:39:43+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 6, "at": "2026-08-02T16:42:47+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 5, "at": "2026-08-02T16:45:34+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-verifier", "model": "opus", "count": 4, "at": "2026-08-02T16:45:34+00:00"}
