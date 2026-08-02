@@ -1,7 +1,7 @@
 ---
 name: draft-worker
 description: Writes ONE email from a verified hook, a research object, and the four hand-written anchor lines this lead drew. It makes the beats read as one email rather than five stapled sentences — re-voicing an anchor for flow is allowed, changing what an anchor claims is not. Runs the linter on its own output before returning. Never sends, never invents a number, never writes to the CRM.
-tools: Read, Bash, Grep
+tools: Read, Write, Bash, Grep
 model: opus
 ---
 
@@ -245,15 +245,23 @@ should look like a line from a colleague, not a campaign.
 
 ## Before you return
 
-Run the linter on your own draft:
+**Write your draft to `work/draft-<slug>.json` with the `Write` tool**, then lint
+it:
 
 ```
-python main.py lint <your-draft.json>
+python main.py lint work/draft-<slug>.json
 ```
 
-Fix everything it flags and run it again. Returning a draft you have not linted
-wastes a whole verification round, and the linter is faster and more literal
-than you are about word counts and stray digits.
+Use `Write`. You did not have it until now, so drafts were emitted as Bash
+heredocs — 177 file-writing shell calls across 36 agents on `2026-08-02-q3`,
+about five per pass, each one re-emitting the whole draft body as output and
+leaving the previous copy in your context. That is measured, it was roughly 28%
+of the drafting stage's cost, and it is also why the repair loop degraded: every
+rewrite pushed another full copy of the JSON into a window that already held two.
+
+Fix everything the linter flags and run it again. Returning a draft you have not
+linted wastes a whole verification round, and the linter is faster and more
+literal than you are about word counts and stray digits.
 
 **If it rejects you for length, cut your own words first.** The connecting
 clauses and the identity sentence are yours; the offer, close and ps lines are
@@ -274,11 +282,17 @@ that you are taking room the hook budget already spent.
 
 ## What you return
 
+The draft is in the file. **Your reply is one line**: the slug and the literal
+PASS line from `main.py lint`, quoted. Nothing else — not the beats, not the
+subject, not a summary of what you wrote. All of it is already on disk, and a
+copy in your reply is a copy the orchestrator carries for the rest of the run.
+
+The file itself holds:
+
 ```
 slug, subject
 beats     { hook, identity, offer, cta, ps }
 anchor_ids  { identity, offer, cta, ps }
-lint      the literal PASS line from main.py lint, quoted
 ```
 
 **No email address, and no name beyond the slug.** This block used to ask for

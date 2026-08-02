@@ -36,6 +36,11 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     ledger      what each retrieval cost and how long it took
     metrics     what the hook stage yielded, and what the leads that yielded
                 nothing cost. `?` for a count nobody supplied, never 0
+    verdict     validate a cold read before anything routes on it
+    redraft     route a wave of cold reads: who goes back, who holds, and the
+                one note that covers a beat several drafts failed on
+    collect     assemble a stage's state file from the per-lead files, instead
+                of out of the orchestrator's context
     usage       what the batch cost in Claude tokens, MEASURED from the session
                 transcript — the half `ledger pass` cannot see, including the
                 orchestrator, which reports no passes and is usually the largest
@@ -2033,6 +2038,110 @@ def cmd_metrics(args) -> None:
     sys.exit(0)
 
 
+def cmd_collect(args) -> None:
+    """Assemble a stage's state file from the per-lead files on disk.
+
+    `work/researched.json`, `work/draftable.json` and `work/drafts.json` were
+    written by no command — the orchestrator serialised each one out of its own
+    context, which is the most expensive way to concatenate JSON and the reason
+    no stage here could be resumed by anything that was not present when it ran.
+
+    **Fails closed and prints coverage.** `crm-rows` is the precedent: twenty
+    rows once went in with five empty columns on all of them, and the check that
+    passed them reported 20/20 by looking only at fields that were populated.
+    """
+    from outbound import collect as co
+
+    expect = []
+    if args.expect:
+        rows = _load_json(args.expect, "COLLECT")
+        rows = rows if isinstance(rows, list) else [rows]
+        expect = [str(r.get("slug") or "").strip() for r in rows
+                  if isinstance(r, dict)]
+
+    got = co.collect(args.where, args.stage, expect=expect)
+    print(co.report(got))
+    if got.members:
+        print(f"  wrote {co.write(got, args.out)}")
+    sys.exit(1 if co.failed(got) else 0)
+
+
+def cmd_verdict(args) -> None:
+    """Validate what the cold read decided, before anything routes on it.
+
+    The draft verdict had no artifact until now: `draft-verifier` returned SEND,
+    REWRITE or REJECT as prose and had no `Write` tool, so the skill's own line
+    was "the verdict lives in an agent, nothing in Python can reach it". A
+    verdict only the orchestrator can read is a verdict only the orchestrator can
+    route, which is why every one of them arrived on its own turn inside a
+    600k-token context.
+
+    The shape is `draft-verifier.md`'s own contract. The one change is that
+    `beat` is an enum, because a wave's findings have to be counted by it and
+    free text does not cluster.
+    """
+    from outbound import verdict as v
+
+    data = _load_json(args.input, "VERDICT")
+    items = v.load(data)
+    if not items:
+        print("VERDICT: FAIL — no verdicts to validate. An empty wave is a "
+              "cold read that did not happen, not one where nothing was wrong.")
+        sys.exit(2)
+    print(v.report(items))
+    sys.exit(1 if v.validate_all(items) else 0)
+
+
+def cmd_redraft(args) -> None:
+    """Route a wave of cold reads: who goes back, who holds, and what to say.
+
+    Two things this replaces, both measured.
+
+    **The cap.** `SKILL.md` has always said a REWRITE goes back to the drafter
+    once and then the lead holds. Eight of nine leads exceeded it on
+    `2026-08-02-q2` and eight on `2026-08-02-q3`; the repeats were 68% and 46%
+    of those draft stages. It is a loop bound now.
+
+    **The clustering.** Seventeen of seventeen drafts on q3 failed their first
+    cold read on the same beat and were answered one at a time, because a reader
+    going lead by lead cannot see the seventeenth until they have paid for
+    sixteen. Counting makes the pattern visible on the first pass.
+
+    **Never exits 1 on a routing decision** — a wave where everything holds is a
+    real answer. Exit 1 is only its own output failing its own schema, the same
+    rule as `plan` and `select`.
+    """
+    from outbound import redraft as rd, verdict as v
+
+    if Path(args.input).is_dir():
+        items = v.read_dir(args.input)
+        source = f"{args.input} ({len(items)} verdict file(s))"
+    else:
+        items = v.load(_load_json(args.input, "REDRAFT"))
+        source = args.input
+    if not items:
+        print(f"REDRAFT: FAIL — no verdicts in {source}. An empty wave is a "
+              f"cold read that did not happen.")
+        sys.exit(2)
+
+    broken = [i for i in items if v.validate(i)]
+    if broken:
+        print(v.report(items))
+        print(f"REDRAFT: FAIL — {len(broken)} verdict(s) do not validate. "
+              f"Routing on a malformed verdict is how a lead gets redrafted "
+              f"against no instruction.")
+        sys.exit(2)
+
+    out = rd.plan(items, max_rounds=args.max_rounds, cluster_min=args.cluster_min)
+    print(rd.report(out, cluster_min=args.cluster_min))
+
+    if args.out:
+        Path(args.out).write_text(json.dumps(out.to_dict(), indent=2, default=str),
+                                  encoding="utf-8")
+        print(f"  wrote {args.out}")
+    sys.exit(0)
+
+
 def cmd_usage(args) -> None:
     """The Claude bill, measured from this session's transcript.
 
@@ -2170,7 +2279,9 @@ def cmd_doc_check(args) -> None:
 def build_parser() -> argparse.ArgumentParser:
     # Imported for one default. `doc-check` builds this parser, so anything
     # heavy at import time here is paid by the test suite too.
+    from outbound import collect as collect_defaults
     from outbound import fetch as fetch_defaults
+    from outbound import redraft as redraft_defaults
     from outbound import select as select_defaults
 
     parser = argparse.ArgumentParser(
@@ -2479,6 +2590,40 @@ def build_parser() -> argparse.ArgumentParser:
                                    "data/runs/<batch>-usage.json). The MEASURED "
                                    "token bill, against the REPORTED pass counts")
     p.set_defaults(func=cmd_metrics)
+
+    p = sub.add_parser("collect",
+                       help="assemble a stage's state file from the per-lead "
+                            "files, instead of out of the orchestrator's context")
+    p.add_argument("stage", choices=sorted(collect_defaults.STAGES),
+                   help="which state file to build")
+    p.add_argument("--where", default="work",
+                   help="the directory holding the per-lead files (default work/)")
+    p.add_argument("--out", help="override the output path")
+    p.add_argument("--expect", help="a JSON list carrying the slugs this stage "
+                                    "should produce. 'found six' and 'found six "
+                                    "of seventeen' are the whole check")
+    p.set_defaults(func=cmd_collect)
+
+    p = sub.add_parser("verdict",
+                       help="validate a cold read before anything routes on it")
+    p.add_argument("input", help="JSON file (one verdict, a list, or a "
+                                 "{slug: verdict} map), or '-' for stdin")
+    p.set_defaults(func=cmd_verdict)
+
+    p = sub.add_parser("redraft",
+                       help="route a wave of cold reads: who goes back, who "
+                            "holds, and the one note that covers a shared beat")
+    p.add_argument("input", help="a directory of verdict-<slug>.json, or one "
+                                 "JSON file holding them")
+    p.add_argument("--out", help="write the routing plan as JSON")
+    p.add_argument("--max-rounds", type=int, default=redraft_defaults.MAX_ROUNDS,
+                   help="rounds a lead may have before it holds. SKILL.md has "
+                        "always said one repair; as a sentence it lost on both "
+                        "measured batches")
+    p.add_argument("--cluster-min", type=int, default=redraft_defaults.CLUSTER_MIN,
+                   help="how many leads must share a beat before it is one "
+                        "stage problem rather than N lead problems")
+    p.set_defaults(func=cmd_redraft)
 
     p = sub.add_parser("usage",
                        help="what the batch cost in Claude tokens, measured "

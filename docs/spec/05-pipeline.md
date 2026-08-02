@@ -825,6 +825,72 @@ distinguishable from what was measured.
 printed apart from the reported block so the two authorities never share a line.
 `tokens_per_email` divides by `written`, which is `?` until a stage supplies it.
 
+### `verdict`
+**In** one cold read, a list of them, or a `{slug: verdict}` map. **Out** the
+schema verdict. **Guarantees** a REWRITE naming no problem is rejected, and
+`beat` is an enum. **Exit 2** on an empty wave. Owned by `outbound/verdict.py`.
+
+**The draft verdict had no artifact until now.** `draft-verifier` returned SEND,
+REWRITE or REJECT as prose and had no `Write` tool, so this spec's own line was
+that the verdict lives in an agent and nothing in Python can reach it. `REWRITE`
+appeared in zero Python. A verdict only the orchestrator can read is a verdict
+only the orchestrator can route, which is why every one arrived on its own turn
+inside a context that reached 578k-684k tokens.
+
+The shape is `draft-verifier.md`'s own contract — `verdict / seam / voice /
+problems[{beat, sentence, problem}]` — with one change: the last key was written
+in English and is now an identifier, because a field that gets counted needs a
+name. **`beat` is an enum for the same reason.** "the identity line" and
+"identity beat" would be two buckets and a wave of seventeen identical findings
+would report as seventeen one-of-a-kind problems, which is the state this exists
+to fix.
+
+**A REWRITE with no problems is rejected**: the drafter would be re-run against
+no instruction, a full opus pass that cannot improve on anything.
+
+### `redraft`
+**In** a directory of `verdict-<slug>.json`, or one file holding them. **Out**
+who is redrafted, who holds, and one shared note per beat a wave failed on.
+**Guarantees** the round cap is a loop bound. **Exit 2** on a malformed verdict.
+**Never exit 1** on a routing decision. Owned by `outbound/redraft.py`.
+
+**The cap was always specified and it lost twice.** "Back to the drafter once,
+then it either passes or it holds" is in the batch skill and has been since it
+was written. Eight of nine leads exceeded it on `2026-08-02-q2`, one running five
+rounds; eight leads exceeded it on `2026-08-02-q3`, three running three. The
+repeats were 68% and 46% of those draft stages. A long session talks itself past
+a sentence one reasonable exception at a time and cannot talk itself past a loop
+bound.
+
+**The clustering is the larger half.** Seventeen of seventeen q3 drafts failed
+their first cold read on the same beat and were answered individually — nineteen
+redraft prompts carrying 1.6x the text of all seventeen original briefs. Nobody
+was careless: a reader going lead by lead cannot see the seventeenth until they
+have paid for sixteen. When a beat accounts for at least `CLUSTER_MIN` of a
+wave's rewrites, this says so and emits **one** correction naming the beat and
+the leads. Below that threshold it says the problems are genuinely separate, and
+separate notes are right.
+
+**It routes; it does not draft**, the same boundary `crm-rows` keeps.
+
+### `collect`
+**In** a directory of per-lead files. **Out** the stage's state file, plus
+coverage. **Guarantees** a missing expected member, an unreadable file, or an
+empty stage all fail closed. **Exit 1** on any of those. Owned by
+`outbound/collect.py`.
+
+**Three files here were written by no command**: `work/researched.json`,
+`work/draftable.json`, `work/drafts.json`. The orchestrator serialised each out
+of its own context — the parts already in a 600k-token window, the whole emitted
+as output, then read back as a tool result. It also made every stage
+unresumable, since a file that exists only because somebody remembered to write
+it cannot be picked up by anything that was not there.
+
+**`--expect` is the check.** `crm-rows` is the precedent: twenty rows once went
+in with no First Name, Last Name, Website, LinkedIn or City on any of them, and
+the check that passed them looked at four populated fields and reported 20/20. A
+count of what was found is not a count of what should exist.
+
 ### `usage`
 **In** the session's own transcripts. **Out** what the batch cost in Claude
 tokens — totals by bucket and model, the orchestrator/subagent split, and a

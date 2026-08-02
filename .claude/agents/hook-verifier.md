@@ -1,7 +1,7 @@
 ---
 name: hook-verifier
 description: Independently verifies ONE proposed hook by re-fetching its cited source in a context that never saw the hook-worker's search, and confirming the quote, the date and the authorship actually hold. Returns VERIFIED / REFUTED / INCONCLUSIVE, defaulting to refuted. It never re-authors the hook, never drafts, never sends.
-tools: Read, Bash, Grep, WebFetch
+tools: Read, Write, Bash, Grep, WebFetch
 model: sonnet
 ---
 
@@ -107,14 +107,29 @@ A REFUTED or INCONCLUSIVE hook means the lead does not get drafted this round.
 That is the correct outcome, not a problem to work around. There is no volume
 target that justifies sending a hook you could not confirm.
 
-## What you return
+## What you write
 
+**Write your verdict to `work/hookverdict-<slug>.json` before you return.** Then
+say one line — `<slug>: VERIFIED` or `<slug>: REFUTED, the quote is not on the
+page` — and nothing else.
+
+```json
+{
+  "slug": "meg-juma",
+  "verdict": "VERIFIED | REFUTED | INCONCLUSIVE",
+  "reason": "one sentence, citing the page for a refutation",
+  "quote_found": "what the page actually says at that point, verbatim",
+  "resolved_hook": "the hook on VERIFIED, empty string otherwise",
+  "hook_source_url": "the URL you fetched",
+  "hook_date": "the publication date the page gave, ISO"
+}
 ```
-verdict        VERIFIED | REFUTED | INCONCLUSIVE
-reason         one sentence, citing the page for a refutation
-quote_found    what the page actually says at that point, verbatim
-resolved_hook  the hook on VERIFIED, empty string otherwise
-```
+
+You have `Write` for exactly this. Until now the orchestrator copied six fields
+per lead out of your reply and onto the research object by hand, a step the skill
+itself flags as silently skippable — skip it and `metrics` reports `hook_yield
+0%` on a batch that shipped verified hooks. A verdict on disk cannot be
+half-transcribed.
 
 **Do not improve the hook.** If it is nearly right but overstated, that is
 REFUTED with the overstatement named. Rewriting it here would destroy the whole
