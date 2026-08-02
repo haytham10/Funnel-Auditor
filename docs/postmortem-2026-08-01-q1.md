@@ -57,8 +57,10 @@ used the env var, and said so in its report. I had told twelve agents to do
 something impossible and only one of them told me.
 
 **Status.** Lines folded back with `batch_relabelled_from` so the correction is
-visible. **The underlying defect is unfixed:** the label should be discoverable,
-not remembered.
+visible. **Fixed since:** `--batch` exists on every paid subcommand, and
+`ledger batch <label>` writes `work/BATCH`, which is what a separate process can
+actually read. The env var was never going to work — a subagent starts from a
+different environment. The label is discoverable now, not remembered.
 
 ### 1.2 I polluted the measurement the batch existed to produce
 
@@ -76,8 +78,9 @@ only 12 were real findings.
 exists to expose." I avoided it correctly on the *third* run by calling
 `fetch.run_plan` directly. I just did not think about it on the second.
 
-**Status.** Unrecoverable for this batch. **An escalate-only CLI path does not
-exist and should.**
+**Status.** Unrecoverable for this batch. **Fixed since:**
+`fetch <sites.json> --escalate-only` runs the saved plans and reads nothing at
+tier 0. A retry cannot pollute the measurement it is retrying.
 
 ### 1.3 I biased the flip measurement with my own prompt
 
@@ -202,9 +205,12 @@ a `Hook` field naming a sentence the reader never saw — the field carried the
 certified proposal while `Body` carried the drafter's rewrite. That is the
 failure `export --anchors` exists to catch, one field over.
 
-**Status.** Both fixed and verified across every field on every row. The
-underlying risk is unfixed: **nothing in the repo builds a Leads row**, so this
-was a hand-written script, which is exactly where a wrong-source join hides.
+**Status.** Both fixed and verified across every field on every row.
+**Fixed since:** `outbound/crm.py` builds the row, joins the two sources
+explicitly, fails closed when a research object has no lead behind it, and
+prints coverage for *every* field rather than the ones anybody expects. It still
+does not write — a person does. What was wrong was never that a model did the
+typing; it was that a model did the join.
 
 ### 1.9 A lead was dropped on the hook-worker's weakest line choice, and I let it stand
 
@@ -236,23 +242,26 @@ because the question was every mistake.
 
 These are not my errors. Several are consequential and most are unfixed.
 
+_Statuses updated 2026-08-01, in the session that acted on Part 5. Every "fixed"
+below names the commit's argument, not just its existence._
+
 | # | Defect | Status |
 |---|---|---|
-| 2.1 | **`apify` has no `--batch` flag** and subagents do not inherit `OUTBOUND_BATCH`, so spend silently lands in the wrong file | **open** |
+| 2.1 | **`apify` has no `--batch` flag** and subagents do not inherit `OUTBOUND_BATCH`, so spend silently lands in the wrong file | **fixed** — `--batch` on every paid subcommand, and `ledger batch` writes `work/BATCH`, because a shell variable was never going to reach a separate process |
 | 2.2 | **cheerio-scraper was never permission-approved** — a 403 `full-permission-actor-not-approved`. The proposal blamed the first batch's skipped tier 2 on a bad actor id; this was a second, unknown cause | approved mid-run |
-| 2.3 | **harvestapi builds LinkedIn post URLs that 404** when the post has no text-derived slug (`/posts/name_-activity-…`). Content is real and paid for; the citation is unusable | **open** |
-| 2.4 | **The hook is certified before it is linted.** 6 of 12 drafts had to alter verifier-certified text — em-dashes, spaced hyphens, "touchpoints", and numbers | **open** |
-| 2.5 | **`check_numbers` deletes the recipient's own facts.** "70.3", "2023", "11 years", "27 years" are not our client results, so the rule meant to stop us relabelling a result instead strips the most specific thing a hook can contain. Both drafters shunted the figure into the subject line | **open** |
+| 2.3 | **harvestapi builds LinkedIn post URLs that 404** when the post has no text-derived slug (`/posts/name_-activity-…`). Content is real and paid for; the citation is unusable | **fixed** — `main.py hook` rejects the empty-slug shape before a verifier is spent on it |
+| 2.4 | **The hook is certified before it is linted.** 6 of 12 drafts had to alter verifier-certified text — em-dashes, spaced hyphens, "touchpoints", and numbers | **fixed** — `main.py hook` runs the voice rules on the proposal, and the repair is picking another quote, never editing theirs (F4) |
+| 2.5 | **`check_numbers` deletes the recipient's own facts.** "70.3", "2023", "11 years", "27 years" are not our client results, so the rule meant to stop us relabelling a result instead strips the most specific thing a hook can contain. Both drafters shunted the figure into the subject line | **fixed** — a figure in the hook beat that is also in the certified quote is exempt, masked in the beat's own text so it cannot reach the identity beat |
 | 2.6 | **Re-voicing the identity line destroys it.** 11 of 12 cold reads failed on this one beat; the other four beats are dealt lines and every reader cleared them | **fixed** in `draft-worker.md` |
-| 2.7 | **`select`'s `site_prose` ban excludes verified hooks.** All 3 MISSED in the measurement were verified hooks thrown out for being `kind: about`. Fixing it takes reachable from 4/12 to 7/12 | **open, ~3 lines** |
+| 2.7 | **`select`'s `site_prose` ban excludes verified hooks.** All 3 MISSED in the measurement were verified hooks thrown out for being `kind: about`. Fixing it takes reachable from 4/12 to 7/12 | **fixed** — and it needed a fourth line: `about` also had to gain the evergreen date exemption, or all three moved to `no_date` |
 | 2.8 | **`observe` graded research objects as observations** — the skill has always said to run it on a research file, which produced 50 violations about 10 fine objects | **fixed** |
 | 2.9 | **The activity floor counted third-party coverage.** A company post naming Lorna King made her "active" | **fixed** |
-| 2.10 | **`metrics.rung_of` conflates `li_profile` with `li_posts`** — LADDER has one LinkedIn rung, so profile-sourced hooks are attributed to the posts rung | **open** |
-| 2.11 | **`cta-04` + `ps-04` deals two exits in a row.** Each line is fine alone; together the reader gets an out in the close's first three words and another in the ps. Per-line linting cannot see it | **open, Airtable** |
-| 2.12 | **`draft_lint`'s sentence splitter misreports** on any draft whose hook ends in a quotation — the greeting glues to the hook and the quote's period sits inside the closing quote | **open** |
-| 2.13 | **`hook-worker` optimises for the most quotable line**, which is reliably the most transferable one. The specificity bar wants the opposite | **open** |
-| 2.14 | **No escalate-only CLI path** — `fetch --escalate` always re-reads every site first | **open** |
-| 2.15 | **"Most people [verb]" appeared as the writer's clause in two drafts** — a template in the one beat that exists to prove per-lead authorship. Only a batch-level check catches it | **open** |
+| 2.10 | **`metrics.rung_of` conflates `li_profile` with `li_posts`** — LADDER has one LinkedIn rung, so profile-sourced hooks are attributed to the posts rung | **fixed** — LinkedIn is two rungs in `LADDER`, and an unattributable URL says so rather than picking |
+| 2.11 | **`cta-04` + `ps-04` deals two exits in a row.** Each line is fine alone; together the reader gets an out in the close's first three words and another in the ps. Per-line linting cannot see it | **half fixed** — `check_ask` warns on a question close and `copy-check` names `cta-04` at the source. The edit is still Haytham's |
+| 2.12 | **`draft_lint`'s sentence splitter misreports** on any draft whose hook ends in a quotation — the greeting glues to the hook and the quote's period sits inside the closing quote | **fixed** — one `split_sentences`, and it was `outbound/lint.py` rather than `draft_lint`, in two copies |
+| 2.13 | **`hook-worker` optimises for the most quotable line**, which is reliably the most transferable one. The specificity bar wants the opposite | **open** — a judgement, not a check. D25 is explicit that this is not the kind of thing to mechanise |
+| 2.14 | **No escalate-only CLI path** — `fetch --escalate` always re-reads every site first | **fixed** — `fetch --escalate-only <sites.json>` |
+| 2.15 | **"Most people [verb]" appeared as the writer's clause in two drafts** — a template in the one beat that exists to prove per-lead authorship. Only a batch-level check catches it | **fixed** — `check_batch` warns on a four-word phrase two hooks share |
 | 2.16 | **`homepage-first` would have saved nothing.** 0 of 57 page fetches deferrable, against the proposal's −30% estimate | measured |
 
 ---
@@ -321,6 +330,23 @@ The gates caught what they were pointed at. Nothing was pointed at me.
 8. **Re-deal `ps-04` away from `cta-04`**, in Airtable.
 9. Fix `metrics.rung_of` to distinguish the two LinkedIn actors.
 10. Fix `draft_lint`'s sentence splitter for quoted hooks.
+
+**Done 2026-08-01, in the session that read this**: 1, 2, 3, 4, 6, 7, 9, 10, and
+half of 8 — `check_ask` warns on a question close and `copy-check` names
+`cta-04` at the source, but the re-deal is still Haytham's edit in Airtable.
+
+**Not done, and why.** **5, re-hooking Sehar McDermott**, is operational: it
+costs a paid rung and an unprimed verifier, and it is a decision to spend rather
+than a defect to fix. **2.13, `hook-worker` optimising for the most quotable
+line**, is a judgement and not a check — D25 is explicit that mechanising a
+judgement is not what that rule licenses.
+
+**Two things fixing them turned up.** Item 7's "three lines" was four: removing
+the `site_prose` ban alone moved all three MISSED to `no_date`, because a page
+somebody wrote about themselves carries no publication date and `about` had to
+gain the evergreen exemption `docs/hook-rules.md` already granted in prose. And
+item 10's splitter was in `outbound/lint.py`, not `draft_lint` — in two copies,
+both with the same bug.
 
 ---
 

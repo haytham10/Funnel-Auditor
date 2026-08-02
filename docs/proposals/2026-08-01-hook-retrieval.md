@@ -38,6 +38,111 @@ The trigger is one batch reaching stage 3b and producing both `ledger report`'s
 `missed` and `unobserved` kept apart. **Everything needed to judge that batch is
 now built**, which was not true when this note was first written._
 
+---
+
+_**The batch ran, and the flip does not go — but not for the reason the numbers
+first said.** Batch `2026-08-01-q1`, 20 leads, 12 verified hooks, 5 shipped
+rows. `AGAINST: 4 agreed, 0 shortlisted, 3 missed, 5 unobserved`, hook_yield
+63%, refute_rate 26%, cost $0.4369 with $0.2086 wasted on 47 paid fetches._
+
+_Then the post-mortem took both halves apart and **each turned out to be an
+artefact**:_
+
+- _**All three MISSED were one ban.** `site_prose` excluded Rory Buck, Sanaa
+  Diab and Bindu Joseph — each an observation an independent verifier had
+  VERIFIED, each `kind: about`. That one ban was 21 of the corpus's 32
+  rejections. F5's narrowing reasoned that the verifier refutes generic About
+  prose; the reasoning was sound and the proxy was wrong. **What the verifier
+  refuses is the generic, not the location.** Ban #1's mechanical half is now
+  the same text observed for two different leads, which is the ban's own test
+  settled on evidence._
+- _**Four of the five UNOBSERVED were a flag.** `research-worker` ran `apify
+  li-posts --max 5` with no window while `hook-worker` ran `--since 3months`,
+  so one profile was asked two different questions a stage apart and the hook
+  stage kept "discovering" posts research had never requested. The retrieval
+  flags live on `plan.LADDER` now and `doc-check` fails a file that omits them —
+  and `.claude/agents/` is inside the scanned corpus, which it was not, which is
+  how two prompts disagreed for months with every gate green._
+- _**The `DUPLICATE` half was polluted twice.** A `fetch --escalate` retry
+  re-read all 20 sites before failing again, adding 52 of the batch's 83
+  duplicate pairs — D22's risk, in D22's words, because no escalate-only path
+  existed. And five of twelve hook-worker prompts carried an observation nudge
+  the production skill does not, so those five walked no paid rung._
+
+_Neither fix produces a corrected number, because the corpus lived in `work/`
+and did not survive the container. **`select --batch` now writes the corpus
+beside the verdict** so this is the last ranking change that cannot be re-scored
+against the batch that prompted it._
+
+_**F4 is closed, and independently of the flip.** `python main.py hook` gates a
+proposal before a verifier is spent on it — six of twelve drafts had to alter
+text a verifier had certified word for word, over an em-dash, spaced hyphens,
+"touchpoints" and four figures, every one a rule the linter always held and the
+hook stage never ran. The authored clause the proposal was waiting for was never
+what F4 needed; it needed the gate to run before certification rather than
+after._
+
+_**Part 11's homepage-first estimate is refuted on one batch**: −30% of tier-0
+page fetches, measured at 0 of 57 deferrable. The counter stays, the estimate
+does not._
+
+_**And one cost this document never named.** Part 11 says "the larger waste is
+agent passes, and it is invisible" — and then measures everything except that.
+`2026-08-01-q1` cost about 64 agent passes for 20 leads and 5 rows, recorded as
+the number 64. `ledger pass` now reports them by stage and by model, on trust
+and labelled as such. See D25._
+
+_See `docs/postmortem-2026-08-01-q1.md` for the full account, and D26 for the
+condition that would reopen the flip._
+
+---
+
+_**P3 landed the same day, one batch before its own gate.** Haytham's call,
+after reading D26, and it is recorded as that in **D27** rather than folded into
+D26 as a change of mind. The corrected `unobserved` number still does not exist
+and could not be produced; this is a decision to act on the diagnosis — that both
+blocking numbers were artefacts with known, fixed causes — instead of on the
+measurement that diagnosis predicts._
+
+_All three switches: `hook-worker` stops fetching and chooses from `select`'s
+shortlist, `select` runs first and is consumed, and a `plan` decline binds
+(**D28**, which is D21's gating half turning on now that `metrics --plan`
+computes its reversal condition)._
+
+_**What the document got right, and did not.** Part 5's `select` was to write
+the clause itself; Part 7 said not to make it a model call. Both cannot hold, and
+the resolution is the one Part 7 implies: `select` is pure Python, ranks
+mechanically, and hands three candidates to a model that authors the clause and
+nothing else. The shortlist size was always justified as making a rejected first
+pick free, and that is exactly what it now does._
+
+_Part 5 also said `select` should have "no tools that fetch". It went further:
+`hook-worker` lost `WebSearch` entirely and kept `WebFetch` only for the one
+bounded escalation, against a URL `plan` named. Every retrieval left at that
+stage is priced and visible._
+
+_**The consequence the document does not mention.** Removing that search deletes
+the podcast rung, which is the free one that reaches coaches who do not post. It
+moved to `research-worker`, which is the proposal's own logic — retrieval belongs
+to the stage that already fetches — but it is a real cost increase at stage 2 and
+R1's mitigation in practice: the retrieval pass now carries the hook criteria,
+not only the floor questions._
+
+_**F4 closed earlier and differently than planned.** The proposal has
+`HookProposal` arriving with P3 because it needed the authored clause. It did
+not: the gate that mattered was running before certification rather than after,
+and that shipped on its own. What P3 added was the **join** — `hook --against`
+checks the quote is a contiguous piece of the observation it names, which makes
+ban #3 mechanical for the first time. Part 6 predicted exactly that
+(`observation_id` "makes the join that proves the hook came from something
+actually retrieved") and it is the one part of the proposal that arrived
+stronger than written._
+
+_**What judges it**, since it shipped without the number that gated it:
+`escalation_rate` (R1, countable), `refute_rate` (which now means the stored
+text did not match the page), `null_hook_rate` and `hook_yield`. D27 carries
+the three different fixes those three failures would point at._
+
 _**P3 landed switched off, which is a departure from this document and the more
 important note on the page.** Part 9 describes P3 as the one real behaviour
 change — hook-worker stops fetching — and gates it on before-and-after numbers.

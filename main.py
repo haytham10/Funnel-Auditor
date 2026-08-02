@@ -14,6 +14,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     qualify     the three floors, run over a research JSON
     research    validate one worker's returned research object
     observe     validate the observations a worker says it actually fetched
+    hook        check a proposed hook BEFORE a verifier certifies its wording
     fetch       the free-first site read, plus one batched Apify plan
     resolve     which channels are plausibly this lead's own, and on what evidence
     plan        which hook rungs a lead has, and what each would cost
@@ -26,6 +27,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     copy-check  assert Airtable is what a batch would draw from, and not a cache
     lint        the checks that make model-written copy safe
     export      leads.csv + preview.txt, refusing to write a failing email
+    crm-rows    the Airtable Leads rows, joined explicitly and failing closed.
+                Computes only — a human still performs the write
     email-check      address shape: syntax, MX, role and typo flags
     email-verify     deliverability confirm before a send
     email-verify-batch  the same, for a whole slice's addresses in one call
@@ -411,6 +414,109 @@ def cmd_observe(args) -> None:
     observations = observe.load(data)
     print(observe.report(observations))
     sys.exit(1 if observe.validate_all(observations) else 0)
+
+
+# ----------------------------------------------------------------------- hook
+
+
+def cmd_hook(args) -> None:
+    """Check a proposed hook before an independent verifier is spent on it.
+
+    F4: the hook was the only consequential artifact with no mechanical gate.
+    Research has a schema, observations have a schema, and the one sentence a
+    stranger reads first arrived as prose and went straight to certification.
+
+    **The ordering is the whole point.** Six of twelve drafts on
+    `2026-08-01-q1` had to alter text a verifier had confirmed word for word —
+    an em-dash, spaced hyphens, "touchpoints" — because every one of those rules
+    ran three stages later. When a quote breaks a voice rule the honest repair is
+    to pick a different quote, and only the worker can do that: it has the page
+    open and the verifier has not run. The drafter, one stage on, has neither the
+    alternatives nor the authority, so it edits the citation instead.
+
+    **Exit 1 means fix the proposal, never edit their words.** Nothing here
+    rewrites a quote, and nothing here has looked at the page: this is not
+    verification and a PASS is not permission to skip the verifier.
+    """
+    from outbound import hook
+
+    data = _load_json(args.input, "HOOK")
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        print(f"HOOK: FAIL — expected an object or an array of them, got "
+              f"{type(data).__name__}.")
+        sys.exit(2)
+    for entry in data:
+        if not isinstance(entry, dict):
+            print(f"HOOK: FAIL — array holds a {type(entry).__name__}, "
+                  f"expected one object per proposal.")
+            sys.exit(2)
+
+    shortlists = None
+    if args.against:
+        selections = _load_json(args.against, "HOOK")
+        shortlists = hook.shortlists_from(selections)
+        if not shortlists:
+            print(f"HOOK: FAIL — {args.against} carries no lead with a "
+                  f"shortlist; it should be `select --out`'s file.")
+            sys.exit(2)
+
+    proposals = hook.load(data)
+    print(hook.report(proposals, shortlists=shortlists))
+    sys.exit(1 if hook.validate_all(proposals, shortlists=shortlists) else 0)
+
+
+# ------------------------------------------------------------------ crm-rows
+
+
+def cmd_crm_rows(args) -> None:
+    """Build the Airtable Leads rows, joined explicitly and failing closed.
+
+    Twenty rows went in on `2026-08-01-q1` with no First Name, Last Name,
+    Website, LinkedIn or City on any of them, because they were built from
+    `work/researched.json` — which has never carried the intake identity fields.
+    Those live on the normalized Lead. A `if v not in (None, "")` filter dropped
+    every empty key before the request, so there was no error and no warning.
+
+    Then the check that "verified" it counted four fields somebody expected to
+    be populated and reported 20/20. A verification that only looks where you
+    expect to find something is the writer certifying its own work with extra
+    steps, and Haytham caught it rather than the machine.
+
+    So: the join is explicit and a research object with no lead behind it is a
+    failure rather than a row with blanks in it, and **coverage is printed for
+    every field** — a field empty on every row is named whether or not it is
+    required, because "nobody has a City" and "the City never got read" print
+    identically otherwise.
+
+    **It writes nothing to the CRM.** `audit/airtable.py`'s boundary is that a
+    Lead row lands where a human sees it, and that stays. This computes the
+    rows; a person still performs the write. What was wrong was never that a
+    model did the typing — it was that a model did the join, from memory, in a
+    script nothing tested.
+    """
+    from outbound import crm
+
+    leads = _load_json(args.leads, "CRM")
+    researches = _load_json(args.research, "CRM")
+    drafts = _load_json(args.drafts, "CRM") if args.drafts else []
+    for name, data in (("leads", leads), ("research", researches),
+                       ("drafts", drafts)):
+        if not isinstance(data, list):
+            print(f"CRM: FAIL — {name} must be a JSON array, got "
+                  f"{type(data).__name__}.")
+            sys.exit(2)
+
+    built = crm.build(leads, researches, drafts, batch=args.batch)
+    print(built.report())
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(
+            json.dumps(built.rows, indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.out} — write these by hand or through the MCP; "
+              f"nothing here touches the CRM")
+    sys.exit(1 if built.problems else 0)
 
 
 # -------------------------------------------------------------------- anchors
@@ -895,6 +1001,11 @@ def cmd_lint(args) -> None:
             allowed_numbers=set(allowed),
             facts=facts,
             identity_claim=_identity_claim_of(draft, facts),
+            # Named on the draft record by `hook-worker`, carried through
+            # verification. A figure in the hook beat that is also in here is
+            # the recipient's own, quoted; without it the drafter's only way to
+            # keep it is the subject line, which nothing digit-checks.
+            hook_quote=draft.get("hook_quote", ""),
         )
         print(result.report())
         failed += 0 if result.passed else 1
@@ -975,13 +1086,15 @@ def cmd_export(args) -> None:
             website=row.get("website", ""), linkedin_url=row.get("linkedin_url", ""),
             hook_type=row.get("hook_type", ""),
             hook_source_url=row.get("hook_source_url", ""),
+            hook_quote=row.get("hook_quote", ""),
         )
         allowed = row.get("allowed_numbers")
         if allowed is None:
             allowed = anchors.all_numbers(facts)
         results[draft.email] = lint.check_email(
             name=draft.name, subject=draft.subject, body=draft.body,
-            beats=beats, allowed_numbers=set(allowed), facts=facts)
+            beats=beats, allowed_numbers=set(allowed), facts=facts,
+            hook_quote=draft.hook_quote)
         drafts.append(draft)
         for_batch.append({"subject": draft.subject, "body": draft.body,
                           "beats": beats})
@@ -1170,6 +1283,69 @@ def cmd_email_enrich(args) -> None:
 # ------------------------------------------------------------------ the fetch
 
 
+def _run_escalations(plans: list, *, approved: bool) -> dict:
+    """Execute the batched Apify plans. Shared by the full run and the retry.
+
+    Exits 3 on the cost gate and 1 on an actor error, exactly as the escalation
+    inside `cmd_fetch` always did — the two paths differ in what precedes them,
+    not in what a refused purchase means.
+    """
+    from audit.apify import ApifyCostApprovalRequired, ApifyError
+    from outbound import fetch
+
+    escalated = {}
+    for plan in plans:
+        try:
+            escalated[plan["actor_key"]] = fetch.run_plan(plan, approved=approved)
+        except ApifyCostApprovalRequired as exc:
+            print(f"FETCH: APPROVAL REQUIRED — {exc}")
+            sys.exit(3)
+        except ApifyError as exc:
+            print(f"FETCH: escalation failed ({exc})")
+            sys.exit(1)
+    for key, items in escalated.items():
+        print(f"  ESCALATED {key}: {len(items)} page(s) back")
+    return escalated
+
+
+def cmd_escalate_only(args) -> None:
+    """Run a saved escalation plan and read nothing at tier 0.
+
+    The retry path, and it exists because there was not one. A batched
+    escalation failed on a 403 mid-run; the obvious repair — re-run `fetch
+    --escalate` — re-reads every site before it escalates, so twenty free reads
+    happened again and **52 duplicate `(lead, url)` pairs** went into the
+    ledger. The batch existed to produce a duplicate count. D22 records the
+    risk in advance, in those words, and it happened anyway, because avoiding it
+    meant calling `fetch.run_plan` by hand and nothing in the CLI offered it.
+
+    A retry must not be able to pollute the measurement it is retrying.
+    """
+    payload = _load_json(args.leads, "FETCH")
+    if not isinstance(payload, dict) or "escalate_plans" not in payload:
+        print(f"FETCH: FAIL — {args.leads} is not a sites.json from "
+              f"`fetch --out`; it carries no escalate_plans.")
+        sys.exit(2)
+
+    plans = payload.get("escalate_plans") or []
+    if not plans:
+        print("FETCH: nothing to escalate — this run's tier 0 read every site.")
+        return
+    for plan in plans:
+        print(f"  ESCALATE  {plan['why']}")
+    if not args.approve_cost:
+        print("  (pass --approve-cost to run these; they are paid)")
+        return
+
+    payload["escalated"] = _run_escalations(plans, approved=args.approve_cost)
+    print("  no tier-0 read happened, so no page in this run can be a "
+          "duplicate of one already in the ledger.")
+    if args.out:
+        Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
+                                  encoding="utf-8")
+        print(f"  wrote {args.out}")
+
+
 def cmd_fetch(args) -> None:
     """Tier 0: read sites with free local HTTP, and plan one batched Apify run
     for whatever that couldn't read.
@@ -1177,6 +1353,9 @@ def cmd_fetch(args) -> None:
     Container boot dominates an Apify bill, not pages, so the escalation is
     always one run for the whole batch — never one per lead.
     """
+    if args.escalate_only:
+        return cmd_escalate_only(args)
+
     from outbound import fetch
 
     leads = _load_leads(args.leads)
@@ -1239,21 +1418,13 @@ def cmd_fetch(args) -> None:
     # Off by default and gated exactly like every other paid call. Before this
     # the plan named an actor that was in no ACTORS map, so it could only be run
     # by hand, outside the approval path — and the first real batch skipped it.
-    from audit.apify import ApifyCostApprovalRequired, ApifyError
-
-    escalated = {}
-    for plan in result["escalate_plans"]:
-        try:
-            escalated[plan["actor_key"]] = fetch.run_plan(
-                plan, approved=args.approve_cost)
-        except ApifyCostApprovalRequired as exc:
-            print(f"FETCH: APPROVAL REQUIRED — {exc}")
-            sys.exit(3)
-        except ApifyError as exc:
-            print(f"FETCH: escalation failed ({exc}) — tier 0 results above stand")
-            sys.exit(1)
-    for key, items in escalated.items():
-        print(f"  ESCALATED {key}: {len(items)} page(s) back")
+    #
+    # **If this fails, retry with `--escalate-only <sites.json>`, not with this
+    # command again.** Re-running it re-reads every site first, which is 52
+    # duplicate pairs in the ledger of a batch whose whole purpose was a
+    # duplicate count.
+    escalated = _run_escalations(result["escalate_plans"],
+                                 approved=args.approve_cost)
     if args.out:
         payload["escalated"] = escalated
         Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
@@ -1390,6 +1561,17 @@ def cmd_select(args) -> None:
     the ranker would have picked the same evidence the hook stage paid to fetch,
     and it reports five verdicts rather than two because `missed` and
     `unobserved` say opposite things about whether that fetch is removable.
+
+    `--batch` writes both halves of that measurement into `data/runs/`: the
+    selections **and the corpus they were ranked from**. Only the first was kept
+    for `2026-08-01-q1`, and the corpus lived in `work/`, which does not survive
+    the container. So when the ban that caused all three MISSED turned out to be
+    wrong, there was no way to re-score the batch that proved it — the fix had to
+    ship on a diagnosis, and the next honest number needs a new paid run.
+
+    A ranking change should be answerable against every batch already run. That
+    is only true if the input is kept, and keeping it is not something to
+    remember at the end of a long session.
     """
     from outbound import select
 
@@ -1408,11 +1590,26 @@ def cmd_select(args) -> None:
     selections = result["selections"]
     print(result["report"])
 
+    payload = json.dumps({"selections": [s.to_dict() for s in selections]},
+                         indent=2, default=str)
     if args.out:
-        Path(args.out).write_text(
-            json.dumps({"selections": [s.to_dict() for s in selections]},
-                       indent=2, default=str), encoding="utf-8")
+        Path(args.out).write_text(payload, encoding="utf-8")
         print(f"  wrote {args.out}")
+    if args.batch:
+        from outbound import ledger
+
+        verdict = ledger.artifact("-select.json", batch=args.batch)
+        corpus = ledger.artifact("-research.json", batch=args.batch)
+        verdict.parent.mkdir(parents=True, exist_ok=True)
+        verdict.write_text(payload, encoding="utf-8")
+        # The input, not a summary of it. A re-score needs every observation's
+        # text, date and kind — the selections carry only the shortlist, and the
+        # rejections carry a ban name and a URL, which cannot be re-ranked.
+        corpus.write_text(json.dumps(data, indent=2, default=str),
+                          encoding="utf-8")
+        print(f"  wrote {verdict} and {corpus}")
+        print(f"  commit both. `select {corpus} --against` re-scores this batch "
+              f"for free after any change to the bans or the ranking.")
     if args.json:
         print(json.dumps([s.to_dict() for s in selections], indent=2, default=str))
 
@@ -1439,7 +1636,8 @@ def cmd_apify(args) -> None:
     # ten signatures that have nothing else to do with it.
     ledger.set_context(lead_key=getattr(args, "lead", "") or "",
                        stage=getattr(args, "stage", "") or "research",
-                       purpose=getattr(args, "purpose", "") or "observe")
+                       purpose=getattr(args, "purpose", "") or "observe",
+                       batch=getattr(args, "batch", "") or "")
     try:
         if cmd == "limits":
             out = apify.account_limits()
@@ -1531,6 +1729,34 @@ def cmd_ledger(args) -> None:
     """
     from outbound import ledger
 
+    if args.ledger_command == "batch":
+        if args.label:
+            target = ledger.set_batch(args.label)
+            print(f"LEDGER: batch {args.label} — wrote {target}")
+            print("  every later command and every subagent reads it from "
+                  "there. Nothing else has to be told.")
+            return
+        label, where = ledger.batch_source()
+        print(f"LEDGER: batch {label} (from {where})")
+        if where.startswith("today"):
+            print("  no batch has been named. Run `ledger batch <label>` "
+                  "before anything paid, or this run's cost lands in a file "
+                  "named after the date and not after the batch.")
+        return
+
+    if args.ledger_command == "pass":
+        wrote = ledger.record_pass(
+            batch=args.batch, stage=args.stage, agent=args.agent,
+            model=args.model, count=args.count)
+        if not wrote:
+            print("LEDGER: FAIL — could not append to "
+                  f"{ledger.path(args.batch)}.")
+            sys.exit(2)
+        print(f"LEDGER: {args.count} {args.agent or 'agent'} pass(es) on "
+              f"{args.model or 'an unnamed model'} at stage {args.stage}, "
+              f"REPORTED to {ledger.path(args.batch)}")
+        return
+
     if args.ledger_command == "add":
         wrote = ledger.record(
             batch=args.batch, lead_key=args.lead, stage=args.stage,
@@ -1609,11 +1835,29 @@ def cmd_metrics(args) -> None:
         verified = {(r.get("lead_key") or r.get("email") or "") for r in rows
                     if (r.get("hook_verified") or "").lower() == "verified"}
         metrics.add_ledger(out, records, verified_leads=verified)
+        # The Claude bill. Same file, different authority — those records were
+        # written by code at the moment of a fetch, these were typed by an
+        # orchestrator, and the report says so on every line.
+        metrics.add_passes(out, ledger.read_passes(args.batch))
+
+    # D21's reversal condition. The declines bind as of D27, so this is the
+    # evidence the gate was held back for two batches waiting on.
+    if args.plan:
+        plans = _load_json(args.plan, "METRICS")
+        if isinstance(plans, dict):
+            plans = plans.get("plans") or []
+        if not isinstance(plans, list):
+            print("METRICS: FAIL — --plan wants `plan --out`'s file.")
+            sys.exit(2)
+        metrics.add_plan(out, plans, rows)
 
     print(metrics.report(out))
     print(metrics.batches_block(out))
 
-    target = args.out or (f"data/runs/{args.batch}-metrics.json" if args.batch else "")
+    from outbound import ledger
+
+    target = args.out or (ledger.artifact("-metrics.json", batch=args.batch)
+                          if args.batch else "")
     if target:
         print(f"  wrote {metrics.write_artifact(out, target)}")
     sys.exit(0)
@@ -1654,7 +1898,10 @@ def cmd_replies(args) -> None:
     out = rep.join(leads, export, batch=args.batch or "")
     print(rep.report(out))
 
-    target = args.out or (f"data/runs/{args.batch}-replies.json" if args.batch else "")
+    from outbound import ledger
+
+    target = args.out or (ledger.artifact("-replies.json", batch=args.batch)
+                          if args.batch else "")
     if target:
         from outbound.metrics import write_artifact
         print(f"  wrote {write_artifact(out, target)}")
@@ -1746,6 +1993,29 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("input", help="JSON file (one observation or a list), or '-' for stdin")
     p.set_defaults(func=cmd_observe)
 
+    p = sub.add_parser("hook",
+                       help="check a proposed hook BEFORE a verifier certifies it")
+    p.add_argument("input", help="JSON file (one proposal or a list), or '-' for stdin")
+    p.add_argument("--against", help="select --out's file. Checks the quote is "
+                                     "really a contiguous piece of the "
+                                     "observation it names — ban #3, which was "
+                                     "unenforceable until there was something "
+                                     "to check it against. A batch run passes "
+                                     "it; the single-lead repair path need not")
+    p.set_defaults(func=cmd_hook)
+
+    p = sub.add_parser("crm-rows",
+                       help="build the Airtable Leads rows, joined and failing closed")
+    p.add_argument("leads", help="normalized Leads from `dedupe --out` (work/clear.json)")
+    p.add_argument("--research", required=True,
+                   help="the research objects (work/researched.json) — the "
+                        "verdicts. They do NOT carry the identity fields, which "
+                        "is the join this command exists to make explicit")
+    p.add_argument("--drafts", help="what actually shipped, for Subject/Body/Hook")
+    p.add_argument("--batch", default="", help="the batch label, for the row")
+    p.add_argument("--out", help="write the rows as JSON (out/crm-leads.json)")
+    p.set_defaults(func=cmd_crm_rows)
+
     p = sub.add_parser("fetch", help="tier 0 site reads, plus one batched Apify plan")
     p.add_argument("leads", help="Leads JSON from `intake --out`")
     p.add_argument("--max-pages", type=int, default=5)
@@ -1756,6 +2026,13 @@ def build_parser() -> argparse.ArgumentParser:
                         "serial loop that could not finish 151 sites)")
     p.add_argument("--escalate", action="store_true",
                    help="actually RUN the batched Apify plan, not just print it")
+    p.add_argument("--escalate-only", dest="escalate_only", action="store_true",
+                   help="run the escalation from a saved sites.json and read "
+                        "NOTHING at tier 0. The retry path: `--escalate` after "
+                        "a failed escalation re-reads every site first, which "
+                        "put 52 duplicate pairs in one batch's ledger and "
+                        "buried the one duplicate it existed to expose. With "
+                        "this, the positional argument is the sites.json")
     p.add_argument("--approve-cost", action="store_true",
                    help="approve the escalation's cost (see exit 3)")
     p.set_defaults(func=cmd_fetch)
@@ -1801,6 +2078,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help="words the drafter will have — the low end of the range "
                         "`deal` prints. Advisory; 0 means not given")
     p.add_argument("--out", help="write the selections as JSON")
+    p.add_argument("--batch", default="",
+                   help="write data/runs/<batch>-select.json AND "
+                        "-research.json, so a later change to the bans can be "
+                        "re-scored against this batch without paying for it "
+                        "again. Commit both")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_select)
 
@@ -1900,6 +2182,27 @@ def build_parser() -> argparse.ArgumentParser:
                               help="what each retrieval cost and how long it took")
     ledger_sub = p_ledger.add_subparsers(dest="ledger_command", required=True)
 
+    a = ledger_sub.add_parser(
+        "batch", help="name this batch, or ask which one you are in")
+    a.add_argument("label", nargs="?", default="",
+                   help="the batch label. Omitted, it prints the label that "
+                        "resolves now and where it came from")
+
+    a = ledger_sub.add_parser(
+        "pass", help="record agent passes — the model cost Python cannot see")
+    a.add_argument("--stage", required=True,
+                   help="research | hook | verify | draft | cold-read | "
+                        "orchestrator — which part of the run spent it")
+    a.add_argument("--agent", default="",
+                   help="the agent that ran, e.g. draft-worker")
+    a.add_argument("--model", default="",
+                   help="the tier it ran at, e.g. opus or sonnet. Counts, not "
+                        "dollars: model prices are a value this repo does not "
+                        "own and would go stale in it")
+    a.add_argument("--count", type=int, default=1,
+                   help="how many passes, for a fan-out reported in one line")
+    a.add_argument("--batch", help="batch label (default: `ledger batch` resolves it)")
+
     a = ledger_sub.add_parser("add", help="record a retrieval Python did not make")
     a.add_argument("--lead", default="", help="the lead this was fetched for")
     a.add_argument("--platform", default="web",
@@ -1945,6 +2248,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--passes", type=int,
                    help="agent passes for the batch. REPORTED on trust — Python "
                         "cannot see them, the same blind spot as `ledger add`")
+    p.add_argument("--plan", help="plan --out's file. Reports, of the leads "
+                                  "carrying a declined rung, how many produced "
+                                  "a verified hook — D21's reversal condition, "
+                                  "and the evidence the decline gate binds on")
     p.set_defaults(func=cmd_metrics)
 
     p = sub.add_parser("replies",
@@ -1985,6 +2292,13 @@ def build_parser() -> argparse.ArgumentParser:
                              choices=["observe", "verify"],
                              help="a second fetch of the same page is only "
                                   "allowed to verify (ledger)")
+        # Twelve workers were told to pass this and it did not exist. One
+        # checked, used OUTBOUND_BATCH instead and said so; the other eleven
+        # did as they were told, and 15 retrievals landed in the wrong file.
+        # `ledger batch` is the answer to not having to pass it at all.
+        parser_.add_argument("--batch", default="",
+                             help="which batch to bill this to (ledger). "
+                                  "Default: `ledger batch` resolves it")
 
     apify_sub.add_parser("limits", help="usage vs plan — check ONCE per batch")
 

@@ -32,10 +32,13 @@ one person wrote it in one sitting.
   disagreeing with the email that actually shipped. If you were handed no
   anchors, stop and say so rather than drawing.
 
-Read `references/voice.md`, `references/mechanics.md`,
-`references/drafting-craft.md` and `references/critical-failures.md` in
-`.claude/skills/outbound-draft/` before writing. They are the spec, not
-background.
+Read `.claude/skills/outbound-draft/references/voice.md`,
+`.claude/skills/outbound-draft/references/mechanics.md`,
+`.claude/skills/outbound-draft/references/drafting-craft.md` and
+`.claude/skills/outbound-draft/references/critical-failures.md` before writing.
+They are the spec, not background. **Written out in full, because you are not
+started in that directory** — the short form sat here for months and resolved
+for nobody, which is the kind of thing `doc-check` now sees.
 
 ## The job, precisely
 
@@ -151,13 +154,24 @@ A number sitting next to a named segment must belong to that segment. Widening
 to "a coach here" is honest and allowed. Calling a Business result a health
 coach's is a relabel, and it surfaces the moment two coaches compare emails.
 
-**The check does not care whose number it is, and that is deliberate.** A digit
-inside the lead's OWN product name trips it too — "Case Cracking 101" fails
-because 101 is not a client result, even though it is their title and not a claim
-about anything. That is not a bug to work around by arguing with the linter: the
-rule is "no digit in the body that isn't a real result", and loosening it to
-allow digits beside a capitalised word would let "AED 91,500 Programme" through,
-which is the exact failure the whole check exists to stop.
+**One exemption, and it is narrow: quoting is not claiming.** A figure that is
+in your hook beat AND in the certified `hook_quote` you were given is the
+recipient's own fact, read off their own page, and the linter lets it stand.
+"70.3", "2023", "11 years" and "27 years" were all deleted out of certified
+hooks on `2026-08-01-q1`, by a rule written to stop us relabelling a client
+result. Both drafters kept the figure by moving it into the subject line, which
+nothing digit-checks. That works, and it is backwards.
+
+It is the **intersection** that is exempt. A number you introduced while
+re-voicing the hook has nothing to hide behind, and the exemption cannot reach
+the identity beat, where a wrong figure would actually do damage.
+
+**Everywhere else the check does not care whose number it is, and that is
+deliberate.** A digit inside the lead's OWN product name trips it — "Case
+Cracking 101" fails because 101 is not a client result and is not in a certified
+quote either. That is not a bug to argue with: loosening it to allow digits
+beside a capitalised word would let "AED 91,500 Programme" through, which is the
+exact failure the whole check exists to stop.
 
 The workaround is one move and costs nothing: **put the full name in the
 subject, and describe it in the body.** "the conversation behind case cracking

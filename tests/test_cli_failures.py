@@ -556,10 +556,11 @@ def test_resolve_exits_2_when_the_sites_file_is_not_what_fetch_writes():
 # ---------------------------------------------------------------------- plan
 
 
-def test_plan_exits_0_when_every_paid_rung_would_be_declined():
-    """D21 in code, one stage after `resolve` pins the same rule. A decline is
-    about a purchase and never about a lead, so exit 1 here would turn an
-    ownership verdict into the inclusion gate the decision forbids."""
+def test_plan_exits_0_when_every_paid_rung_is_declined():
+    """D21 in code, one stage after `resolve` pins the same rule — and the half
+    that survives D27 turning the gate on. A decline is about a purchase and
+    never about a lead, so exit 1 here would turn an ownership verdict into the
+    inclusion gate the decision forbids, whether or not the decline binds."""
     with tempfile.TemporaryDirectory() as tmp:
         identities = {"identities": [{
             "lead_key": "rory@x.ae", "name": "Rory Buck",
@@ -572,7 +573,11 @@ def test_plan_exits_0_when_every_paid_rung_would_be_declined():
         path = write(tmp, "identity.json", json.dumps(identities))
         out = run("plan", path)
         assert out.returncode == 0, out.stdout
-        assert "would decline" in out.stdout and "ADVISORY" in out.stdout
+        # Two, because LinkedIn is two rungs: a profile scrape and a posts
+        # scrape are different actors at different prices, and an ownership
+        # verdict that refuses the channel refuses both purchases.
+        assert "declined 2 paid step(s)" in out.stdout
+        assert "never inclusion" in out.stdout
 
 
 def test_plan_does_not_price_a_paid_rung_unless_asked():
@@ -636,12 +641,17 @@ def test_select_disagreeing_with_a_verified_hook_is_never_a_failure():
 
 def test_select_never_calls_a_stored_quote_verified():
     """R2. The verifier's live re-fetch is the only thing that has ever caught
-    a fabricated claim, and a report that reads as verification retires it."""
+    a fabricated claim, and a report that reads as verification retires it.
+
+    More load-bearing since the flip, not less: the quote a hook cites now comes
+    out of text a different agent stored hours earlier, so the live fetch is the
+    only check that the stored text was ever real."""
     with tempfile.TemporaryDirectory() as tmp:
         path = write(tmp, "researched.json", json.dumps([{"email": "a@x.ae"}]))
         out = run("select", path)
         assert out.returncode == 0, out.stdout
-        assert "not verified on the page" in out.stdout
+        assert "STORED" in out.stdout
+        assert "re-fetch" in out.stdout
 
 
 def test_select_exits_2_on_something_that_is_not_a_research_object():
@@ -650,6 +660,54 @@ def test_select_exits_2_on_something_that_is_not_a_research_object():
         out = run("select", path)
         assert out.returncode == 2, out.stdout
         assert "SELECT: FAIL" in out.stdout
+
+
+# ----------------------------------------------------------- escalate-only
+
+
+def test_escalate_only_refuses_a_file_that_is_not_a_sites_json():
+    """It takes `fetch --out`'s payload, not a Leads file. Handing it the wrong
+    one must name the difference rather than reporting nothing to escalate,
+    which is what "no plans" would look like."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "leads.json", [{"name": "A"}])
+        result = run("fetch", path, "--escalate-only")
+        assert result.returncode == 2, result.stdout
+        assert "escalate_plans" in result.stdout
+
+
+def test_escalate_only_reads_nothing_at_tier_0():
+    """The retry path, and the reason it exists. `--escalate` after a failed
+    escalation re-reads every site first: 52 duplicate `(lead, url)` pairs went
+    into the ledger of the one batch whose purpose was a duplicate count.
+
+    Asserted against the ledger, because "it did not fetch" is the claim."""
+    with tempfile.TemporaryDirectory() as tmp:
+        env = offline_env()
+        env["OUTBOUND_LEDGER_ROOT"] = tmp
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [{"actor_key": "site_render", "urls": ["https://a.ae"],
+                                "why": "1 url(s) returned 200 with no text"}]})
+        result = subprocess.run(
+            [sys.executable, "main.py", "fetch", sites, "--escalate-only"],
+            cwd=ROOT, capture_output=True, text=True, env=env)
+        assert result.returncode == 0, result.stdout
+        assert "ESCALATE" in result.stdout
+        # Unapproved, so nothing was bought — and nothing was read either.
+        assert not (Path(tmp) / "data" / "runs").exists(), \
+            "a run that fetched nothing must leave no retrieval lines"
+
+
+def test_escalate_only_with_no_plans_is_not_an_error():
+    """A batch whose tier 0 read everything has nothing to retry, and that is a
+    success rather than a missing file."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json",
+                      {"tier0_rate": 1.0, "sites": {}, "escalate_plans": []})
+        result = run("fetch", sites, "--escalate-only")
+        assert result.returncode == 0, result.stdout
+        assert "nothing to escalate" in result.stdout
 
 
 # -------------------------------------------------------------------- ledger

@@ -45,15 +45,19 @@ and a deterministic linter made that safe.**
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
-resolve     which channels are plausibly theirs, typed and evidenced. Advisory
-plan        which hook rungs a lead has, and what each would cost. Advisory
-research    research-worker per slice -> typed objects, schema-validated
+resolve     which channels are plausibly theirs, typed and evidenced
+plan        which hook rungs a lead has and what each costs. A decline BINDS
+research    research-worker per slice -> typed objects AND the observations
+            every later stage reads. This is the retrieval stage
 deal        the four hand-written lines, allocated for the whole batch at once
-hook        hook-worker proposes -> hook-verifier re-fetches the citation
-select      which observation a hook would come from, without fetching. Advisory
+select      rank the observations -> a shortlist of 3 per lead. No fetching
+hook        hook-worker quotes the shortlist and writes the clause -> gated by
+            `main.py hook --against` -> hook-verifier re-fetches the citation
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
 lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
+crm-rows    the Airtable Leads rows, joined explicitly. Python computes, a
+            human writes
 ```
 
 `outbound-batch` runs the whole thing. `outbound-draft` is the single-lead and
@@ -116,22 +120,37 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   the duplicate fetch it makes unnecessary can be removed against a measurement.
 - `python main.py plan <identity.json>` — which hook rungs a lead actually has,
   what each would cost, and which paid ones point at somebody else's channel.
-  **It declines nothing.** D21 says an ownership verdict may gate a purchase
-  where it may not gate a kill, and carries the reversal condition; nobody has
-  measured whether the leads with no confirmed channel are the leads that
-  produce no hook, and a gate shipped beside its own measurement would generate
-  the data judging it. `unknown` is never declined. Pricing is opt-in.
+  **A decline binds** (D28): `hook-worker` may not escalate onto one. It gates
+  **spend and never inclusion** — a declined lead gets a null hook, a row and a
+  Blocker, never a drop, and `plan` still exits 0 when every rung is declined.
+  It shipped advisory for two batches because a gate beside its own measurement
+  generates the data judging it; `metrics --plan` is that measurement and is why
+  it could turn on. `unknown` is never declined. Pricing is opt-in.
 - `python main.py select <research.json>` — ranks the observations already
-  retrieved and says which one a hook would come from, fetching nothing. Four of
-  the twelve bans become mechanical here. **`--against` is the measurement**: it
-  reports whether the ranker reaches the hook the stage paid to fetch, and
-  splits `missed` (observed, ranked out — fixable) from `unobserved` (never
-  fetched — the call that cannot be removed). **Additive; nothing consumes it
-  and `hook-worker` still fetches.** A quote it finds is in the text we stored,
-  never verified on the page. `--hook-room` takes the low end of the range
-  `deal` prints, which is knowable here since D24 moved the deal earlier.
+  retrieved into a shortlist of three per lead, fetching nothing. Four of the
+  twelve bans are mechanical here. **The hook stage reads this** (D27) — three
+  candidates so a rejected first pick needs no second retrieval. `--against`
+  survives with its verdicts re-read: `agreed` is rank 1, `shortlisted` is rank
+  2 or 3, `missed` is a ban to re-examine, and **`unobserved` is the escalation
+  rate**. A quote it finds is in the text we stored, never verified on the page.
+  `--hook-room` takes the low end of the range `deal` prints. `--batch` commits
+  the corpus beside the verdict, so a later ranking change is re-scorable.
+- `python main.py hook <proposal.json>` — the hook, checked **before** an
+  independent verifier certifies its wording. F4's gate: research and
+  observations both had a schema and the one sentence a stranger reads first did
+  not, so six of twelve drafts had to alter text a verifier had confirmed word
+  for word. Every finding says **pick a different quote**, never edit theirs —
+  one stage later the drafter has neither the alternatives nor the authority. It
+  also refuses a LinkedIn post URL with an empty slug, which 404s however true
+  the quote is. **`--against <select.json>` closes ban #3**: the quote must be a
+  contiguous piece of the observation it names, which was unenforceable until
+  the hook stage read a shortlist. A blank `observation_id` is legal only with
+  `escalated` and a rung. **A pass is not verification** and the report says so.
 - `python main.py lint <drafts.json>` — traceability, claim preservation, the
-  bridge, voice, and batch repetition.
+  bridge, voice, and batch repetition. **A figure in the hook beat that is also
+  in the certified quote is exempt**: quoting is not claiming, and the rule
+  written to stop us relabelling a client result was deleting the recipient's
+  own facts out of the beat whose job is to prove we read their page.
 - `python main.py export --anchors <deal.json>` — the drafts really used the
   lines the batch deal assigned, checked on both the reported id and the written
   text. A drafter that drew its own line ships an email that reads perfectly and
@@ -155,12 +174,23 @@ Skills run these and quote the literal output line rather than paraphrasing it.
 - `python main.py copy-usage` — reports which lines actually shipped back to
   Copy Assets. Also after uploading. **Additive, not idempotent** — run once
   per batch.
+- `python main.py crm-rows` — the Airtable Leads row, built in code. It joins
+  the normalized Lead to the research object **explicitly and fails closed**,
+  because twenty rows went in from the research file alone with no First Name,
+  Last Name, Website, LinkedIn or City on any of them. It prints coverage for
+  every field, not the ones anybody expects — the check that passed those rows
+  looked at four populated fields and reported 20/20. It computes; **a human
+  still writes**, which is `audit/airtable.py`'s boundary unchanged.
 - `python main.py ledger` — what each retrieval cost and how long it took, one
   JSON line per fetch in `data/runs/<batch>.jsonl`, written as the run proceeds
-  so a batch that dies mid-stage still leaves its accounting. `ledger add`
-  records the model-side rungs Python cannot see, on trust; `ledger report`
-  reads a batch back and names any `(lead, url)` fetched twice for something
-  other than verification. **Exit 2 on a missing ledger** — a missing ledger is
+  so a batch that dies mid-stage still leaves its accounting. `ledger batch`
+  names the batch once and writes `work/BATCH`, so the label is discoverable
+  rather than something twelve workers are told. `ledger add` records the
+  model-side rungs Python cannot see, on trust; **`ledger pass` records the
+  Claude bill** — agent passes by stage and by model, the cost nothing here
+  could see until a batch spent ~64 passes on 20 leads and recorded the number
+  64. `ledger report` reads a batch back and names any `(lead, url)` fetched
+  twice for something other than verification. **Exit 2 on a missing ledger** — a missing ledger is
   not a zero-cost batch, the same asymmetry as the wall. **Never exit 1**, not
   even on a duplicate: reporting one is the job, and a gate that can halt a send
   file over an accounting line is a gate people learn to route around.
@@ -171,9 +201,12 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   the wall's asymmetry a third time, because a zero is a measurement and a block
   that zero-fills looks like evidence. `yield_by_rung` is the number that
   settles F5; `wasted_retrieval` is the one the retrieve-once work is trying to
-  move. It also prints the Batches row as a paste-ready block and **does not
-  write it** — Python computes, a human still sees the row land. Exit 2 on an
-  unreadable ledger, **never exit 1**, same rule as the ledger.
+  move. **`escalation_rate` is what judges the flip** (D27) — hooks the
+  shortlist did not hold — and **`--plan` reports `declined_and_dry`**, which is
+  D21's reversal condition and the evidence D28's decline gate turns on. It also
+  prints the Batches row as a paste-ready block and **does not write it** —
+  Python computes, a human still sees the row land. Exit 2 on an unreadable
+  ledger, **never exit 1**, same rule as the ledger.
 - `python main.py replies <export.csv> --leads <research.json>` — the manual
   Smartlead bridge, the only path here to reply data. Reply rate by `hook_type`
   and by rung, which is what `Hook Type` has been a CRM select for since the
@@ -249,14 +282,18 @@ authority on which rungs exist and in what order**, which `docs/hook-rules.md`
 now names instead of listing), `research` (the typed contract every worker
 returns), `observe` (one thing that was actually fetched, kept verbatim),
 `select` (ranking over observations, and the measurement that says whether the
-hook stage's fetch bought anything), `anchors` (the
+hook stage's fetch bought anything), `hook` (the proposal's schema and the voice
+rules, run before certification rather than after), `anchors` (the
 deterministic line draw and the fact table), `lint` (the checks), `export`
-(leads.csv and preview.txt), `ledger` (what every retrieval cost and how long it
-took — the only module here that fails **open**, because an observer that can
-halt the run it observes is worse than no observer), `metrics` (what the hook
-stage yielded and what the leads that yielded nothing cost — the same
-fail-open rule, and `?` wherever a count was not supplied), `replies` (the
-manual Smartlead join, and the only thing here that touches reply data).
+(leads.csv and preview.txt), `crm` (the Leads row, joined explicitly and failing
+closed — it computes, a human writes), `ledger` (what every retrieval cost and
+how long it took, plus the agent passes reported on trust — the only module here
+that fails **open**, because an observer that can halt the run it observes is
+worse than no observer), `metrics` (what the hook stage yielded, what the leads
+that yielded nothing cost, and what the batch spent in agent passes by stage and
+model — the same fail-open rule, and `?` wherever a count was not supplied),
+`replies` (the manual Smartlead join, and the only thing here that touches reply
+data).
 
 **`audit/`** — what survived the pivot: `email_check`, `email_verifier`,
 `email_enrich`, `apify` (cost-gated), `extract`, `urls`, `draft_lint`,

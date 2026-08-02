@@ -235,18 +235,73 @@ def test_a_blank_context_value_does_not_erase_one_already_set():
         ledger.clear_context()
 
 
-def test_the_batch_label_defaults_to_the_environment_then_today():
+def test_the_batch_label_resolves_in_order():
     saved = os.environ.pop("OUTBOUND_BATCH", None)
     try:
-        assert ledger.batch_label("explicit") == "explicit"
-        os.environ["OUTBOUND_BATCH"] = "from-env"
-        assert ledger.batch_label() == "from-env"
-        del os.environ["OUTBOUND_BATCH"]
+        with tempfile.TemporaryDirectory() as tmp:
+            assert ledger.batch_label("explicit") == "explicit"
+            os.environ["OUTBOUND_BATCH"] = "from-env"
+            assert ledger.batch_label() == "from-env"
+            del os.environ["OUTBOUND_BATCH"]
+            ledger.set_batch("from-file", root=tmp)
+            assert ledger.batch_source(root=tmp)[0] == "from-file"
         from datetime import date
         assert ledger.batch_label() == date.today().isoformat()
     finally:
         if saved is not None:
             os.environ["OUTBOUND_BATCH"] = saved
+
+
+def test_a_subagent_can_find_the_label_without_being_told_it():
+    """The defect this rung exists for. Twelve workers were told to pass a
+    `--batch` flag that did not exist; `OUTBOUND_BATCH` is a shell variable and
+    a subagent is a different process, so it inherits nothing. Fifteen
+    retrievals landed in the wrong file and the batch under-reported by 30%.
+
+    A file is the one channel a separate process actually shares."""
+    saved = os.environ.pop("OUTBOUND_BATCH", None)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger.set_batch("2026-08-01-q1", root=tmp)
+            label, where = ledger.batch_source(root=tmp)
+            assert label == "2026-08-01-q1"
+            assert where == ledger.BATCH_FILE
+    finally:
+        if saved is not None:
+            os.environ["OUTBOUND_BATCH"] = saved
+
+
+def test_an_unnamed_batch_still_gets_a_ledger_and_says_so():
+    """It never errors. A paid fetch whose accounting is dropped for want of a
+    label is worse than one filed under the date, and this module cannot halt
+    what it observes. But the report has to be able to say which happened."""
+    saved = os.environ.pop("OUTBOUND_BATCH", None)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            label, where = ledger.batch_source(root=tmp)
+            from datetime import date
+            assert label == date.today().isoformat()
+            assert where.startswith("today")
+    finally:
+        if saved is not None:
+            os.environ["OUTBOUND_BATCH"] = saved
+
+
+def test_a_paid_call_bills_the_batch_its_context_names():
+    """`--batch` on every `apify` subcommand, threaded through the ledger
+    context the same way `--lead` and `--stage` already are."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ledger.clear_context()
+        try:
+            ledger.set_context(lead_key="a@x.ae", batch="ctx-batch")
+            assert ledger.batch_label() == "ctx-batch"
+            ledger.record(root=tmp, platform="linkedin", url="https://x/1",
+                          retrieved_by="apify:li_posts", cost_usd=0.02)
+            written = ledger.path(None, tmp)
+            assert written.name == "ctx-batch.jsonl"
+            assert "a@x.ae" in written.read_text(encoding="utf-8")
+        finally:
+            ledger.clear_context()
 
 
 def test_the_ledger_root_can_be_redirected_out_of_the_repo():
@@ -258,6 +313,64 @@ def test_the_ledger_root_can_be_redirected_out_of_the_repo():
     finally:
         if saved is not None:
             os.environ["OUTBOUND_LEDGER_ROOT"] = saved
+
+
+def test_a_reported_pass_is_never_counted_as_a_retrieval():
+    """Two things live in this file and they have different authorities. A
+    retrieval was written by code at the moment of a fetch; a pass was typed by
+    an orchestrator. Counting one as the other would report the Claude bill as
+    free fetches."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ledger.record(batch="b", root=tmp, url="https://x.ae/1",
+                      retrieved_by="tier0")
+        ledger.record_pass(batch="b", root=tmp, stage="draft",
+                           agent="draft-worker", model="opus", count=12)
+        records, malformed = ledger.read("b", tmp)
+        assert len(records) == 1 and malformed == 0
+        assert ledger.summarise(records)["count"] == 1
+        assert len(ledger.read_passes("b", tmp)) == 1
+
+
+def test_passes_total_by_stage_and_by_model():
+    """One scalar could not answer the question anybody actually asks: which
+    stage is the bill, and is it running on the tier it needs. `2026-08-01-q1`
+    cost ~64 passes for 20 leads and 5 rows, recorded as the number 64."""
+    with tempfile.TemporaryDirectory() as tmp:
+        for stage, agent, model, count in (
+                ("draft", "draft-worker", "opus", 12),
+                ("cold-read", "draft-verifier", "opus", 20),
+                ("research", "research-worker", "sonnet", 2)):
+            ledger.record_pass(batch="b", root=tmp, stage=stage, agent=agent,
+                               model=model, count=count)
+        entries = ledger.read_passes("b", tmp)
+        assert ledger.passes_by(entries, "model") == {"opus": 32, "sonnet": 2}
+        # Largest first, so the line reads as a ranking rather than a dump.
+        assert list(ledger.passes_by(entries, "stage")) == [
+            "cold-read", "draft", "research"]
+
+
+def test_nothing_reported_is_an_empty_total_and_not_a_zero():
+    """`metrics` turns this into `?`. A zero would read as "this batch used no
+    agents", which is the wall's asymmetry a fourth time."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ledger.record(batch="b", root=tmp, url="https://x.ae/1")
+        assert ledger.read_passes("b", tmp) == []
+        assert ledger.passes_by([], "model") == {}
+
+
+def test_a_missing_ledger_is_unreadable_for_passes_too():
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            ledger.read_passes("never-ran", tmp)
+        except ledger.LedgerUnreadable:
+            return
+        raise AssertionError("a missing ledger must not read as no passes")
+
+
+def test_recording_a_pass_never_raises():
+    """The ledger's rule, unchanged: an observer that can halt the thing it
+    observes is worse than no observer."""
+    assert ledger.record_pass(stage="draft", root="/nonexistent/\0/x") is False
 
 
 def test_an_unknown_field_in_a_stored_line_is_ignored():

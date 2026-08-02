@@ -1,3 +1,241 @@
+## 2026-08-01 (the flip) — P3 on, one batch before its own gate
+
+Haytham, immediately after the previous session recorded D26 (*the flip stays
+off, and the batch that would decide it is not this one*): **turn the flip on,
+apply everything.**
+
+So it is on, and the honest framing is in **D27**: the corrected `unobserved`
+number still does not exist and could not be produced — the corpus that would be
+re-scored lived in `work/` and did not survive the container. This is acting on
+the diagnosis, not on the measurement the diagnosis predicts. That is his call
+and it is recorded as one rather than folded into D26 as a change of mind.
+
+All three switches. `hook-worker` stops fetching and chooses from `select`'s
+shortlist; `select` runs before the hook stage and is consumed; a `plan` decline
+binds (**D28**).
+
+## The contradiction in the proposal, and how it resolves
+
+Part 5 says `select` writes the authored clause. Part 7 says do not make
+`select` a model call — rank mechanically and hand a model three candidates.
+Both cannot hold.
+
+Part 7 wins, and the result is cleaner than either: **`select` stays pure Python
+and `hook-worker` becomes an author instead of a searcher.** What it loses is
+the search. What it keeps is the only genuinely authorial part of the beat —
+deciding which piece of evidence is worth a stranger's first three seconds, and
+writing the sentence that proves a person read it. The shortlist was always
+justified as making a rejected first pick free, and now that is literally what
+it does.
+
+## The consequence nobody wrote down
+
+Removing `WebSearch` from `hook-worker` **deletes the podcast rung**, which is
+the free "their name plus podcast" search and the one that reaches coaches who
+do not post. Nothing in the proposal mentions it.
+
+It moved to `research-worker`, which is the proposal's own logic applied
+honestly — retrieval belongs to the stage that already fetches — and it is a
+real cost increase at stage 2, against a batch Haytham had already called
+expensive. It is also R1's mitigation in practice: the retrieval pass now
+carries the hook criteria and not only the floor questions.
+
+`research-worker` says so at the top now. **An observation it does not return is
+a hook that cannot be found**, and it will present as the lead's fault rather
+than the retrieval's. Three things follow that it is told explicitly: return the
+whole text rather than the part that settled the floor, because the hook stage
+cannot go back for the rest; label `kind` honestly rather than upward, because it
+decides how the observation ranks; and a summarised observation is worse than
+none, because it reaches the reader as a quote and the verifier refutes it.
+
+## Ban #3 stopped being a sentence
+
+*"No invented specifics — if it cannot be cited, it does not exist."* That has
+been something an agent was asked to remember for as long as there was nothing
+to check it against. `select` hands the worker the observation's stored text, so
+now there is: **`hook --against work/select.json`** requires the quote to be a
+contiguous piece of the observation it names.
+
+Whitespace is normalised and nothing else. A scraped post carries line breaks a
+quote will not, but a changed word is precisely the drift this exists to catch,
+so forgiving case or punctuation would forgive the failure. It also catches two
+sentences welded into one quote, which is a real refusal from `2026-08-01-q1`
+that cost a verifier pass to find.
+
+Exercised against the real committed batch rather than a fixture: a verbatim
+quote from Mirella's stored LinkedIn post passes; the same quote with `stay
+consistent` changed to `stay focused` fails naming the drift.
+
+**A blank `observation_id` now means one of two opposite things** — an
+escalation the worker walked, or a hook composed from nothing — so it has to be
+declared. `escalated` plus `escalation_rung`, or it is a failure.
+
+## What the flip makes riskier, and the one thing that did not move
+
+`hook-verifier` is untouched. That is not conservatism: the worker no longer
+reads the page it cites, so **nothing confirms the stored record was ever real
+except the live re-fetch**. If a research worker summarised a post instead of
+copying it, every mechanical check downstream passes. That paragraph is in the
+agent file now.
+
+`refute_rate` changes meaning accordingly. It used to mean a worker misread a
+page it had open; now it means the stored text did not match the page, which is
+a research-stage failure reaching the reader. The skill says to name it as one.
+
+## The declines, and why they could turn on now
+
+`plan` shipped advisory for two batches on an explicit argument: a gate shipped
+alongside its own measurement generates the data that judges it. That objection
+was **paid off rather than dropped**. `metrics --plan` reports, of the leads
+carrying a declined rung, how many produced a verified hook and how many
+produced none — D21's reversal condition in D21's own words.
+
+The half that does not change is stated three times because it is the one that
+would do real damage if it drifted: a decline gates **spend**, never inclusion.
+A declined lead still gets researched, still gets a row and a Blocker, and gets
+a null hook rather than a purchase. `plan` still exits 0 when every rung on a
+batch is declined.
+
+## The numbers that judge all of this
+
+`escalation_rate` — hooks the shortlist did not hold. It counts every attempt,
+not only the verified ones: an escalation that produced a refuted hook still
+cost the fetch the flip was meant to remove, and counting only the useful ones
+would report the rate of *successful* escalations under the name of the
+escalation rate. A null hook is not an escalation either — it is the cheaper,
+honest outcome and must not be made to look like the expensive one.
+
+`declined_and_dry` — `?` and never `0` without a plan file, because a zero there
+would read as "declining cost nothing", which is the claim being tested. The
+wall's asymmetry, a fifth time.
+
+The skill gained a second tripwire to match: a third of the first wave
+escalating is the flip failing, not those leads being hard.
+
+**Where this can go wrong, and the three different answers**: a high
+`escalation_rate` means research must fetch deeper, not that the ranker is
+wrong; a high `refute_rate` means observations are being summarised rather than
+kept verbatim; a high `null_hook_rate` with neither means selection genuinely
+cannot replace the search and P3 was wrong. D27 carries all three.
+
+951 tests (+20), `doc-check` clean at 30 commands.
+
+## 2026-08-01 (post-mortem, acted on) — both blocking numbers were artefacts
+
+Haytham dropped the post-mortem back in: fix this, make sure the proposal is
+applied and wired, and the Claude usage was a lot for 20 leads.
+
+**The useful thing that fell out of reading it against the stored artifact is
+that the flip's verdict rests on two artefacts, not two findings.**
+`data/runs/2026-08-01-q1-select.json`, read directly:
+
+```
+19 leads   agreed 4   missed 3   unobserved 5   (7 not compared)
+bans: site_prose 21, not_content 5, stale 3, too_short 2, third_party 1
+MISSED: Sanaa Diab, Bindu Joseph, Rory Buck — all three "excluded by site_prose"
+```
+
+**All three MISSED are one ban**, and it is also the largest ban in the corpus
+at 21 of 32 rejections. **Four of the five UNOBSERVED are a flag**:
+`research-worker.md:37` ran `apify li-posts --max 5` with no window while
+`hook-worker.md:88` ran `--since 3months`, so one profile was asked two
+different questions a stage apart and the hook stage kept "discovering" posts
+research had never requested. `docs/hook-rules.md` has declared one owner for
+that window since it was written; the agent files drifted from it and nothing
+could see that, because `.claude/agents/` was outside `doc-check`'s corpus.
+
+So the flip stays off (D26), and the condition to reopen it is one clean batch
+after both fixes with `unobserved` and `missed` read apart.
+
+## The ban fix needed a fourth line, and that is the interesting part
+
+Removing the location ban alone changes nothing. A page somebody wrote about
+themselves has no publication date, so all three would have moved from
+`site_prose` to `no_date`. `docs/hook-rules.md` already granted the exemption in
+prose — *"an evergreen framework **or an About-page line they wrote themselves**
+is fine at any age"* — and the code carried only the first half.
+
+What replaces the location ban is **ban #1's honest mechanical form: the same
+text observed for two different leads.** That is the ban's own test — could this
+be sent unedited to another coach in the segment — settled against the only
+evidence that can settle it. It abstains on an observation nobody could
+attribute, because a ban costs a lead its only observation.
+
+## The re-measurement that could not be run
+
+`work/` does not survive the container, and only the *verdict* was committed.
+So the batch that disproved the ban cannot be re-scored against the correction:
+selections carry a shortlist, and a rejection carries a ban name and a URL,
+neither of which can be ranked again. **`select --batch` now writes the corpus
+beside the verdict.** The expected 3 MISSED → 0 is a derivation from the stored
+bans, not a measurement, and it is stated that way everywhere it appears.
+
+## The Claude bill, which nothing here could see
+
+Haytham is right and the proposal half-knew it: Part 11 says *"the larger waste
+is agent passes, and it is invisible"* and then measures everything except that.
+`2026-08-01-q1` cost ~64 agent passes for 20 leads and 5 rows, and the only
+record was one number typed into `metrics --passes` at the end of a long
+session. No stage, no model. "The drafting loop is most of it" was a guess.
+
+`ledger pass --stage <s> --agent <a> --model <m> --count <n>` writes to the same
+JSONL with `kind: pass`, and `metrics` prints `passes_by_stage` and
+`passes_by_model`, REPORTED and never measured. Nothing reported prints `?` —
+a zero would read as "this batch used no agents", which is the wall's asymmetry
+a fourth time. **Counts, not dollars**: model prices are a value this repo does
+not own and would go stale in it.
+
+**The tiers were already right and are not the lever.** research, hook and
+hook-verifier on sonnet; draft-worker and draft-verifier on opus. Downgrading
+the cold read is the one saving this repo refuses twice in writing — it caught
+11 of 12 identity beats that had passed the linter. The lever is D25: **a check
+that can be mechanical must not cost an agent pass**, and every fix in this
+session is one — `hook` before a verifier is spent, `check_batch` seeing a
+template no per-email reader can, `crm-rows` replacing a script and the audit of
+it, `--escalate-only` replacing a whole stage re-run, `ledger batch` replacing
+telling twelve workers a label.
+
+## Everything else, in the order the post-mortem ranked it
+
+- **`--batch` on every paid subcommand, and `ledger batch` writes `work/BATCH`.**
+  The env var was never going to work: a subagent is a different process. The
+  label is discoverable now, and `ledger batch` with no argument says which one
+  resolves and where it came from.
+- **`fetch --escalate-only <sites.json>`.** The retry that put 52 of the batch's
+  83 duplicate pairs in the ledger re-read every site first. D22 names that risk
+  in advance and it happened anyway, because avoiding it meant calling
+  `fetch.run_plan` by hand.
+- **`main.py hook` closes F4.** Six of twelve drafts had to alter text a
+  verifier had certified word for word. Every finding says *pick a different
+  quote*, never edit theirs — one stage later the drafter has neither the
+  alternatives nor the authority. It also catches the empty-slug LinkedIn URL
+  Maurice's hook died on.
+- **Quoting is not claiming.** A figure in the hook beat that is also in the
+  certified quote is exempt. The first cut spared it by *value*, which spared it
+  in the identity beat too; its own test caught that, and the substitution now
+  happens inside the hook beat's text.
+- **LinkedIn is two rungs.** Different actors, different prices, one batchable
+  and one provably not. `yield_by_rung` reported `li_posts 10` where three came
+  off profiles, in the number that settles F5.
+- **`crm-rows`.** The join is explicit and fails closed, and coverage prints for
+  every field rather than the four somebody expected to be populated.
+- **Two checks a single email cannot see**: a four-word phrase two hooks share,
+  and a close that opens on a question. Both warnings — the second is bank copy
+  and `copy-check` now names `cta-04` at the source, on a passing run.
+- **One `split_sentences`.** It was in `outbound/lint.py` rather than
+  `draft_lint`, in two copies, both with the same bug.
+
+Adding `.claude/agents/` to `doc-check` found a third thing on its first run:
+`draft-worker.md` had been telling every drafter for months to read four
+reference files at paths that resolve from nowhere.
+
+**Not done, and named rather than dropped**: re-hooking Sehar McDermott is
+operational and costs a paid rung; the `cta-04`/`ps-04` re-deal is Haytham's
+edit in Airtable; and `hook-worker` optimising for the most quotable line is a
+judgement, which D25 is explicit about not mechanising.
+
+931 tests (+69), `doc-check` clean at 30 commands.
+
 ## 2026-08-01 (CRM write) — two defects in the Leads push, both mine
 
 Haytham asked for the batch in Airtable. The Batches row was fine. The 20 Leads

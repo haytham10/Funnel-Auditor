@@ -363,6 +363,11 @@ check becomes the line everybody scrolls past.
 **Reversed by** a batch where declining to spend on low-confidence channels
 costs more verified hooks than it saves scrapes.
 
+**The gating half is live as of D28**, and that reversal condition is now
+computable: `metrics --plan` prints `declined_and_dry`. The inclusion half is
+unchanged and is not up for revision — nothing drops a lead on an ownership
+verdict, and D28 restates that rather than qualifying it.
+
 ---
 
 ### D22 · A stage never re-fetches what an earlier stage read free
@@ -460,6 +465,124 @@ after the holds — which would mean the drift is too large to absorb downstream
 and the answer is more identity lines per thin segment rather than a return to
 dealing late. Dealing late does not become correct again; it only stops being
 the worse of two problems.
+
+### D25 · A check that can be mechanical must not cost an agent pass
+
+**2026-08-01.** Where a rule can be enforced in Python, it is, and the agent
+stage that used to catch it stops being the place it is caught. `hook` checks a
+proposal before a verifier is spent on it, `check_batch` sees a template that no
+per-email reader can, `crm-rows` replaces a hand-written script and the audit of
+it, `--escalate-only` replaces re-running a whole stage to retry one call, and
+`ledger batch` replaces telling twelve workers to remember a label.
+
+**Why.** Batch `2026-08-01-q1` cost about 64 agent passes for 20 leads and 5
+shipped rows, and until `ledger pass` existed nothing in this repo could say
+which stage that was. That blindness is the same one F12 named for retrieval,
+one layer up — and it is worse, because a fetch at least leaves an Apify
+invoice. The rule matters beyond cost: **a mechanical check runs the same way
+every time**, and an agent asked to remember a rule is an agent that will
+occasionally not. Every gate this repo has was built on that reasoning; this
+entry says the reasoning also applies to what a stage *costs*.
+
+**What it does not license.** Replacing a *judgement* with a check. The cold
+read caught 11 of 12 identity beats that had passed the linter, and every one
+of those drafts was `LINT PASS` — voice is not mechanisable and the proposal
+refuses twice, in writing, to optimise the verifier. The saving comes from
+passes nothing has to run, never from a cheaper reader.
+
+**Reversed by** a mechanical check that starts producing false findings people
+route around. A gate that has to be argued with is worse than the agent pass it
+replaced, because the agent could be told the exception and the gate cannot.
+
+### D26 · The P3 flip stays off, and the batch that would decide it is not this one
+
+**2026-08-01.** `hook-worker` keeps fetching, `plan` keeps declining nothing,
+`select` stays advisory. The proposal's P3 is unchanged and still switched off.
+
+**Why.** The measurement ran and reported 4 agreed, 3 missed, 5 unobserved over
+12 verified hooks — and both halves of it turned out to be artefacts rather than
+findings. **All three MISSED were one ban**, `site_prose`, which was 21 of the
+corpus's 32 rejections and which the same batch disproved: those three
+observations were `kind: about` and each had been independently VERIFIED. **Four
+of the five UNOBSERVED were a flag**, not a capability: research ran `apify
+li-posts --max 5` with no window while the hook stage ran `--since 3months`, so
+the hook stage kept finding posts research had never requested. The `DUPLICATE`
+half was polluted twice over — a retry that re-read every site, and an
+observation nudge in five of twelve worker prompts.
+
+Both causes are fixed (D25's rung flags, and ban #1 narrowed). Neither fix
+produces a number: the corpus it would be scored against lived in `work/`, which
+does not survive the container, so the batch that disproved the ban cannot be
+re-scored against the correction. **`select --batch` now writes the corpus
+alongside the verdict** so that this is the last time.
+
+**Reversed by** one clean batch — run after both fixes, with no observation
+nudge and no re-read retry — reporting `unobserved` and `missed` apart. If
+`unobserved` stays high the fetch is not removable and the answer is research
+fetching deeper, which is what the number pointed at before the flag was found.
+
+**REVERSED the same day by D27**, without that batch. See below — this entry
+stands as written because the reasoning in it is still the reasoning, and what
+changed is who decided to act on it.
+
+### D27 · The flip is on, taken on the diagnosis rather than the measurement
+
+**2026-08-01.** P3 lands, all three switches. `hook-worker` stops fetching and
+chooses from `select`'s shortlist; `select` runs before the hook stage and is
+consumed; a `plan` decline binds. `hook-verifier` is untouched.
+
+**Why, stated exactly.** Haytham's call, made after reading D26. The corrected
+`unobserved` number **still does not exist** and could not be produced, because
+the corpus that would be re-scored lived in `work/` and did not survive the
+container. So this is a decision to act on the diagnosis — that both blocking
+numbers were artefacts with known, fixed causes — rather than on the measurement
+that diagnosis predicts. That is a legitimate call and it is a different one
+from what D26 recommended, which is why it gets its own entry instead of an edit
+to that one.
+
+**What makes it recoverable rather than a guess.** Everything the flip could
+break is now counted. `escalation_rate` is R1: the shortlist not holding.
+`refute_rate` changes meaning and becomes sharper — post-flip a refuted quote
+means the *stored text* did not match the page, which is a research-stage
+failure reaching the reader. `null_hook_rate` and `hook_yield` are the headline
+pair, unchanged. And `select --batch` now commits the corpus, so the next batch
+is re-scorable even if the one after it changes the ranking.
+
+**What did not move, and must not.** `hook-verifier` still re-fetches the cited
+page live. Its independence was always the mechanism; post-flip it is also the
+*only* check that a stored observation was ever real, because the worker no
+longer reads the page it cites. Letting it read the observation instead would
+save one fetch and retire the only thing in this system that has ever caught a
+fabricated claim (R2).
+
+**Reversed by** the next batch's numbers, and the three failures have three
+different answers: a high `escalation_rate` means research must fetch deeper,
+not that the ranker is wrong; a high `refute_rate` means observations are being
+summarised rather than kept verbatim; a high `null_hook_rate` with neither means
+selection genuinely cannot replace the search and P3 was wrong.
+
+### D28 · A decline binds, and it ships with its own evidence
+
+**2026-08-01.** A `plan` step whose channel is `absent` is declined for real:
+`hook-worker` may not escalate onto it. `unknown` is still never declined.
+
+**Why now and not before.** D21 established that an ownership verdict may gate a
+purchase where it may not gate a kill, and `plan` shipped advisory for two
+batches on the explicit reasoning that a gate shipped alongside its own
+measurement generates the data that judges it. That objection was not dropped —
+it was paid off. `metrics --plan` reports, of the leads carrying a declined
+rung, how many produced a verified hook and how many produced none, which is
+D21's reversal condition in D21's own words.
+
+**The half that does not change.** A decline gates **spend**, never inclusion. A
+lead whose every paid rung is declined still gets researched, still gets a plan,
+still gets a row and a Blocker, and gets a null hook rather than a purchase.
+`plan` exits 0 when every rung on a batch is declined, because exit 1 there
+would turn an ownership verdict into the inclusion gate D21 forbids.
+
+**Reversed by** `declined_and_dry` showing that declined leads produce verified
+hooks at about the rate everyone else does — which would mean the ownership
+verdict does not predict the waste, and `plan` should not gate on it at all.
 
 ---
 

@@ -60,6 +60,10 @@ OUTCOMES = ("ok", "empty", "error", "blocked")
 # an authority over tier 1 it does not have.
 REPORTED_BY = ("websearch", "webfetch")
 
+# Two things live in this file. A line with no `kind` is a Retrieval, which is
+# every line written before 2026-08-01 and every line Python writes itself.
+PASS_KIND = "pass"
+
 _lock = threading.Lock()
 
 # Process-scoped. One CLI invocation is one retrieval context — this is a
@@ -119,12 +123,64 @@ def clear_context() -> None:
 # --------------------------------------------------------------------- paths
 
 
+# Where a subagent can find the label without being told it. `work/` is
+# gitignored and per-container, which is exactly the lifetime of a batch.
+BATCH_FILE = "work/BATCH"
+
+
+def _batch_file(root: str | Path | None = None) -> Path:
+    base = Path(root or os.environ.get("OUTBOUND_LEDGER_ROOT")
+                or Path(__file__).resolve().parent.parent)
+    return base / BATCH_FILE
+
+
+def batch_source(batch: str | None = None,
+                 root: str | Path | None = None) -> tuple:
+    """The label and where it came from, in resolution order.
+
+    The second half exists because of how the label was lost. Twelve workers
+    were told to pass `--batch` on every `apify` call; the flag did not exist,
+    one of the twelve checked and said so, and 15 retrievals — five of them paid
+    hook rungs — landed in the wrong file. `ledger report` then under-reported
+    the batch by 30% and the wrong number was quoted before anyone noticed.
+
+    A shell's `OUTBOUND_BATCH` does not reach a subagent: it is a different
+    process, started from a different environment. A file does. So the label
+    stops being something an orchestrator remembers to say and becomes something
+    any process can look up — and `ledger batch` with no argument prints this
+    tuple, so "which batch am I in" is answerable rather than assumed.
+    """
+    if batch:
+        return batch, "passed in"
+    if _context.get("batch"):
+        return _context["batch"], "this process's ledger context"
+    if os.environ.get("OUTBOUND_BATCH"):
+        return os.environ["OUTBOUND_BATCH"], "OUTBOUND_BATCH"
+    try:
+        stored = _batch_file(root).read_text(encoding="utf-8").strip()
+    except OSError:
+        stored = ""
+    if stored:
+        return stored, BATCH_FILE
+    # Never an error. A batch that has not named itself still gets a ledger,
+    # because the alternative is a paid fetch whose accounting is dropped for
+    # want of a label — and this module's one rule is that it cannot halt what
+    # it observes.
+    return date.today().isoformat(), "today, because nothing named a batch"
+
+
 def batch_label(batch: str | None = None) -> str:
-    """The batch this run belongs to. `OUTBOUND_BATCH` if set, else today —
-    the same default `export --batch` already uses, so a batch's ledger and its
-    upload file carry the same label without anyone passing it twice."""
-    return (batch or os.environ.get("OUTBOUND_BATCH")
-            or date.today().isoformat())
+    """The batch this run belongs to. See `batch_source` for the order and why
+    the file is in it."""
+    return batch_source(batch)[0]
+
+
+def set_batch(label: str, root: str | Path | None = None) -> Path:
+    """Write the label where every later process can find it."""
+    target = _batch_file(root)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(label.strip() + "\n", encoding="utf-8")
+    return target
 
 
 def path(batch: str | None = None, root: str | Path | None = None) -> Path:
@@ -136,9 +192,25 @@ def path(batch: str | None = None, root: str | Path | None = None) -> Path:
     repo's ledger, and the first honest cost figure this machine produces would
     have a test run mixed into it.
     """
+    return artifact(".jsonl", batch=batch, root=root)
+
+
+def artifact(suffix: str, *, batch: str | None = None,
+             root: str | Path | None = None) -> Path:
+    """Any per-batch file in `data/runs/` — the ledger, and everything beside it.
+
+    `select`, `metrics` and `replies` each write one, and each had built the
+    path itself from a literal `"data/runs/"`. Three copies of a directory name
+    is the drift D23 exists about, and it had a second cost: none of the three
+    honoured `OUTBOUND_LEDGER_ROOT`, so a test of any of them wrote into the
+    real repo's run directory beside real batches.
+
+    `suffix` starts with `-` for a sibling (`-select.json`) or `.` for the
+    ledger itself.
+    """
     base = Path(root or os.environ.get("OUTBOUND_LEDGER_ROOT")
                 or Path(__file__).resolve().parent.parent)
-    return base / RUNS_DIR / f"{batch_label(batch)}.jsonl"
+    return base / RUNS_DIR / f"{batch_label(batch)}{suffix}"
 
 
 # --------------------------------------------------------------------- write
@@ -162,6 +234,52 @@ def append(record: Retrieval, *, batch: str | None = None,
             target.parent.mkdir(parents=True, exist_ok=True)
             with target.open("a", encoding="utf-8") as handle:
                 handle.write(line + "\n")
+        return True
+    except Exception:
+        return False
+
+
+def record_pass(*, stage: str, agent: str = "", model: str = "", count: int = 1,
+                batch: str | None = None, root: str | Path | None = None) -> bool:
+    """Record agent passes, on trust. Never raises, same as `append`.
+
+    **This is the Claude bill, and nothing in this repo could see it.** The
+    Apify ledger exists because every cost claim about retrieval had been
+    reconstructed by hand from a journal entry. The model side was in exactly
+    that state one layer up: `2026-08-01-q1` cost about 64 agent passes for 20
+    leads and 5 shipped rows, and the only record of it was a number an
+    orchestrator typed into `metrics --passes` at the end of a long session —
+    one scalar, no stage, no model. "The drafting loop is most of the bill" was
+    a guess nobody could check.
+
+    Reported on trust, exactly like `ledger add`: an agent pass happens in the
+    main loop and Python cannot see one. `kind` keeps these separable from
+    retrievals so a pass can never be counted as a fetch.
+
+    **Counts, not dollars.** Model prices are a value this repo does not own,
+    and the standing rule is that a doc names the authority rather than copying
+    it. A rate table here would be a number going stale in a file nobody
+    remembers to update, printed with two decimal places.
+    """
+    return append_raw({
+        "kind": PASS_KIND, "stage": stage, "agent": agent, "model": model,
+        "count": max(1, int(count or 1)),
+    }, batch=batch, root=root)
+
+
+def append_raw(payload: dict, *, batch: str | None = None,
+               root: str | Path | None = None) -> bool:
+    """One JSON line, stamped. Never raises — the ledger's rule, unchanged."""
+    try:
+        line = dict(payload)
+        line.setdefault(
+            "at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        target = path(batch, root)
+        with _lock:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(line, ensure_ascii=False,
+                                        default=str) + "\n")
         return True
     except Exception:
         return False
@@ -209,11 +327,55 @@ def read(batch: str | None = None,
         except ValueError:
             malformed += 1
             continue
-        if isinstance(data, dict):
-            records.append(Retrieval.from_dict(data))
-        else:
+        if not isinstance(data, dict):
             malformed += 1
+        elif data.get("kind") == PASS_KIND:
+            # A pass is not a retrieval and must never be counted as one. It
+            # has no url, so `duplicates` would skip it — but `summarise` would
+            # add it to the fetch count and report agent passes as free fetches.
+            continue
+        else:
+            records.append(Retrieval.from_dict(data))
     return records, malformed
+
+
+def read_passes(batch: str | None = None,
+                root: str | Path | None = None) -> list[dict]:
+    """The reported agent passes for a batch. Empty is a real answer.
+
+    Separate from `read` rather than a second return value, so every existing
+    caller keeps meaning what it meant. Raises `LedgerUnreadable` on a missing
+    file for the same reason `read` does: a missing ledger is not a batch that
+    cost nothing.
+    """
+    target = path(batch, root)
+    if not target.is_file():
+        raise LedgerUnreadable(
+            f"no ledger at {target} — a missing ledger is not a zero-cost batch")
+    out = []
+    for line in target.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            data = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(data, dict) and data.get("kind") == PASS_KIND:
+            out.append(data)
+    return out
+
+
+def passes_by(entries: list, key: str) -> dict:
+    """Reported passes totalled by one field, largest first.
+
+    `?` is not this function's business — an empty dict means nothing was
+    reported, and `metrics` is where that becomes a `?` rather than a 0.
+    """
+    totals: dict = {}
+    for entry in entries or []:
+        name = str(entry.get(key) or "").strip() or "unnamed"
+        totals[name] = totals.get(name, 0) + int(entry.get("count") or 1)
+    return dict(sorted(totals.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
 # ------------------------------------------------------------------ analysis

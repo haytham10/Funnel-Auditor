@@ -72,7 +72,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # The corpus. Everything else in the repo is code, and code has tests.
-SCAN_GLOBS = ("docs/**/*.md", ".claude/skills/**/*.md")
+#
+# `.claude/agents/` joined on 2026-08-01, and the gap it left is the argument
+# for it: those five files are prompts, so nothing tested them, and the retrieval
+# window in two of them drifted apart without a single check noticing. They name
+# commands and paths exactly as the skills do — the only reason they were out was
+# that the glob was written before they mattered.
+SCAN_GLOBS = ("docs/**/*.md", ".claude/skills/**/*.md", ".claude/agents/**/*.md")
 SCAN_FILES = ("CLAUDE.md", "README.md")
 
 SPEC_DIR = "docs/spec"
@@ -552,6 +558,54 @@ def check_word_budget(rel: str, lines: list) -> list:
                     f"outbound/lint.py enforces {want}")]
 
 
+def check_rung_flags(rel: str, lines: list) -> list:
+    """Every doc that spells out a paid rung's call must carry its flags.
+
+    The second instance of the situation `check_word_budget` describes, and the
+    one that cost something. `research-worker.md` ran `apify li-posts --max 5`
+    with no window while `hook-worker.md` ran the same command `--since
+    3months`, so one profile was asked two different questions a stage apart.
+    The hook stage then found posts the research stage had never requested —
+    4 of the 5 UNOBSERVED in `2026-08-01-q1`, which is the number the whole
+    retrieve-once decision is gated on. Nothing could see it: the two files sat
+    outside `SCAN_GLOBS`, and even inside it there was no rule to break.
+
+    `plan.LADDER` owns the flags (D23). This asserts the prose agrees.
+
+    Only lines that actually invoke the command are checked, so a doc may
+    discuss a rung in prose without reciting flags at it.
+
+    **A verification fetch is exempt, and that is not a loophole.** The ladder's
+    window is an editorial rule about what makes a good hook; the verifier's
+    question is whether a specific quote is on a specific page, and narrowing
+    its retrieval to the last 90 days would make it return REFUTED for a post
+    that is simply older than the rule that chose it. Same reason it is not told
+    the hook room.
+    """
+    from outbound.plan import LADDER
+
+    rungs = [r for r in LADDER if r.command and r.flags]
+    out = []
+    for lineno, text in enumerate(lines, start=1):
+        if "main.py" not in text or "--purpose verify" in text:
+            continue
+        for rung in rungs:
+            subcommand, markers = rung.command[0], rung.command[1:]
+            # An argument has to follow the subcommand, or this is a doc naming
+            # the rung rather than calling it.
+            if not re.search(re.escape(subcommand) + r"\s+[^\s-]", text):
+                continue
+            if any(marker not in text for marker in markers):
+                continue
+            missing = [f for f in rung.flags if f not in text]
+            if missing:
+                out.append(Finding(rel, lineno, "RUNG FLAGS",
+                                   f"`{subcommand}` on the {rung.name} rung is "
+                                   f"missing {', '.join(missing)} — "
+                                   f"outbound/plan.py owns these"))
+    return out
+
+
 def mirrored_options(module: str, attr: str) -> set:
     """Our copy of one select's options, minus the not-set sentinel.
 
@@ -784,6 +838,7 @@ def check_docs(root: Path | None = None, *, parser=None,
         result.findings.extend(check_paths(rel, doc, lines, root, header))
         result.findings.extend(check_copy_ids(rel, lines, ids))
         result.findings.extend(check_quoted_copy(rel, lines, bank_lines))
+        result.findings.extend(check_rung_flags(rel, lines))
 
     result.findings.extend(check_documented_commands(
         tree, pipeline_text, "\n".join(corpus), main_docstring(root)))

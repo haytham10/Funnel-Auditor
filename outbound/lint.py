@@ -201,6 +201,31 @@ class Result:
         return "\n".join(lines)
 
 
+# A sentence ends at .!? — and the terminator may sit INSIDE a closing quote,
+# which is exactly how a hook ends. `re.split(r"(?<=[.!?])\s+", ...)` was
+# written twice in this file and both copies got that wrong: a hook ending
+# `...airplane mode for ten days."` glued the following greeting or beat onto
+# it, so `check_voice` reported a 40-word sentence that nobody had written and
+# `check_attribution` looked for a segment noun across two sentences at once.
+# Both are false positives that land on the one beat the machine went to the
+# most trouble to certify.
+# Alternatives rather than `[…]*`, because `re` allows only a fixed-width
+# lookbehind and a consuming version would eat the closing quote off the
+# sentence it belongs to. Two closers covers `."` and `.")`.
+_CLOSER = r"[\"”’')\]]"
+_SENTENCE_END = re.compile(
+    rf"(?<=[.!?])\s+|(?<=[.!?]{_CLOSER})\s+|(?<=[.!?]{_CLOSER}{_CLOSER})\s+")
+
+
+def split_sentences(text: str) -> list[str]:
+    """One splitter, used everywhere a sentence is the unit.
+
+    Defined once for the reason `audit/draft_lint.py` exists: a rule written
+    twice drifts, and these two copies had already drifted into the same bug.
+    """
+    return [part for part in _SENTENCE_END.split(text or "") if part.strip()]
+
+
 def numbers_in(text: str) -> list[tuple[str, float]]:
     """Every quantity in the text, as (as-written, value).
 
@@ -233,6 +258,50 @@ def _licensed(value: float, allowed: set) -> bool:
     return value in allowed_values or round(value, 1) in allowed_values
 
 
+def mask_quoted_figures(body: str, hook: str, hook_quote: str) -> str:
+    """The body with the hook's quoted figures blanked out, and nothing else.
+
+    Sparing the figure by value would spare it everywhere — the identity beat
+    included, which is the one place a relabelled client result actually does
+    damage. So the substitution happens inside the hook beat's own text and the
+    result is spliced back, and every other check still reads the real body.
+    """
+    quoted = quoted_numbers(hook, hook_quote)
+    if not quoted or hook not in body:
+        return body
+    masked = hook
+    for raw in sorted(quoted, key=len, reverse=True):
+        masked = re.sub(rf"(?<!\w){re.escape(raw)}(?!\w)", "#", masked)
+    return body.replace(hook, masked, 1)
+
+
+def quoted_numbers(hook: str, hook_quote: str) -> set:
+    """Figures the hook beat took verbatim from the certified quote.
+
+    **Quoting is not claiming**, and until 2026-08-01 this rule could not tell
+    the difference. `check_numbers` exists to stop us inventing a client result
+    or wearing somebody else's; it has no business deleting "70.3", "2023",
+    "11 years" and "27 years" from a hook, because those are the RECIPIENT's
+    facts, read off their own page, and the hook beat's entire job is to prove
+    we read it.
+
+    Six of twelve drafts in `2026-08-01-q1` had to alter a hook a verifier had
+    certified word for word, and both drafters solved the digits by moving them
+    into the subject line, which is not digit-checked. That works, and it is
+    backwards.
+
+    Narrow on both axes deliberately. A figure qualifies only if it is in the
+    hook beat **and** in the certified quote — so a number the drafter added
+    while paraphrasing is still caught, and the exemption cannot leak into the
+    identity beat, which is where a relabelled client result would actually do
+    damage.
+    """
+    if not (hook or "").strip() or not (hook_quote or "").strip():
+        return set()
+    cited = {raw.lower() for raw, _ in numbers_in(hook_quote)}
+    return {raw for raw, _ in numbers_in(hook) if raw.lower() in cited}
+
+
 def check_numbers(body: str, allowed: set) -> list[str]:
     """Every digit must be true of some real client result.
 
@@ -240,6 +309,12 @@ def check_numbers(body: str, allowed: set) -> list[str]:
     aggregate, plus the offer's own numbers. A year or a time of day is not
     exempt — the email has no business carrying either, so an unexplained
     number is a failure regardless of what it looks like.
+
+    Pass `mask_quoted_figures`' output as `body` to exempt figures the hook beat
+    quoted from its certified source. The exemption is a property of *where* the
+    figure sits, not of its value, so it is applied to the text rather than
+    handed to this function as a set — a set would spare the same digits in the
+    identity beat, which is the one place they would do real harm.
 
     This catches invention. Relabelling is a different failure and is caught by
     `check_attribution`, because a number can be entirely real and still be
@@ -270,11 +345,17 @@ def check_attribution(body: str, facts) -> list[str]:
 
     Checked per sentence, because that is the scope over which a reader
     attaches a number to a noun.
+
+    A quoted figure is exempt here for the same reason it is exempt from
+    `check_numbers`, and by the same mechanism: `check_email` hands this the
+    masked body. "Your 27 years as a business coach" is their sentence, and
+    refusing it would push the drafter into paraphrasing a citation an
+    independent verifier certified.
     """
     from outbound.anchors import allowed_numbers
 
     problems = []
-    for sentence in re.split(r"(?<=[.!?])\s+", body):
+    for sentence in split_sentences(body):
         match = _SEGMENT_RE.search(sentence)
         if not match:
             continue
@@ -510,30 +591,50 @@ def check_bridge(identity: str) -> list[str]:
     return []
 
 
-def check_voice(body: str) -> tuple[list[str], list[str]]:
-    failures, warnings = [], []
+def check_voice_fragment(text: str) -> list[str]:
+    """The voice rules that are about the WORDS, applicable to one beat.
 
-    if EM_DASH in body:
+    Split out of `check_voice` so the hook stage can run them on a proposal
+    before an independent verifier certifies its exact wording. Six of twelve
+    drafts on `2026-08-01-q1` had to alter text a verifier had confirmed word
+    for word — an em-dash, spaced hyphens, "touchpoints" — because every one of
+    these rules ran three stages after the point where honouring them was free.
+
+    A fragment has no sign-off, no paragraph count and no word budget of its
+    own, so those stay in `check_voice`. Nothing is duplicated: that function
+    calls this one.
+    """
+    failures = []
+
+    if EM_DASH in text:
         failures.append("em-dash present")
 
-    links = bare_links(body)
+    links = bare_links(text)
     if links:
         failures.append(f"bare link or address: {', '.join(links[:3])}")
 
-    lowered = body.lower()
-    for found in sorted({m.group(0).lower() for m in _JARGON_RE.finditer(body)}):
+    lowered = text.lower()
+    for found in sorted({m.group(0).lower() for m in _JARGON_RE.finditer(text)}):
         failures.append(f'operator jargon: "{found}"')
     for closer in WEAK_CLOSERS:
         if closer in lowered:
             failures.append(f'weak closer: "{closer}"')
 
-    if not re.search(rf"^\s*{SIGN_OFF}\s*$", body, re.M):
-        failures.append(f'no "{SIGN_OFF}" sign-off on its own line')
-
-    for match in _UNSEPARATED.finditer(body):
+    for match in _UNSEPARATED.finditer(text):
         failures.append(
             f'unformatted number "{match.group(0)}" reads as a merge field'
         )
+
+    return failures
+
+
+def check_voice(body: str) -> tuple[list[str], list[str]]:
+    failures, warnings = [], []
+
+    failures.extend(check_voice_fragment(body))
+
+    if not re.search(rf"^\s*{SIGN_OFF}\s*$", body, re.M):
+        failures.append(f'no "{SIGN_OFF}" sign-off on its own line')
 
     words = word_count(body)
     if words < WORD_MIN:
@@ -544,7 +645,7 @@ def check_voice(body: str) -> tuple[list[str], list[str]]:
     if body.count("\n\n") < 3:
         warnings.append("fewer than four paragraphs, beats may have merged")
 
-    sentences = [s for s in re.split(r"(?<=[.!?])\s+", body) if s.strip()]
+    sentences = split_sentences(body)
     if sentences and sum(1 for s in sentences if len(s.split()) > 28):
         warnings.append("a sentence runs past 28 words")
 
@@ -688,8 +789,37 @@ def check_seam(beats: dict[str, str]) -> list[str]:
     return problems
 
 
+def check_ask(cta: str) -> list[str]:
+    """The close asks for the meeting. It does not ask whether to ask.
+
+    `cta-04` opens "Worth 15 minutes?" and two independent cold readers said the
+    same thing about it: the ask is a question that invites "no", and *"the ask
+    itself has become optional, which is the one thing it is not allowed to
+    be."* Paired with a ps that offers an out — which is most of the ps bank,
+    because lowering the cost of saying no is that beat's whole job — the reader
+    gets an exit in the close's first three words and another one at the end.
+
+    Per-line linting cannot see it, because the line is fine in isolation.
+    `docs/hook-rules.md` ban #10 already says a question is a dead end that
+    looks like success and that the close is where the meeting gets asked for;
+    this is that rule applied one beat over.
+
+    **A warning, not a failure.** The line is bank copy Haytham chose, the fix
+    is one edit in Airtable, and a check that blocks a real send file over an
+    editorial judgement nobody has measured is a check people learn to route
+    around. `copy-check` reports it at the source, which is where it can be
+    fixed.
+    """
+    first = (split_sentences(cta) or [""])[0].strip()
+    if first.endswith("?"):
+        return [f'the close opens on a question ("{first}"), which invites "no" '
+                f"— the close is where the meeting is asked for"]
+    return []
+
+
 def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
-                allowed_numbers: set, facts=None, identity_claim=None) -> Result:
+                allowed_numbers: set, facts=None, identity_claim=None,
+                hook_quote: str = "") -> Result:
     """Everything, for one email. This is the gate `export` refuses to skip.
 
     `facts` enables the attribution check. It is optional only so a caller can
@@ -718,9 +848,21 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
     else:
         result.warnings.append("no claim spec passed, the identity beat's "
                                "figures are unchecked")
-    result.failures.extend(check_numbers(body, allowed_numbers))
+    # Quoting is not claiming. A figure in the hook beat that is also in the
+    # certified quote is the recipient's own fact; without this the rule meant
+    # to stop us relabelling a client result instead strips the most specific
+    # thing a hook can contain. Absent quote means absent exemption, and the
+    # warning below says so — the same precedent as `facts` and
+    # `identity_claim`, because a check that quietly did not run looks exactly
+    # like one that passed.
+    traceable = mask_quoted_figures(body, beats.get("hook", ""), hook_quote)
+    if not (hook_quote or "").strip() and numbers_in(beats.get("hook", "")):
+        result.warnings.append(
+            "the hook carries a figure and no certified quote was passed, so "
+            "it is being checked as a claim of ours rather than as a quote")
+    result.failures.extend(check_numbers(traceable, allowed_numbers))
     if facts is not None:
-        result.failures.extend(check_attribution(body, facts))
+        result.failures.extend(check_attribution(traceable, facts))
     else:
         result.warnings.append("no fact table passed, relabelling not checked")
     result.failures.extend(check_claims(beats))
@@ -728,6 +870,7 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
     result.failures.extend(check_seam(beats))
     result.failures.extend(check_bridge(beats.get("identity", "")))
     result.failures.extend(check_identity_pronouns(beats.get("identity", "")))
+    result.warnings.extend(check_ask(beats.get("cta", "")))
 
     hook = beats.get("hook", "")
     if not hook.strip():
@@ -739,6 +882,22 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
 
 
 # ---------------------------------------------------------------- batch checks
+
+
+# Long enough that a shared run is a phrase somebody chose rather than English
+# doing its job. At three, "that you had to" and "and it made me" recur between
+# unrelated hooks and the check reports grammar as a template.
+TEMPLATE_SHINGLE_WORDS = 4
+
+
+def _shingles(text: str, size: int) -> set:
+    """Every run of `size` words, lowercased and stripped of punctuation.
+
+    Punctuation goes so that "most people think," and "most people think" are
+    the same phrase — a template does not stop being one at a comma.
+    """
+    words = re.sub(r"[^a-z0-9\s]+", " ", (text or "").lower()).split()
+    return {" ".join(words[i:i + size]) for i in range(len(words) - size + 1)}
 
 
 def _opening_shape(body: str, words: int = 4) -> str:
@@ -793,6 +952,27 @@ def check_batch(emails: list[dict], anchor_shares: dict | None = None) -> Result
     for shape, count in shapes.items():
         if count / total > FIXED_LINE_SHARE_CAP and count > 1:
             record(f'{count} of {total} emails open on "{shape}"')
+
+    # The hook is the one beat written per lead, and a phrase two of them share
+    # is a template by definition. "Most people [verb]" appeared as the writer's
+    # clause in two drafts on `2026-08-01-q1`; each read fine alone, and only a
+    # batch-level view can see them together.
+    #
+    # Four words, because three catches ordinary function-word runs and reports
+    # a template that is really grammar. A warning rather than a failure:
+    # nobody has measured how often an innocent 4-gram recurs across real hooks,
+    # and a batch-blocking gate calibrated on nothing is one people route around.
+    hooks = {}
+    for index, email in enumerate(emails):
+        hook = (email.get("beats") or {}).get("hook", "")
+        for shingle in _shingles(hook, TEMPLATE_SHINGLE_WORDS):
+            hooks.setdefault(shingle, set()).add(index)
+    for shingle, owners in sorted(hooks.items()):
+        if len(owners) > 1:
+            result.warnings.append(
+                f'{len(owners)} hooks share the phrase "{shingle}" — the hook '
+                f"is the beat that proves per-lead authorship, so a phrase two "
+                f"of them have is a template")
 
     bridges: dict[str, int] = {}
     for email in emails:

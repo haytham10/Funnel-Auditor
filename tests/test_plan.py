@@ -21,6 +21,7 @@ same one `tests/test_resolve.py` pins one stage earlier.
 import os
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -87,30 +88,90 @@ def test_the_ladder_is_in_cost_order():
     assert max(free) < min(paid)
 
 
-def test_the_about_rung_offers_only_a_framework():
-    """F5. The verifier refutes anything sendable to another coach in the
-    segment, and generic About prose is exactly that — so the cheapest rung was
-    producing the observations most likely to be refuted."""
+def test_the_about_rung_offers_the_page_as_well_as_a_framework():
+    """F5's narrowing, reversed on batch evidence. `2026-08-01-q1` MISSED three
+    leads and all three were `kind: about` observations an independent verifier
+    had VERIFIED. What the verifier refuses is the generic, not the location.
+
+    Pinned against `select` rather than restated, so the two cannot drift: the
+    rung offers what the ranker will accept."""
+    from outbound import select
+
     about = next(r for r in plan.LADDER if r.name == "about")
-    assert about.kinds == ("framework",)
+    assert about.kinds == ("framework", "about")
+    assert all(select.ban_for(observe.Observation(
+        lead_key="a@x.ae", platform="site", kind=kind, author="self",
+        text=" ".join(["word"] * 40)), today=date(2026, 8, 1)) == ""
+        for kind in about.kinds)
+
+
+def test_the_paid_rungs_carry_the_hook_window_in_their_flags():
+    """Two stages asked one LinkedIn profile two different questions: research
+    ran `--max 5` with no window, the hook stage ran `--since 3months`. The hook
+    stage then "discovered" posts research had never requested — 4 of the 5
+    UNOBSERVED in `2026-08-01-q1`, which is the number the flip is gated on.
+
+    `3months` and `"90 days"` are `select.HOOK_RECENCY_DAYS` in each actor's own
+    spelling, so they are pinned against it rather than against a memory."""
+    from outbound import select
+
+    assert select.HOOK_RECENCY_DAYS == 90
+    posts = next(r for r in plan.LADDER if r.name == "li_posts")
+    insta = next(r for r in plan.LADDER if r.name == "ig_posts")
+    assert "--since 3months" in posts.flags
+    assert '--newer-than "90 days"' in insta.flags
+    # And the spelling has to be one the actor accepts, or the call errors at
+    # the point where the whole stage is already committed.
+    from audit import apify
+
+    assert "3months" in apify.LI_POSTED_LIMITS
+
+
+def test_command_and_flags_travel_together():
+    """`apify ig --mode details` reads a bio for the floors and `--mode posts`
+    is hook material: one subcommand, two rungs, two windows. A flag set with no
+    command to attach to would be checked against both — and a command with no
+    flags is config nothing reads, which is how a value goes stale unnoticed."""
+    for rung in plan.LADDER:
+        assert bool(rung.flags) == bool(rung.command), rung.name
 
 
 def test_no_rung_claims_to_be_batchable_without_evidence():
-    """`li_posts` cannot be batched and it was proven by direct test. `ig_post`
-    is assumed to share the flaw and says so. A rung claiming otherwise would be
-    a container-boot estimate that is wrong by the size of the batch."""
-    for rung in plan.LADDER:
-        if rung.paid:
-            assert rung.batched is False, rung.name
+    """A `batched` claim is a container-boot estimate that is wrong by the size
+    of the batch if it is not true, so each one is pinned to what
+    `audit/apify.py` actually does rather than to an assumption.
+
+    `li_profile` batches: its actor's input IS an array of URLs. `li_posts`
+    provably cannot — `maxPosts` is a run-wide budget, verified by direct test
+    with two target URLs where all ten posts came back from one profile.
+    `ig_post` is assumed to share that flaw and says so in its note."""
+    from audit import apify
+    import inspect
+
+    batchable = {r.name for r in plan.LADDER if r.paid and r.batched}
+    assert batchable == {"li_profile"}, batchable
+    # The evidence, not a memory of it: one wrapper takes a list of URLs and
+    # the other takes exactly one, which is the whole of the claim.
+    assert "urls" in inspect.signature(apify.linkedin_profile).parameters
+    assert "url" in inspect.signature(apify.linkedin_posts).parameters
+    assert "urls" not in inspect.signature(apify.linkedin_posts).parameters
 
 
 # ------------------------------------------------------------------ the plan
 
 
-def test_a_confirmed_linkedin_channel_becomes_a_paid_step():
+def test_a_linkedin_channel_plans_both_of_its_rungs():
+    """LinkedIn is two rungs, not one: a profile scrape and a posts scrape are
+    different actors at different prices, one batchable and one provably not.
+
+    Naming only the cheaper would report half of what reaching that channel
+    costs — and while LADDER had a single LinkedIn rung, `metrics.rung_of`
+    attributed three profile-sourced hooks to the posts rung, in the very number
+    that settles F5."""
     built = plan.plan_lead(identity())
-    assert [s.rung for s in built.steps] == ["li_posts"]
-    assert built.steps[0].decision == "take"
+    assert [s.rung for s in built.steps] == ["li_profile", "li_posts"]
+    assert all(s.decision == "take" for s in built.steps)
+    assert all(s.actor_key for s in built.steps), "both rungs are paid"
 
 
 def test_the_site_rung_appears_only_when_the_caller_has_the_site():
@@ -149,15 +210,30 @@ def test_unknown_is_never_declined():
     names, and it would be permanent and invisible."""
     built = plan.plan_lead(identity(channel(
         confidence="unknown", handle="", evidence="channel id carries no name")))
-    assert [s.decision for s in built.steps] == ["take"]
+    assert {s.decision for s in built.steps} == {"take"}
 
 
 def test_a_declined_step_is_still_in_the_plan():
-    """The whole posture. Nothing acts on a decline, so it is written down and
-    the step is kept — otherwise the gate would generate the data judging it."""
+    """It binds now (D27), and it is still written down with its URL rather than
+    dropped. A decline nobody can read back is a purchase refused for a reason
+    that has stopped existing — and `metrics --plan` needs the step to correlate
+    against the lead's hook outcome."""
     built = plan.plan_lead(identity(channel(confidence="absent",
                                             evidence="names somebody else")))
     assert built.steps and built.steps[0].url
+    assert built.steps[0].decision == "decline"
+    assert "names somebody else" in built.steps[0].reason
+
+
+def test_a_decline_gates_spend_and_never_inclusion():
+    """The half of D21 that does not change when the gate turns on. A lead whose
+    only paid rung is declined gets a null hook, which is a good answer, and it
+    still gets a plan, a row and a Blocker. Nothing here drops anybody."""
+    built = plan.plan_lead(identity(channel(confidence="absent",
+                                            evidence="names somebody else")))
+    assert built.lead_key, "the lead survives its own decline"
+    assert built.steps, "and its rungs are still described"
+    assert all(s.decision == "decline" for s in built.steps)
 
 
 def test_a_lead_with_no_channels_still_gets_a_plan():
@@ -294,12 +370,19 @@ def test_the_report_leads_with_the_decline_count():
     result = plan.plan_all([identity(channel(confidence="absent",
                                              evidence="somebody else"))])
     lines = result["report"].splitlines()
-    assert "would decline" in lines[1]
+    assert "declined 2 paid step(s)" in lines[1]
 
 
-def test_the_report_says_nothing_was_declined():
-    result = plan.plan_all([identity()])
-    assert "ADVISORY" in result["report"]
+def test_the_report_says_a_decline_binds_and_what_it_does_not_do():
+    """It shipped advisory for two batches and now it binds (D27), so the line
+    that used to say nothing acts on this has to say what does — and has to
+    keep saying the half that never changes, which is that a decline gates
+    spend and never inclusion."""
+    report = plan.plan_all([identity()])["report"]
+    assert "BINDS" in report
+    assert "never inclusion" in report
+    assert "metrics --plan" in report, \
+        "the gate names its own measurement, or nobody collects it"
 
 
 def test_an_unpriced_batch_does_not_report_a_dollar_figure():

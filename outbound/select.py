@@ -1,22 +1,50 @@
-"""Which observation a hook would be made from, chosen without fetching anything.
+"""Which observation the hook is made from, chosen without fetching anything.
 
-The hook stage today is the one consequential stage that searches. `hook-worker`
-opens a context per lead, walks a ladder written in prose, and fetches — after
-`research-worker` has already fetched, for the same lead, and thrown the material
-away (F1, F2). This module is the other half of that: a ranking over the
-observations P1 kept, so that finding a hook becomes selection rather than search.
+The hook stage used to be the one consequential stage that searched.
+`hook-worker` opened a context per lead, walked a ladder written in prose, and
+fetched — after `research-worker` had already fetched, for the same lead, and
+thrown the material away (F1, F2). This module is the other half of that: a
+ranking over the observations research kept, so that finding a hook is selection
+rather than search.
 
-**It runs alongside the hook stage and nothing consumes it.** `hook-worker` still
-fetches, still proposes, and is not edited. What lands here is the ranker and one
-measurement, `--against`, which asks the only question that can settle whether
-the fetch is removable: **would this have picked the same evidence?**
+**This runs BEFORE the hook stage and the hook stage consumes it** (2026-08-01,
+D27). It hands each lead a shortlist of three candidates carrying their
+observations' verbatim text; `hook-worker` picks one, quotes it and writes the
+clause. The ranking is the whole of what a machine can honestly decide here —
+recency, authorship, kind, length against the room — and the clause is the whole
+of what it cannot.
 
-That question has never had a number. `data/runs/` has never recorded a
-`li_posts` fetch at all, so the duplicate P3 exists to remove has not been
-measured and `hook_yield` has no baseline. One batch answers both at once — the
-ledger's `DUPLICATE` line and this module's `AGAINST` line — and after that,
-flipping the hook stage over is an argument from evidence rather than from a
-diagram.
+**Three so that a rejected first pick needs no second retrieval.** That is the
+number's only justification and it is worth keeping in view: the shortlist is
+sized to make the escalation rare, not to give the model a menu.
+
+## What it still refuses to be
+
+**It verifies nothing, and the flip makes that matter more rather than less.**
+A quote found here is in the text *we stored*, put there by a different agent at
+a different hour. Whether those words are on the page is `hook-verifier`'s
+question and it answers it with a live re-fetch. That fetch is not overhead; it
+is the only mechanism in this system that has ever caught a fabricated claim,
+and reading this module's output as verification is exactly how it would be
+retired (R2).
+
+**And it does not decide who gets drafted.** A lead whose every observation is
+banned gets no candidate, which means a null hook — a good answer, and the lead
+holds rather than failing.
+
+## `--against` survives the flip, and now means something more useful
+
+It compared the ranker's pick to the hook the stage had already paid to find.
+Post-flip the hook comes from the shortlist, so the same five verdicts read as
+what the worker did with it:
+
+- **agreed** — it took rank 1.
+- **shortlisted** — it took rank 2 or 3, which is the shortlist earning its size.
+- **missed** — it used an observation this module banned. A ban to re-examine.
+- **unobserved** — **it escalated.** This is the escalation rate, and it is the
+  number that says whether the flip holds.
+- **no_pool** — research returned nothing for that lead. A fact about the
+  corpus, not about the ranker.
 
 ## Four of the twelve bans stop being something an agent must remember
 
@@ -24,15 +52,37 @@ diagram.
 
 - **#7, no third-party coverage** — `author == "third_party"`.
 - **#6, no stale news as fresh** — `published_at` inside `HOOK_RECENCY_DAYS`.
-- **#1, no generic site copy** — `kind == "about"` never survives, and from a
-  site or a link-in-bio page only `framework` does. That is F5's narrowing: the
-  verifier refutes anything that "could be sent unedited to another coach in the
-  same segment", so the *cheapest* rung was producing the observations most
-  likely to be refuted, and an agent walking the ladder honestly paid for that
-  round trip before going to the paid rungs anyway.
+- **#1, no generic site copy** — the same text observed for two different leads.
+  A sentence that appears on two coaches' pages is, by definition, one that
+  could be sent unedited to another coach in the segment; that is the verifier's
+  own test, made mechanical against the only evidence that can settle it.
 - **#3, no invented specifics** — a candidate names the `obs_id` it came from,
   and its quote must actually be in that observation's text. A hook that cites a
   page nothing retrieved cannot be built here at all.
+
+## Ban #1 was location, and location was the wrong proxy (2026-08-01)
+
+F5's narrowing made ban #1 mean `kind == "about"`, plus "from a site or a
+link-in-bio page only `framework` survives". Batch `2026-08-01-q1` refuted it
+with evidence rather than argument: **all three MISSED leads were `kind: about`
+observations that an independent verifier had VERIFIED** — Rory Buck's race
+result, Sanaa Diab's named client project, Bindu Joseph's career pivot. One ban
+accounted for 100% of the ranker's misses and for 21 of the 32 rejections in the
+whole corpus.
+
+What the verifier refuses is the **generic**, not the location. A person's own
+About page is where a solo coach writes the most specific thing they will ever
+publish, and the recency exemption `docs/hook-rules.md` already granted in prose
+— *"an evergreen framework or an About-page line they wrote themselves is fine
+at any age"* — had been narrowed away in code, so removing the location ban
+alone would have moved those three from `site_prose` to `no_date` and changed
+nothing.
+
+So the location ban is gone, `about` carries the same date exemption as
+`framework`, and `KIND_RANK` does the work the ban was doing badly: an About
+page ranks last and is offered only when the lead has nothing better. The
+mechanical half of ban #1 is now `boilerplate`, above, which fires on evidence
+that a line is generic rather than on where it was found.
 
 ## Two rules taken from the codebase rather than invented
 
@@ -63,17 +113,19 @@ and recent this person did, **plus a clause that says what you took from it**",
 and that clause is the only genuinely authorial part of the beat. Nothing here
 authors it, so nothing here emits a `HookProposal` — a proposal type whose `line`
 was empty on every record would be a schema built around a gate it cannot
-enforce. `Candidate` is what a ranker can honestly produce, and F4 closes when
-the authorship arrives.
+enforce. `Candidate` is what a ranker can honestly produce; `hook-worker` turns
+one into a proposal and `outbound/hook.py` gates it.
 
-**And a quote found in our stored text is not a verified quote.** Every line this
-module prints says "in the retrieved text" for that reason. The verifier's live
-re-fetch is the only thing that has ever caught a fabricated claim, and the day
-somebody reads this module's output as verification, R2 has happened.
+**The join back is what makes ban #3 mechanical.** A proposal names the `obs_id`
+it came from, and `hook --against` checks the quote really is a contiguous piece
+of that candidate's text. "No invented specifics" was a sentence an agent was
+asked to remember for as long as there was nothing to check it against. There
+is now.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, asdict
 from datetime import date
 
@@ -103,6 +155,12 @@ UNDATED = 10_000
 AUTHOR_RANK = {"self": 0, "unknown": 1}
 KIND_RANK = {"post": 0, "episode": 0, "video": 1, "framework": 2, "result": 3,
              "about": 9, "bio": 9}
+
+# Exempt from both date rules, per `docs/hook-rules.md`. `about` is here because
+# a page somebody wrote about themselves has no publication date and never will,
+# and requiring one is a way of banning the kind while appearing not to. It
+# still ranks last in `KIND_RANK`: exempt from the date, never preferred.
+EVERGREEN_KINDS = ("framework", "about")
 # Borrowed, not restated. `observe.PLATFORMS` already leads with linkedin, which
 # `docs/hook-rules.md` calls "the richest source by a distance", and a second
 # ordering of the same vocabulary is the drift this repo keeps finding.
@@ -114,9 +172,9 @@ PLATFORM_RANK = {name: index for index, name in enumerate(PLATFORMS)}
 # can act on.
 BANS = {
     "not_content": "not a piece of content — a profile fact is not a hook",
-    "site_prose": "ban #1, generic site copy — only a named framework survives "
-                  "from a site, and the hero section is what the verifier "
-                  "refutes as sendable to any coach in the segment",
+    "boilerplate": "ban #1, generic site copy — this exact text was observed for "
+                   "another lead too, which is the verifier's own test (could it "
+                   "be sent unedited to another coach) settled on evidence",
     "third_party": "ban #7, no third-party coverage — a directory listing or an "
                    "article about them is not their voice",
     "no_date": "requirement 3, cited — a post with no date cannot be shown to "
@@ -210,29 +268,79 @@ class LeadSelection:
 # ------------------------------------------------------------------ the filter
 
 
-def ban_for(obs: Observation, *, today: date | None = None) -> str:
+_PUNCT = re.compile(r"[^a-z0-9 ]+")
+
+
+def fingerprint(text: str) -> str:
+    """One observation's text, reduced so that two copies of it compare equal.
+
+    Case, punctuation and whitespace only. Nothing semantic: two pages that say
+    the same thing in different words are a judgement, and this is the half that
+    can be settled without one.
+    """
+    return _PUNCT.sub(" ", (text or "").lower()).strip()
+
+
+def boilerplate_of(pairs: list) -> frozenset:
+    """Texts observed for more than one lead — the batch's generic copy.
+
+    `pairs` is `[(lead_key, text), ...]`. The key is passed in rather than read
+    off the observation because `select_all` derives it from the research object
+    when the worker left it blank, and two blank keys must not be read as one
+    lead agreeing with itself.
+
+    Whole text, not per sentence. A sentence-level version fires on "Book a free
+    discovery call" and would ban the page that happens to carry it alongside
+    the one specific thing the lead ever wrote; this fires only when two leads'
+    pages are the *same page's worth of words*, which is template chrome and
+    nothing else.
+
+    Two distinct leads, not two records: one lead's own text retrieved twice is
+    a duplicate fetch, which is the ledger's business and not a reason to ban
+    their only observation.
+    """
+    leads: dict[str, set] = {}
+    for lead_key, text in pairs:
+        mark = fingerprint(text)
+        # An observation nobody could attribute takes no part. Grouping every
+        # keyless record under "" would let two of them convict each other, and
+        # counting each as its own lead would do the same thing faster. The
+        # asymmetry decides it: a ban is a lead losing its only observation, so
+        # unknown attribution abstains.
+        if mark and lead_key:
+            leads.setdefault(mark, set()).add(lead_key)
+    return frozenset(mark for mark, keys in leads.items() if len(keys) > 1)
+
+
+def ban_for(obs: Observation, *, today: date | None = None,
+            boilerplate: frozenset | set = frozenset()) -> str:
     """Which ban excludes this observation, or "" if none does.
 
     Ordered from the structural to the editorial, so the reason reported is the
     most fundamental one rather than whichever happened to be checked first.
+
+    `boilerplate` is the batch's repeated-text set from `boilerplate_of`. It is
+    empty by default, so a single observation judged on its own is judged on
+    what it is — the generic test needs a corpus and honestly says so rather
+    than guessing from one record.
     """
     today = today or date.today()
 
     if obs.kind not in CONTENT_KINDS:
         return "not_content"
 
-    if obs.kind == "about":
-        return "site_prose"
-    if obs.platform in ("site", "linkinbio") and obs.kind != "framework":
-        return "site_prose"
+    if fingerprint(obs.text) in boilerplate:
+        return "boilerplate"
 
     if obs.author == "third_party":
         return "third_party"
 
-    # A framework they named is evergreen, which `docs/hook-rules.md` grants
-    # explicitly: "an evergreen framework or an About-page line they wrote
-    # themselves is fine at any age". Everything else has to prove recency.
-    if obs.kind != "framework":
+    # Evergreen, and `docs/hook-rules.md` grants both halves: "an evergreen
+    # framework OR an About-page line they wrote themselves is fine at any age".
+    # The code carried only the first half until 2026-08-01, which is why three
+    # verified About-page hooks were excluded — first as `site_prose`, and then,
+    # when that ban went, as `no_date`. Everything else has to prove recency.
+    if obs.kind not in EVERGREEN_KINDS:
         if not obs.published_at.strip():
             return "no_date"
         days = _days_old(obs, today=today)
@@ -279,15 +387,21 @@ def _why(obs: Observation, *, today: date | None = None) -> str:
 
 
 def rank(observations: list[Observation], *, size: int = SHORTLIST,
-         today: date | None = None) -> tuple[list[Candidate], list[dict]]:
+         today: date | None = None,
+         boilerplate: frozenset | set = frozenset(),
+         ) -> tuple[list[Candidate], list[dict]]:
     """One lead's pool, split into a ranked shortlist and the rejections.
 
     Returns `(shortlist, rejected)`. Both are needed: a rejection carries the
     ban that fired, which is what makes a later disagreement diagnosable.
+
+    `boilerplate` comes from the whole batch and is computed once by
+    `select_all`, because the generic test is a comparison between leads and one
+    lead's pool cannot answer it.
     """
     kept, rejected = [], []
     for obs in observations:
-        ban = ban_for(obs, today=today)
+        ban = ban_for(obs, today=today, boilerplate=boilerplate)
         if ban:
             rejected.append({"obs_id": obs.obs_id, "ban": ban,
                              "url": normalize_url(obs.url)})
@@ -356,15 +470,24 @@ def select_all(researches: list, *, size: int = SHORTLIST, hook_room: int = 0,
     already carrying both halves of the comparison — the observations P1 kept,
     and the hook fields the hook stage writes back.
     """
-    selections = []
-    for item in researches:
-        data = item if isinstance(item, dict) else item.to_dict()
-        observations = load_obs(data.get("observations") or [])
-        lead_key = next((o.lead_key for o in observations if o.lead_key), "") \
-            or (data.get("email") or "").strip().lower() \
+    rows = [item if isinstance(item, dict) else item.to_dict()
+            for item in researches]
+    pools = [load_obs(data.get("observations") or []) for data in rows]
+    keys = [next((o.lead_key for o in pool if o.lead_key), "")
+            or (data.get("email") or "").strip().lower()
             or (data.get("slug") or "")
+            for data, pool in zip(rows, pools)]
+    # Ban #1's mechanical half, and it needs every lead's pool at once. Computed
+    # here rather than in `rank` so that one lead's page cannot be called generic
+    # on the strength of that same lead's other page.
+    boilerplate = boilerplate_of([(key, obs.text)
+                                  for key, pool in zip(keys, pools)
+                                  for obs in pool])
 
-        shortlist, rejected = rank(observations, size=size, today=today)
+    selections = []
+    for data, observations, lead_key in zip(rows, pools, keys):
+        shortlist, rejected = rank(observations, size=size, today=today,
+                                   boilerplate=boilerplate)
         selection = LeadSelection(
             lead_key=lead_key, name=data.get("name") or "",
             shortlist=shortlist, rejected=rejected,
@@ -513,6 +636,13 @@ def report(selections: list[LeadSelection], *, hook_room: int = 0,
                 lines.append(f"  {selection.agreement.upper():10} "
                              f"{selection.lead_key or selection.name} — "
                              f"{selection.agreement_note}")
+        # The word means the opposite thing it used to and the same line prints
+        # it, so the reading is stated rather than assumed. Before the flip an
+        # unobserved hook was a fetch selection could not have replaced; now it
+        # is a fetch selection did not manage to avoid.
+        lines.append(f"  {counts['unobserved']} of {len(compared)} escalated "
+                     f"— UNOBSERVED post-flip is the escalation rate, not a "
+                     f"fetch this stage could not have replaced")
 
     if hook_room:
         lines.append(f"  hook room {hook_room} words, advisory only")
@@ -526,7 +656,8 @@ def report(selections: list[LeadSelection], *, hook_room: int = 0,
         lines.append(f"  SCHEMA  {problem}")
     if problems:
         lines.append(schema_help())
-    lines.append("  ADVISORY. Nothing here writes a hook, nothing reads this "
-                 "file, and a quote found here is in the text we stored — not "
-                 "verified on the page. That is still the verifier's live fetch.")
+    lines.append("  The hook stage reads this file. Nothing here writes a hook "
+                 "or verifies one: a quote found here is in the text WE STORED, "
+                 "and whether those words are on the page is the verifier's "
+                 "live re-fetch, which is unchanged and matters more now.")
     return "\n".join(lines)

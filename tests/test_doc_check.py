@@ -41,7 +41,7 @@ def fake_parser():
         sub.add_parser(name)
     apify = sub.add_parser("apify")
     apify_sub = apify.add_subparsers(dest="apify_command", required=True)
-    for name in ("limits", "li-posts"):
+    for name in ("limits", "li-posts", "ig"):
         apify_sub.add_parser(name)
     return parser
 
@@ -69,7 +69,7 @@ def build(tmp, spec: dict, extra: dict | None = None) -> Path:
     specs = dict(spec)
     specs.setdefault("05-pipeline.md", HEADER + (
         "\n`lint` `export` `deal` `dedupe` `apify` `doc-check`\n"
-        "`apify limits` and `apify li-posts`\n"))
+        "`apify limits`, `apify li-posts` and `apify ig`\n"))
     (root / "docs" / "spec").mkdir(parents=True, exist_ok=True)
     for name, body in specs.items():
         (root / "docs" / "spec" / name).write_text(body, encoding="utf-8")
@@ -455,6 +455,70 @@ def test_dropping_the_word_budget_entirely_is_also_drift():
     with tempfile.TemporaryDirectory() as tmp:
         result = check(tmp, {"04-email.md": HEADER + "\nEmails are short.\n"})
         assert kinds(result) == ["VALUE DRIFT"], result.report()
+
+
+# ------------------------------------------------------------------ rung flags
+
+
+def test_a_rung_invoked_without_its_flags_is_caught():
+    """The drift that cost the measurement. `research-worker.md` ran `apify
+    li-posts --max 5` with no window while `hook-worker.md` ran the same command
+    `--since 3months`, so one profile was asked two different questions a stage
+    apart — 4 of the 5 UNOBSERVED hooks in `2026-08-01-q1`."""
+    with tempfile.TemporaryDirectory() as tmp:
+        result = check(tmp, {"01-a.md": HEADER
+                             + "\n`python main.py apify li-posts <url> --max 5`\n"})
+        assert kinds(result) == ["RUNG FLAGS"], result.report()
+
+
+def test_the_full_call_passes():
+    from outbound import plan
+
+    rung = next(r for r in plan.LADDER if r.name == "li_posts")
+    line = f"`python main.py apify li-posts <url> {' '.join(rung.flags)}`"
+    with tempfile.TemporaryDirectory() as tmp:
+        assert check(tmp, {"01-a.md": HEADER + f"\n{line}\n"}).ok
+
+
+def test_prose_about_a_rung_is_not_an_invocation():
+    """A doc may name `apify li-posts` to say what it is. An argument has to
+    follow the subcommand before the line counts as a call — otherwise every
+    mention of a command becomes a place flags have to be recited."""
+    with tempfile.TemporaryDirectory() as tmp:
+        result = check(tmp, {"01-a.md": HEADER
+                             + "\nThe li_posts rung is the expensive one.\n"
+                             + "\n`python main.py apify li-posts`\n"})
+        assert result.ok, result.report()
+
+
+def test_one_subcommand_serving_two_rungs_is_told_apart():
+    """`apify ig --mode details` reads a bio for the floors; `--mode posts` is
+    hook material. Checking the first against the second's window would demand a
+    90-day filter on a profile read that has no posts in it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        details = check(tmp, {"01-a.md": HEADER + "\n`python main.py apify "
+                              "ig <url> --mode details`\n"})
+        assert details.ok, details.report()
+        posts = check(tmp, {"01-a.md": HEADER + "\n`python main.py apify "
+                            "ig <url> --mode posts`\n"})
+        assert kinds(posts) == ["RUNG FLAGS"], posts.report()
+
+
+def test_a_verification_fetch_carries_no_window():
+    """The verifier re-fetches one page to confirm one quote. Narrowing that to
+    the hook window would make it refute a post for being older than the rule
+    that chose it — the same reason it is never told the hook room."""
+    with tempfile.TemporaryDirectory() as tmp:
+        result = check(tmp, {"01-a.md": HEADER + "\n`python main.py apify "
+                             "li-posts <url> --stage verify --purpose verify`\n"})
+        assert result.ok, result.report()
+
+
+def test_the_agent_files_are_in_the_scanned_corpus():
+    """They were not, which is how two prompts disagreed about a retrieval
+    window for months with every gate green. They name commands and paths
+    exactly as the skills do."""
+    assert any(".claude/agents" in glob for glob in doc_check.SCAN_GLOBS)
 
 
 # --------------------------------------------------------------- schema drift

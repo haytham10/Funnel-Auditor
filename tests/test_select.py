@@ -84,20 +84,72 @@ def test_self_outranks_unknown():
     assert select.sort_key(theirs, today=TODAY) < select.sort_key(maybe, today=TODAY)
 
 
-def test_an_about_page_is_never_offered():
-    """Ban #1 and F5. The hero section of a thousand coach sites is exactly what
-    the verifier refutes as sendable to any coach in the segment, so the
-    cheapest rung was producing the most-refuted material."""
-    assert select.ban_for(obs(platform="site", kind="about"), today=TODAY) \
-        == "site_prose"
+def test_an_about_page_is_offered_and_ranked_last():
+    """F5's narrowing, reversed on batch evidence. All three MISSED leads in
+    `2026-08-01-q1` were `kind: about` observations an independent verifier had
+    VERIFIED, and one ban accounted for 21 of the corpus's 32 rejections.
+
+    What the verifier refuses is the generic, not the location. So an About page
+    is offered — and `KIND_RANK` keeps it behind anything else the lead has,
+    which is the job the ban was doing badly."""
+    about = obs(platform="site", kind="about", published_at="")
+    assert select.ban_for(about, today=TODAY) == ""
+    assert select.sort_key(about, today=TODAY) > select.sort_key(obs(), today=TODAY)
 
 
-def test_only_a_framework_survives_from_a_site():
+def test_an_about_page_carries_the_evergreen_date_exemption():
+    """Removing the location ban alone changes nothing: a page somebody wrote
+    about themselves has no publication date, so those same three leads would
+    have moved from `site_prose` to `no_date`. `docs/hook-rules.md` grants both
+    halves and the code carried only one."""
+    assert "about" in select.EVERGREEN_KINDS
+    assert select.ban_for(obs(platform="site", kind="about", published_at=""),
+                          today=TODAY) == ""
+    assert select.ban_for(obs(platform="site", kind="about",
+                              published_at="2019-03-01"), today=TODAY) == ""
+
+
+def test_a_post_on_their_own_site_is_content():
+    """The other half of the location ban: a blog post somebody published on
+    their own domain was excluded for being on a site, which is a statement
+    about the host and not about the writing."""
     text = "The Four Doors model is how I sequence a founder's first ninety days."
     assert select.ban_for(obs(platform="site", kind="framework", text=text,
                               published_at=""), today=TODAY) == ""
-    assert select.ban_for(obs(platform="site", kind="post"), today=TODAY) \
-        == "site_prose"
+    assert select.ban_for(obs(platform="site", kind="post"), today=TODAY) == ""
+
+
+def test_the_same_text_on_two_leads_pages_is_generic_by_evidence():
+    """Ban #1's mechanical half, and the only proxy for "generic" that is not a
+    guess: the verifier's own test is whether it could be sent unedited to
+    another coach in the segment, and two leads carrying it is that, proven."""
+    shared = "Book a free discovery call and let us start your journey today."
+    mine = obs(lead_key="a@x.ae", platform="site", kind="about", text=shared)
+    theirs = obs(lead_key="b@y.ae", platform="site", kind="about", text=shared)
+    boilerplate = select.boilerplate_of([(o.lead_key, o.text)
+                                         for o in (mine, theirs)])
+    assert select.ban_for(mine, today=TODAY, boilerplate=boilerplate) \
+        == "boilerplate"
+    # And judged alone, with no corpus to compare against, it is not generic —
+    # the test needs evidence and says so rather than guessing from one record.
+    assert select.ban_for(mine, today=TODAY) == ""
+
+
+def test_one_leads_page_fetched_twice_is_not_boilerplate():
+    """A duplicate fetch is the ledger's business. Convicting a lead's only
+    observation of being generic because we retrieved it twice would turn an
+    accounting problem into a lost lead."""
+    text = "I closed the studio's books myself before I ever coached the owner."
+    twice = [("a@x.ae", text), ("a@x.ae", text)]
+    assert select.boilerplate_of(twice) == frozenset()
+
+
+def test_two_anonymous_observations_do_not_convict_each_other():
+    """A blank lead key stands only for itself. Grouping every keyless
+    observation under "" would make one lead's page generic on the strength of
+    another record nobody could attribute."""
+    text = "I closed the studio's books myself before I ever coached the owner."
+    assert select.boilerplate_of([("", text), ("", text)]) == frozenset()
 
 
 def test_a_link_in_bio_button_wall_is_never_offered():
@@ -150,6 +202,52 @@ def test_the_short_floor_is_the_linter_s_and_not_a_second_number():
 
 
 # --------------------------------------------------------------- the ranking
+
+
+def test_the_batch_artifacts_keep_the_corpus_and_not_only_the_verdict():
+    """`2026-08-01-q1` committed its selections and left the research objects in
+    `work/`, which does not survive the container. So when the ban behind all
+    three MISSED turned out to be wrong, the batch that proved it could not be
+    re-scored: the selections carry a shortlist, and a rejection carries a ban
+    name and a URL, neither of which can be ranked again.
+
+    The corpus is the input, byte for byte, so `select <corpus> --against`
+    answers any later change to the bans without paying for a run."""
+    import json
+    import subprocess
+
+    with tempfile.TemporaryDirectory() as tmp:
+        env = dict(os.environ, OUTBOUND_LEDGER_ROOT=tmp)
+        rows = [research(obs(), name="Nadia Karim",
+                         hook_verified="verified",
+                         hook_source_url="https://linkedin.com/posts/nadia-1")]
+        source = Path(tmp) / "draftable.json"
+        source.write_text(json.dumps(rows), encoding="utf-8")
+
+        proc = subprocess.run(
+            [sys.executable, "main.py", "select", str(source), "--against",
+             "--batch", "test-batch"],
+            cwd=Path(__file__).resolve().parent.parent,
+            capture_output=True, text=True, env=env)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+
+        runs = Path(tmp) / "data" / "runs"
+        assert json.loads((runs / "test-batch-research.json").read_text()) == rows
+        assert "selections" in json.loads(
+            (runs / "test-batch-select.json").read_text())
+
+
+def test_the_run_artifacts_all_honour_one_root():
+    """Three commands write into `data/runs/` and each had built the path from
+    its own string literal, so none of them could be redirected and a test of
+    any one wrote beside real batches."""
+    from outbound import ledger
+
+    with tempfile.TemporaryDirectory() as tmp:
+        for suffix in ("-select.json", "-metrics.json", "-replies.json"):
+            got = ledger.artifact(suffix, batch="b", root=tmp)
+            assert got == Path(tmp) / ledger.RUNS_DIR / f"b{suffix}"
+        assert ledger.path(batch="b", root=tmp).name == "b.jsonl"
 
 
 def test_the_ranking_is_enum_positions_and_not_a_score():
@@ -359,9 +457,17 @@ def test_a_selection_survives_json_and_back():
 
 def test_the_report_never_claims_a_quote_is_verified():
     """R2 in one assertion. The moment this output reads as verification, the
-    verifier's live fetch starts looking like overhead."""
-    result = select.select_all([research(obs())], today=TODAY)
-    assert "not verified on the page" in result["report"]
+    verifier's live fetch starts looking like overhead.
+
+    Asserted on the property rather than a sentence: the report has to say the
+    text is *stored*, and it has to name the live re-fetch as the thing that
+    checks the page. Post-flip this is the more important of the two — the quote
+    now comes from text a different agent wrote down hours earlier."""
+    report = select.select_all([research(obs())], today=TODAY)["report"]
+    lowered = report.lower()
+    assert "stored" in lowered
+    assert "re-fetch" in lowered or "live" in lowered
+    assert "verified on the page" not in lowered.replace("are on the page", "")
 
 
 def test_the_report_names_the_missed_pages_rather_than_only_counting_them():
@@ -370,6 +476,22 @@ def test_the_report_names_the_missed_pages_rather_than_only_counting_them():
                   hook_source_url="https://linkedin.com/posts/nadia-1")],
         against=True, today=TODAY)
     assert "MISSED" in result["report"]
+
+
+def test_unobserved_reads_as_the_escalation_rate_after_the_flip():
+    """The same word, the opposite meaning. Before the flip an `unobserved` hook
+    was a fetch selection could not have replaced — the number that decided
+    whether the flip could go at all. After it, the hook comes from the
+    shortlist, so a hook citing a page no observation carries is one the worker
+    escalated to get.
+
+    The verdict needs no code change to say that; the report has to."""
+    result = select.select_all(
+        [research(obs(), hook_verified="verified",
+                  hook_source_url="https://podcast.fm/ep/12")],
+        against=True, today=TODAY)
+    assert "1 of 1 escalated" in result["report"]
+    assert "escalation rate" in result["report"]
 
 
 def test_the_report_asks_for_the_hook_room_rather_than_assuming_it():

@@ -1,5 +1,5 @@
 """Which rungs are populated for this lead, what each would cost, and which
-paid ones we would decline.
+paid ones it declines.
 
 This is F6 of docs/proposals/2026-08-01-hook-retrieval.md. Where to look for a
 hook has never been a code path, a config or a data structure. It is prose, in
@@ -31,27 +31,32 @@ Three consequences fall out of having it typed rather than written down:
   and returned nothing. That is the correct answer and it cost three full agent
   passes; nothing knew it had happened.
 
-## It declines nothing, and that is the decision
+## It declines, and the decline binds (2026-08-01, D27)
 
 `resolve` established that an ownership verdict may gate a *purchase* where it
-may not gate a *kill* (D21). It did not establish that this verdict predicts
-this waste. Nobody has measured whether the leads with no confirmed channel are
-the leads that produce no hook — `data/runs/` has never recorded a `li_posts`
-fetch at all. If they are the same leads, declining is free. If they are not,
-`plan` should not gate on ownership at all, and that is much better learned
-before it is built.
+may not gate a *kill* (D21). A step whose channel is `absent` gets
+`decision="decline"`, and **`hook-worker` may not escalate onto a declined
+step.** That is the whole of the enforcement, and it lives in the consumer
+because nothing in this module executes anything — it describes a ladder, it
+does not walk one.
 
-So a step whose channel is `absent` gets `decision="decline"` and is **taken
-anyway**, because nothing reads this file. Shipping the gate and the measurement
-in one commit would have the gate generate the data that judges it.
+**This shipped advisory for two batches on purpose**, and the reason is worth
+keeping: shipping a gate and its measurement in one commit has the gate generate
+the data that judges it. That objection has not gone away; it has been paid for
+instead. `metrics --plan` reports, of the leads carrying a declined rung, how
+many produced a verified hook and how many produced none — which is D21's
+reversal condition, stated in D21's own words, finally computable. Turning the
+gate on without it would be the thing this module spent two batches refusing.
 
-This needs no decision of its own: D21 already states the posture and already
-carries the reversal condition — *"a batch where declining to spend on
-low-confidence channels costs more verified hooks than it saves scrapes"*. This
-module is the apparatus that measures it, not a new position.
+**A decline is about spend and never about inclusion.** A lead whose only paid
+rung is declined gets a null hook, which is a good answer, and it still gets a
+row and a Blocker. Nothing here drops anybody, and nothing downstream may read a
+decline as a reason to.
 
 `unknown` is never declined. It means no tell was available, not that the tell
-said no, and treating the two alike is the false-negative surface R3 names.
+said no, and treating the two alike is the false-negative surface R3 names —
+which is why `absent` is the only verdict that binds and why that is one word of
+code with a paragraph of reasoning behind it.
 
 ## What it costs to run
 
@@ -73,8 +78,9 @@ from outbound.resolve import CONFIDENCE, _default_of
 # is per lead. `li-posts --max 5` is what both agent files actually pass today.
 POSTS_PER_LEAD = 5
 
-# A step is taken unless something says otherwise. `decline` is advisory in the
-# strict sense: it is written down and nothing acts on it.
+# A step is taken unless something says otherwise. Since D27 a `decline` binds:
+# `hook-worker` may not escalate onto one. Nothing here enforces it, because
+# nothing here executes anything.
 DECISIONS = ("take", "decline")
 
 # The `cost_note` of a paid step nobody asked to price. Distinct from the cost
@@ -97,6 +103,27 @@ class Rung:
     kinds: tuple = ()            # the observe.KINDS this rung can produce
     batched: bool = False        # can one actor run serve several leads?
     note: str = ""
+    # Flags a call on this rung MUST carry, and the reason this field exists at
+    # all. `research-worker` ran `apify li-posts --max 5` with no window while
+    # `hook-worker` ran `--since 3months`, so two calls asked one profile two
+    # different questions and the hook stage kept "discovering" posts research
+    # had simply not requested — 4 of the 5 UNOBSERVED in `2026-08-01-q1`, the
+    # number the whole retrieve-once decision is gated on. `doc-check` asserts
+    # every doc that names this rung's command carries these.
+    flags: tuple = ()
+    # How to recognise an invocation of this rung in prose. First element is the
+    # subcommand, which only counts when an argument follows it — a doc naming
+    # `apify li-posts` to say what it is has recited no flags and needs none.
+    # The rest disambiguate, because one subcommand can serve two rungs: `apify
+    # ig --mode details` is a bio read for the floors and `--mode posts` is hook
+    # material, the same command asking different questions.
+    command: tuple = ()
+    # URL shapes that identify this rung when its platform serves more than one.
+    # LinkedIn has two rungs with different actors, different prices and
+    # different batchability, and a hook's source URL is the only thing that
+    # says which one produced it — `metrics.rung_of` derives rather than trusts,
+    # so the marks live here beside the rung rather than in a map over there.
+    url_marks: tuple = ()
 
     @property
     def paid(self) -> bool:
@@ -105,31 +132,56 @@ class Rung:
 
 # The ladder, in actual cost order, and this list is the authority on it.
 #
-# `about` yields only `framework`. That is F5, and it is a narrowing rather than
-# a reorder: the verifier REFUTES anything that "could be sent unedited to
-# another coach in the same segment", and generic About prose is exactly that.
-# So the cheapest rung was producing the observations most likely to be refuted,
-# and an agent walking the ladder honestly paid for the round trip and then went
-# to the paid rungs anyway. A named framework or a founding story they wrote
-# survives that test; the hero section does not, so it is not offered at all.
+# `about` yielded only `framework` until 2026-08-01. That was F5's narrowing,
+# and batch `2026-08-01-q1` refuted it: all three of the ranker's MISSED leads
+# were `kind: about` observations an independent verifier had VERIFIED, and the
+# ban excluding them accounted for 21 of the corpus's 32 rejections. What the
+# verifier refuses is the GENERIC, not the location — and a solo coach's own
+# About page is where the most specific thing they will ever publish lives.
+# `outbound/select.py` ranks `about` last and bans repeated text instead, which
+# is the same test settled on evidence rather than on where a page was found.
 #
-# Neither paid rung is batchable, and the two facts are not equally strong.
+# **LinkedIn is two rungs, not one**, and collapsing them cost a number. They
+# use different actors at different prices, one batches into a single run and
+# the other provably cannot, and they yield different kinds — a profile gives
+# an about/experience line, the posts actor gives posts. `metrics.yield_by_rung`
+# is the figure that settles F5, and with one rung it reported `li_posts 10`
+# when three of those hooks came off profiles.
+#
+# `ig_posts` is the only paid rung whose batching is untested, and it says so.
 LADDER = (
-    Rung("about", ("site",), kinds=("framework",),
-         note="already read free at tier 0 — nothing to buy, and only a named "
-              "framework or a story they wrote survives the specificity test"),
+    Rung("about", ("site",), kinds=("framework", "about"),
+         note="already read free at tier 0 — nothing to buy. Ranked last, never "
+              "declined: the hero section is generic, the founding story is not, "
+              "and only reading them tells you which this one is"),
     Rung("podcast", ("podcast", "youtube"), kinds=("episode", "video"),
          note="free: web search for their name plus 'podcast', then fetch the "
               "episode page. The rung that reaches the coaches who do not post"),
+    Rung("li_profile", ("linkedin",), actor_key="li_profile",
+         kinds=("about", "bio"), batched=True,
+         url_marks=("/in/",),
+         note="the headline, the about text and the experience entries. Cheaper "
+              "per lead than the posts rung because this actor's input IS an "
+              "array, so a whole slice is one container boot — and a hook has "
+              "come off an experience entry, so it is a rung and not a lookup"),
     Rung("li_posts", ("linkedin",), actor_key="li_posts", kinds=("post",),
+         url_marks=("/posts/", "/feed/update/", "/pulse/"),
+         command=("apify li-posts",), flags=("--max 5", "--since 3months"),
          note="the richest source by a distance, and the most expensive call in "
               "the machine: maxPosts is a run-wide budget, PROVEN by direct "
               "test, so it is one container boot per lead"),
     Rung("ig_posts", ("instagram",), actor_key="ig_post", kinds=("post",),
+         command=("apify ig", "--mode posts"),
+         flags=('--newer-than "90 days"',),
          note="a real rung, not a last resort — for a coach whose whole presence "
               "is Instagram it is the only one. Batching UNTESTED, assumed to "
               "share li_posts' flaw"),
 )
+
+# The window in those flags is `select.HOOK_RECENCY_DAYS`, in each actor's own
+# spelling: `3months` is the only value in `audit/apify.py`'s LI_POSTED_LIMITS
+# that reaches 90 days, and `--newer-than` takes the number in words. A test
+# pins both against that constant so the spellings cannot outlive it.
 
 
 @dataclass
@@ -148,7 +200,7 @@ class Step:
     # string — which lost the pricing note the moment a step was declined.
     cost_note: str = ""
     confidence: str = "unknown"      # carried off the Channel, never re-derived
-    decision: str = "take"           # take | decline — ADVISORY, nothing reads it
+    decision: str = "take"           # take | decline — a decline BINDS (D27)
     reason: str = ""
 
     @property
@@ -277,12 +329,21 @@ def remaining_usd(budget: dict | None) -> float | None:
 
 
 def _rung_for(platform: str, ladder: tuple = LADDER) -> Rung | None:
-    """The first rung that serves this platform. First, not best: the ladder is
-    ordered by cost, so the earliest match is the cheapest way to reach it."""
-    for rung in ladder:
-        if platform in rung.platforms:
-            return rung
-    return None
+    """The cheapest rung that serves this platform. The ladder is ordered by
+    cost, so the earliest match is the cheapest way to reach it."""
+    return next(iter(_rungs_for(platform, ladder)), None)
+
+
+def _rungs_for(platform: str, ladder: tuple = LADDER) -> list:
+    """Every rung that serves this platform, cheapest first.
+
+    Plural because LinkedIn is two rungs. This command's whole answer is *which
+    rungs a lead has and what each would cost*, and returning only the cheapest
+    would report one price for a platform this machine buys twice — a profile
+    scrape and a posts scrape are separate actors, separate container boots and
+    separate lines in the ledger.
+    """
+    return [rung for rung in ladder if platform in rung.platforms]
 
 
 def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
@@ -309,33 +370,33 @@ def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
                 reason=rung.note))
 
     for channel in (getattr(identity, "channels", None) or []):
-        rung = _rung_for(channel.platform, ladder)
-        if rung is None:
-            continue
+        # Every rung the platform has, not just the cheapest. LinkedIn is two
+        # actors, two container boots and two ledger lines; naming one would
+        # report half of what reaching that channel actually costs.
+        for rung in _rungs_for(channel.platform, ladder):
+            est: float | None = 0.0
+            cost_note = ""
+            if rung.paid:
+                if price is None:
+                    est, cost_note = None, NOT_PRICED
+                else:
+                    est, cost_note = price(rung.actor_key, POSTS_PER_LEAD)
 
-        est: float | None = 0.0
-        cost_note = ""
-        if rung.paid:
-            if price is None:
-                est, cost_note = None, NOT_PRICED
-            else:
-                est, cost_note = price(rung.actor_key, POSTS_PER_LEAD)
+            # The whole of the decline rule, and it is one word long. `absent`
+            # is the only verdict that means a tell was available and said no;
+            # every `unknown` is a channel we simply cannot judge, and declining
+            # those would be the false-negative surface R3 names.
+            decision, reason = "take", rung.note
+            if rung.paid and channel.confidence == "absent":
+                decision = "decline"
+                reason = (f"declined: {channel.evidence or 'ownership absent'} "
+                          f"— spend only, never inclusion")
 
-        # The whole of the decline rule, and it is one word long. `absent` is
-        # the only verdict that means a tell was available and said no; every
-        # `unknown` is a channel we simply cannot judge, and declining those
-        # would be the false-negative surface R3 names.
-        decision, reason = "take", rung.note
-        if rung.paid and channel.confidence == "absent":
-            decision = "decline"
-            reason = (f"would decline: {channel.evidence or 'ownership absent'} "
-                      f"(ADVISORY — taken anyway)")
-
-        lead_plan.steps.append(Step(
-            lead_key=lead_plan.lead_key, rung=rung.name,
-            platform=channel.platform, url=channel.url,
-            actor_key=rung.actor_key, est_cost_usd=est, cost_note=cost_note,
-            confidence=channel.confidence, decision=decision, reason=reason))
+            lead_plan.steps.append(Step(
+                lead_key=lead_plan.lead_key, rung=rung.name,
+                platform=channel.platform, url=channel.url,
+                actor_key=rung.actor_key, est_cost_usd=est, cost_note=cost_note,
+                confidence=channel.confidence, decision=decision, reason=reason))
 
     if not lead_plan.steps:
         # Not "unreachable". Rung 2 is a web search for their name, which needs
@@ -454,7 +515,7 @@ def schema_help() -> str:
             + f"\n  rung is one of {tuple(r.name for r in LADDER)}, in cost order\n"
               f"  platform is one of {PLATFORMS}\n"
               f"  decision is one of {DECISIONS}\n"
-              "  a decline needs a reason, and is ADVISORY — nothing acts on it.\n"
+              "  a decline needs a reason, and it BINDS: no escalation onto it.\n"
               "  est_cost_usd of None means unpriceable, which is not the same "
               "as free.")
 
@@ -510,7 +571,7 @@ def report(plans: list[LeadPlan], *, budget: dict | None = None) -> str:
     lines = [
         f"PLAN: {head}, {len(plans)} lead(s), {len(steps)} step(s) — "
         f"{len(steps) - len(paid)} free, {len(paid)} paid",
-        f"  would decline {len(declines)} paid step(s) on ownership: {breakdown}",
+        f"  declined {len(declines)} paid step(s) on ownership: {breakdown}",
         _estimate_line(paid, priced, not_priced, unpriceable),
     ]
     per_lead = sum(1 for s in paid if s.rung == "li_posts")
@@ -530,8 +591,9 @@ def report(plans: list[LeadPlan], *, budget: dict | None = None) -> str:
         lines.append(f"  SCHEMA  {problem}")
     if problems:
         lines.append(schema_help())
-    lines.append("  ADVISORY. Nothing declines anything yet, and nothing reads "
-                 "this file — the declines are here to be correlated against "
-                 "the leads that produced no hook. That is D21's reversal "
-                 "condition, and this is the apparatus for it.")
+    lines.append("  A DECLINE BINDS (D27): hook-worker may not escalate onto "
+                 "one. It gates spend and never inclusion — a declined lead "
+                 "gets a null hook and a row, never a drop. Run `metrics "
+                 "--plan` after the batch: of the leads carrying a decline, how "
+                 "many produced a verified hook is D21's reversal condition.")
     return "\n".join(lines)

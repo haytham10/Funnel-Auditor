@@ -41,12 +41,14 @@ Every gate fails closed: a check that cannot run is a failure, never a pass.
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
-resolve     which channels are plausibly theirs, typed and evidenced. Advisory
-plan        which hook rungs a lead has, and what each would cost. Advisory
-research    research-worker per slice -> typed objects, schema-validated
+resolve     which channels are plausibly theirs, typed and evidenced
+plan        which hook rungs a lead has and what each costs. A decline BINDS
+research    research-worker per slice -> typed objects AND the observations
+            every later stage reads. The machine's retrieval stage
 deal        the four hand-written lines, allocated for the whole batch at once
-hook        hook-worker proposes -> hook-verifier re-fetches the citation
-select      which observation a hook would come from, without fetching. Advisory
+select      rank the observations -> a shortlist of 3 per lead. No fetching
+hook        hook-worker quotes the shortlist and writes the clause -> gated by
+            `main.py hook --against` -> hook-verifier re-fetches the citation LIVE
 draft       draft-worker writes against the anchors -> draft-verifier reads cold
 lint        every check that can be mechanical, failing closed
 export      leads.csv (8 Smartlead columns) + preview.txt + wall-additions
@@ -109,7 +111,17 @@ more requests to any single host than the serial version did.
 
 **The escalation runs only when asked.** `--escalate` executes the plan through
 the same cost gate and the same **exit 3** as every other paid call; without it
-the plan is printed and nothing is spent. Two vetted actors sit behind it, one
+the plan is printed and nothing is spent.
+
+**A failed escalation is retried with `--escalate-only`, not with `--escalate`
+again.** `--escalate` re-reads every site at tier 0 first, so the retry after a
+403 on `2026-08-01-q1` read all 20 a second time and put 52 duplicate
+`(lead, url)` pairs into the ledger — 52 of the 83 that batch recorded, in the
+one batch whose purpose was a duplicate count. D22 states the risk in those
+words and it happened anyway, because avoiding it meant calling `fetch.run_plan`
+by hand and the CLI offered no narrower path. `--escalate-only` takes the saved
+`sites.json`, runs the plans in it and reads nothing. **A retry must not be able
+to pollute the measurement it is retrying.** Two vetted actors sit behind it, one
 static and one that renders, and which one a URL gets is not a preference: a
 browser is only correct for a page that returned 200 with no text. Both are
 Apify's own compute-billed actors, so an estimate is genuinely impossible rather
@@ -208,11 +220,33 @@ from was two markdown files kept in agreement by hand, and the agreement failed
 twice on record. `LADDER` is now the authority; `docs/hook-rules.md` keeps what a
 hook is and names this module.
 
-**It declines nothing.** A step whose channel is `absent` is labelled `decline`
-and taken anyway. D21 says an ownership verdict may gate a purchase where it may
-not gate a kill, and it carries the reversal condition — whether declining costs
-more verified hooks than it saves scrapes. That has never been measured, and a
-gate shipped alongside its own measurement would generate the data judging it.
+**LinkedIn is two rungs.** A profile scrape and a posts scrape are different
+actors at different prices — one batches its whole slice into a single container
+boot and the other provably cannot — and they yield different kinds. While they
+were one rung, a lead's plan named one price for a channel this machine buys
+twice, and `metrics.rung_of` attributed three profile-sourced hooks to the posts
+rung in the very number that settles F5. The rungs carry the URL shapes that
+tell them apart, so attribution is derived and never reported; a LinkedIn URL
+matching neither is named `linkedin_unattributed` rather than assigned, because
+falling back to the first rung would re-create the conflation quietly.
+
+**It declines, and the decline binds** (2026-08-01, D27). A step whose channel
+is `absent` is labelled `decline`, and `hook-worker` may not escalate onto one.
+Nothing in `plan` executes anything, so the enforcement lives in the consumer;
+the reason lives here.
+
+**It shipped advisory for two batches on purpose**, because a gate shipped
+alongside its own measurement generates the data judging it. That objection was
+paid off rather than dropped: `metrics --plan` now reports, of the leads
+carrying a declined rung, how many produced a verified hook and how many
+produced none — D21's reversal condition in D21's own words, finally computable.
+
+**A decline gates spend and never inclusion**, which is the half that does not
+change. A lead whose only paid rung is declined gets a null hook, a row and a
+Blocker, never a drop. `plan` still exits 0 when every rung on the batch is
+declined, because exit 1 there would turn an ownership verdict into the
+inclusion gate D21 forbids.
+
 `unknown` is never declined: it means no tell was available, not that the tell
 said no.
 
@@ -263,12 +297,78 @@ The object may also carry the observations behind those verdicts, and they are
 validated here through the same call — capped, so one worker that got an enum
 wrong cannot bury the floor violation that actually drops a row. See `observe`.
 
+**This is the machine's retrieval stage as of D27**, which is a change in what
+the objects are *for* rather than in what validates them. Nothing downstream
+fetches for a hook: `select` ranks what research returned and `hook-worker`
+quotes it. **An observation a worker does not return is a hook nobody can
+find**, and it will present as the lead's fault rather than the retrieval's. The
+podcast search moved here for the same reason — it was `hook-worker`'s free
+rung, it reaches the coaches who do not post, and removing that agent's
+`WebSearch` would otherwise have deleted it silently.
+
 ### hook
-Two agents, not a command. `hook-worker` proposes with an exact quote, URL and
-date; `hook-verifier` re-fetches the citation in a context that never saw the
-search and defaults to refuted. **Three verdicts, not two** — INCONCLUSIVE holds
-the lead where it is rather than killing it. **No hook found is a good answer**:
-the lead holds and gets no row. `docs/hook-rules.md` owns the rest.
+Two agents **and** a command. `hook-worker` chooses from `select`'s shortlist,
+quotes it verbatim and writes the clause that says what it took; `hook-verifier`
+re-fetches the citation in a context that never saw that choice and defaults to
+refuted. **Three verdicts, not two** — INCONCLUSIVE holds the lead where it is
+rather than killing it. **No hook found is a good answer**: the lead holds and
+gets no row, and post-flip it is explicitly the cheaper answer than an
+escalation. `docs/hook-rules.md` owns the rest.
+
+**The worker does not search** (D27). It has no `WebSearch`; it keeps `WebFetch`
+for one bounded escalation against a URL `plan` already named, which may not be
+a rung `plan` declined. Every retrieval left at this stage is one somebody can
+see and price.
+
+**In** a proposal, or a list of them. **Out** a pass or the list of what has to
+change. **Guarantees** it fetches nothing, rewrites nothing, and never touches
+the quote. **Exit 2** if the input is not proposals, **exit 1** on any finding.
+Owned by `outbound/hook.py`.
+
+This closes **F4**: the hook was the only consequential artifact with no
+mechanical gate, while research and observations both had one. The cost was
+measured — six of twelve drafts on `2026-08-01-q1` had to alter text a verifier
+had certified word for word, over an em-dash, spaced hyphens, "touchpoints" and
+four figures. Every one of those is a rule the linter has always held and the
+hook stage never ran.
+
+**The ordering is the whole point, and it is F11's shape again.** When a quote
+breaks a voice rule the honest repair is to pick a *different* quote, and only
+the worker can do that: it has the page open and the verifier has not run. One
+stage on, the drafter has neither the alternatives nor the authority, so it
+edits the citation — and a hook squeezed after certification is a citation
+drifting from its source. So every finding names the quote as the thing to
+change and nothing here ever offers a repaired string.
+
+It also refuses a **structurally uncitable URL**: a LinkedIn post link with an
+empty slug (`/posts/<name>_-activity-…`) is what harvestapi builds when a post
+has no text to name it, and it 404s. The content can be real, paid for, and
+still impossible to cite — that failure cost a lead and a full verifier pass to
+discover.
+
+**`--against work/select.json` checks the quote against the observation it
+names**, and that closes ban #3 — *"no invented specifics"* — which was a
+sentence an agent was asked to remember for as long as there was nothing to
+check it against. The quote must be a contiguous piece of that candidate's
+stored text, compared on normalised whitespace only: a scraped post carries line
+breaks a quote will not, but a changed word is the exact drift the check exists
+to catch, so case and punctuation are not forgiven. It also catches two
+sentences welded together, which is a real refusal from `2026-08-01-q1`.
+
+**A blank `observation_id` now means one of two opposite things**, so it has to
+be declared. Before the flip it was ordinary — the hook stage did its own
+fetching and most hooks had no stored observation behind them. Now it is either
+a bounded escalation the worker walked and named, or a hook composed from
+nothing, and only the worker can say which. `escalated` with an
+`escalation_rung` is legal; neither is a failure. Declaring both an escalation
+and an `observation_id` is a contradiction and is refused.
+
+Without `--against` the join is not checked and the report **says so on that
+run**, because a PASS that checked less has to be tellable from one that checked
+more. The single-lead repair path in `outbound-draft` has no batch behind it and
+uses that.
+
+**A pass is still not verification.** Nothing here has looked at the page.
 
 ### `select`
 **In** research objects, which after the hook stage carry both halves — the
@@ -280,15 +380,35 @@ a selection, including one with no observations. **Exit 2** if the input is not
 research objects, **exit 1** only if its own output fails its own schema — a
 disagreement is never a failure. Owned by `outbound/select.py`.
 
-**It runs alongside the hook stage, not in place of it.** `hook-worker` still
-fetches and is not edited. `--against` is the measurement the phase exists for:
-it asks whether the ranker would have picked the same evidence the hook stage
-paid for, and reports five verdicts because `missed` and `unobserved` say
-opposite things about whether that fetch can be removed.
+**It runs before the hook stage and the hook stage consumes it** (D27). Each
+lead gets up to three candidates carrying their observations' stored text;
+`hook-worker` picks one, quotes it and writes the clause. Three, so that a
+rejected first pick needs no second retrieval — the shortlist is sized to make
+the escalation rare, not to offer a menu.
+
+**`--against` survives with its verdicts re-read.** It compared the ranker's
+pick to a hook the stage had already paid to find; now the hook comes from the
+shortlist, so the same five words say what the worker did with it. `agreed` is
+rank 1, `shortlisted` is rank 2 or 3, `missed` is a ban to re-examine, `no_pool`
+is a fact about the corpus — and **`unobserved` is the escalation rate**, which
+is the number D27 is judged on.
 
 **Four of the twelve bans stop being something an agent must remember** —
 third-party coverage, stale news, generic site copy, and invented specifics,
 the last through the `obs_id` join. `docs/hook-rules.md` still owns all twelve.
+
+**Generic site copy is repeated text, not an About page.** `2026-08-01-q1`
+MISSED three leads and all three were `kind: about` observations a verifier had
+independently confirmed; that one ban was 21 of the corpus's 32 rejections. What
+the verifier refuses is the generic, and the only mechanical form of that is the
+same text appearing for two different leads. An About page now ranks last and is
+offered when the lead has nothing better.
+
+**`--batch` writes the corpus as well as the verdict**, into `data/runs/`. Only
+the verdict was kept for `2026-08-01-q1` and the input lived in `work/`, so the
+batch that disproved a ban could not be re-scored against the fix. Both files
+are committed; `select data/runs/<batch>-research.json --against` re-runs the
+measurement for free after any change to the bans or the ranking.
 
 **A quote found here is not a verified quote.** It is in the text we stored,
 which is a different claim from being on the page. The verifier's live re-fetch
@@ -325,6 +445,28 @@ its words. See the anchor contract in `docs/spec/04-email.md`, which owns that
 decision. A draft with no claim behind it is warned about rather than skipped
 silently, because a PASS line looks identical either way.
 
+**Two checks that only a batch or a beat pair can see.** A four-word phrase
+shared by two hooks is a template — the hook is the beat that proves per-lead
+authorship, and "Most people [verb]" was the writer's clause in two drafts on
+`2026-08-01-q1`, each fine alone. And a close that opens on a question invites
+"no", which is the one thing an ask may not be. Both are **warnings**: nobody
+has measured how often an innocent four-gram recurs, the close is bank copy
+whose fix is one edit in Airtable, and a gate that halts a send file over an
+editorial judgement is one people learn to route around. `copy-check` reports
+the close at the source, on a passing run as well as a failing one.
+
+**Quoting is not claiming.** A figure that is in the hook beat *and* in the
+certified `hook_quote` is the recipient's own fact and is exempt. Without that,
+the rule written to stop us relabelling a client result was instead deleting
+"70.3", "2023" and "27 years" out of the one beat whose job is to prove we read
+their page — six of twelve drafts in `2026-08-01-q1` had to alter a hook a
+verifier had certified word for word, and both drafters kept the digits by
+moving them into the subject line, which nothing checks. The exemption is the
+**intersection** of the two texts, applied to the hook beat's own words rather
+than to a value, so a figure the drafter introduced is still caught and nothing
+leaks into the identity beat. A hook carrying a figure with no quote passed is a
+warning, never a silent pass.
+
 ### `export`
 **In** drafts. **Out** `out/leads.csv`, `out/preview.txt`,
 `out/wall-additions.csv`, `out/line-usage.csv`, `out/rejected.txt`.
@@ -353,6 +495,44 @@ fields and are used in a campaign step as template variables. **It is
 `linkedin_profile`, not `linkedin_url`** — the wrong spelling still imports
 successfully and silently lands as an extra custom variable, which is the worst
 kind of wrong.
+
+### `crm-rows`
+**In** the normalized Leads, the research objects, and optionally the drafts
+that shipped. **Out** `out/crm-leads.json`, one Airtable Leads row per
+researched lead. **Guarantees** the join is explicit and fails closed, every
+field is written including the empty ones, and coverage is reported for every
+field rather than the ones anybody expects. **Exit 2** if an input is not an
+array, **exit 1** on any problem. Owned by `outbound/crm.py`.
+
+**It writes nothing to the CRM.** `audit/airtable.py`'s boundary is that a Lead
+row lands where a human sees it, and that stays — this computes, a person
+performs the write. What was wrong on `2026-08-01-q1` was never that a model did
+the typing; it was that a model did the *join*, from memory, in a script nothing
+tested.
+
+Twenty rows went in with **no First Name, Last Name, Website, LinkedIn or City
+on any of them**, built from `work/researched.json` — which has never carried
+the intake identity fields, because those live on the normalized Lead. A filter
+dropped every empty key before the request, so there was no error and no
+warning. A research object with no lead behind it is now a failure naming the
+columns that would have gone in blank.
+
+**Coverage is the other half, and it answers the check that missed it.** The
+verification that passed those rows counted Name, Status, Hook Verified and
+Blockers — four fields somebody expected to be populated — and reported 20/20. A
+check that only looks where you expect to find something is the writer
+certifying its own work with extra steps. So every field is counted and a field
+empty on every row is named, because "nobody has a City" and "the City never got
+read" print identically otherwise, and the report says a zero is not
+automatically wrong rather than implying a verdict.
+
+**Required is `Name`, `Email`, `Status` and nothing else.** Everything else is
+legitimately absent for some real lead. A longer list fails closed on true rows,
+which teaches people to pass a flag that turns the check off.
+
+**`Batch` is deliberately not in a row.** It is a linked-record field whose
+value is a Batches record id that does not exist until that row is created, so
+the label is reported instead.
 
 ### `copy-sync`
 Pulls the hand-written lines out of Airtable and **rejects any that fail the
@@ -491,6 +671,55 @@ agent's own WebSearch and WebFetch happen model-side and are invisible here, so
 those lines are **reported on trust** and `retrieved_by` keeps them
 distinguishable from the ones the code wrote itself. `ledger report` reads a
 batch back and writes nothing.
+
+**The flip's own two numbers** (D27). `escalation_rate` is the share of hooks
+carrying no `observation_id` — ones the shortlist did not hold and the worker
+went and fetched. Rising means selection is not reaching the material, and the
+fix that points at is research fetching deeper rather than a change to the
+ranker. It counts every attempt, not only the verified ones: an escalation that
+produced a refuted hook still cost the fetch the flip was meant to remove.
+
+`declined_and_dry` needs `--plan` and is **D21's reversal condition in D21's own
+words** — of the leads carrying a declined rung, how many produced no verified
+hook, against how many did. Declining is free where those are the same leads and
+wrong where they are not. Without a plan file it prints `?`, because a `0` there
+would read as "declining cost nothing", which is the claim being tested. A
+declined lead that never reached the hook stage is skipped rather than counted
+dry: it says nothing either way, and counting it would charge the gate for a
+lead the floors dropped.
+
+**`ledger pass` is the Claude bill, and nothing here could see it.** This module
+exists because every claim about what *retrieval* cost had been reconstructed by
+hand from a journal entry. The model side was in exactly that state one layer
+up: `2026-08-01-q1` cost about 64 agent passes for 20 leads and 5 shipped rows,
+and the only record was a single number an orchestrator typed into `metrics
+--passes` at the end of a long session. No stage, no model. "The drafting loop
+is most of the bill" was a guess nobody could check.
+
+`ledger pass --stage <s> --agent <a> --model <m> [--count n]` writes to the same
+file with `kind: pass`, so a pass can never be counted as a fetch, and `metrics`
+prints `passes_by_stage` and `passes_by_model` labelled **REPORTED, not
+measured** — the same trust `ledger add` carries and for the same reason: an
+agent pass happens in the main loop and Python cannot see one. Nothing reported
+prints `?`, never `0`; a zero would read as "this batch used no agents".
+
+**Counts, not dollars.** Model prices are a value this repo does not own, and
+the standing rule is that a doc names its authority rather than copying it. A
+rate table here would go stale in a file nobody remembers to update and print
+with two decimal places while doing it.
+
+**`ledger batch` makes the label discoverable rather than remembered.** With a
+label it writes `work/BATCH`; with no argument it prints the label that resolves
+now and where it came from. The order is the argument, this process's context,
+`OUTBOUND_BATCH`, `work/BATCH`, then today. On `2026-08-01-q1` twelve workers
+were told to pass a `--batch` flag that did not exist, and `OUTBOUND_BATCH` is a
+shell variable a subagent does not inherit — so 15 retrievals, five of them paid
+hook rungs, were billed to a file named after the date and `ledger report`
+under-reported the batch by 30%. Every `apify` subcommand now takes `--batch`
+too, and neither is something a worker has to be told. **An unnamed batch is
+never an error**: the label falls back to the date and the report says which
+happened, because dropping a paid fetch's accounting for want of a label is
+worse than filing it under the wrong name.
 
 **Reporting a duplicate is the job; failing on one is not.** A gate that can
 halt a real send file over an accounting line is a gate people learn to route

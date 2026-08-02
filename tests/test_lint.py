@@ -44,11 +44,13 @@ def body_from(beats, name="Sarah"):
     return assemble_body(beats, greeting_name=name)
 
 
-def run(beats=None, subject="your Hashimoto post", allowed=None, name="Sarah"):
+def run(beats=None, subject="your Hashimoto post", allowed=None, name="Sarah",
+        hook_quote=""):
     beats = beats or good_beats()
     return lint.check_email(
         name=name, subject=subject, body=body_from(beats),
-        beats=beats, allowed_numbers=allowed or HEALTH_NUMBERS, facts=FACTS)
+        beats=beats, allowed_numbers=allowed or HEALTH_NUMBERS, facts=FACTS,
+        hook_quote=hook_quote)
 
 
 # ------------------------------------------------------------------- baseline
@@ -83,6 +85,78 @@ def test_number_relabelled_onto_a_named_segment_fails():
     result = run(beats)
     assert not result.passed
     assert any("120,000" in f for f in result.failures)
+
+
+def test_a_figure_quoted_from_the_certified_hook_is_not_a_claim():
+    """Quoting is not claiming. `check_numbers` exists to stop us inventing a
+    client result or wearing somebody else's; deleting "70.3" from a hook takes
+    the recipient's own fact out of the one beat that proves we read their page.
+
+    Six of twelve drafts in `2026-08-01-q1` had to alter a hook a verifier had
+    certified word for word, and both drafters kept the figure by moving it into
+    the subject line, which nothing digit-checks. That works and it is
+    backwards."""
+    beats = good_beats()
+    beats["hook"] = "You wrote that the 70.3 in Muscat finally went to plan."
+    quote = "the 70.3 in Muscat finally went to plan"
+    assert not run(beats, hook_quote=quote).failures
+    # And with no quote to check it against, it is still a claim of ours.
+    bare = run(beats)
+    assert any("70.3" in f for f in bare.failures)
+    assert any("no certified quote" in w for w in bare.warnings)
+
+
+def test_a_figure_the_drafter_added_is_still_caught():
+    """The exemption is the intersection of the hook beat and the certified
+    quote, so a number that appeared while paraphrasing has nothing to hide
+    behind."""
+    beats = good_beats()
+    beats["hook"] = "You wrote that the 70.3 in Muscat was race 22 that year."
+    result = run(beats, hook_quote="the 70.3 in Muscat")
+    assert not result.passed
+    assert any('"22"' in f for f in result.failures), result.failures
+    assert not any('"70.3"' in f for f in result.failures)
+
+
+def test_the_quote_exemption_cannot_reach_the_identity_beat():
+    """Where a relabelled client result would actually do damage. Sparing the
+    figure by VALUE would spare it everywhere, so the substitution happens
+    inside the hook beat's own text and every other beat reads the real body."""
+    beats = good_beats()
+    beats["hook"] = "You wrote that the 70.3 in Muscat went to plan."
+    beats["identity"] = ("My job is finding your next client. A health coach "
+                         "in Dubai closed AED 70.3 from prospects I put in "
+                         "front of them.")
+    result = run(beats, hook_quote="the 70.3 in Muscat went to plan")
+    assert not result.passed
+    assert any("70.3" in f for f in result.failures)
+
+
+def test_a_quoted_figure_beside_a_segment_noun_is_not_a_relabel():
+    """`check_attribution` gets the same exemption for the same reason: "27
+    years as a business coach" is their sentence, and refusing it pushes the
+    drafter into paraphrasing a citation a verifier just certified."""
+    beats = good_beats()
+    beats["hook"] = "You wrote that 27 years as a business coach still stings."
+    quote = "27 years as a business coach still stings"
+    assert not run(beats, hook_quote=quote).failures
+
+
+def test_a_sentence_ending_inside_a_closing_quote_is_still_one_sentence():
+    """`re.split(r"(?<=[.!?])\\s+", ...)` was written twice in the linter and
+    both copies missed that a hook's terminator sits INSIDE the closing quote.
+    The greeting then glued onto the hook, so `check_voice` reported a sentence
+    nobody had written and `check_attribution` searched for a segment noun
+    across two sentences at once. Both false positives land on the one beat the
+    machine went to the most trouble to certify."""
+    text = 'He wrote "the plan held all the way to the run." Then he stopped.'
+    assert lint.split_sentences(text) == [
+        'He wrote "the plan held all the way to the run."', "Then he stopped."]
+
+
+def test_the_splitter_still_splits_an_unquoted_sentence():
+    assert lint.split_sentences("One thing. Then another!") == [
+        "One thing.", "Then another!"]
 
 
 def test_an_ordinal_is_a_date_not_a_claim():
@@ -387,6 +461,51 @@ def test_batch_warns_on_a_collapsed_bridge_phrase():
     result = lint.check_batch(emails)
     assert any("My job is finding" in w.lower() or "my job is finding" in w
                for w in result.warnings)
+
+
+def test_batch_warns_on_a_writers_clause_template():
+    """"Most people [verb]" appeared as the writer's clause in two drafts on
+    `2026-08-01-q1`. Each read fine alone. The hook is the one beat written per
+    lead, so a phrase two of them share is a template by definition, and only a
+    batch-level view can see them together."""
+    hooks = ["You shut the studio for a week. Most people talk about rest.",
+             "You turned down the retainer. Most people talk about focus."]
+    emails = [{"subject": f"subject {i}", "body": hook,
+               "beats": {"hook": hook, "identity": f"Identity {i}."}}
+              for i, hook in enumerate(hooks)]
+    result = lint.check_batch(emails)
+    assert any("most people talk about" in w for w in result.warnings), \
+        result.warnings
+
+
+def test_two_hooks_about_different_people_do_not_collide():
+    hooks = ["You shut the studio for a week and said why.",
+             "You turned the retainer down in public, which is rare."]
+    emails = [{"subject": f"subject {i}", "body": hook,
+               "beats": {"hook": hook, "identity": f"Identity {i}."}}
+              for i, hook in enumerate(hooks)]
+    assert not lint.check_batch(emails).warnings or not any(
+        "template" in w for w in lint.check_batch(emails).warnings)
+
+
+def test_a_close_that_asks_whether_to_ask_is_flagged():
+    """`cta-04` opens "Worth 15 minutes?" and two independent readers said the
+    same thing: the ask is a question that invites "no", and the ask is the one
+    thing that is not allowed to be optional."""
+    assert lint.check_ask("Worth 15 minutes? You'll have the 10 within a day.")
+    assert not lint.check_ask("15 minutes and they're yours the same day.")
+
+
+def test_the_ask_is_a_warning_and_never_blocks():
+    """The line is bank copy Haytham chose and the fix is one edit in Airtable.
+    A gate that halts a real send file over an editorial judgement is one people
+    learn to route around."""
+    beats = good_beats()
+    beats["cta"] = ("Worth 15 minutes? You'll have the 10 within a day, and "
+                    "I'll show you how I picked them over the other 40.")
+    result = run(beats)
+    assert result.passed, result.failures
+    assert any("invites" in w for w in result.warnings)
 
 
 def test_a_varied_batch_passes():

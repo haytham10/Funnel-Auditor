@@ -41,7 +41,12 @@ The first eight make a hook read as spam. The last four make the rest of the
 email fail even when the hook is technically true.
 
 1. **No generic site copy.** "I saw you help women find their purpose" is the
-   hero section of a thousand coach sites.
+   hero section of a thousand coach sites. **This is a ban on the writing, not
+   on the page it sits on.** `outbound/select.py` spent one batch enforcing it
+   as "nothing from an About page", and every lead it cost had a hook a verifier
+   went on to confirm. The mechanical half is now the same text appearing for
+   two different leads, which is this ban's own test — could it be sent unedited
+   to another coach — settled on evidence.
 2. **No compliment with no object.** "Love your content" names nothing.
 3. **No invented specifics.** If it cannot be cited, it does not exist.
 4. **No inferred emotion.** You do not know they were nervous, proud or
@@ -76,6 +81,23 @@ does not list them, because it used to and the list drifted: it once opened with
 the **paid** rung under a heading that said cost order, so the sentence and the
 list disagreed and the list won. That is D23 in `docs/spec/07-decisions.md`.
 
+**The ladder is walked by the research stage now** (D27). `hook-worker` does not
+search: it chooses from a shortlist `select` ranks over what research retrieved,
+quotes it verbatim and writes the clause. The ladder still describes where hook
+material comes from — it is just that one stage earlier gathers it and one
+stage later uses it, instead of both fetching the same profile.
+
+Three consequences worth stating rather than discovering:
+
+- **The podcast rung is `research-worker`'s.** It was the free "their name plus
+  podcast" search and it belonged to the agent that no longer has `WebSearch`.
+  It reaches the coaches who do not post, so leaving it behind would have
+  narrowed where a hook can come from without anybody deciding to.
+- **An observation nobody returned is a hook nobody can find**, and it presents
+  as the lead's fault rather than the retrieval's.
+- **One bounded escalation** remains, against a URL the plan named and never a
+  rung it declined. A null hook is the cheaper answer and is still a good one.
+
 What stays here is the judgement the code cannot hold. **Free before paid,
 always** — an About page already on disk is read before anything is bought.
 **Instagram is a rung, not a fallback**: for a coach whose whole presence is
@@ -102,6 +124,23 @@ days"` in another.
 
 They are different questions, so they get different answers. What they may not
 be is different answers to the same question in four places.
+
+**It went back to two answers in one place, and it cost the measurement.**
+`research-worker` ran `apify li-posts --max 5` with no window while
+`hook-worker` ran the same command `--since 3months`, so one profile was asked
+two different questions one stage apart and the hook stage kept finding posts
+research had never requested. That was 4 of the 5 UNOBSERVED hooks in batch
+`2026-08-01-q1` — the number the whole retrieve-once decision is gated on,
+inflated by a flag nobody had written down anywhere.
+
+So the flags are on the rung now. `outbound/plan.py`'s `LADDER` carries the
+exact strings, `doc-check` fails any file that invokes a rung without them, and
+`.claude/agents/` is inside the scanned corpus — it was not, which is why the
+two files could disagree for months with every gate green.
+
+**A verification fetch carries no window.** `hook-verifier` re-fetches one page
+to confirm one quote; narrowing that to 90 days would make it refute a post for
+being older than the rule that chose it.
 
 ## Types
 
