@@ -1,0 +1,58 @@
+{
+  "batch": "2026-08-02-q2",
+  "leads": 15,
+  "attempted": 15,
+  "verified": 3,
+  "refuted": 1,
+  "proposed": 0,
+  "none_found": 11,
+  "hook_yield": 0.2,
+  "refute_rate": 0.067,
+  "null_hook_rate": 0.733,
+  "yield_by_rung": {
+    "li_posts": {
+      "verified": 2
+    },
+    "ig_posts": {
+      "verified": 1
+    }
+  },
+  "by_hook_type": {
+    "WORK": 2,
+    "LIFE": 1
+  },
+  "escalated": 0,
+  "escalation_rate": 0.0,
+  "declined_leads": 2,
+  "declined_and_verified": 0,
+  "declined_and_dry": 1,
+  "ledger_read": true,
+  "retrievals": 160,
+  "cost_usd": 0.3437,
+  "unpriced": 1,
+  "cost_per_verified_hook": 0.1146,
+  "wasted_retrieval_n": 51,
+  "wasted_retrieval_usd": 0.2781,
+  "duplicates": 16,
+  "raw": 20,
+  "after_dedupe": 19,
+  "warm": 0,
+  "passed_floors": 16,
+  "written": 3,
+  "rejected": 0,
+  "tier0_rate": 0.63,
+  "source_list": "batch_queue_02_of_4_20.csv",
+  "agent_passes": 37,
+  "passes_by_stage": {
+    "hook": 21,
+    "draft": 12,
+    "research": 4
+  },
+  "passes_by_model": {
+    "sonnet": 25,
+    "opus": 12
+  },
+  "gaps": [
+    "1 run(s) could not be priced \u2014 compute-billed actors are not a lookup failure, so the cost figures are a floor"
+  ]
+}

@@ -1,3 +1,131 @@
+## 2026-08-02 (batch 2026-08-02-q2) — the hook gate cannot accept the evidence the machine collects
+
+20 raw UAE coaches in, 3 emails out. The yield is the story, and it is not a
+drafting problem or a hook-worker problem. **It is a contradiction between three
+modules that nobody had hit hard enough to see.**
+
+- `plan` offers an `about` rung and describes it as potentially strong: "the
+  hero section is generic, the founding story is not."
+- `select` ranks `about` observations into shortlists. This batch: **26 of 42
+  observations were `about` kind.**
+- `hook` hard-requires `published_at` ("a post with no date cannot be shown to
+  be recent"), and **no About page ever carries one.** Measured here: of 42
+  observations, the only dated ones were the 12 `post`-kind. `about` scored
+  0/26.
+
+So research retrieves About-page material, the ranker shortlists it, and the
+gate structurally cannot accept it. **10 of the 14 leads with a shortlist had no
+dated candidate at all** and were unreachable the moment research finished.
+
+### The part that matters most: the gate was producing the fabrication it exists to stop
+
+Two hook workers, independently, on different leads, invented a stand-in
+`published_at` of today for an undated page. **One of them cited the other's
+file as precedent.** The gate only rejects dates in the *future*, so today
+sails through.
+
+Both were withdrawn before export and both leads re-picked or nulled. But the
+pressure is structural, not a worker defect: faced with an undated source, a
+worker's only options are to invent a date or abandon the hook, and nothing in
+the gate's wording says which. **Assume this pattern exists in earlier batches
+and check `Hook Date` against the cited page before trusting it.**
+
+Suggested fix, not made here because it is a design call: either `select` stops
+shortlisting undated kinds, or `hook` states plainly that an undated page is not
+an eligible source. Right now the rule is enforced by a check whose message
+sounds like a field-formatting complaint.
+
+### What was NOT wrong
+
+**`refute_rate` on quote accuracy was 0.** Every quote a research worker stored
+was really on the page when a verifier re-fetched it live. Retrieval quality was
+not the constraint; availability was.
+
+The single refute was **authorship, not text**: Yaser Jeish's quote was verbatim
+and correctly dated, but published by the gym's account in organisational "we"
+voice signed "Abu Dhabi Muay Thai Team / ADMT", and the club's own page lists
+seven coaches. The verifier traced the account through `identity.json` and the
+coaches page rather than taking `author: self` on trust. That is the check
+earning its cost.
+
+**The cold reads earned theirs too.** All three drafts passed the mechanical
+linter and all three came back REWRITE:
+
+- a clause that flattered a non-distinction (telling a Hogan practitioner that
+  naming Hogan is "rarer" — it is table stakes and she knows it)
+- a semicolon, in the second sentence, in a register built on periods
+- "**Another** leadership coach in Dubai" — quietly enrolling the recipient in a
+  client list she was never in
+- a clause that graded an ICF PCC / ORSCC on whether she spoke from experience
+- a retained `@berlinmarathon` handle inside a quoted Instagram caption, which
+  the reader called the exact detail that tips an email from noticing to being
+  watched
+
+None of those are lintable. All three passed on the second pass.
+
+### A real bug, found and fixed: `--rebalance-ps` never reached the body
+
+`export` prefers a `body` the drafter pre-assembled over rebuilding from
+`beats`. `--rebalance-ps` writes the new ps into `beats` only. So a rebalanced
+lead shipped the **old** ps sentence while `anchor_ids`, `line-usage.csv` and
+the CRM row all named the **new** one.
+
+`--anchors` cannot catch it: that check compares `beats` against the deal, and
+`beats` is the half the allocator moved. Every gate passed and the file was
+still wrong — the "CRM row describing an email nobody received" failure the
+anchors check exists to stop, arriving from the allocator instead of a drafter.
+
+Caught here because 12 of 15 held, so the rebalance moved 2 of 3 ps lines and
+the mismatch was visible in a 3-line preview. On a 40-lead batch moving 2 lines
+it would have been invisible. Fixed in `main.py`; regression test in
+`tests/test_export.py` fails without the fix.
+
+### The list itself
+
+**Three of twenty rows carried a `companyWebsite` belonging to somebody else** —
+Max Mears's domain serves an unrelated tutor in New Jersey, Trudy Rowe's is a
+Vancouver company she merely licenses a program from, John Allego's is a
+templated AU agency site with Lorem ipsum still in it. `intake` profiled all 20
+as "live site". A 200 is not evidence the site is theirs; `resolve`'s owner-check
+is the thing that knows, and it flagged 4.
+
+All three UAE kills were sound and all three rested on a first-person current-role
+statement: Kuala Lumpur, Panama, and a dated French post saying "je rentre en
+France". No kill rested on a site.
+
+**One gate weakness worth naming:** `qualify` returned `yes` on UAE for Trudy
+Rowe off an incidental "Dubai Evening News" mention on a third party's page. A
+substring match on a news-outlet name drove a floor verdict. The worker
+overrode it correctly, but the mechanism is a false-pass generator.
+
+**Sharon Holmes is the near-miss to learn from.** A worker set `is_coach: no`
+because her LinkedIn is a cruise-tourism consultancy with no mention of
+coaching. Her actual site returned **zero text** — not thin, empty. Killing a
+lead on "her other business is X" when her coaching site never loaded is exactly
+the false kill the asymmetry exists to prevent. Corrected to `unclear`, which
+passes. The LinkedIn-wins rule is scoped to `coach_type`; it was never a rule
+for settling a floor against an unread primary source.
+
+### Numbers
+
+hook_yield 20%, null_hook_rate 73%, refute_rate 7%, **escalation_rate 0%** (no
+verified hook needed an escalation), declined_and_dry 1 of 2. $0.3437 over 160
+retrievals, $0.0181/lead. 37 agent passes: hook 21, draft 12, research 4.
+
+**16 duplicate (lead, url) pairs, and 10 of them are one structural pattern:**
+`li_profile` then `li_posts` against the same profile URL. Two different actors
+legitimately hitting one URL — the ledger keys on (lead, url) and cannot tell
+that apart from a wasteful re-fetch. Worth either keying on (lead, url, actor)
+or naming the pair as expected, before somebody "optimises" it away.
+
+### Toleen is the counter-example to the whole yield story
+
+She has genuinely quotable dated material — a Bloomberg Asharq TV interview and
+a dated LinkedIn post — and **the ranker excluded both**, one as `stale` and one
+as `too_short`, leaving her shortlist entirely undated About text. Her null is a
+ban artefact, not an evidence problem. If the undated-source contradiction gets
+fixed, check the bans next.
+
 ## 2026-08-02 (pre-flight) — the write-back nobody was told to do
 
 Haytham, before running the first real batch since the flip: walk the whole
