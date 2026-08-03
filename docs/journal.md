@@ -99,7 +99,7 @@ the live pages do not carry it, so the worker refused to cite it — correctly.
 is the strongest argument for the ingest and it also means "search harder" has a
 floor in this niche.
 
-### The repair moved the failure across the seam
+### The repair moved the failure across the seam, and then the material ran out
 
 3 of 5 drafts came back REWRITE on the hook, so `redraft` issued one shared
 correction instead of three private ones — its whole reason for existing. All
@@ -115,6 +115,52 @@ fails three times rather than three leads failing twice.
 **The next correction about a seam has to name both beats.** A hook and an
 identity line are one joint and repairing one side of it moves the break.
 
+**Haytham overrode the cap for one round and it failed too**, which is the more
+useful result: it means the note was not the whole fault. Round 3 sent a
+corrected seam instruction naming both beats, all three passed the linter, and
+all three came back REWRITE. The cold reads finally named the real cause, and it
+is upstream of drafting:
+
+- **Coach Zee's** certified quote is a Friday gym-photo dump — "3 or 4 are my
+  fav". *"Hands her post straight back with nothing the writer took from it… a
+  pun about photos being asked to carry a pitch about clients."*
+- **Tony Barrak's** is a relationship-theory line about the balance of intimacy.
+  *"Nothing in beat 1 is about rooms, audiences, or people not showing up, so
+  beat 2 reads as a slot advancing rather than a thought continuing."*
+
+### `select` ranks quotable and has no test for substance
+
+That is the finding worth keeping. `select` ranks on recency, kind, length and a
+ban list, and **nothing asks whether an observation carries a claim a stranger
+can take something from.** A photo dump and a mood post rank exactly like a coach
+explaining how they work.
+
+Kayleigh Green hit this honestly: her shortlist was thin enough to force a null
+hook, which is a good answer. Zee and Tony hit the dishonest version — thin
+enough to produce a hook that is **verifiable and empty**, which is worse,
+because it passes `hook --against`, passes the independent live re-fetch, passes
+the linter, and only fails in front of a reader. Three of six leads in this batch
+reached the drafter with material that could not support an email, and the
+machine had no way to say so before four agent passes had been spent on each.
+
+A substance signal belongs in `select`, not in a drafter's instructions. It is
+not written yet and it should be measured against this batch's committed corpus,
+which `select --batch` kept for exactly this.
+
+### An identity line can name the recipient's own segment
+
+Maria Fenton's failure is separate and also structural. Her dealt identity line
+is `id-fit-1`: *"7 meetings in a month for the last fitness coach in Dubai."*
+**Maria is a fitness coach in Dubai**, so the proof points back at her and the
+client it is meant to name disappears. Two drafters could not re-voice out of it,
+because an anchor's claim is fixed and the collision IS the claim.
+
+The 70/30 exact-match ratio causes this on purpose: a Fitness lead is meant to
+draw a Fitness identity line. It only bites when the line names the segment *and*
+the city the recipient is in. The fix is a line that says "the last one I worked
+with" without restating the reference class, which is an Airtable edit, or a
+check in `deal` that refuses a same-segment line whose text names that segment.
+
 ### Still open
 
 - **`hook.py` cannot represent a null hook with its reason.** `quote` and `line`
@@ -122,9 +168,9 @@ identity line are one joint and repairing one side of it moves the break.
   quotable" had to be written as an empty list, and the reason lives nowhere a
   later stage can read. `collect` now records `hook_verified: none` from the
   empty file, which is the status but not the why.
-- **The three held drafts.** Verified hooks, no email. They keep their rows and
-  their Blockers and go to the next batch, where the fix is the correction
-  above rather than a third attempt.
+- **The three held drafts.** Verified hooks, no email, after three rounds. They
+  keep their rows and their Blockers. Nothing about them gets fixed by a fourth
+  attempt: two need better material and one needs a different identity line.
 - `cta-04` opens on a question ("Worth 15 minutes?") and both `copy-check` and
   the drafter flagged it. That is an Airtable edit, not a draft fix.
 
