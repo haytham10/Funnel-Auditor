@@ -27,3 +27,11 @@ data/runs/*-state/
 draft-*.json
 hook-*.json
 anchors.json
+
+# Raw Apify dataset dumps. `apify <cmd> --raw` writes the actor's whole payload
+# here so it stays out of the caller's context; that makes it process state, not
+# a batch artifact. What the run keeps from one is what a later stage read out
+# of it — the ledger line naming the cost, and whatever landed in the research
+# or select corpus. A 472K profile dump on a 5-lead probe is the shape this
+# catches.
+data/runs/*-apify-*.json

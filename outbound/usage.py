@@ -374,6 +374,71 @@ def read_turns(sources: Sources) -> list[Turn]:
 
 BUCKETS = ("input_tokens", "cache_write", "cache_read", "output_tokens")
 
+# What a context is MADE OF, which is a different question from what it cost.
+# `cache_read` is the sum of the context over every turn, so the way to shrink a
+# bill is to shrink what sits in the context — and until this existed nothing
+# here could say what that was.
+#
+# CLAUDE.md's rule was written from the true observation that ~two-thirds of the
+# re-read is the orchestrator's own writing, and drew from it the fix "never
+# narrate per lead". Measured on 2026-08-03: prose to the operator is **7%** of
+# the context. Thinking blocks are 35% and the model's own tool CALLS are 28%.
+# Cutting narration is cutting the smallest of the three.
+BLOCK_KINDS = ("thinking", "tool_use", "text", "tool_result", "other")
+
+
+def _block_kind(role: str, block: dict) -> str:
+    kind = block.get("type") or "other"
+    if kind in ("thinking", "redacted_thinking"):
+        return "thinking"
+    if kind in ("tool_use", "server_tool_use"):
+        return "tool_use"
+    if kind == "tool_result":
+        return "tool_result"
+    if kind == "text":
+        # A user's own words are not something orchestration can economise on,
+        # and folding them into `text` would make the operator look expensive.
+        return "text" if role == "assistant" else "other"
+    return "other"
+
+
+def block_profile(sources: Sources, *, main_only: bool = True) -> dict:
+    """What the context is made of, by block type, in characters.
+
+    Characters rather than tokens on purpose: the transcript records no
+    per-block token count, and a tokeniser here would be a second estimate
+    dressed as a measurement. `chars_per_token` is stated once so the ratio is
+    the reader's to adjust rather than something buried in a division.
+
+    `main_only` because this is a question about the orchestrator. A subagent's
+    context dies with the subagent and is already reported per agent.
+    """
+    paths = list(sources.main) if main_only else list(sources.main) + list(sources.subagents)
+    counts = {k: 0 for k in BLOCK_KINDS}
+    blocks = {k: 0 for k in BLOCK_KINDS}
+    for path in paths:
+        for record in _lines(path):
+            if record.get("isSidechain"):
+                continue
+            message = record.get("message") or {}
+            role = message.get("role") or ""
+            content = message.get("content")
+            if isinstance(content, str):
+                kind = _block_kind(role, {"type": "text"})
+                counts[kind] += len(content)
+                blocks[kind] += 1
+            elif isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    kind = _block_kind(role, block)
+                    counts[kind] += len(json.dumps(block, default=str))
+                    blocks[kind] += 1
+    total = sum(counts.values())
+    return {"chars": counts, "blocks": blocks, "total_chars": total,
+            "chars_per_token": 4,
+            "share": {k: (counts[k] / total if total else 0.0) for k in BLOCK_KINDS}}
+
 
 def _bucket_totals(turns: list) -> dict:
     out = {b: 0 for b in BUCKETS}
@@ -436,6 +501,15 @@ def summarise(turns: list, *, batch: str = "", sources: Sources | None = None) -
         "sources": sources.to_dict() if sources else {},
         "gaps": [],
     }
+    # What the context is made of, which is the only actionable half. The
+    # totals say a batch was expensive; this says which kind of block to stop
+    # putting in the loop. It re-reads the transcript rather than riding on
+    # `turns` because a Turn is a billing record and carries no content.
+    if sources is not None:
+        try:
+            out["blocks"] = block_profile(sources)
+        except (OSError, ValueError) as exc:
+            out["gaps"].append(f"could not profile the context blocks: {exc}")
     stray = by_agent.get(UNATTRIBUTED, {}).get("agents", 0)
     if stray:
         out["gaps"].append(
@@ -489,6 +563,20 @@ def report(out: dict) -> str:
         f"  input             {_n(total['input_tokens'])}",
         f"  output            {_n(total['output_tokens'])}",
     ]
+    profile = out.get("blocks")
+    if profile and profile.get("total_chars"):
+        per = profile["chars_per_token"]
+        lines.append(f"  context is made of (~{_n(profile['total_chars'] // per)} "
+                     f"tokens of orchestrator transcript, ~{per} chars/token):")
+        for kind in sorted(BLOCK_KINDS, key=lambda k: -profile["chars"][k]):
+            chars = profile["chars"][kind]
+            if not chars:
+                continue
+            lines.append(f"    {kind:<12} {_n(chars // per):>10} "
+                         f"({profile['share'][kind] * 100:4.1f}%) over "
+                         f"{_n(profile['blocks'][kind])} block(s)")
+        lines.append("    cache_read is the SUM of this over every turn, so it "
+                     "falls with BOTH a smaller context and fewer turns")
     if out["by_model"]:
         lines.append("  by_model          " + ", ".join(
             f"{k} {_n(v['tokens'])}" for k, v in out["by_model"].items()))

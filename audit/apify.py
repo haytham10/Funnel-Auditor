@@ -50,6 +50,32 @@ reason to look before a run that costs real money.
     email       michael.g/email-verifier-validator      address verification (status/technical_status/score)
     site_static apify/cheerio-scraper                   tier-2 static HTML, for a site local requests could not reach
     site_render apify/website-content-crawler           tier-2 browser render, ONLY for a page that 200s with no text
+    serp        apify/google-search-scraper             a published address somebody else printed, + the AI Overview's absence verdict
+
+    (serp vetted 2026-08-03, and it is the retired `search` actor's slot with a
+    different job in it, so the reversal is written down rather than quietly
+    taken. `search` was retired for duplicating the agent's own free WebSearch
+    at SOURCING, where `audit/footprint.py` still says the free path does the
+    work — that half stands and nothing here restores it.
+
+    This is address retrieval, which was not a stage then. On 2026-08-03 a
+    5-lead probe of a real Instagram list measured all five unreachable, and
+    one batched run of this actor returned addresses for four at $0.0235
+    total. Two were on domains nothing else in the machine had ever seen. The
+    same probe measured why the free path could not: the agent's WebSearch is
+    US-geo'd with no country control, returns a summariser's paraphrase rather
+    than the SERP, and answered three of those five queries with the wrong
+    person entirely. `countryCode` and raw organic results are the difference,
+    and neither is a preference.
+
+    **Reversed by** the free WebSearch gaining geo control and raw snippets, or
+    by `email-find`'s FOUND rate falling to what tier 0 already harvests.
+
+    Priced per event, not per compute-second — which breaks the batching rule
+    stated above it. `actor-start` is $0.001 and each SERP page is $0.0025, so
+    batching every lead's query into one run saves the start fee and nothing
+    else. Still batch; just do not expect the container-boot economics that
+    make it dominate for the Instagram and LinkedIn actors.)
 
     (yt_channel and search were RETIRED 2026-08-01, P4 of
     docs/proposals/2026-08-01-hook-retrieval.md. Neither was a large bill;
@@ -193,6 +219,7 @@ ACTORS = {
     "email": "michael.g~email-verifier-validator",
     "site_static": "apify~cheerio-scraper",
     "site_render": "apify~website-content-crawler",
+    "serp": "apify~google-search-scraper",
 }
 
 # The map read backwards, so `run_actor` can name the rung it just spent on
@@ -1079,6 +1106,59 @@ async function pageFunction(context) {
         text: $('body').text().replace(/\\s+/g, ' ').trim(),
     };
 }"""
+
+
+def google_search(queries: list[str] | str, *, country_code: str = "ae",
+                  max_pages: int = 1, ai_overview: bool = False,
+                  approved: bool = False) -> list[dict]:
+    """Google SERP for one or many queries, in ONE run. Cost-gated on pages.
+
+    The fetch half of `audit/email_find.py`, which owns everything done with
+    the results and never calls this. Returns the actor's dataset items
+    unchanged — one record per query, carrying `organicResults` and, when one
+    was captured, `aiOverview`.
+
+    **`queries` is newline-separated in the actor's input**, which is what
+    makes a whole batch one run. Correlating results back to leads is the
+    caller's job and is done on `searchQuery.term`, not on position: the actor
+    does not promise result order matches input order, and the 2026-08-03 probe
+    returned five queries in an order matching none of the input.
+
+    `country_code` defaults to `ae` and that default is the point. The agent's
+    own free WebSearch is US-geo'd with no control over it, and on the probe
+    that justified this rung it answered three of five UAE-coach queries with
+    the wrong person on another continent. Pass a different code for a lead
+    outside the Emirates; pass `""` to let Google decide, which is rarely what
+    anybody wants here.
+
+    **`ai_overview` is off by default, and it was on for one commit.** It adds
+    $0.002 to a $0.0035 query — nearly doubling the rung — for a verdict on
+    absence that measurement did not support: `email_find`'s ABSENT was wrong
+    on two of five leads whose addresses were live on their own homepages at
+    the time. Its ADDRESSES were never trustworthy either; it invented one on
+    the same probe. Turn it on per lead when an absence is the actual question,
+    not across five hundred rows.
+
+    Gated on `len(queries) * max_pages`, the number of `search-page-scraped`
+    events, which is this actor's primary charge event and therefore what
+    `estimate_cost_usd` prices without being told."""
+    terms = [queries] if isinstance(queries, str) else [q for q in queries if q]
+    terms = [t.strip() for t in terms if (t or "").strip()]
+    if not terms:
+        raise ApifyError("google_search needs at least one query")
+
+    pages = max(1, int(max_pages))
+    est = _require_cost_approval(ACTORS["serp"], len(terms) * pages, approved,
+                                 event_key="search-page-scraped")
+    run: dict[str, Any] = {
+        "queries": "\n".join(terms),
+        "maxPagesPerQuery": pages,
+        "aiOverview": {"scrapeFullAiOverview": bool(ai_overview)},
+    }
+    if country_code:
+        run["countryCode"] = country_code
+    return run_actor(ACTORS["serp"], run, cost_usd=est, platform="search",
+                     url=terms[0] if len(terms) == 1 else "")
 
 
 def crawl_static(urls: list[str], *, approved: bool = False,

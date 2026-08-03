@@ -242,15 +242,33 @@ guessed pattern, from any source.
 
 ## What you return
 
-One JSON array, one object per lead, matching `outbound/research.py` — including
-its `observations` list. Validate each with `python main.py research <file>`
-before returning and fix what it flags; it checks the observations too. Fields
-you could not settle stay at their defaults; do not invent values to make an
-object look complete.
+**Write your slice to `work/research-<slice>.json` yourself.** One JSON array,
+one object per lead, matching `outbound/research.py` — including its
+`observations` list. Then validate it and fix what it flags; it checks the
+observations too:
 
-Return the full object even for a lead that failed a floor, with the failure
-noted. An orchestrator guessing why a lead vanished is worse than a `no` it can
-read.
+```
+python main.py research work/research-<slice>.json
+```
+
+Fields you could not settle stay at their defaults; do not invent values to make
+an object look complete. Write the full object even for a lead that failed a
+floor, with the failure noted — an orchestrator guessing why a lead vanished is
+worse than a `no` it can read.
+
+**Your reply is one line**: the slice name, the path, how many objects you wrote,
+and the literal `RESEARCH:` line from that command, quoted. Nothing else — not
+the objects, not a per-lead summary, not the observations.
+
+This is `draft-worker`'s rule and it is here for the same measured reason. A
+research object carries verbatim observation text and runs about a thousand
+tokens per lead; a slice of ten is ten thousand tokens that the orchestrator
+would otherwise hold in its context **and re-read on every remaining turn of the
+run**. The skill used to say workers write nothing and then validate
+`work/research-<slice>.json`, which meant the array was returned into the loop
+and copied back out to disk by hand — paying for it twice and leaving the run
+unresumable. `python main.py collect research` builds `work/researched.json`
+from these files, and it always could.
 
 You do not write to Airtable. The orchestrator does, after it has cross-checked
 your objects.

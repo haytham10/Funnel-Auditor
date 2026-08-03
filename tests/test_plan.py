@@ -410,3 +410,75 @@ if __name__ == "__main__":
             failures += 1
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------------- the address decline (D28b)
+
+
+def test_a_lead_nothing_can_be_sent_to_declines_its_paid_rungs():
+    """The second decline rule, and it exists for the token bill rather than the
+    Apify one: q2+q3 spent ~18.6M tokens per shipped email against $1.13 of
+    Apify across both batches. Buying a hook for a lead nobody can email spends
+    the research, hook, verify and draft passes behind it on nothing."""
+    built = plan.plan_lead(identity(channel(confidence="confirmed")),
+                           unreachable=True)
+    paid = built.paid_steps
+    assert paid, "fixture must produce at least one paid rung"
+    assert all(s.decision == "decline" for s in paid)
+    assert all(plan.ADDRESS_DECLINE in s.reason for s in paid)
+
+
+def test_the_address_decline_keeps_every_free_rung():
+    """A decline is about spend. Free retrieval is not spend, and a lead with no
+    address still gets researched — they may yet turn out reachable, and the
+    row is still worth having."""
+    built = plan.plan_lead(identity(channel()), site_url="https://x.ae",
+                           unreachable=True)
+    free = [s for s in built.steps if not s.paid]
+    assert free
+    assert all(s.decision == "take" for s in free)
+
+
+def test_an_unreachable_lead_still_gets_a_plan_and_still_validates():
+    """Spend, never inclusion — the same guarantee the ownership decline makes.
+    A plan that vanished would be a drop wearing a gate's clothes."""
+    built = plan.plan_lead(identity(channel()), unreachable=True)
+    assert built.lead_key
+    assert plan.validate(built) == []
+
+
+def test_plan_all_matches_unreachable_on_lead_key_or_name():
+    """`email-find` keys its output by lead_key when the row had one and by
+    name when it did not — an intake file carries both, a hand-run single lead
+    carries only the name."""
+    ident = identity(channel())
+    by_key = plan.plan_all([ident], unreachable={ident.lead_key})["plans"][0]
+    by_name = plan.plan_all([ident], unreachable={ident.name})["plans"][0]
+    assert by_key.would_decline
+    assert by_name.would_decline
+
+
+def test_no_addresses_file_declines_nothing():
+    """The default path is unchanged: without `--addresses` nothing here knows
+    anything about reachability and every rung stays taken."""
+    built = plan.plan_all([identity(channel())])["plans"][0]
+    assert built.would_decline == []
+
+
+def test_the_report_counts_the_two_decline_rules_apart():
+    """One total would have reported the first live run of the address rule —
+    every declined step declined on address — as ownership declines, which is
+    the opposite diagnosis and has the opposite fix."""
+    ident = identity(channel(confidence="absent", evidence="handle names somebody else"))
+    other = identity(channel(), lead_key="b@b.ae", name="Other Person")
+    text = plan.plan_all([ident, other], unreachable={"b@b.ae"})["report"]
+    assert "on ownership" in text
+    assert "on address" in text
+    assert "saves agent passes rather than scrapes" in text
+
+
+def test_no_address_declines_means_no_address_line_at_all():
+    """A batch where every lead is reachable must not print a zero. `metrics`'
+    rule: a count nobody supplied is not a measurement of nothing."""
+    text = plan.plan_all([identity(channel())])["report"]
+    assert "on address" not in text

@@ -161,6 +161,14 @@ every retrieval at this stage is now one somebody can see and price.
 
 ## What you return
 
+**Write the proposal to `work/hook-<lead>.json` and reply with one line**: the
+lead slug and the literal PASS line from `main.py hook --against`, quoted.
+Nothing else — not the hook, not the quote, not why you chose it. The file holds
+all of it, `hook-verifier` reads the file, and a copy in your reply is a copy the
+orchestrator carries for the rest of the run. This is `draft-worker`'s rule.
+
+The file holds:
+
 ```
 hook              the line itself, one or two sentences, with a writer in it
 hook_type         WORK | LIFE | METRIC

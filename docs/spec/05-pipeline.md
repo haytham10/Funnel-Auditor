@@ -206,14 +206,21 @@ reading each homepage and then reading it again in `fetch`. See D22 in
 observation contract shipped in.
 
 ### `plan`
-**In** the identities from `resolve --out`, and optionally the Leads, which are
-the only place a lead's own site URL lives. **Out** one `LeadPlan` per lead: the
-rungs that are populated for that person, what each would cost, and which paid
-ones would be declined. **Guarantees** every lead gets a plan, including a lead
-with no rung at all and a lead whose every paid rung would be declined; it
-fetches nothing and runs no actor. **Exit 2** if the identity file cannot be read,
-**exit 1** only if its own output fails its own schema. Owned by
-`outbound/plan.py`.
+**In** the identities from `resolve --out`, optionally the Leads, which are the
+only place a lead's own site URL lives, and optionally the address verdicts from
+`email-find --out`. **Out** one `LeadPlan` per lead: the rungs that are populated
+for that person, what each would cost, and which paid ones would be declined.
+**Guarantees** every lead gets a plan, including a lead with no rung at all and a
+lead whose every paid rung would be declined; it fetches nothing and runs no
+actor. **Exit 2** if the identity file cannot be read, **exit 1** only if its own
+output fails its own schema. Owned by `outbound/plan.py`.
+
+**There are two decline rules and the second is the expensive one.** Ownership
+declines a paid rung pointing at somebody else's channel, which saves a scrape.
+`--addresses` declines every paid rung for a lead nothing can be sent to, which
+saves the research, hook, verify and draft passes behind that scrape — and those
+passes are the batch's actual bill. Both gate spend and never inclusion; both
+leave the lead researched, planned, and holding a row.
 
 **The ladder is here rather than in prose, and that is D23.** Where a hook comes
 from was two markdown files kept in agreement by hand, and the agreement failed
@@ -626,6 +633,81 @@ domains.
 address asked about — an address the actor did not answer on comes back as
 `no_result` rather than being dropped from the list.
 
+### `email-find`
+An address **somebody else published**, in one batched search run. The third
+and last address path: `extract` harvests what is printed on the lead's own
+pages, `email-enrich` guesses at their own domain, and both only ever look at
+the lead. A coach's address is routinely printed by an accreditation body, a
+directory, or a company page and nowhere else, which is why on the probe that
+justified this stage four of five addresses were found off-site and two were on
+domains the machine had never seen.
+
+**An organic result is a citation; an AI Overview is a claim**, and the verdicts
+keep them apart. `FOUND` carries a URL that can be re-fetched, which is the
+standard `hook-verifier` already holds a quote to. `CLAIMED` means only the
+overview said so — it must be confirmed on its cited page or dropped, never
+adopted, because on the probe it produced a plausible role address on a real
+domain, attributed to a real page, for a mailbox that does not exist. Nothing
+here adopts anything either way: every candidate still goes through
+`email-check` and `email-verify`, which is what turned that fabrication into a
+hard FAIL instead of a send.
+
+**An address needs a reason to be believed this lead's**: their name in the
+local part, a domain already known to be theirs, or a source page that names
+them in full. Without that rule the first live run reported `FOUND` four times
+in five on strangers' addresses, because a query about a person returns pages
+that merely mention them and each carried exactly one address, which ranking
+floated to the top. Uncorroborated addresses are counted in the report and kept
+out of the candidate list — a dropped address stays visible, since the filter is
+a heuristic and the count is how anybody notices it going wrong.
+
+**The query carries the lead's known domain**, and that one term is the
+difference between a run that finds four addresses and a run that finds none. A
+coach's address is indexed beside their business name far more often than beside
+their positioning line. A link-in-bio or storefront host is never used as that
+term — searching `whop.com` searches for Whop.
+
+**The AI Overview is off by default, and it was on for one commit.** It nearly
+doubles the per-query price — `audit/apify.py` owns the event prices and the
+ledger records what a run actually cost — for an `ABSENT` verdict that
+measurement did not support: it was wrong on two of five leads whose addresses
+were live on their own homepages at the time. `--ai-overview` turns it on for a
+lead where an absence is the actual question. Do not pay for it five hundred
+times.
+
+`ABSENT` still means what it says — the overview stated no public address
+exists — and it requires both a stated absence and no organic candidate, so a
+model hedging in prose loses to the SERP underneath it. `NONE` is the different
+answer where nothing was found and nothing was said, and collapsing the two
+would make an unanswered query look like a confirmed dead end. **Neither verdict
+is what `plan` declines on**; see below.
+
+**`--out` writes the per-lead verdicts, and `plan --addresses` reads them.**
+That join is the point of running this stage early. A lead marked
+`reachable: false` — no address on the row, none harvested from their site, none
+published anywhere searched — loses every **paid** rung and keeps every free one.
+
+It is a measurement and never a prediction: `reachable` is false only when every
+cheap path has already looked, never because the AI Overview offered an opinion.
+And it gates spend, never inclusion, the same asymmetry the ownership decline
+holds. The lead is still researched, still planned, still gets a row.
+
+**This decline is worth far more than the ownership one.** A hook costs one
+scrape and several agent passes, and the passes dominate by orders of magnitude
+— `2026-08-02`'s token forensics measured the ratio, `docs/journal.md` records
+it, and `usage` and `ledger` are the two commands that report the halves. A lead
+nothing can be sent to that still walks research, hook, verify and draft spends
+all of that on an email nobody receives.
+
+`ABSENT` exits 0 alongside `FOUND`: a null result reached honestly has always
+been a good answer here. `CLAIMED` and `NONE` exit 1 as open work, and a search
+layer that could not run exits 2 — the `email-verify-batch` rule again, since a
+dead fetch layer must never read as "these leads have no address".
+
+The logic lives in `audit/email_find.py` and **fetches nothing**, the same
+property that made `audit/footprint.py`'s retirement a deletion rather than a
+rewrite. `audit/apify.py` owns the fetch and which actor `serp` names.
+
 ### `apify`
 The no-login third-party fetch layer, and the only paid one. Subcommands:
 `apify limits` (check the budget **once per batch**), `apify actors`,
@@ -641,6 +723,18 @@ field that by design changes no decision. The Google SERP actor duplicated the
 agent's own free WebSearch, which `audit/footprint.py` already called the
 preferred path and which is what every skill actually used.
 `classify-footprint` is untouched: it never fetched anything itself.
+
+**A SERP actor came back 2026-08-03 as `serp`, for a different job.** The
+retirement above was about **sourcing**, where the free path still does the work
+and nothing has been restored. `email-find` is **address retrieval**, which was
+not a stage then, and the probe that added it measured why free search cannot
+serve it: the agent's WebSearch is US-geo'd with no country control, returns a
+summariser's paraphrase rather than the results, and answered three of five
+UAE-coach queries with the wrong person. `countryCode` and raw organic results
+are the difference. It is priced per event rather than per compute-second, so
+batching saves the one-off start fee and nothing more — still worth doing, but
+without the container-boot economics that make batching dominate everywhere
+else here.
 
 `apify li-profile` and `apify verify-email` take one target or several; several
 is one actor run for the whole batch rather than one per lead (`li-profile`
@@ -893,10 +987,29 @@ count of what was found is not a count of what should exist.
 
 ### `usage`
 **In** the session's own transcripts. **Out** what the batch cost in Claude
-tokens — totals by bucket and model, the orchestrator/subagent split, and a
-per-agent-type breakdown — plus `data/runs/<batch>-usage.json`. **Guarantees** a
-transcript it cannot parse is an error naming where it looked, never a zero.
-**Exit 2** on that. **Never exit 1.** Owned by `outbound/usage.py`.
+tokens — totals by bucket and model, the orchestrator/subagent split, a
+per-agent-type breakdown, and **what the orchestrator's context is made of** —
+plus `data/runs/<batch>-usage.json`. **Guarantees** a transcript it cannot parse
+is an error naming where it looked, never a zero. **Exit 2** on that. **Never
+exit 1.** Owned by `outbound/usage.py`.
+
+**Totals say a batch was expensive; the block profile says what to stop putting
+in the loop.** `cache_read` is the sum of the context over every turn, so it
+falls with a smaller context *and* with fewer turns, and rises quadratically when
+a run gets both longer and chattier. The profile splits that context into
+thinking, tool results, the model's own tool calls, and prose — and the split is
+why it exists. The rule it replaced reasoned from the true observation that
+two-thirds of the re-read is the orchestrator's own writing and concluded "never
+narrate per lead"; measured, prose to the operator is the smallest of the four
+and thinking is the largest. A fix aimed at the wrong quarter is the thing this
+number prevents.
+
+It counts characters rather than tokens and says so: the transcript records no
+per-block token count, and a tokeniser here would be a second estimate dressed
+as a measurement. It profiles the main thread only — a subagent's context dies
+with the subagent and is already reported per agent. A profile of nothing prints
+no section at all rather than a row of zeroes, which is `metrics`' rule about a
+count nobody supplied.
 
 **A pass count is not a magnitude.** `ledger pass` records that an agent ran,
 because neither an orchestrator nor a worker can see its own token usage. So the
