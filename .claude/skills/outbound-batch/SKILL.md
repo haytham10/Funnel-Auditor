@@ -39,6 +39,34 @@ Read the profile out loud to Haytham. If more than about half the rows have no
 research target at all, say so before continuing — that is a list quality
 problem and no amount of research fixes it.
 
+**If the list is an Apify Instagram profile dump, use `ig-intake` instead** —
+`intake` maps a CSV and returned 0 rows on a dump's own shape:
+
+```
+python main.py ig-intake <dump.json> --out work/leads.json \
+    --observations work/ig-observations.json
+```
+
+The second file is the point. A profile record carries the account's recent
+posts with verbatim captions and real dates, which is what `plan`'s `ig_posts`
+rung pays to fetch — so the corpus arrives with the list. Report
+`with a corpus`, hand each research worker its leads' slice of it, and tell them
+the IG posts are already retrieved: their job is the floors and the captured
+fields, not the grid.
+
+Then triage, which is free and runs before the wall:
+
+```
+python main.py triage work/leads.json --observations work/ig-observations.json \
+    --complete-corpus --out work/tiers.json --run-out work/run.json
+```
+
+`--complete-corpus` only when the observations are everything the channel has,
+which is true of a profile scrape and false of a research pass. **Print the DROP
+list in full and stop for Haytham's read before the first paid call.** HOLD is
+not a kill: `unclear` is HOLD, it is a queue, and it is where a lead with no
+"Dubai" in their bio goes. Everything after this runs on `work/run.json`.
+
 Then the wall, which runs **before any paid call**:
 
 ```

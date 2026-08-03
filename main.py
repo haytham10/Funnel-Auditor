@@ -9,6 +9,9 @@ printed as a line the skill quotes verbatim rather than paraphrases.
 Every gate fails closed. A check that cannot run is a failure, never a pass.
 
     intake      raw CSV -> profiled, junk-stripped Leads
+    ig-intake   an Instagram profile dump -> Leads AND the observations it
+                already carries, so the paid posts rung buys nothing new
+    triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
     dedupe      the Contacted-Before wall, both passes
     wall-add    append a shipped batch to the wall, after it is uploaded
     qualify     the three floors, run over a research JSON
@@ -111,6 +114,107 @@ def cmd_intake(args) -> None:
             json.dumps([l.to_dict() for l in leads], indent=2, default=str),
             encoding="utf-8")
         print(f"  wrote {args.out}")
+
+
+def cmd_ig_intake(args) -> None:
+    """An Instagram profile dump -> Leads AND the corpus it already carries.
+
+    `intake` maps a CSV and maps nothing here: the last IG probe returned 0 rows
+    on the dump's own shape and continued by hand. The second output is the
+    reason this is a command rather than a converter — a profile record carries
+    the account's recent posts with verbatim captions, real timestamps and their
+    own URLs, which is what `plan`'s `ig_posts` rung pays to fetch. Ingesting
+    them means the activity floor settles from a date and the hook stage quotes
+    something already retrieved.
+
+    **Both outputs are validated before either is written.** A malformed dump
+    must not seed a corpus a later stage will quote; that is `observe`'s gate
+    used at the moment the records are made rather than discovered by the stage
+    that finally needs them.
+    """
+    from outbound import ig_intake, observe
+
+    try:
+        leads, observations = ig_intake.ingest(
+            args.path, source=args.source or args.path,
+            fetched_at=args.fetched_at or "")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"IG-INTAKE: FAIL — cannot read {args.path}: {exc}")
+        sys.exit(2)
+
+    problems = observe.validate_all(observations)
+    if problems:
+        print(f"IG-INTAKE: FAIL — {len(problems)} observation problem(s), "
+              f"nothing written:")
+        for problem in problems[:20]:
+            print(f"  {problem}")
+        sys.exit(1)
+
+    shape = ig_intake.profile(leads, observations)
+    print(f"IG-INTAKE {args.path}: {shape['total']} profiles")
+    print(f"  live site            {shape['with_site']}")
+    print(f"  social only          {shape['social_only']}")
+    print(f"  nothing to work      {shape['no_research_target']}")
+    print(f"  with a corpus        {shape['with_observations']} "
+          f"({shape['posts']} posts, {shape['observations']} observations)")
+    print(f"  no posts in the dump {shape['no_posts']}")
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([l.to_dict() for l in leads], indent=2, default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.observations:
+        Path(args.observations).write_text(
+            json.dumps([o.to_dict() for o in observations], indent=2,
+                       default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.observations}")
+
+
+def cmd_triage(args) -> None:
+    """Sort a list into RUN / HOLD / DROP before anything is spent.
+
+    The floors are `qualify`'s, called rather than re-implemented, and `unclear`
+    is HOLD and never DROP — a false kill is permanent and invisible. The only
+    `no` this stage can reach on evidence nobody fetched twice is a stale
+    activity date, and only with `--complete-corpus`, which asserts that the
+    observations are everything the channel has rather than a sample of it.
+
+    **It never exits 1 on a routing decision.** A triage is a description, the
+    same as a plan is, and the operator reading the DROP list is the gate.
+    """
+    from outbound import observe, triage as triage_mod
+    from outbound.normalize import Lead
+
+    leads_data = _load_json(args.leads, "TRIAGE")
+    if not isinstance(leads_data, list):
+        print("TRIAGE: FAIL — expected a Leads array from `ig-intake --out`.")
+        sys.exit(2)
+    leads = [Lead(**{k: v for k, v in row.items()
+                     if k in Lead.__dataclass_fields__}) for row in leads_data]
+
+    observations = []
+    if args.observations:
+        observations = observe.load(_load_json(args.observations, "TRIAGE"))
+
+    results = triage_mod.triage_all(leads, observations,
+                                    complete_corpus=args.complete_corpus)
+    print(triage_mod.report(results))
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([r.to_dict() for r in results], indent=2, default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.run_out:
+        keep = triage_mod.selected(results, triage_mod.RUN)
+        from outbound.fetch import lead_key as key_of
+        kept = [row for lead, row in zip(leads, leads_data)
+                if key_of(lead) in keep]
+        Path(args.run_out).write_text(
+            json.dumps(kept, indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.run_out} ({len(kept)} RUN leads)")
 
 
 # --------------------------------------------------------------------- dedupe
@@ -2442,6 +2546,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", help="write the Leads as JSON")
     p.add_argument("--json", action="store_true", help="print JSON instead of a profile")
     p.set_defaults(func=cmd_intake)
+
+    p = sub.add_parser("ig-intake",
+                       help="an Instagram profile dump -> Leads AND the "
+                            "observations it already carries")
+    p.add_argument("path", help="the Apify instagram-profile-scraper dataset (JSON)")
+    p.add_argument("--source", help="label for where this list came from")
+    p.add_argument("--out", help="write the Leads as JSON")
+    p.add_argument("--observations",
+                   help="write the posts and bios as observe.Observation records")
+    p.add_argument("--fetched-at", default="",
+                   help="when the dump was scraped, ISO (default: now)")
+    p.set_defaults(func=cmd_ig_intake)
+
+    p = sub.add_parser("triage",
+                       help="RUN / HOLD / DROP before anything is spent "
+                            "(unclear is HOLD, never DROP)")
+    p.add_argument("leads", help="Leads JSON from `intake --out` / `ig-intake --out`")
+    p.add_argument("--observations", help="the corpus, for the activity floor")
+    p.add_argument("--complete-corpus", action="store_true",
+                   help="the observations are everything the channel has, not a "
+                        "sample — the ONLY thing that lets a stale date drop a "
+                        "lead. True of a profile scrape, false of a research pass")
+    p.add_argument("--out", help="write every lead's tier and its verdicts")
+    p.add_argument("--run-out", help="write just the RUN leads, as a Leads file")
+    p.set_defaults(func=cmd_triage)
 
     p = sub.add_parser("dedupe", help="the Contacted-Before wall (exits 1 on a warm hit)")
     p.add_argument("leads", help="Leads JSON from `intake --out`")

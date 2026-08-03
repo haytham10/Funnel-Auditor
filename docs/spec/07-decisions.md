@@ -629,6 +629,63 @@ verifier at a materially higher rate than dated ones, which would mean the
 recency the date was standing in for was load-bearing after all, and the
 fallback should be narrowed rather than dated honestly.
 
+### D30 · A dump that already carries the corpus is a retrieval, not input
+
+**2026-08-03.** An Apify `instagram-profile-scraper` dataset is read by
+`ig-intake` into Leads **and** `observe.Observation` records — the account's own
+posts, kept verbatim, with their real publication dates and URLs. That is the
+material `plan`'s `ig_posts` rung pays to fetch, so a list that arrives this way
+arrives with its retrieval already done and paid for somewhere else.
+
+**Why it is a decision and not a converter.** The alternative was to flatten the
+dump to a CSV that `intake` understands, which is what the last IG probe did by
+hand. It works, and it throws away twelve posts per lead — so the activity floor
+stays `unclear` (F3, where `latest_activity_date` found zero usable dates across
+nine sites), `select` ranks nothing, and the hook stage pays Apify for the file
+Haytham already has.
+
+**What it does not claim.** `cost_usd` is 0.0 because this repo did not pay it,
+and the ledger's number is what a retrieval cost *here* — inventing a price for
+somebody else's run would be a fabricated measurement. Freshness is the real
+exposure: an ingested caption is true as of the dump's date, and a stale dump
+would put a hook stage quote out of step with the live post. The spot-check
+against live post URLs before the hook wave is what covers that, and it is a
+check a human runs.
+
+**Reversed by** a hook-verifier refuting ingested quotes at a materially higher
+rate than fetched ones, which would mean a dump's corpus is not good enough to
+quote from and the paid rung should be walked after all.
+
+### D31 · Only a complete corpus may settle the activity floor downward
+
+**2026-08-03.** `triage --complete-corpus` may drop a lead whose newest post is
+outside the 30-day window. Without the flag, and everywhere else in the machine,
+a stale set of observations is `unclear` and never a kill.
+
+**The distinction is the evidence, not the stage.**
+`qualify.activity_from_observations` moves the floor upward only, and is right
+to: a research worker's observations are a sample of what it happened to fetch,
+so an old set means the retrieval was old. A profile scrape's `latestPosts` is
+not a sample — it is what the account has, read off the platform on the dump's
+own date. "The newest of twelve is eight months old" is then a measurement of
+the lead.
+
+**Why the flag rather than the loosening.** `activity_from_observations` is
+untouched, so every existing caller gets exactly what it got before, and the
+assertion is made by the one caller that can actually make it. A caller that
+sets the flag without a complete corpus opens a kill surface on the floor built
+not to have one; that is the risk, and it is stated here rather than guarded,
+because nothing in Python can tell a complete corpus from a lucky sample.
+
+**The rest of triage drops nothing.** `unclear` is HOLD — no UAE word, no coach
+word, no posts at all. On the 237-profile list that is 141 leads held and 51
+dropped, 48 of them on a stale date.
+
+**Reversed by** a HOLD queue that never gets worked, which would mean triage is
+a kill with a nicer name; or by a dropped lead turning out to be active on a
+channel the dump does not cover, which would mean a stale IG account is not
+evidence of a stale coach.
+
 ---
 
 ## What is unknown

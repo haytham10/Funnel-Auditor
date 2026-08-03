@@ -43,6 +43,9 @@ and a deterministic linter made that safe.**
 
 ```
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
+ig-intake   an IG profile dump -> Leads AND the posts it already carries, which
+            is the paid IG rung arriving with the list
+triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced
@@ -314,6 +317,11 @@ spill is the workaround.
 Pointers, not manuals. Every module carries a full docstring.
 
 **`outbound/`** — `normalize` (raw row to Lead, junk classification),
+`ig_intake` (an Instagram profile dump read as Leads **and** as the corpus it
+already carries — a dump is a retrieval somebody else paid for, not input),
+`triage` (RUN / HOLD / DROP before a cent is spent, on `qualify`'s own floors;
+`unclear` is HOLD, and only a **complete** corpus may drop a lead on a stale
+date),
 `dedupe` (the two passes and the Contacted-Before wall), `fetch` (the free-first
 ladder and the batched Apify plan), `resolve` (which channels are plausibly this
 lead's own, and on what evidence — advisory, and it gates spend rather than

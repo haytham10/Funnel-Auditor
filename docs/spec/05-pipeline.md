@@ -7,7 +7,8 @@ docstring, which is where someone reading the code will actually find it._
 
 **Owns:** the stage boundaries, the exit-code contract, and the orderings that
 are load-bearing.
-**Defers to:** `outbound/normalize.py`, `outbound/dedupe.py`, `outbound/fetch.py`,
+**Defers to:** `outbound/normalize.py`, `outbound/ig_intake.py`,
+`outbound/triage.py`, `outbound/dedupe.py`, `outbound/fetch.py`,
 `outbound/resolve.py`, `outbound/plan.py`, `outbound/select.py`,
 `outbound/qualify.py`, `outbound/research.py`,
 `outbound/anchors.py`, `outbound/lint.py`, `outbound/export.py` — the eleven
@@ -39,6 +40,9 @@ Every gate fails closed: a check that cannot run is a failure, never a pass.
 
 ```
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
+ig-intake   the same for an Instagram profile dump, which also arrives with the
+            posts the paid IG rung would have fetched
+triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced
@@ -88,6 +92,32 @@ squeezed afterwards is a citation drifting from its source. See D24.
 domains classified rather than dropped silently, platform URLs routed to their
 social columns, and unmapped headers reported. **Exit 2** if the CSV cannot be
 read.
+
+### `ig-intake`
+**In** an Apify `instagram-profile-scraper` dataset. **Out** Leads *and*
+`observe.Observation` records — the account's own posts, captions verbatim,
+with the dates they were published and the URLs they live at. **Guarantees**
+every observation passes `observe.validate_all` before either file is written,
+`author=self` proven against the post's `ownerUsername` rather than assumed,
+and `retrieved_by` naming `apify:ig_profile`, the actor that really produced
+the dump. **Exit 1** if any observation fails the schema — nothing is written.
+**Exit 2** if the dataset cannot be read or is not an array.
+
+A dump like this is not input to the retrieval stage, it **is** a retrieval,
+made outside this repo. `cost_usd` is 0.0 because nothing here paid for it, and
+the ledger records what a fetch cost *here*. See D30.
+
+### `triage`
+**In** Leads, optionally their observations. **Out** a tier per lead — RUN,
+HOLD or DROP — each carrying all three floor verdicts and the source that
+settled them. **Guarantees** the floors are `qualify`'s, called rather than
+re-implemented, and that **`unclear` is HOLD and never DROP**. **Never exits 1
+on a routing decision**: a triage is a description, the same as a plan is, and
+the operator reading the DROP list is the gate.
+
+**`--complete-corpus` is the only thing that lets a stale date drop a lead**, and
+it is an assertion the caller makes about the evidence, not a preference. See
+D31.
 
 ### `dedupe`
 **In** Leads and the wall at `data/contacted-before.csv`. **Out** the clear list
