@@ -2339,6 +2339,17 @@ def cmd_escalate_only(args) -> None:
     meant calling `fetch.run_plan` by hand and nothing in the CLI offered it.
 
     A retry must not be able to pollute the measurement it is retrying.
+
+    **`--out` defaults to the input file, because the alternative was silent
+    loss.** This command took `--out` optionally and wrote nothing without it:
+    the 2026-08-03 icf1 run bought two container boots, printed
+    `ESCALATED site_render: 9 page(s) back`, exited 0, and discarded all twelve
+    pages. Every signal said success. There is only one file a completed
+    escalation belongs in — the sites.json it was read out of, which already
+    carries the plans and the `escalated` merge slot — so defaulting there is
+    not a guess. A paid fetch whose result reaches no disk is the worst outcome
+    this command has, worse than the duplicate it was written to prevent:
+    a duplicate at least leaves the pages behind.
     """
     payload = _load_json(args.leads, "FETCH")
     if not isinstance(payload, dict) or "escalate_plans" not in payload:
@@ -2380,10 +2391,11 @@ def cmd_escalate_only(args) -> None:
     payload["escalated"] = merged
     print("  no tier-0 read happened, so no page in this run can be a "
           "duplicate of one already in the ledger.")
-    if args.out:
-        Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
-                                  encoding="utf-8")
-        print(f"  wrote {args.out}")
+    destination = args.out or args.leads
+    Path(destination).write_text(json.dumps(payload, indent=2, default=str),
+                                 encoding="utf-8")
+    pages = sum(len(v) for v in escalated.values())
+    print(f"  wrote {destination} ({pages} escalated page(s) merged in)")
     if failures:
         sys.exit(1)
 
@@ -3384,7 +3396,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("leads", help="Leads JSON from `intake --out`")
     p.add_argument("--max-pages", type=int, default=5)
     p.add_argument("--with-text", action="store_true", help="include page text in the output")
-    p.add_argument("--out", help="write the reads as JSON")
+    p.add_argument("--out", help="write the reads as JSON. With --escalate-only "
+                                 "it defaults to the input file, which is the "
+                                 "only place a completed escalation belongs")
     p.add_argument("--workers", type=int, default=fetch_defaults.DEFAULT_WORKERS,
                    help="concurrent site reads (network-bound; 1 restores the "
                         "serial loop that could not finish 151 sites)")

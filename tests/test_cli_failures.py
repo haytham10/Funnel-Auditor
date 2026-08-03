@@ -736,6 +736,60 @@ def test_escalate_only_when_every_plan_has_already_run():
         assert "already run" in result.stdout
 
 
+def test_escalate_only_writes_back_without_being_told_where():
+    """The 2026-08-03 icf1 defect: paid pages fetched, reported, and discarded.
+
+    `--out` was optional and the write was behind it, so a run with no `--out`
+    bought two container boots, printed `ESCALATED site_render: 9 page(s) back`
+    and exited 0 having written nothing. Every signal said success. A paid fetch
+    whose result reaches no disk is worse than the duplicate this command exists
+    to prevent — a duplicate at least leaves the pages behind.
+    """
+    import argparse
+
+    import main as cli
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [{"actor_key": "site_render",
+                                "urls": ["https://b.ae"], "why": "1 url(s)"}]})
+        original = cli._run_escalations
+        cli._run_escalations = lambda plans, approved: (
+            {"site_render": [{"url": "https://b.ae", "text": "hello"}]}, [])
+        try:
+            cli.cmd_escalate_only(argparse.Namespace(
+                leads=sites, out=None, approve_cost=True))
+        finally:
+            cli._run_escalations = original
+        payload = json.loads(Path(sites).read_text())
+    assert payload["escalated"]["site_render"][0]["text"] == "hello"
+
+
+def test_escalate_only_honours_an_explicit_out_over_the_input():
+    import argparse
+
+    import main as cli
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [{"actor_key": "site_static",
+                                "urls": ["https://a.ae"], "why": "1 url(s)"}]})
+        out = str(Path(tmp) / "merged.json")
+        original = cli._run_escalations
+        cli._run_escalations = lambda plans, approved: (
+            {"site_static": [{"url": "https://a.ae", "text": "x"}]}, [])
+        try:
+            cli.cmd_escalate_only(argparse.Namespace(
+                leads=sites, out=out, approve_cost=True))
+        finally:
+            cli._run_escalations = original
+        assert "escalated" in json.loads(Path(out).read_text())
+        # The input is left exactly as it was.
+        assert "escalated" not in json.loads(Path(sites).read_text())
+
+
 def test_escalate_only_with_no_plans_is_not_an_error():
     """A batch whose tier 0 read everything has nothing to retry, and that is a
     success rather than a missing file."""
