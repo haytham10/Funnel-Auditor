@@ -305,15 +305,22 @@ def test_qualify_settles_activity_from_the_page_when_no_date_is_given():
 
 
 def test_qualify_prefers_a_date_the_worker_supplied():
+    """And it says so. This used to assert the opposite — that the worker branch
+    printed no `activity settled from` line — which left the one branch that
+    could kill a lead as the one that explained itself least. See
+    `test_qualify_does_not_kill_a_lead_on_a_stale_last_activity`."""
+    from datetime import date, timedelta
+
+    supplied = (date.today() - timedelta(days=9)).isoformat()
     with tempfile.TemporaryDirectory() as tmp:
         lead = write(tmp, "lead.json", {
             "name": "Test Coach", "city": "Dubai", "headline": "Life Coach",
-            "last_activity": "2026-07-25",
+            "last_activity": supplied,
             "site_text": "Latest article 2020-01-01.",
         })
         result = run("qualify", lead)
-        assert "2026-07-25" in result.stdout
-        assert "activity settled from" not in result.stdout
+        assert supplied in result.stdout
+        assert "the worker's last_activity" in result.stdout
 
 
 def _days_ago(n: int) -> str:
@@ -974,6 +981,63 @@ def test_icf_intake_on_a_file_that_is_not_a_workbook_exits_2():
         proc = run("icf-intake", path)
     assert proc.returncode == 2, proc.stdout
     assert "Traceback" not in proc.stdout + proc.stderr
+
+
+# ----------------------------------------------------------------- qualify
+#
+# The one floor built not to have a kill surface, and the second route into it.
+
+
+def _stale_lead(days_ago=65):
+    from datetime import date, timedelta
+    return {"name": "A Coach", "city": "Dubai",
+            "last_activity": (date.today() - timedelta(days=days_ago)).isoformat(),
+            "site_text": "I am an executive coach in Dubai."}
+
+
+def test_qualify_does_not_kill_a_lead_on_a_stale_last_activity():
+    """`2026-08-03-icf1`: 9 of 62 leads killed this way.
+
+    Their workers had recorded `active_recent: unclear` and the real, older date
+    they actually found. `cmd_qualify` handed that date straight to
+    `check_active`, which answers NO to a stale one — so the floor overrode the
+    worker's own verdict with a harsher one derived from the worker's own
+    evidence. A false kill is permanent and invisible; better evidence buys a
+    `yes` and never a kill.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead())
+        proc = run("qualify", path)
+    assert proc.returncode == 0, proc.stdout
+    assert "UNCLEAR" in proc.stdout
+    assert "too old to settle the floor" in proc.stdout
+
+
+def test_qualify_still_kills_on_a_stale_date_when_the_corpus_is_asserted_complete():
+    """D31's rule, kept reachable. A caller that has genuinely seen everything
+    the lead's channels carry may read an old date as evidence of absence."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead())
+        proc = run("qualify", path, "--complete-corpus")
+    assert proc.returncode == 1, proc.stdout
+    assert "active in 30 days" in proc.stdout
+
+
+def test_qualify_still_passes_a_fresh_last_activity():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead(days_ago=3))
+        proc = run("qualify", path)
+    assert proc.returncode == 0, proc.stdout
+    assert "YES" in proc.stdout
+
+
+def test_qualify_always_says_where_the_activity_verdict_came_from():
+    """It printed this line only on the observations path, so the branch that
+    could kill a lead was the one that explained itself least."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead())
+        proc = run("qualify", path)
+    assert "activity settled from:" in proc.stdout
 
 
 # ------------------------------------------------------------------- chunk

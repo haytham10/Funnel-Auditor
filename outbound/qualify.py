@@ -505,6 +505,36 @@ def check_active(*, last_seen: date | None = None, today: date | None = None,
     return Verdict(NO, source or "date", f"{last_seen} ({age}d ago)")
 
 
+def activity_within_window(when: date | None, *, today: date | None = None,
+                           label: str = "the date supplied") -> tuple[date | None, str]:
+    """One date, subject to the upward-only rule. Stale reads as no date at all.
+
+    `check_active` answers `NO` to a stale date, and that is right for a caller
+    that has **asserted a complete corpus** — D31, and `triage --complete-corpus`
+    is the only one. Every other caller holds "the newest thing we happened to
+    retrieve", which is evidence about the retrieval and not about the coach.
+
+    `activity_from_observations` already applies this to a list. It was the only
+    thing that did, and `cmd_qualify` reached `check_active` by a second route:
+    a research object's own `last_activity` field went straight through. On
+    `2026-08-03-icf1` that killed **9 of 62 leads** whose workers had recorded
+    `active_recent: unclear` and a real older date beside it — the floor
+    overrode the worker's own verdict with a harsher one derived from the
+    worker's own evidence, which is the false kill this floor is built not to
+    have. Better evidence buys a `yes` and never a kill.
+    """
+    if when is None:
+        return None, "no date supplied"
+    today = today or date.today()
+    age = (today - when).days
+    if age < 0:
+        return None, f"{label} is in the future ({when})"
+    if age <= ACTIVITY_WINDOW_DAYS:
+        return when, f"{label} {when} ({age}d ago)"
+    return None, (f"{label} is {when} ({age}d ago) — too old to settle the "
+                  f"floor, and never a kill")
+
+
 def activity_from_observations(observations, *,
                                today: date | None = None) -> tuple[date | None, str]:
     """The newest observation date, but ONLY when it clears the floor.

@@ -159,6 +159,39 @@ def test_a_stale_observation_set_is_indistinguishable_from_none():
     assert "too old to settle the floor, and never a kill" in why
 
 
+def test_a_single_stale_date_is_also_indistinguishable_from_none():
+    """The second route to `check_active`, which had no such guard.
+
+    `activity_from_observations` was the only thing applying the upward-only
+    rule, and `cmd_qualify` reached the floor another way: a research object's
+    own `last_activity` field went straight through. On `2026-08-03-icf1` that
+    killed 9 of 62 leads whose workers had recorded `active_recent: unclear`
+    beside a real older date — the floor overriding a worker's own verdict with
+    a harsher one derived from that worker's own evidence.
+    """
+    stale, why = q.activity_within_window(TODAY - timedelta(days=65), today=TODAY)
+    assert stale is None
+    assert q.check_active(last_seen=stale, today=TODAY).value == q.UNCLEAR
+    assert "never a kill" in why
+
+
+def test_a_fresh_single_date_still_settles_the_floor_upward():
+    fresh, why = q.activity_within_window(TODAY - timedelta(days=3), today=TODAY)
+    assert fresh == TODAY - timedelta(days=3)
+    assert q.check_active(last_seen=fresh, today=TODAY).value == q.YES
+    assert "3d ago" in why
+
+
+def test_a_future_single_date_is_not_a_kill_either():
+    when, why = q.activity_within_window(TODAY + timedelta(days=5), today=TODAY)
+    assert when is None
+    assert "future" in why
+
+
+def test_no_date_at_all_reads_as_no_date():
+    assert q.activity_within_window(None, today=TODAY)[0] is None
+
+
 def test_somebody_elses_post_about_them_never_settles_the_floor():
     """Found on the first batch that used this. A lead's only dated observation
     was a company post naming her, two days old, and this called her active on

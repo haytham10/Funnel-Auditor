@@ -595,12 +595,22 @@ def cmd_qualify(args) -> None:
     activity_source = ""
     if last:
         try:
-            last_activity = date.fromisoformat(str(last))
+            supplied = date.fromisoformat(str(last))
         except ValueError:
             print(f"QUALIFY: FAIL — last_activity {last!r} is not an ISO date "
                   f"(YYYY-MM-DD).")
             sys.exit(2)
-        activity_source = "worker"
+        # The same upward-only rule the observations path has always had.
+        # This branch used to hand the date straight to `check_active`, which
+        # answers NO to a stale one — so a worker that honestly recorded
+        # `active_recent: unclear` and the older date it actually found had its
+        # own verdict overridden with a harsher one derived from its own
+        # evidence. On 2026-08-03-icf1 that killed 9 of 62 leads.
+        if args.complete_corpus:
+            last_activity, activity_source = supplied, "worker (complete corpus)"
+        else:
+            last_activity, activity_source = q.activity_within_window(
+                supplied, label="the worker's last_activity")
     else:
         # The observations the worker already retrieved come first: they carry
         # real publication dates, which is the evidence this floor has never
@@ -634,8 +644,7 @@ def cmd_qualify(args) -> None:
         solo=data.get("solo", "unclear"),
     )
     print(result.report(data.get("name", "lead")))
-    if not last:
-        print(f"  activity settled from: {activity_source}")
+    print(f"  activity settled from: {activity_source}")
     sys.exit(0 if result.passed else 1)
 
 
@@ -3356,6 +3365,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("input", help="JSON file, or '-' for stdin. Pass the lead's "
                                  "`observations` alongside its text and the "
                                  "activity floor settles from a real date")
+    p.add_argument("--complete-corpus", dest="complete_corpus",
+                   action="store_true",
+                   help="assert that the evidence is EVERYTHING the lead's "
+                        "channels carry, which is the only thing that lets a "
+                        "stale last_activity kill a lead (D31). Never true of "
+                        "a research pass")
     p.set_defaults(func=cmd_qualify)
 
     p = sub.add_parser("research", help="validate a worker's research object")

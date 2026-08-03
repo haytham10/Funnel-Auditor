@@ -485,6 +485,15 @@ repair was a write-back from the hook stage that an orchestrator had to
 remember. The dates existed one line earlier: research workers have returned
 schema-checked observations since the contract landed.
 
+**Two routes reach the activity floor and both are upward-only.** A stale date
+returns `unclear`, never `no` — from a list of observations, and from a research
+object's own `last_activity` field, which had no such guard and killed 9 of 62
+leads on `2026-08-03-icf1`. Their workers had recorded `active_recent: unclear`
+beside the real older date they found, and the floor overrode that verdict with
+a harsher one derived from the same evidence. `--complete-corpus` is the only
+thing that re-opens the kill, and it is an assertion about the evidence rather
+than a preference. See D31.
+
 ### `research`
 **In** a worker's returned object, or an array of them. **Out** a schema verdict.
 **Guarantees** a verdict outside the enum is caught, and **a hard yes or no with
