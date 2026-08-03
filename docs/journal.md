@@ -1,3 +1,89 @@
+## 2026-08-03 (IG list probe) — two harvested addresses, both junk, neither gate stopped them
+
+Haytham asked how good this machine is at finding emails, then handed it a real
+Instagram list to find out: 527 profile-scraped UAE coaches mined from
+`@alessia_gazzera`'s following, segmented A/B/C/PEER/OUT, 73 actionable. No
+emails, no post captions. Sampled 5 at random (seed `20260803`) from A+B+C and
+ran them as batch `2026-08-03-ig1`.
+
+### Intake returned 0 rows on the sheet's own headers
+
+`Name / positioning` and `Link in bio` are not in `COLUMN_ALIASES`, so no row had
+a name or a site and `keep_lead` dropped all five. It failed loudly — it named
+the ignored columns and said to fix the aliases first — which is the behaviour
+`normalize.py:56` was written for after `companyWebsite` mapped zero of 13 sites.
+The alias table is still the thing a new list shape breaks on first.
+
+Remapped by hand: 5 rows, 3 live sites, 2 social-only, **0 emails on the row**.
+Wall clear. Tier 0 read 3/3 sites free in 6s, all three naming the lead.
+
+### The finding: the address gates check the wrong things
+
+Two addresses were harvested. Both were junk. Neither gate caught it.
+
+**`hello@helenasanders.com`** off `thehealersyurt.com/contact-us` — an unedited
+website template. The same page carries `200 Sutter St Suite 602, San Francisco`,
+the phone number `(422) 820 820`, and `Frday` in the opening hours. Sandra
+Spencer never filled the page in. `email-check` answered `WARN — role account
+(hello@)`: it flagged the local part and said nothing about a domain belonging to
+a different person entirely.
+
+**`johnappleseed@gmail.com`** off Lana Ave's Whop page — Apple's placeholder
+name, harvested from a `mailto:` in the page chrome and not present in the
+visible text at all. `email-check` answered **`PASS — personal`**. Gmail's MX
+resolves, it is not a role account, not a typo domain, not disposable, and
+nothing compares `johnappleseed` to `Lana Ave`. `extract` had already recorded
+`name_match: False` and the gate ignored it, because the name match is a note on
+success and silence on failure.
+
+Two gaps, both already suspected before the list arrived and both now witnessed:
+
+1. **A supplied or harvested address is never checked against the lead's own
+   domain.** `same_site()` exists and is used by `fetch` and `extract`, but
+   `extract.py:144` only applies the domain test to addresses found on *off-site*
+   pages. An address on their own page carrying somebody else's domain is kept
+   unexamined. That is how the template address survived.
+2. **The name match is decoration, not a verdict.** `--name` decorates a PASS and
+   does nothing on a mismatch.
+
+### Enrichment held on both real domains, correctly, and it cost $0.02
+
+`email-enrich` on `jendemel.com` (12 candidates, the `de` particle logic firing)
+and `thehealersyurt.com` (8) both returned HOLD. The ledger confirms the paid
+verifier ran — these are **real catch-all findings**, not the free-path ceiling
+where `verify_local` can never exceed WARN. On a catch-all domain no mailbox is
+confirmable and the machine refuses to adopt a guess, which is right.
+`/contact`, `/contact-us`, `/work-with-me`, `/services` and `/book` on
+jendemel.com are all 404. That site publishes no address at all.
+
+### Result: 0 of 5 reachable by email
+
+| lead | site | address | end state |
+|---|---|---|---|
+| Akram Afify | none, IG only | — | IG scrape declined on ownership (brand handle) |
+| Jen de Mel | jendemel.com | none anywhere | catch-all, HOLD |
+| Sandra Spencer | thehealersyurt.com | template junk | catch-all, HOLD |
+| Jeff Maingi | none, IG only | — | no domain to enrich against |
+| Lana Ave | whop.com | placeholder junk | no own domain |
+
+$0.02 of Apify, 4.3M tokens, 100% orchestrator.
+
+**The structural read, which is not a bug.** This list was mined from a follow
+graph and scored on whether a *booking link* sits in the bio; tier A is Calendly
+and Zoom scheduler links. These coaches are reachable by DM and by their own
+booking page. Most publish no address, and the ones with a domain sit on
+catch-all hosting where nothing can be confirmed. Smartlead needs addresses.
+**The list's contact channel is not the one the machine exports to**, and no
+amount of enrichment changes that — it is a question about which channel this
+offer goes out on, and it is Haytham's to answer.
+
+Smaller: `whop.com` is not in `normalize`'s platform map so it read as Lana's own
+site, where `stan.store` in the same category is mapped. `_profile_name_notes`
+flagged the two brand handles advisory and dropped nobody, as intended.
+
+Nothing was built this session — Haytham held the intake-audit proposal. What
+exists is the measurement that would justify it.
+
 ## 2026-08-02 (token forensics) — the orchestrator was 75% of the bill
 
 Haytham: usage on the last two runs is not normal and I cannot track what is
