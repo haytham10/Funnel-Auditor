@@ -2,55 +2,65 @@
   "batch": "2026-08-03-ig237",
   "measured": true,
   "totals": {
-    "input_tokens": 619,
-    "cache_write": 676331,
-    "cache_read": 36014532,
-    "output_tokens": 107761,
-    "cache_write_5m": 397485,
-    "cache_write_1h": 278846,
-    "requests": 319,
-    "tokens": 36799243
+    "input_tokens": 2950,
+    "cache_write": 1616816,
+    "cache_read": 53918546,
+    "output_tokens": 160949,
+    "cache_write_5m": 1029657,
+    "cache_write_1h": 587159,
+    "requests": 527,
+    "tokens": 55699261
   },
   "orchestrator": {
-    "input_tokens": 309,
-    "cache_write": 278846,
-    "cache_read": 30502126,
-    "output_tokens": 102294,
+    "input_tokens": 385,
+    "cache_write": 587159,
+    "cache_read": 42542504,
+    "output_tokens": 125018,
     "cache_write_5m": 0,
-    "cache_write_1h": 278846,
-    "requests": 164,
-    "tokens": 30883575
+    "cache_write_1h": 587159,
+    "requests": 205,
+    "tokens": 43255066
   },
   "subagents": {
-    "input_tokens": 310,
-    "cache_write": 397485,
-    "cache_read": 5512406,
-    "output_tokens": 5467,
-    "cache_write_5m": 397485,
+    "input_tokens": 2565,
+    "cache_write": 1029657,
+    "cache_read": 11376042,
+    "output_tokens": 35931,
+    "cache_write_5m": 1029657,
     "cache_write_1h": 0,
-    "requests": 155,
-    "tokens": 5915668
+    "requests": 322,
+    "tokens": 12444195
   },
   "by_model": {
     "claude-opus-5": {
-      "requests": 164,
-      "tokens": 30883575
+      "requests": 354,
+      "tokens": 48872386
     },
     "claude-sonnet-5": {
-      "requests": 155,
-      "tokens": 5915668
+      "requests": 173,
+      "tokens": 6826875
     }
   },
   "by_agent": {
+    "draft-worker": {
+      "agents": 8,
+      "requests": 93,
+      "tokens": 4188214
+    },
     "hook-worker": {
       "agents": 6,
       "requests": 98,
       "tokens": 3404634
     },
     "research-worker": {
-      "agents": 1,
-      "requests": 15,
-      "tokens": 1375799
+      "agents": 2,
+      "requests": 33,
+      "tokens": 2287006
+    },
+    "draft-verifier": {
+      "agents": 8,
+      "requests": 56,
+      "tokens": 1429106
     },
     "hook-verifier": {
       "agents": 5,
@@ -58,8 +68,8 @@
       "tokens": 1135235
     }
   },
-  "agents": 12,
-  "orchestrator_share": 0.8392,
+  "agents": 29,
+  "orchestrator_share": 0.7766,
   "sources": {
     "root": "/root/.claude/projects/-home-user-Outbound-Machine",
     "main": [
@@ -67,55 +77,72 @@
     ],
     "subagents": [
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a05b5ad7548a07f85.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a16cc15d6a1b7ce33.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a2e58827a6f557e31.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a3d2ee2ad09dc7b81.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a3f4fdd7db481c7d1.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a3fcf625509b86311.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a4772e236053a35ed.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a686768613bd4d233.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a777bc18c9806d9dd.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a8f57d689b399f007.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a973e81f9d0bc49fe.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aa1fea130c4ce86a8.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aa20b7efd6726a389.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aa908fa39337456f1.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aaa0e1f7f40c27d54.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aac541e966ed30e6b.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aaffd381357482563.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-ab499cf86d8ea0b06.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-abb0ef97b8f83d795.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-abced363f314e8bd1.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-abd476f5cff5d8a14.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-ac9c68bd6aa432c3c.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aca10678602001977.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-ad42bd5c4a1daa78c.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-add7ab072c77248c0.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-ae2e4baf4952231bc.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aeae76436c0f39ab7.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-af350b88db77b406f.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-af6a0b42dcf1706f2.jsonl"
     ]
   },
   "gaps": [],
   "blocks": {
     "chars": {
-      "thinking": 113053,
-      "tool_use": 206871,
-      "text": 9893,
-      "tool_result": 269564,
-      "other": 7668
+      "thinking": 132615,
+      "tool_use": 250241,
+      "text": 17910,
+      "tool_result": 313216,
+      "other": 23407
     },
     "blocks": {
-      "thinking": 77,
-      "tool_use": 177,
-      "text": 23,
-      "tool_result": 176,
-      "other": 12
+      "thinking": 91,
+      "tool_use": 213,
+      "text": 48,
+      "tool_result": 212,
+      "other": 29
     },
-    "total_chars": 607049,
+    "total_chars": 737389,
     "chars_per_token": 4,
     "share": {
-      "thinking": 0.18623373072025487,
-      "tool_use": 0.3407813866755402,
-      "text": 0.01629687224589778,
-      "tool_result": 0.44405641060276846,
-      "other": 0.01263159975553868
+      "thinking": 0.179844017201233,
+      "tool_use": 0.3393609072009482,
+      "text": 0.024288401372952403,
+      "tool_result": 0.424763591537167,
+      "other": 0.03174308268769944
     }
   },
   "price": {
-    "usd": 23.47,
+    "usd": 40.12,
     "by_model": {
       "claude-opus-5": {
-        "tokens": 30883575,
-        "usd": 21.8
+        "tokens": 48872386,
+        "usd": 38.0
       },
       "claude-sonnet-5": {
-        "tokens": 5915668,
-        "usd": 1.67
+        "tokens": 6826875,
+        "usd": 2.12
       }
     },
     "basis": [

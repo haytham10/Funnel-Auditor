@@ -72,8 +72,25 @@ def collect(where: str | Path, stage: str, *, expect: list | None = None,
         except (OSError, ValueError) as exc:
             got.skipped.append(f"{path.name}: {type(exc).__name__}")
             continue
-        for row in _rows(data):
+        rows = _rows(data)
+        # A member with no slug cannot be joined to anything downstream, so it
+        # is not a member. The glob is a filename pattern and a working file
+        # will eventually match it: `draft-observations.json` collected 67
+        # observations as drafts, and every one of them would have reached
+        # `export` as a row with no lead. Named rather than dropped quietly,
+        # because a file the caller thought was a slice is worth knowing about.
+        slugless = [r for r in rows if not str(r.get("slug") or "").strip()]
+        if slugless and len(slugless) == len(rows):
+            got.skipped.append(
+                f"{path.name}: {len(rows)} row(s), none carrying a slug — "
+                f"matched the {glob} pattern but is not a {stage} file")
+            continue
+        for row in rows:
             slug = str(row.get("slug") or "").strip()
+            if not slug:
+                got.skipped.append(
+                    f"{path.name}: a row with no slug, which joins to nothing")
+                continue
             if keep is not None and slug not in keep:
                 continue
             got.members.append(row)

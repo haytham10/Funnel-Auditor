@@ -180,6 +180,21 @@ def test_an_empty_proposal_records_a_null_hook_rather_than_a_pending_one():
         assert rows[0]["hook_verified"] == "none"
 
 
+def test_a_working_file_that_matches_the_glob_is_not_a_slice():
+    """`draft-observations.json` matched `draft-*.json` and collected 67
+    observations as drafts. Every one would have reached export as a row with
+    no lead."""
+    from outbound import collect
+
+    with tempfile.TemporaryDirectory() as where:
+        _write(where, "draft-real.json", {"slug": "coach-zee", "subject": "x"})
+        _write(where, "draft-observations.json",
+               [{"url": "https://instagram.com/p/X", "text": "a caption"}])
+        got = collect.collect(where, "drafts")
+        assert [r["slug"] for r in got.members] == ["coach-zee"]
+        assert got.skipped and "not a drafts file" in got.skipped[0]
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
