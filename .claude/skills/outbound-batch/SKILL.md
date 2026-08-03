@@ -632,8 +632,17 @@ with no record is worse than a kill you can read.
 
 ```
 python main.py crm-rows work/clear.json --research work/researched.json \
-  --drafts work/drafts.json --batch <YYYY-MM-DD> --out out/crm-leads.json
+  --drafts out/shipped.json --batch <YYYY-MM-DD> --out out/crm-leads.json
 ```
+
+**`out/shipped.json`, not `work/drafts.json`.** It is what `export` actually
+wrote, and the two differ whenever `--rebalance-ps` moves a line: the swap
+happens in export's own memory, so the working file keeps the old ps. On
+`2026-08-03-ig237` the CRM said `ps=ps-04` while the reader got `ps-05`, which
+is the "row describing an email nobody received" failure arriving from the
+allocator rather than from a drafter. Passing the working file also silently
+gives every **held** lead a draft, which makes `_blockers` return nothing and
+turns four `Held` rows into `Drafted` ones.
 
 Then write `out/crm-leads.json` through the MCP. **Nothing in the repo touches
 the CRM** — the boundary is that a Lead row lands where a human sees it, and

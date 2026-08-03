@@ -545,11 +545,17 @@ leaks into the identity beat. A hook carrying a figure with no quote passed is a
 warning, never a silent pass.
 
 ### `export`
-**In** drafts. **Out** `out/leads.csv`, `out/preview.txt`,
+**In** drafts. **Out** `out/leads.csv`, `out/preview.txt`, `out/shipped.json`,
 `out/wall-additions.csv`, `out/line-usage.csv`, `out/rejected.txt`.
 **Guarantees** an email that failed the lint is *absent* from the upload file,
-not flagged in it; and that all five outputs are cleared first, so a blocked
-batch cannot leave a stale uploadable file behind. `--anchors` additionally
+not flagged in it; and that all six outputs are cleared first, so a blocked
+batch cannot leave a stale uploadable file behind.
+
+**`shipped.json` is the drafts exactly as they entered `leads.csv`, and it is
+what `crm-rows --drafts` must read.** `--rebalance-ps` swaps a ps line in this
+command's own memory and never writes it back, so the working drafts file keeps
+the old one — on `2026-08-03-ig237` the CRM said `ps=ps-04` while the reader got
+`ps-05`. Same rule as `Hook`: the row says what the reader saw. `--anchors` additionally
 checks the drafts really used the lines the batch deal assigned, on both the
 reported id and the written text.
 

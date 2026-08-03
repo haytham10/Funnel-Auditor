@@ -30,6 +30,7 @@ in a CSV is an email that gets sent by accident.
 from __future__ import annotations
 
 import csv
+import json
 import textwrap
 from dataclasses import dataclass, field
 from datetime import date
@@ -370,6 +371,25 @@ def check_crm_enums(draft) -> list[str]:
     return problems
 
 
+def _shipped_row(draft: Draft) -> dict:
+    """One written draft, in the shape `collect drafts` and `crm-rows` read.
+
+    Not `asdict`: the point is that `body` and `anchor_ids` are the POST-export
+    ones, so a reader cannot pick up a pre-rebalance copy by accident.
+    """
+    return {
+        "slug": draft.slug, "name": draft.name,
+        "first_name": draft.first_name, "last_name": draft.last_name,
+        "email": draft.email, "subject": draft.subject, "body": draft.body,
+        "beats": dict(draft.beats), "anchor_ids": dict(draft.anchor_ids),
+        "coach_type": draft.coach_type, "sells_to": draft.sells_to,
+        "city": draft.city, "company": draft.company,
+        "website": draft.website, "linkedin_url": draft.linkedin_url,
+        "hook_type": draft.hook_type, "hook_source_url": draft.hook_source_url,
+        "hook_quote": draft.hook_quote,
+    }
+
+
 def write_batch(drafts: list[Draft], lint_results: dict, *,
                 out_dir: str | Path = "out", batch: str = "",
                 anchor_shares: dict | None = None,
@@ -430,7 +450,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
     # directory — reporting "nothing written" over a file that is still there
     # and still uploadable.
     for stale in ("leads.csv", "preview.txt", "wall-additions.csv",
-                  "line-usage.csv", "rejected.txt"):
+                  "line-usage.csv", "rejected.txt", "shipped.json"):
         (out / stale).unlink(missing_ok=True)
 
     csv_path = out / "leads.csv"
@@ -439,6 +459,7 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
 
     wall_path = out / "wall-additions.csv"
     usage_path = out / "line-usage.csv"
+    shipped_path = out / "shipped.json"
 
     if not batch_blocked and passed:
         with open(csv_path, "w", newline="", encoding="utf-8") as handle:
@@ -447,6 +468,18 @@ def write_batch(drafts: list[Draft], lint_results: dict, *,
             for draft in passed:
                 writer.writerow(draft.row())
         preview_path.write_text(preview(passed), encoding="utf-8")
+
+        # The drafts EXACTLY as they went into leads.csv, for `crm-rows
+        # --drafts`. `--rebalance-ps` swaps a ps line in memory here and never
+        # writes it back, so `work/drafts.json` keeps the old one — and on
+        # `2026-08-03-ig237` the CRM said `ps=ps-04` while the reader got
+        # `ps-05`. The comment guarding the swap already names that failure and
+        # defends against it inside this process only; the gap was the handoff.
+        # The rule is the one `Hook` already follows: **the row says what the
+        # reader saw.**
+        shipped_path.write_text(
+            json.dumps([_shipped_row(d) for d in passed], indent=2,
+                       default=str), encoding="utf-8")
 
         # Written but NOT appended to the wall. Nothing has been sent yet —
         # Haytham uploads by hand, and walling a lead who never actually
