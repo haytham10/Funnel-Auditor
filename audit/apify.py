@@ -1109,7 +1109,7 @@ async function pageFunction(context) {
 
 
 def google_search(queries: list[str] | str, *, country_code: str = "ae",
-                  max_pages: int = 1, ai_overview: bool = True,
+                  max_pages: int = 1, ai_overview: bool = False,
                   approved: bool = False) -> list[dict]:
     """Google SERP for one or many queries, in ONE run. Cost-gated on pages.
 
@@ -1131,9 +1131,13 @@ def google_search(queries: list[str] | str, *, country_code: str = "ae",
     outside the Emirates; pass `""` to let Google decide, which is rarely what
     anybody wants here.
 
-    `ai_overview` adds $0.002 per query for a verdict on absence — see
-    `email_find`'s ABSENT, which is the only reason it is on by default. Its
-    ADDRESSES are never trustworthy; it invented one on the probe.
+    **`ai_overview` is off by default, and it was on for one commit.** It adds
+    $0.002 to a $0.0035 query — nearly doubling the rung — for a verdict on
+    absence that measurement did not support: `email_find`'s ABSENT was wrong
+    on two of five leads whose addresses were live on their own homepages at
+    the time. Its ADDRESSES were never trustworthy either; it invented one on
+    the same probe. Turn it on per lead when an absence is the actual question,
+    not across five hundred rows.
 
     Gated on `len(queries) * max_pages`, the number of `search-page-scraped`
     events, which is this actor's primary charge event and therefore what

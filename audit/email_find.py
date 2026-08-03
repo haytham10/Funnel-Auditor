@@ -201,18 +201,27 @@ def _clean(addr: str) -> str:
     producing `jendemel@icloud.com.if`, a real-looking address on Iceland's
     TLD that goes to the verifier and comes back a hard bounce.
 
-    A trailing label in Title Case is the tell, and it is a clean one: real
-    TLDs are written all-lower or all-upper, never `.If` or `.Then`. Matching
-    on "a capital after a lowercase" instead would have been wrong twice over
-    — it misses this case, where the preceding character is the dot, and it
-    would truncate `SITE.COM`."""
+    Two shapes, and shipping only the first left the second live for one run:
+
+      `...icloud.com.If you`     a whole trailing label in Title Case
+      `...icloud.comLocation:`   the next word glued straight onto the TLD
+
+    The first is caught by dropping a Title-Case label — real TLDs are written
+    all-lower or all-upper, never `.If`. The second needs a cut inside the
+    label at a lowercase-to-uppercase boundary, which `SITE.COM` does not have
+    and `comLocation` does. Neither rule alone covers both, which is how
+    `jendemel@icloud.comlocation` reached a candidate list."""
     raw = (addr or "").strip().strip(".,;:<>()[]\"'")
     local, at, domain = raw.partition("@")
     if at:
         labels = domain.split(".")
         while len(labels) > 2 and re.fullmatch(r"[A-Z][a-z]+", labels[-1]):
             labels.pop()
-        raw = f"{local}@{'.'.join(labels).rstrip('.')}"
+        if labels:
+            cut = re.search(r"(?<=[a-z])(?=[A-Z])", labels[-1])
+            if cut:
+                labels[-1] = labels[-1][:cut.start()]
+        raw = f"{local}@{'.'.join(l for l in labels if l).rstrip('.')}"
     a = raw.lower()
     if a.endswith(_IMAGE_SUFFIXES) or a.count("@") != 1 or "." not in a.split("@")[1]:
         return ""

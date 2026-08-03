@@ -19,3 +19,5 @@
 {"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.0125, "secs": 67.33, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T10:15:17+00:00"}
 {"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.0125, "secs": 85.28, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T10:19:51+00:00"}
 {"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.0125, "secs": 52.8, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T10:23:02+00:00"}
+{"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.0125, "secs": 29.74, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T10:45:10+00:00"}
+{"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.0125, "secs": 52.27, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T10:47:52+00:00"}

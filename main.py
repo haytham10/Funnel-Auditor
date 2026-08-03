@@ -1353,11 +1353,14 @@ def _find_targets(args) -> list[dict]:
             domains = [d for d in (row.get("site_url"), row.get("website"),
                                    row.get("domain")) if d]
             out.append({"name": name,
+                        "lead_key": row.get("lead_key") or "",
+                        "known_email": (row.get("email") or "").strip(),
                         "headline": row.get("headline") or row.get("title") or "",
                         "location": row.get("city") or row.get("location") or "",
                         "domains": domains})
         return out
-    return [{"name": args.name, "headline": args.headline or "",
+    return [{"name": args.name, "lead_key": "", "known_email": "",
+             "headline": args.headline or "",
              "location": args.location or "", "domains": list(args.domain or [])}]
 
 
@@ -1392,7 +1395,7 @@ def cmd_email_find(args) -> None:
     try:
         items = apify.google_search(queries, country_code=args.country,
                                     max_pages=args.pages,
-                                    ai_overview=not args.no_ai_overview,
+                                    ai_overview=args.ai_overview,
                                     approved=args.approve_cost)
     except apify.ApifyCostApprovalRequired as exc:
         print(f"EMAIL FIND: APPROVAL REQUIRED — {exc}")
@@ -1409,16 +1412,44 @@ def cmd_email_find(args) -> None:
             by_term[term] = item
 
     worst = 0
+    verdicts = {}
     for target, query in zip(targets, queries):
         item = by_term.get(query.strip())
         if item is None:
             print(f"EMAIL FIND: NONE — {target['name']}: the run returned no "
                   f"record for this query, so nothing was looked at")
             worst = max(worst, 1)
-            continue
-        code = email_find.print_find(target["name"], item,
-                                     lead_domains=tuple(target["domains"]))
-        worst = max(worst, code)
+            result = {"verdict": "NONE", "candidates": []}
+        else:
+            result = email_find.find_addresses(
+                target["name"], item, lead_domains=tuple(target["domains"]))
+            worst = max(worst, email_find.print_find(
+                target["name"], item, lead_domains=tuple(target["domains"])))
+        best = next((c["email"] for c in result["candidates"]
+                     if c["provenance"] == "organic"), "")
+        verdicts[target["lead_key"] or target["name"]] = {
+            "name": target["name"],
+            "verdict": result["verdict"],
+            "found_email": best,
+            # The whole point of the file. `plan` declines paid retrieval for a
+            # lead nothing can be sent to, and "nothing can be sent to" is a
+            # measurement over every cheap path, never the AI Overview's guess.
+            "reachable": bool(best or target["known_email"]),
+            "known_email": target["known_email"],
+            "query": query,
+        }
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as handle:
+            json.dump(verdicts, handle, indent=1)
+        unreachable = [v["name"] for v in verdicts.values() if not v["reachable"]]
+        print(f"  wrote {args.out} — {len(verdicts) - len(unreachable)}/"
+              f"{len(verdicts)} reachable")
+        if unreachable:
+            print(f"  no address anywhere: {', '.join(unreachable[:12])}"
+                  f"{' ...' if len(unreachable) > 12 else ''}")
+            print(f"  pass it to `plan --addresses {args.out}` — it declines "
+                  f"PAID retrieval for these and never drops them")
     sys.exit(worst)
 
 
@@ -1731,8 +1762,26 @@ def cmd_plan(args) -> None:
         if why:
             print(f"  {why} — planning without it")
 
+    # Leads every cheap address path already failed on. Paid retrieval for one
+    # of them buys a hook for an email nobody can receive, and the agent passes
+    # behind that hook are the batch's real bill.
+    unreachable = set()
+    if args.addresses:
+        rows = _load_json(args.addresses, "PLAN") or {}
+        no_address = 0
+        for key, row in rows.items():
+            if row.get("reachable"):
+                continue
+            no_address += 1
+            unreachable.add(key)
+            if row.get("name"):
+                unreachable.add(row["name"])
+        print(f"  ADDRESSES: {no_address}/{len(rows)} lead(s) have no address on "
+              f"the row, on their site, or anywhere searched — their PAID rungs "
+              f"are declined. They keep every free rung and still get a row.")
+
     result = plan_mod.plan_all(
-        identities, sites=sites, budget=budget,
+        identities, sites=sites, budget=budget, unreachable=unreachable,
         price=plan_mod.apify_price if args.price else None)
     plans = result["plans"]
     print(result["report"])
@@ -2489,6 +2538,9 @@ def build_parser() -> argparse.ArgumentParser:
                         "network; without it a paid step reports 'not priced')")
     p.add_argument("--budget", action="store_true",
                    help="read the monthly Apify cap once and print what is left")
+    p.add_argument("--addresses",
+                   help="verdicts from `email-find --out`: a lead nothing can be "
+                        "sent to loses its PAID rungs and keeps every free one")
     p.add_argument("--out", help="write the plans as JSON")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_plan)
@@ -2617,8 +2669,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--country", default="ae",
                    help="Google country code (default ae — the free WebSearch is US-only)")
     p.add_argument("--pages", type=int, default=1, help="SERP pages per query")
-    p.add_argument("--no-ai-overview", action="store_true",
-                   help="skip the AI Overview: saves $0.002/query and loses the ABSENT verdict")
+    p.add_argument("--ai-overview", action="store_true",
+                   help="add the AI Overview: +$0.002/query (nearly doubles the rung) "
+                        "for an ABSENT verdict measured wrong on 2 of 5 leads")
+    p.add_argument("--out", help="write the per-lead address verdicts for `plan --addresses`")
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_find)
 

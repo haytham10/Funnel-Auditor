@@ -225,6 +225,10 @@ def test_placeholder_addresses_never_become_candidates():
 @pytest.mark.parametrize("raw,expected", [
     # The AI Overview runs sentences together with no space after the address.
     ("jendemel@icloud.com.If", "jendemel@icloud.com"),
+    # The second shape, live for one run after the first was fixed: the next
+    # word glued straight onto the TLD with no separator at all.
+    ("jendemel@icloud.comLocation", "jendemel@icloud.com"),
+    ("jen@site.comWebsite", "jen@site.com"),
     ("a@b.com.If.Then", "a@b.com"),
     ("A@SITE.COM", "a@site.com"),          # an all-caps TLD must survive
     ("a@b.co.uk", "a@b.co.uk"),

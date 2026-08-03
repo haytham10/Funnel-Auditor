@@ -138,14 +138,53 @@ change what they are told. It gates a *purchase* at stage 1c and nothing else. A
 channel that names somebody else is a thing not to spend on; it has never been
 and is not now a reason to research a lead less thoroughly.
 
+## Stage 1bb — can this lead be emailed at all
+
+```
+python main.py email-find --leads work/clear.json --out work/addresses.json --approve-cost
+```
+
+One batched search run for the whole list, about **$0.005 a lead**, and it runs
+**here** rather than as a late fallback after `email-enrich` has already failed.
+
+That ordering is the whole point. The machine ends at a file of email addresses,
+so a lead with no address produces no row no matter how good its hook is — and
+finding that out after research, hook, verify and draft has burned four agent
+passes on them. `q2` and `q3` spent **410M tokens shipping 22 emails**, about
+18.6M each, against $1.13 of Apify for both batches combined. Half a cent spent
+here to avoid one wasted drafting chain pays for itself about four thousand times
+over.
+
+Quote the `EMAIL FIND:` lines and the `wrote` line. The number to report is **how
+many came back with no address anywhere**.
+
+**It drops nobody and you must not either.** Tier 0 already harvested what is on
+their own pages; this searches for what somebody else published. A lead with
+nothing after both still gets researched — free retrieval costs nothing and they
+may yet turn out reachable — and still gets a row. What it loses is the right to
+a *paid* rung, which stage 1c applies.
+
+The AI Overview is off by default and should stay off for a batch: it nearly
+doubles the per-query cost for an absence verdict measured wrong on two of five
+leads. `--ai-overview` on a single lead where absence is the actual question.
+
 ## Stage 1c — what it would cost to look
 
 ```
-python main.py plan work/identity.json --leads work/clear.json --out work/plan.json
+python main.py plan work/identity.json --leads work/clear.json \
+    --addresses work/addresses.json --out work/plan.json
 ```
 
 Free, and it fetches nothing at all — it describes a ladder, it does not walk
-one. Quote the `PLAN:` line. The number that matters is **declined**: how many
+one. Quote the `PLAN:` line and the `ADDRESSES:` line.
+
+**Two decline rules now, and the second is worth far more.** Ownership declines
+a rung pointing at somebody else's channel and saves one scrape.
+`--addresses` declines every paid rung for a lead nothing can be sent to and
+saves the agent passes behind that scrape, which is where the batch's money
+actually goes. Both gate spend and never inclusion.
+
+The number that matters is **declined**: how many
 paid rungs point at a channel that names somebody else. Pair it with the
 `NO RUNG` lines, which are the leads where free retrieval found nowhere to look
 — on the first batch three leads walked the whole ladder and returned nothing,

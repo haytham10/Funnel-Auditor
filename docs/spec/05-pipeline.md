@@ -206,14 +206,21 @@ reading each homepage and then reading it again in `fetch`. See D22 in
 observation contract shipped in.
 
 ### `plan`
-**In** the identities from `resolve --out`, and optionally the Leads, which are
-the only place a lead's own site URL lives. **Out** one `LeadPlan` per lead: the
-rungs that are populated for that person, what each would cost, and which paid
-ones would be declined. **Guarantees** every lead gets a plan, including a lead
-with no rung at all and a lead whose every paid rung would be declined; it
-fetches nothing and runs no actor. **Exit 2** if the identity file cannot be read,
-**exit 1** only if its own output fails its own schema. Owned by
-`outbound/plan.py`.
+**In** the identities from `resolve --out`, optionally the Leads, which are the
+only place a lead's own site URL lives, and optionally the address verdicts from
+`email-find --out`. **Out** one `LeadPlan` per lead: the rungs that are populated
+for that person, what each would cost, and which paid ones would be declined.
+**Guarantees** every lead gets a plan, including a lead with no rung at all and a
+lead whose every paid rung would be declined; it fetches nothing and runs no
+actor. **Exit 2** if the identity file cannot be read, **exit 1** only if its own
+output fails its own schema. Owned by `outbound/plan.py`.
+
+**There are two decline rules and the second is the expensive one.** Ownership
+declines a paid rung pointing at somebody else's channel, which saves a scrape.
+`--addresses` declines every paid rung for a lead nothing can be sent to, which
+saves the research, hook, verify and draft passes behind that scrape — and those
+passes are the batch's actual bill. Both gate spend and never inclusion; both
+leave the lead researched, planned, and holding a row.
 
 **The ladder is here rather than in prose, and that is D23.** Where a hook comes
 from was two markdown files kept in agreement by hand, and the agreement failed
@@ -660,14 +667,37 @@ coach's address is indexed beside their business name far more often than beside
 their positioning line. A link-in-bio or storefront host is never used as that
 term — searching `whop.com` searches for Whop.
 
-**`ABSENT` is the capability the free path never had.** When the overview states
-plainly that no public address exists, that is a decision rather than an empty
-result — this lead is DM-only, stop paying to look. It is advisory, it gates
-spend and never inclusion, and it requires both a stated absence and no organic
-candidate, so a model hedging in prose loses to the SERP underneath it. `NONE`
-is the different answer where nothing was found and nothing was said, and
-collapsing the two would make an unanswered query look like a confirmed dead
-end.
+**The AI Overview is off by default, and it was on for one commit.** It nearly
+doubles the per-query price — `audit/apify.py` owns the event prices and the
+ledger records what a run actually cost — for an `ABSENT` verdict that
+measurement did not support: it was wrong on two of five leads whose addresses
+were live on their own homepages at the time. `--ai-overview` turns it on for a
+lead where an absence is the actual question. Do not pay for it five hundred
+times.
+
+`ABSENT` still means what it says — the overview stated no public address
+exists — and it requires both a stated absence and no organic candidate, so a
+model hedging in prose loses to the SERP underneath it. `NONE` is the different
+answer where nothing was found and nothing was said, and collapsing the two
+would make an unanswered query look like a confirmed dead end. **Neither verdict
+is what `plan` declines on**; see below.
+
+**`--out` writes the per-lead verdicts, and `plan --addresses` reads them.**
+That join is the point of running this stage early. A lead marked
+`reachable: false` — no address on the row, none harvested from their site, none
+published anywhere searched — loses every **paid** rung and keeps every free one.
+
+It is a measurement and never a prediction: `reachable` is false only when every
+cheap path has already looked, never because the AI Overview offered an opinion.
+And it gates spend, never inclusion, the same asymmetry the ownership decline
+holds. The lead is still researched, still planned, still gets a row.
+
+**This decline is worth far more than the ownership one.** A hook costs one
+scrape and several agent passes, and the passes dominate by orders of magnitude
+— `2026-08-02`'s token forensics measured the ratio, `docs/journal.md` records
+it, and `usage` and `ledger` are the two commands that report the halves. A lead
+nothing can be sent to that still walks research, hook, verify and draft spends
+all of that on an email nobody receives.
 
 `ABSENT` exits 0 alongside `FOUND`: a null result reached honestly has always
 been a good answer here. `CLAIMED` and `NONE` exit 1 as open work, and a search

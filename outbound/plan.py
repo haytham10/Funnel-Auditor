@@ -83,6 +83,13 @@ POSTS_PER_LEAD = 5
 # nothing here executes anything.
 DECISIONS = ("take", "decline")
 
+# The phrase that marks an address decline inside a Step's reason, so `report`
+# can count the two rules apart without a second field on every step. A reason
+# is already required to be non-empty and human-readable; this makes one
+# substring of it load-bearing, which is why it is a constant rather than a
+# string typed twice.
+ADDRESS_DECLINE = "nothing can be sent to this lead"
+
 # The `cost_note` of a paid step nobody asked to price. Distinct from the cost
 # gate's own "cannot be priced" reasons, which mean the lookup happened and the
 # answer was that there is no per-item price to read.
@@ -347,7 +354,7 @@ def _rungs_for(platform: str, ladder: tuple = LADDER) -> list:
 
 
 def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
-              price=None) -> LeadPlan:
+              price=None, unreachable: bool = False) -> LeadPlan:
     """One lead's rungs, priced, with the declines written down and not made.
 
     `price` is injected rather than imported so a test never touches the network
@@ -391,6 +398,26 @@ def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
                 decision = "decline"
                 reason = (f"declined: {channel.evidence or 'ownership absent'} "
                           f"— spend only, never inclusion")
+            elif rung.paid and unreachable:
+                # The second decline rule, and the reason it is worth more than
+                # the first: a hook costs one scrape and several agent passes,
+                # and the passes are the bill. q2+q3 spent 410M tokens to ship
+                # 22 emails — about 18.6M each — against $1.13 of Apify for the
+                # same two batches. A lead nothing can be sent to that still
+                # walks research, hook, verify and draft spends that on an
+                # email nobody will receive.
+                #
+                # **It is a measurement, never a prediction.** `unreachable`
+                # means every cheap path already looked and found nothing: no
+                # address on the row, none harvested from their site, none
+                # published anywhere `email-find` searched. It is emphatically
+                # not the AI Overview's opinion that no address exists, which
+                # was wrong on two of five leads whose addresses were live at
+                # the time.
+                decision = "decline"
+                reason = (f"declined: {ADDRESS_DECLINE} — no address on the "
+                          f"row, on their site, or anywhere searched. Spend "
+                          f"only, never inclusion")
 
             lead_plan.steps.append(Step(
                 lead_key=lead_plan.lead_key, rung=rung.name,
@@ -411,7 +438,8 @@ def plan_lead(identity, *, site_url: str = "", ladder: tuple = LADDER,
 
 
 def plan_all(identities: list, *, sites: dict | None = None,
-             ladder: tuple = LADDER, price=None, budget: dict | None = None) -> dict:
+             ladder: tuple = LADDER, price=None, budget: dict | None = None,
+             unreachable: set | None = None) -> dict:
     """Every lead's plan, plus the batch report.
 
     **Every lead gets one**, including a lead with no rung at all and a lead
@@ -420,11 +448,19 @@ def plan_all(identities: list, *, sites: dict | None = None,
 
     `sites` maps `fetch.lead_key` to a site URL, which is the one thing an
     Identity does not carry.
+
+    `unreachable` is a set of lead keys for which every cheap address path has
+    already run and found nothing — `main.py email-find --out` computes it. A
+    lead in it keeps every free rung and loses every paid one, and still gets a
+    plan, a row and a place in the batch.
     """
     sites = sites or {}
+    unreachable = unreachable or set()
     plans = [plan_lead(identity,
                        site_url=sites.get(getattr(identity, "lead_key", ""), ""),
-                       ladder=ladder, price=price)
+                       ladder=ladder, price=price,
+                       unreachable=(getattr(identity, "lead_key", "") in unreachable
+                                    or getattr(identity, "name", "") in unreachable))
              for identity in identities]
     return {"plans": plans, "report": report(plans, budget=budget)}
 
@@ -549,8 +585,17 @@ def report(plans: list[LeadPlan], *, budget: dict | None = None) -> str:
     declines = [s for s in steps if s.decision == "decline"]
     nowhere = [p for p in plans if not p.has_rung]
 
+    # The two rules are counted apart because they answer different questions
+    # and have different reversal conditions. Ownership asks "is this channel
+    # theirs" and saves a scrape; address asks "can this person be emailed at
+    # all" and saves the agent passes behind the scrape. A single total would
+    # have reported the first live run of the address rule — eight steps, every
+    # one of them declined on address — as eight ownership declines.
+    on_address = [s for s in declines if ADDRESS_DECLINE in s.reason]
+    on_ownership = [s for s in declines if s not in on_address]
+
     by_platform: dict[str, int] = {}
-    for step in declines:
+    for step in on_ownership:
         by_platform[step.platform] = by_platform.get(step.platform, 0) + 1
     breakdown = ", ".join(f"{n} {platform}" for platform, n
                           in sorted(by_platform.items())) or "none"
@@ -571,9 +616,14 @@ def report(plans: list[LeadPlan], *, budget: dict | None = None) -> str:
     lines = [
         f"PLAN: {head}, {len(plans)} lead(s), {len(steps)} step(s) — "
         f"{len(steps) - len(paid)} free, {len(paid)} paid",
-        f"  declined {len(declines)} paid step(s) on ownership: {breakdown}",
+        f"  declined {len(on_ownership)} paid step(s) on ownership: {breakdown}",
         _estimate_line(paid, priced, not_priced, unpriceable),
     ]
+    if on_address:
+        lines.insert(2, (
+            f"  declined {len(on_address)} paid step(s) on address: "
+            f"{len({s.lead_key for s in on_address})} lead(s) nobody can email. "
+            f"This is the decline that saves agent passes rather than scrapes"))
     per_lead = sum(1 for s in paid if s.rung == "li_posts")
     if per_lead:
         lines.append(f"  {per_lead} li_posts step(s) are one container boot "
