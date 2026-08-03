@@ -1,3 +1,36 @@
+## 2026-08-03 (after the upload) — the CRM described an email nobody received
+
+Wall and copy-usage ran for `2026-08-03-ig237`: 117 -> 119 contacts, both at
+Outreach Sent and not warm, and 8 lines dated back to Copy Assets. The batch's
+6 Leads rows and its Batches row went in through the MCP — 2 Exported, 4 Held,
+each held row carrying its Blocker.
+
+**Checking the shipped file against the rows I had just written caught a real
+one.** Abdul Hadi Mazloum's CRM row said `ps=ps-04` and carried the pre-swap
+body; `leads.csv` carried `ps-05`.
+
+`export --rebalance-ps` moves a ps line in its own memory and never writes it
+back, so `work/drafts.json` keeps the old one — and `crm-rows` reads the working
+file. The comment guarding that swap already names this failure in these words,
+"the CRM row describing an email nobody received arriving from the allocator
+instead of from a drafter", and defends against it *inside* export. The gap was
+the handoff, which nothing was watching.
+
+`out/shipped.json` is now the drafts exactly as they entered `leads.csv`, and
+both the skill and `05-pipeline.md` say `crm-rows --drafts out/shipped.json`.
+The live row was corrected by hand.
+
+**A second thing that file was hiding:** passing `work/drafts.json` gives every
+*held* lead a draft too, and `_blockers` returns nothing when a draft exists —
+so four Held rows would have gone in as Drafted with no reason attached. That is
+the same defect as the ps swap wearing different clothes: a file that looks like
+the batch's truth and is one stage stale.
+
+`crm._status` also learned the rule the Status field always stated — a row with
+a Blocker is `Held`. It had been returning `Drafted` for a lead with a verified
+hook and no shipped draft, which describes how far a lead GOT: right mid-run,
+wrong in the row that outlives the run.
+
 ## 2026-08-03 (sourcing) — Instagram is a corpus, and the join that makes it one
 
 Haytham, on the ig237 result: 2 emails for ~$53, so Instagram is not a good
