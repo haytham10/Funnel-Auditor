@@ -234,6 +234,12 @@ def ingest(path: str, *, source: str = "", fetched_at: str = ""
         leads.append(lead)
         observations.extend(to_observations(
             record, lead_key=key_of(lead), fetched_at=fetched_at))
+    for obs in observations:
+        # Written out rather than left blank. `from_dict` generates one on load,
+        # so a blank id round-trips fine in Python and joins to nothing on disk
+        # — and the file is the thing a worker, a diff and `hook --against` read.
+        if not obs.obs_id:
+            obs.obs_id = observe.make_id(obs)
     return leads, observations
 
 

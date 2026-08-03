@@ -194,6 +194,20 @@ def test_a_dump_that_is_not_an_array_is_refused():
     raise AssertionError("a dict is not an Apify dataset and must not read as one")
 
 
+def test_the_written_file_carries_content_derived_ids():
+    """A blank obs_id round-trips fine in Python — `from_dict` generates one on
+    load — and joins to nothing on disk, which is where a worker, a diff and
+    `hook --against` read it."""
+    import json as _json
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+        handle.write("[" + _json.dumps(_record()) + "]")
+        path = handle.name
+    _, observations = ig_intake.ingest(path)
+    assert all(o.obs_id for o in observations)
+    assert all(o.obs_id == observe.make_id(o) for o in observations)
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
