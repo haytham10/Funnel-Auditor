@@ -1,70 +1,70 @@
-## 2026-08-03 (the 70-lead measurement) — 37% found, 14% verified, and a warm thread
+## 2026-08-03 (the orchestrator share) — narration was 7%, and the rule chased it
 
-The FOUND rate the last two entries kept saying was unknown. Batch
-`2026-08-03-ig73`, every actionable row of the Instagram list.
+Haytham: now go after the orchestrator share. It is 75% of the bill and the
+last three entries kept deferring it.
 
-**A warm-thread hit, and it is the headline.** `dedupe` stopped on **Rita Baki
-— matched on name, status Offer Sent**. She is on the wall at a live stage and
-she is on this list. Nothing reached her: the wall runs before any paid call and
-she is excluded from `clear73.json`. This run sent nothing and was a search, but
-the wall did the one job it exists for, on the first list it was pointed at
-since it was built.
+**The diagnosis in `CLAUDE.md` was right about the total and wrong about the
+target.** It said two-thirds of what is re-read each turn is the orchestrator's
+own writing, which is true, and drew from it: never narrate per lead. Measured
+on this session's own transcript:
 
-### The funnel
-
-| | n | of 70 |
+| block | ~tokens | share |
 |---|---|---|
-| rows in the sheet (A+B+C) | 73 | |
-| survived intake | 71 | two rows had neither a parseable name nor a site |
-| clear of the wall | 70 | |
-| **FOUND — an address with a citation** | **26** | **37%** |
-| ABSENT | 22 | 31% |
-| CLAIMED (AI Overview only) | 12 | 17% |
-| NONE | 10 | 14% |
-| **verified deliverable (PASS)** | **10** | **14%** |
-| WARN — catch-all or inconclusive | 12 | 17% |
-| FAIL — hard bounce | 4 | 6% |
+| thinking | 76,841 | **34.3%** |
+| tool_result | 68,676 | 30.6% |
+| tool_use (the model's OWN calls) | 63,002 | 28.1% |
+| text (prose to the operator) | 15,214 | **6.8%** |
 
-Of the 26 found: 10 role accounts, 9 on free providers, 7 personal-on-branded.
-**The free-provider share matters** — `email_enrich` refuses to guess against a
-free provider, correctly, so those nine were reachable by no other path in this
-machine.
+Narration is the smallest of the four. A rule aimed at it is aimed at 7% of the
+context, and the two blocks nobody was looking at are 62%.
 
-**Cost: $0.2010 total.** $0.1750 of search over 70 leads ($0.0025 each) and
-$0.0260 verifying 26 addresses ($0.0010 each). The whole measurement cost less
-than a twentieth of what one shipped email costs in tokens.
+`tool_use` being that large is the surprise worth naming: **a heredoc, a `Write`
+payload or a long `python3 -` script sits in the context for the rest of the
+run**, exactly like a tool result does. Writing a file is not a free action.
 
-### The failure mode the corroboration rule does not catch
+### `cache_read` is a sum, and that is the whole cost model
 
-`brandon.garcia@unlv.edu` for a Dubai coach named Brandon Garcia — the
-University of Nevada. `jack.graham@avisonyoung.com` — a commercial real estate
-firm. `matt.wright@gmail.com`, which **verified PASS**.
+`cache_read` is the sum of the context over every turn. So it falls with a
+smaller context *and* with fewer turns, and it rises **quadratically** when a run
+gets longer and chattier at once. Halving per-turn output and halving turn count
+are the same size of win, and they multiply.
 
-All three passed corroboration on `name_match`, which asks whether the local
-part carries the lead's name and cannot ask whether it is *this* person of that
-name. The previous entry's three revisions fixed "an address on a page that
-merely mentions them"; none of them touch **a different human being with the
-same name**. The verifier caught two of the three as hard bounces, by luck
-rather than by design: a real stranger's real mailbox verifies clean, and
-`matt.wright@gmail.com` is exactly that.
+This session: 230 requests, ~224K context, **53.0M tokens, $37.36** — and it ran
+**zero subagents**. That is a pure orchestrator specimen, and it cost more than
+q1, q2 and q3's entire Apify bills multiplied by twenty.
 
-So **14% is the upper bound on usable, not the number**. Call it 12%, and treat
-a FOUND address as a candidate a human confirms, never something to adopt. The
-preview is the gate, as it has always been.
+### What shipped
 
-### What it is worth
+**`usage` now prints the block profile.** Characters rather than tokens, and it
+says so — the transcript carries no per-block token count and a tokeniser here
+would be a second estimate dressed as a measurement. Main thread only: a
+subagent's context dies with it and is already reported per agent. A profile of
+nothing prints no section rather than a row of zeroes, which is `metrics`' rule
+about a count nobody supplied.
 
-The list arrived with zero addresses and the 5-lead probe called it
-0% reachable. It is about 12-14% reachable for twenty cents.
+**`research-worker` writes its own slice and replies with one line.** The skill
+used to say workers write nothing and then validate `work/research-<slice>.json`
+— so the array came back through the orchestrator's context and was copied to
+disk by hand, paying for it twice and leaving the run unresumable. A research
+object carries verbatim observation text at roughly a thousand tokens per lead;
+a slice of ten is ten thousand tokens held for **every remaining turn**.
+`collect research` has always built `researched.json` from those files.
 
-The more valuable half is the other 44 of 70 — **63% have no address anywhere**.
-`plan --addresses` declines their paid rungs, and the batch skill now names
-`work/addresses.json` as the mechanical form of a condition it already carried
-in prose: an unreachable lead does not enter the hook wave or stage 4. Four
-agent passes each, on 44 leads, for emails that could never be sent. That is
-where the token bill of q2 and q3 actually went.
+`hook-worker` gets the same treatment. `draft-worker` already had it and its
+reasoning is the one both now quote.
 
-Nothing here settles whether 37% is good. It is one list, mined one way, in one
-market, and the previous entry's finding still stands: query wording swings the
-yield and the SERP is not deterministic.
+**`CLAUDE.md`'s rule is rewritten** around the measurement instead of the
+inference, and keeps the narration advice with its real weight attached.
+
+### What is not fixed
+
+Thinking is 34% and nothing here can shorten it directly — it falls with fewer
+turns, or with a lower reasoning effort on mechanical stages, and neither is a
+change this repo can make on its own behalf. The honest position is that the
+measurement now exists, two of the four blocks have a mechanical fix, and the
+largest one is a judgement call the next batch will have to test.
+
+**No batch has run since any of this.** `metrics --written` reads
+`tokens_per_email` out of the usage artifact and that is the control number.
+Nothing here is proven until a real batch produces one to compare.
 

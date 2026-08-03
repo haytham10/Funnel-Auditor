@@ -348,3 +348,76 @@ if __name__ == "__main__":
                 failures += 1
                 print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     sys.exit(1 if failures else 0)
+
+
+# ------------------------------------------------ what the context is made of
+
+
+def content(role: str, blocks: list, sidechain: bool = False) -> dict:
+    return {"type": role, "isSidechain": sidechain,
+            "message": {"role": role, "content": blocks}}
+
+
+def test_the_block_profile_separates_thinking_from_prose():
+    """The measurement CLAUDE.md's rule was missing. It reasoned from "two-thirds
+    is the orchestrator's own writing" — true — and pointed the fix at narration,
+    which measured 7% while thinking measured 34%."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sources = project(tmp, [
+            content("assistant", [{"type": "thinking", "thinking": "x" * 400}]),
+            content("assistant", [{"type": "text", "text": "y" * 100}]),
+            content("assistant", [{"type": "tool_use", "name": "Bash",
+                                   "input": {"command": "z" * 200}}]),
+            content("user", [{"type": "tool_result", "content": "w" * 300}]),
+        ])
+        p = usage.block_profile(sources)
+    assert p["chars"]["thinking"] > p["chars"]["text"]
+    assert p["blocks"]["thinking"] == 1
+    assert p["blocks"]["tool_result"] == 1
+    assert abs(sum(p["share"].values()) - 1.0) < 1e-6
+
+
+def test_a_users_own_words_are_not_counted_as_orchestrator_text():
+    """Folding the operator's messages into `text` would make asking a question
+    look like an orchestration cost, which is the one thing here nobody should
+    be economising on."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sources = project(tmp, [content("user", [{"type": "text", "text": "q" * 500}])])
+        p = usage.block_profile(sources)
+    assert p["chars"]["text"] == 0
+    assert p["chars"]["other"] > 0
+
+
+def test_the_profile_ignores_subagent_context():
+    """A subagent's context dies with the subagent and is already reported per
+    agent. This question is about the thread that survives every turn."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sources = project(tmp, [
+            content("assistant", [{"type": "thinking", "thinking": "m" * 100}]),
+            content("assistant", [{"type": "thinking", "thinking": "s" * 900}],
+                    sidechain=True),
+        ])
+        p = usage.block_profile(sources)
+    assert p["chars"]["thinking"] < 500
+
+
+def test_the_report_prints_the_profile_and_says_what_cache_read_is():
+    with tempfile.TemporaryDirectory() as tmp:
+        sources = project(tmp, [
+            assistant("r1", output=5, read=100),
+            content("assistant", [{"type": "thinking", "thinking": "t" * 200}]),
+        ])
+        text = usage.report(usage.summarise(usage.read_turns(sources),
+                                            batch="b", sources=sources))
+    assert "context is made of" in text
+    assert "thinking" in text
+    assert "SUM of this over every turn" in text
+
+
+def test_a_profile_of_nothing_prints_no_section_rather_than_zeroes():
+    """`metrics`' rule: a count nobody supplied is not a measurement of zero."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sources = project(tmp, [assistant("r1", output=5, read=100)])
+        text = usage.report(usage.summarise(usage.read_turns(sources),
+                                            batch="b", sources=sources))
+    assert "context is made of" not in text

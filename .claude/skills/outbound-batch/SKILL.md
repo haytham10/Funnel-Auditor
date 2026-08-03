@@ -210,11 +210,23 @@ Fan out `research-worker`, one per slice of ~10 leads, at most 5 at a time.
 Give each worker its slice, the relevant part of `work/sites.json`, and the
 Apify budget note.
 
-Workers **write nothing**. They return typed research objects. Validate each:
+**Each worker writes its own slice to `work/research-<slice>.json` and replies
+with one line.** It runs the gate itself and quotes the output:
 
 ```
 python main.py research work/research-<slice>.json
 ```
+
+That is a change from "workers write nothing, they return typed objects", which
+had the array come back through your context and get copied to disk by hand. A
+research object runs about a thousand tokens per lead, so a slice of ten was ten
+thousand tokens you then carried **for every remaining turn of the run** — and
+`cache_read` is the sum of the context over turns, so a block that lands early
+is paid for hundreds of times. Measured 2026-08-03: `tool_result` is 31% of the
+orchestrator's context and it is the share you can actually move.
+
+Re-validate the files yourself only if a worker's quoted line is missing or does
+not say PASS. Do not read the slices into your context to check them.
 
 That checks the observations each object carries too — one record per page or
 post the worker actually read, text verbatim. **`research` is the gate; the

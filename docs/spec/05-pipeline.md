@@ -987,10 +987,29 @@ count of what was found is not a count of what should exist.
 
 ### `usage`
 **In** the session's own transcripts. **Out** what the batch cost in Claude
-tokens — totals by bucket and model, the orchestrator/subagent split, and a
-per-agent-type breakdown — plus `data/runs/<batch>-usage.json`. **Guarantees** a
-transcript it cannot parse is an error naming where it looked, never a zero.
-**Exit 2** on that. **Never exit 1.** Owned by `outbound/usage.py`.
+tokens — totals by bucket and model, the orchestrator/subagent split, a
+per-agent-type breakdown, and **what the orchestrator's context is made of** —
+plus `data/runs/<batch>-usage.json`. **Guarantees** a transcript it cannot parse
+is an error naming where it looked, never a zero. **Exit 2** on that. **Never
+exit 1.** Owned by `outbound/usage.py`.
+
+**Totals say a batch was expensive; the block profile says what to stop putting
+in the loop.** `cache_read` is the sum of the context over every turn, so it
+falls with a smaller context *and* with fewer turns, and rises quadratically when
+a run gets both longer and chattier. The profile splits that context into
+thinking, tool results, the model's own tool calls, and prose — and the split is
+why it exists. The rule it replaced reasoned from the true observation that
+two-thirds of the re-read is the orchestrator's own writing and concluded "never
+narrate per lead"; measured, prose to the operator is the smallest of the four
+and thinking is the largest. A fix aimed at the wrong quarter is the thing this
+number prevents.
+
+It counts characters rather than tokens and says so: the transcript records no
+per-block token count, and a tokeniser here would be a second estimate dressed
+as a measurement. It profiles the main thread only — a subagent's context dies
+with the subagent and is already reported per agent. A profile of nothing prints
+no section at all rather than a row of zeroes, which is `metrics`' rule about a
+count nobody supplied.
 
 **A pass count is not a magnitude.** `ledger pass` records that an agent ran,
 because neither an orchestrator nor a worker can see its own token usage. So the

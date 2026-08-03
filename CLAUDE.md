@@ -92,11 +92,20 @@ repair path.
   cannot catch a hook that lands wrong on a specific person.
 - **The orchestrator's context is the largest cost in a run, measured.** Across
   `2026-08-02-q2` and `q3`, **75% of every token spent was the main loop** — not
-  the drafters, not the researchers. 410M tokens for 22 emails, and two-thirds of
-  what was re-read on each of ~390 turns was the orchestrator's own writing. So:
-  **fan out a whole wave in one message**, let a command read the files rather
-  than reading twelve objects into the loop, and never narrate per lead. None of
-  that trades away a check — the money was never in the work.
+  the drafters, not the researchers. 410M tokens for 22 emails.
+  **`cache_read` is the sum of the context over every turn**, so it falls with a
+  smaller context and with fewer turns, and it grows quadratically when a run
+  gets chattier and longer at once.
+  **What the context is made of is now measured, not guessed** — `usage` prints
+  it. On 2026-08-03: thinking 34%, tool results 31%, the model's own tool calls
+  28%, and **prose to the operator 7%**. This file used to reason from
+  "two-thirds is the orchestrator's own writing" — true, and it pointed the fix
+  at narration, which is the smallest of the three. So: **fan out a whole wave in
+  one message**, have every worker write its output to a file and reply with one
+  line, let a command read those files rather than reading twelve objects into
+  the loop, and keep tool calls small — a heredoc lives in the context as long as
+  the run does. Narrate less too, but know it is worth 7%. None of that trades
+  away a check; the money was never in the work.
 - **Copy rules, every email:** no em-dashes. No operator jargon (funnel,
   conversion, audit, sequence). No weak closers. Sign off "Haytham". Numbers with
   separators. No gendered pronoun in an identity line.
