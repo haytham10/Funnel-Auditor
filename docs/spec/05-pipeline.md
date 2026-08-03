@@ -626,6 +626,58 @@ domains.
 address asked about — an address the actor did not answer on comes back as
 `no_result` rather than being dropped from the list.
 
+### `email-find`
+An address **somebody else published**, in one batched search run. The third
+and last address path: `extract` harvests what is printed on the lead's own
+pages, `email-enrich` guesses at their own domain, and both only ever look at
+the lead. A coach's address is routinely printed by an accreditation body, a
+directory, or a company page and nowhere else, which is why on the probe that
+justified this stage four of five addresses were found off-site and two were on
+domains the machine had never seen.
+
+**An organic result is a citation; an AI Overview is a claim**, and the verdicts
+keep them apart. `FOUND` carries a URL that can be re-fetched, which is the
+standard `hook-verifier` already holds a quote to. `CLAIMED` means only the
+overview said so — it must be confirmed on its cited page or dropped, never
+adopted, because on the probe it produced a plausible role address on a real
+domain, attributed to a real page, for a mailbox that does not exist. Nothing
+here adopts anything either way: every candidate still goes through
+`email-check` and `email-verify`, which is what turned that fabrication into a
+hard FAIL instead of a send.
+
+**An address needs a reason to be believed this lead's**: their name in the
+local part, a domain already known to be theirs, or a source page that names
+them in full. Without that rule the first live run reported `FOUND` four times
+in five on strangers' addresses, because a query about a person returns pages
+that merely mention them and each carried exactly one address, which ranking
+floated to the top. Uncorroborated addresses are counted in the report and kept
+out of the candidate list — a dropped address stays visible, since the filter is
+a heuristic and the count is how anybody notices it going wrong.
+
+**The query carries the lead's known domain**, and that one term is the
+difference between a run that finds four addresses and a run that finds none. A
+coach's address is indexed beside their business name far more often than beside
+their positioning line. A link-in-bio or storefront host is never used as that
+term — searching `whop.com` searches for Whop.
+
+**`ABSENT` is the capability the free path never had.** When the overview states
+plainly that no public address exists, that is a decision rather than an empty
+result — this lead is DM-only, stop paying to look. It is advisory, it gates
+spend and never inclusion, and it requires both a stated absence and no organic
+candidate, so a model hedging in prose loses to the SERP underneath it. `NONE`
+is the different answer where nothing was found and nothing was said, and
+collapsing the two would make an unanswered query look like a confirmed dead
+end.
+
+`ABSENT` exits 0 alongside `FOUND`: a null result reached honestly has always
+been a good answer here. `CLAIMED` and `NONE` exit 1 as open work, and a search
+layer that could not run exits 2 — the `email-verify-batch` rule again, since a
+dead fetch layer must never read as "these leads have no address".
+
+The logic lives in `audit/email_find.py` and **fetches nothing**, the same
+property that made `audit/footprint.py`'s retirement a deletion rather than a
+rewrite. `audit/apify.py` owns the fetch and which actor `serp` names.
+
 ### `apify`
 The no-login third-party fetch layer, and the only paid one. Subcommands:
 `apify limits` (check the budget **once per batch**), `apify actors`,
@@ -641,6 +693,18 @@ field that by design changes no decision. The Google SERP actor duplicated the
 agent's own free WebSearch, which `audit/footprint.py` already called the
 preferred path and which is what every skill actually used.
 `classify-footprint` is untouched: it never fetched anything itself.
+
+**A SERP actor came back 2026-08-03 as `serp`, for a different job.** The
+retirement above was about **sourcing**, where the free path still does the work
+and nothing has been restored. `email-find` is **address retrieval**, which was
+not a stage then, and the probe that added it measured why free search cannot
+serve it: the agent's WebSearch is US-geo'd with no country control, returns a
+summariser's paraphrase rather than the results, and answered three of five
+UAE-coach queries with the wrong person. `countryCode` and raw organic results
+are the difference. It is priced per event rather than per compute-second, so
+batching saves the one-off start fee and nothing more — still worth doing, but
+without the container-boot economics that make batching dominate everywhere
+else here.
 
 `apify li-profile` and `apify verify-email` take one target or several; several
 is one actor run for the whole batch rather than one per lead (`li-profile`

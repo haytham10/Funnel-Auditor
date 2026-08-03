@@ -33,6 +33,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     email-verify     deliverability confirm before a send
     email-verify-batch  the same, for a whole slice's addresses in one call
     email-enrich     the no-address fallback on the lead's own domain
+    email-find       an address somebody else published, one batched search run
     ledger      what each retrieval cost and how long it took
     metrics     what the hook stage yielded, and what the leads that yielded
                 nothing cost. `?` for a count nobody supplied, never 0
@@ -1328,6 +1329,99 @@ def cmd_email_verify_batch(args) -> None:
     sys.exit(worst)
 
 
+def _find_targets(args) -> list[dict]:
+    """The leads to search for, from a file or from the command line.
+
+    A file may be `intake --out` Leads or a research corpus; both carry `name`,
+    and the headline/site fields are optional everywhere. Anything without a
+    name is skipped and named, because a query built from an empty name
+    searches for the words "email address" and charges for the page."""
+    if args.leads:
+        with open(args.leads, encoding="utf-8") as handle:
+            blob = json.load(handle)
+        rows = blob if isinstance(blob, list) else (
+            blob.get("leads") or blob.get("research") or [])
+        out = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            name = (row.get("name") or "").strip()
+            if not name:
+                print(f"  SKIP  a row with no name ({row.get('lead_key') or '?'}) "
+                      f"— a nameless query costs a page and finds nobody")
+                continue
+            domains = [d for d in (row.get("site_url"), row.get("website"),
+                                   row.get("domain")) if d]
+            out.append({"name": name,
+                        "headline": row.get("headline") or row.get("title") or "",
+                        "location": row.get("city") or row.get("location") or "",
+                        "domains": domains})
+        return out
+    return [{"name": args.name, "headline": args.headline or "",
+             "location": args.location or "", "domains": list(args.domain or [])}]
+
+
+def cmd_email_find(args) -> None:
+    """Find an address somebody ELSE published, in one batched search run.
+
+    The third address path, after `extract`'s harvest of the lead's own pages
+    and `email_enrich`'s nominative guess at their own domain. It exists
+    because both of those only ever look at the lead, and a coach's address is
+    routinely printed by an accreditation body, a directory or a company page
+    and nowhere else. On the 2026-08-03 probe that is exactly where four of
+    five addresses were, two on domains the machine had never seen.
+
+    **Every query goes in one run.** Correlation back to leads is on the
+    query text, never on position — the actor returns records in an order
+    matching nothing in particular.
+
+    Exit 0 when every lead reached FOUND or ABSENT, 1 when any is still open
+    (CLAIMED or NONE), 2 when the search layer itself could not run — which is
+    the batch-health rule `email-verify-batch` learned: a dead fetch layer must
+    not read as "these leads have no address"."""
+    from audit import apify, email_find
+
+    targets = _find_targets(args)
+    if not targets:
+        print("EMAIL FIND: nothing to search for — no named leads")
+        sys.exit(2)
+
+    queries = [email_find.build_query(t["name"], t["headline"], t["location"],
+                                      tuple(t["domains"]))
+               for t in targets]
+    try:
+        items = apify.google_search(queries, country_code=args.country,
+                                    max_pages=args.pages,
+                                    ai_overview=not args.no_ai_overview,
+                                    approved=args.approve_cost)
+    except apify.ApifyCostApprovalRequired as exc:
+        print(f"EMAIL FIND: APPROVAL REQUIRED — {exc}")
+        sys.exit(3)
+    except apify.ApifyError as exc:
+        print(f"EMAIL FIND: could not search ({exc}) — this says nothing about "
+              f"these {len(targets)} lead(s), who have not been looked up")
+        sys.exit(2)
+
+    by_term = {}
+    for item in items:
+        term = ((item.get("searchQuery") or {}).get("term") or "").strip()
+        if term:
+            by_term[term] = item
+
+    worst = 0
+    for target, query in zip(targets, queries):
+        item = by_term.get(query.strip())
+        if item is None:
+            print(f"EMAIL FIND: NONE — {target['name']}: the run returned no "
+                  f"record for this query, so nothing was looked at")
+            worst = max(worst, 1)
+            continue
+        code = email_find.print_find(target["name"], item,
+                                     lead_domains=tuple(target["domains"]))
+        worst = max(worst, code)
+    sys.exit(worst)
+
+
 def cmd_email_enrich(args) -> None:
     """The no-address fallback: derive name-based candidates on the lead's OWN
     branded domain, verify them in one batched call, adopt at most one. Never
@@ -2510,6 +2604,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("domain", help="domain or site URL")
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_enrich)
+
+    p = sub.add_parser("email-find",
+                       help="an address somebody else published, one batched search run")
+    p.add_argument("name", nargs="?", default="",
+                   help="one lead's full name; omit when using --leads")
+    p.add_argument("--leads", help="Leads or research JSON — every named row, one run")
+    p.add_argument("--headline", default="", help="their positioning line, single-lead form")
+    p.add_argument("--location", default="", help="city or country, single-lead form")
+    p.add_argument("--domain", action="append",
+                   help="a domain already known to be theirs; repeatable")
+    p.add_argument("--country", default="ae",
+                   help="Google country code (default ae — the free WebSearch is US-only)")
+    p.add_argument("--pages", type=int, default=1, help="SERP pages per query")
+    p.add_argument("--no-ai-overview", action="store_true",
+                   help="skip the AI Overview: saves $0.002/query and loses the ABSENT verdict")
+    p.add_argument("--approve-cost", action="store_true")
+    p.set_defaults(func=cmd_email_find)
 
     p_ledger = sub.add_parser("ledger",
                               help="what each retrieval cost and how long it took")
