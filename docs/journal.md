@@ -1,74 +1,70 @@
-## 2026-08-03 (the address decline) — spend the half cent early, save the agent passes
+## 2026-08-03 (the 70-lead measurement) — 37% found, 14% verified, and a warm thread
 
-Haytham, on the SERP rung's cost: I did not mean Apify alone, I meant cost in
-general, and what hurt yesterday was the token cost on the two batches.
+The FOUND rate the last two entries kept saying was unknown. Batch
+`2026-08-03-ig73`, every actionable row of the Instagram list.
 
-He is right and the ratio is not close. Measured, `q2`+`q3`: **410.3M tokens
-against $1.13 of Apify.** At this session's own blended rate that is roughly
-$445 of tokens, so **Apify is about 0.25% of the bill** and every actor
-decision in this repo has been an argument about a rounding error. Per shipped
-email: ~18.6M tokens, ~$0.014 of Apify.
+**A warm-thread hit, and it is the headline.** `dedupe` stopped on **Rita Baki
+— matched on name, status Offer Sent**. She is on the wall at a live stage and
+she is on this list. Nothing reached her: the wall runs before any paid call and
+she is excluded from `clear73.json`. This run sent nothing and was a search, but
+the wall did the one job it exists for, on the first list it was pointed at
+since it was built.
 
-Two changes, and only the second one matters.
+### The funnel
 
-### The AI Overview is off by default
+| | n | of 70 |
+|---|---|---|
+| rows in the sheet (A+B+C) | 73 | |
+| survived intake | 71 | two rows had neither a parseable name nor a site |
+| clear of the wall | 70 | |
+| **FOUND — an address with a citation** | **26** | **37%** |
+| ABSENT | 22 | 31% |
+| CLAIMED (AI Overview only) | 12 | 17% |
+| NONE | 10 | 14% |
+| **verified deliverable (PASS)** | **10** | **14%** |
+| WARN — catch-all or inconclusive | 12 | 17% |
+| FAIL — hard bounce | 4 | 6% |
 
-It nearly doubled the per-query price for the `ABSENT` verdict, which the
-previous entry measured wrong on two of five leads whose addresses were live on
-their own homepages. Measured back to back on the same five leads: **$0.0235
-with it, $0.0135 without.** The arithmetic is exact — five pages plus one start
-fee, no `ai-overview-scraped` event.
+Of the 26 found: 10 role accounts, 9 on free providers, 7 personal-on-branded.
+**The free-provider share matters** — `email_enrich` refuses to guess against a
+free provider, correctly, so those nine were reachable by no other path in this
+machine.
 
-**And the Overview text still comes back free.** The $0.002 buys a specialized
-proxy that raises the *probability* of capturing one, not the capture itself. So
-`ABSENT` still fires opportunistically at no charge, which is strictly better
-than the flag implied in either direction. `--ai-overview` remains for a single
-lead where an absence is the actual question.
+**Cost: $0.2010 total.** $0.1750 of search over 70 leads ($0.0025 each) and
+$0.0260 verifying 26 addresses ($0.0010 each). The whole measurement cost less
+than a twentieth of what one shipped email costs in tokens.
 
-### `plan --addresses`: the second decline rule
+### The failure mode the corroboration rule does not catch
 
-`email-find --out` writes a per-lead verdict; `plan --addresses` reads it and
-**declines every paid rung for a lead nothing can be sent to**, keeping every
-free one. `email-find` moves out of the late fallback slot and runs at stage
-1bb, right after dedupe.
+`brandon.garcia@unlv.edu` for a Dubai coach named Brandon Garcia — the
+University of Nevada. `jack.graham@avisonyoung.com` — a commercial real estate
+firm. `matt.wright@gmail.com`, which **verified PASS**.
 
-The machine ends at a file of email addresses. A lead with no address produces
-no row however good its hook is — and today that is discovered *after* research,
-hook, verify and draft have each burned a pass on them. Half a cent spent before
-research to avoid one wasted drafting chain pays for itself about four thousand
-times.
+All three passed corroboration on `name_match`, which asks whether the local
+part carries the lead's name and cannot ask whether it is *this* person of that
+name. The previous entry's three revisions fixed "an address on a page that
+merely mentions them"; none of them touch **a different human being with the
+same name**. The verifier caught two of the three as hard bounces, by luck
+rather than by design: a real stranger's real mailbox verifies clean, and
+`matt.wright@gmail.com` is exactly that.
 
-**It is a measurement, never a prediction.** `reachable: false` means every
-cheap path already looked and found nothing: no address on the row, none
-harvested from their site, none published anywhere searched. It is emphatically
-not the AI Overview's opinion, which is the thing measured unreliable. And it
-gates spend and never inclusion — the lead is still researched, still planned,
-still holds a row, exactly as D21 requires.
+So **14% is the upper bound on usable, not the number**. Call it 12%, and treat
+a FOUND address as a candidate a human confirms, never something to adopt. The
+preview is the gate, as it has always been.
 
-**The report counts the two rules apart**, and that was not cosmetic: the first
-live run declined eight steps, seven of them on address, and a single total
-reported all eight as ownership declines. Opposite diagnosis, opposite fix.
-`ADDRESS_DECLINE` is a constant because one substring of a reason string is now
-load-bearing.
+### What it is worth
 
-### Two bugs the live runs found, both in prose parsing
+The list arrived with zero addresses and the 5-lead probe called it
+0% reachable. It is about 12-14% reachable for twenty cents.
 
-The AI Overview writes addresses into running text with no separator, and the
-address regex reads whatever follows as more domain. `jendemel@icloud.com.If
-you...` became `...com.if`, a real-looking address on Iceland's TLD that goes to
-the verifier and returns a hard bounce. Fixed by dropping a trailing Title-Case
-label — and then **the second shape shipped live for one run anyway**:
-`jendemel@icloud.comLocation`, glued straight onto the TLD with no dot at all,
-which needs a cut at a lowercase-to-uppercase boundary *inside* the label.
-Neither rule alone covers both, and `SITE.COM` must survive both.
+The more valuable half is the other 44 of 70 — **63% have no address anywhere**.
+`plan --addresses` declines their paid rungs, and the batch skill now names
+`work/addresses.json` as the mechanical form of a condition it already carried
+in prose: an unreachable lead does not enter the hook wave or stage 4. Four
+agent passes each, on 44 leads, for emails that could never be sent. That is
+where the token bill of q2 and q3 actually went.
 
-### Still unsettled, and it is the thing to measure next
-
-The SERP is not deterministic and the yield swings on query wording. The
-hand-written queries found four addresses in five; the auto-built ones have
-returned between zero and two across four runs of the same command, and the last
-run found nothing for anybody. `email-find`'s FOUND rate remains unknown, and
-until it is known **the address decline is only as good as the search under
-it** — which is an argument for running it over a real slice and counting, not
-for trusting five leads twice.
+Nothing here settles whether 37% is good. It is one list, mined one way, in one
+market, and the previous entry's finding still stands: query wording swings the
+yield and the SERP is not deterministic.
 

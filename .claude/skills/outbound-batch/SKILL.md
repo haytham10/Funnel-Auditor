@@ -382,6 +382,15 @@ claim.
 For every lead that passed the floors and has a verified address, fan out
 `hook-worker`, then `hook-verifier` on each proposal.
 
+**"Has a verified address" is a file now, not a thing to remember.** A lead whose
+entry in `work/addresses.json` says `reachable: false`, and which research did
+not subsequently find an address for, does not enter this wave or stage 4. It is
+not dropped — it keeps its research, its plan and its CRM row — it simply does
+not get a hook and a draft written for an email that cannot be sent. Measured on
+the 2026-08-03 list, **that is about 63% of the leads**, and the four agent
+passes each of them would have consumed are the batch's actual bill. Say how
+many you excluded and why.
+
 **Give each worker three things**: its lead's entry in `work/select.json`, the
 `hook_room` on its entry in `work/anchors.json`, and its `LeadPlan` from
 `work/plan.json`. The plan is what tells it which rung an escalation may use and
