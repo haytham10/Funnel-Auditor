@@ -2,87 +2,125 @@
   "batch": "2026-08-03-ig237",
   "measured": true,
   "totals": {
-    "input_tokens": 234,
-    "cache_write": 231360,
-    "cache_read": 20387076,
-    "output_tokens": 82263,
-    "cache_write_5m": 0,
-    "cache_write_1h": 231360,
-    "requests": 124,
-    "tokens": 20700933
+    "input_tokens": 619,
+    "cache_write": 676331,
+    "cache_read": 36014532,
+    "output_tokens": 107761,
+    "cache_write_5m": 397485,
+    "cache_write_1h": 278846,
+    "requests": 319,
+    "tokens": 36799243
   },
   "orchestrator": {
-    "input_tokens": 234,
-    "cache_write": 231360,
-    "cache_read": 20387076,
-    "output_tokens": 82263,
+    "input_tokens": 309,
+    "cache_write": 278846,
+    "cache_read": 30502126,
+    "output_tokens": 102294,
     "cache_write_5m": 0,
-    "cache_write_1h": 231360,
-    "requests": 124,
-    "tokens": 20700933
+    "cache_write_1h": 278846,
+    "requests": 164,
+    "tokens": 30883575
   },
   "subagents": {
-    "input_tokens": 0,
-    "cache_write": 0,
-    "cache_read": 0,
-    "output_tokens": 0,
-    "cache_write_5m": 0,
+    "input_tokens": 310,
+    "cache_write": 397485,
+    "cache_read": 5512406,
+    "output_tokens": 5467,
+    "cache_write_5m": 397485,
     "cache_write_1h": 0,
-    "requests": 0,
-    "tokens": 0
+    "requests": 155,
+    "tokens": 5915668
   },
   "by_model": {
     "claude-opus-5": {
-      "requests": 124,
-      "tokens": 20700933
+      "requests": 164,
+      "tokens": 30883575
+    },
+    "claude-sonnet-5": {
+      "requests": 155,
+      "tokens": 5915668
     }
   },
-  "by_agent": {},
-  "agents": 0,
-  "orchestrator_share": 1.0,
+  "by_agent": {
+    "hook-worker": {
+      "agents": 6,
+      "requests": 98,
+      "tokens": 3404634
+    },
+    "research-worker": {
+      "agents": 1,
+      "requests": 15,
+      "tokens": 1375799
+    },
+    "hook-verifier": {
+      "agents": 5,
+      "requests": 42,
+      "tokens": 1135235
+    }
+  },
+  "agents": 12,
+  "orchestrator_share": 0.8392,
   "sources": {
     "root": "/root/.claude/projects/-home-user-Outbound-Machine",
     "main": [
       "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f.jsonl"
     ],
-    "subagents": []
+    "subagents": [
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a05b5ad7548a07f85.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a4772e236053a35ed.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a686768613bd4d233.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a777bc18c9806d9dd.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a8f57d689b399f007.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-a973e81f9d0bc49fe.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aa908fa39337456f1.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-aaa0e1f7f40c27d54.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-abced363f314e8bd1.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-abd476f5cff5d8a14.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-ad42bd5c4a1daa78c.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f/subagents/agent-af6a0b42dcf1706f2.jsonl"
+    ]
   },
   "gaps": [],
   "blocks": {
     "chars": {
-      "thinking": 92151,
-      "tool_use": 174354,
-      "text": 2093,
-      "tool_result": 226239,
-      "other": 430
+      "thinking": 113053,
+      "tool_use": 206871,
+      "text": 9893,
+      "tool_result": 269564,
+      "other": 7668
     },
     "blocks": {
-      "thinking": 59,
-      "tool_use": 136,
-      "text": 8,
-      "tool_result": 135,
-      "other": 3
+      "thinking": 77,
+      "tool_use": 177,
+      "text": 23,
+      "tool_result": 176,
+      "other": 12
     },
-    "total_chars": 495267,
+    "total_chars": 607049,
     "chars_per_token": 4,
     "share": {
-      "thinking": 0.18606327496077874,
-      "tool_use": 0.3520404145642653,
-      "text": 0.004226003347689226,
-      "tool_result": 0.4568020885704075,
-      "other": 0.0008682185568592294
+      "thinking": 0.18623373072025487,
+      "tool_use": 0.3407813866755402,
+      "text": 0.01629687224589778,
+      "tool_result": 0.44405641060276846,
+      "other": 0.01263159975553868
     }
   },
   "price": {
-    "usd": 14.56,
+    "usd": 23.47,
     "by_model": {
       "claude-opus-5": {
-        "tokens": 20700933,
-        "usd": 14.56
+        "tokens": 30883575,
+        "usd": 21.8
+      },
+      "claude-sonnet-5": {
+        "tokens": 5915668,
+        "usd": 1.67
       }
     },
     "basis": [
-      "claude-opus-5 list rate"
+      "claude-opus-5 list rate",
+      "claude-sonnet-5 introductory rate, through 2026-08-31"
     ],
     "unpriceable": [],
     "as_of": "2026-06-24",

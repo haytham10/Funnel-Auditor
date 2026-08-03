@@ -101,6 +101,85 @@ def test_the_written_file_is_the_list_the_next_stage_reads():
         assert [r["slug"] for r in json.loads(target.read_text())] == ["a", "b"]
 
 
+# ------------------------------------------------- the hook verdicts, merged
+
+
+def _research_row(slug="coach-zee", **over):
+    row = {"slug": slug, "name": "Coach Zee", "hook_verified": "proposed",
+           "observations": [{"url": "https://instagram.com/p/X"}]}
+    row.update(over)
+    return row
+
+
+def _write(dirpath, name, payload):
+    import json as _json
+    (Path(dirpath) / name).write_text(_json.dumps(payload), encoding="utf-8")
+
+
+def test_a_verdict_lands_on_the_research_object():
+    """The skill has said "merge them in one step" since the verifier got Write,
+    and nothing did it — so a verified batch read `hook_verified: proposed` and
+    `metrics` computed hook_yield 0% off a legal-looking value."""
+    from outbound import collect
+
+    with tempfile.TemporaryDirectory() as where:
+        rows = [_research_row()]
+        _write(where, "hookverdict-zee.json",
+               {"slug": "zee", "verdict": "VERIFIED",
+                "resolved_hook": "your picks from this year's photos.",
+                "quote_found": "3 or 4 are my fav",
+                "hook_source_url": "https://instagram.com/p/X",
+                "hook_date": "2026-07-31"})
+        _write(where, "hook-zee.json", {"hook_type": "LIFE",
+                                        "observation_id": "abc123"})
+        assert collect.merge_hooks(Path(where), rows) == []
+        assert rows[0]["hook_verified"] == "verified"
+        assert rows[0]["hook"] == "your picks from this year's photos."
+        assert rows[0]["hook_type"] == "LIFE"
+        assert rows[0]["observation_id"] == "abc123"
+
+
+def test_a_refuted_verdict_writes_the_status_and_not_the_hook():
+    """Keeping the text an independent reader refused would leave the field a
+    drafter reads populated and the field a gate reads failing."""
+    from outbound import collect
+
+    with tempfile.TemporaryDirectory() as where:
+        rows = [_research_row(hook="something certified by nobody")]
+        _write(where, "hookverdict-zee.json",
+               {"slug": "zee", "verdict": "REFUTED",
+                "resolved_hook": "something certified by nobody"})
+        collect.merge_hooks(Path(where), rows)
+        assert rows[0]["hook_verified"] == "refuted"
+        assert rows[0]["hook"] == ""
+
+
+def test_an_ambiguous_verdict_is_refused_rather_than_placed():
+    """Merging a certification onto the wrong lead ships a verified hook about
+    somebody else — the one mistake in this file that reaches a reader."""
+    from outbound import collect
+
+    with tempfile.TemporaryDirectory() as where:
+        rows = [_research_row("coach-zee"), _research_row("zee-coaching")]
+        _write(where, "hookverdict-zee.json",
+               {"slug": "zee", "verdict": "VERIFIED", "resolved_hook": "x"})
+        problems = collect.merge_hooks(Path(where), rows)
+        assert problems and "2 research object(s)" in problems[0]
+        assert all(r["hook_verified"] == "proposed" for r in rows)
+
+
+def test_an_empty_proposal_records_a_null_hook_rather_than_a_pending_one():
+    """A worker that looked and wrote no hook has answered. `proposed` reads
+    like a lead nobody got to."""
+    from outbound import collect
+
+    with tempfile.TemporaryDirectory() as where:
+        rows = [_research_row("kayleigh-green")]
+        _write(where, "hook-kayleigh-green.json", [])
+        collect.merge_hooks(Path(where), rows)
+        assert rows[0]["hook_verified"] == "none"
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
