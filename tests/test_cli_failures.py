@@ -922,6 +922,78 @@ def test_icf_intake_on_a_file_that_is_not_a_workbook_exits_2():
     assert "Traceback" not in proc.stdout + proc.stderr
 
 
+# ------------------------------------------------------------------- chunk
+#
+# The command that decides who a batch is made of. Its two failure modes are
+# both "a lead vanished and nobody decided that".
+
+CHUNK_HEADERS = ("Email,Email status,LinkedIn URL,Instagram URL,"
+                 "Website (listed),Website (found),Dedupe,Credential,Emirate\n")
+
+
+def test_chunk_without_a_readable_enrichment_exits_2():
+    """A file nobody could open is not a list of zero coaches."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json", [{"name": "A", "email": "a@x.com"}])
+        proc = run("chunk", leads, "--enriched", str(Path(tmp) / "nope.csv"),
+                   "--dry-run")
+    assert proc.returncode == 2, proc.stdout
+    assert "could not read" in proc.stdout
+
+
+def test_chunk_on_an_enrichment_missing_a_column_exits_2_naming_it():
+    """Not a silent tiering of every lead into held-out."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json", [{"name": "A", "email": "a@x.com"}])
+        csv_path = write(tmp, "e.csv", "Email,Dedupe\na@x.com,clear\n")
+        proc = run("chunk", leads, "--enriched", csv_path, "--dry-run")
+    assert proc.returncode == 2, proc.stdout
+    assert "Email status" in proc.stdout
+
+
+def test_chunk_exits_1_on_a_lead_the_enrichment_does_not_carry():
+    """Exit 1, not a silent hold-out. An unjoined lead and an excluded one look
+    identical in the output and differ by whether anybody decided anything."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json",
+                      [{"name": "A", "email": "a@x.com"},
+                       {"name": "Ghost", "email": "ghost@x.com"}])
+        csv_path = write(tmp, "e.csv", CHUNK_HEADERS
+                         + "a@x.com,PASS,https://linkedin.com/in/a,,,,clear,PCC,Dubai\n")
+        proc = run("chunk", leads, "--enriched", csv_path, "--dry-run")
+    assert proc.returncode == 1, proc.stdout
+    assert "ghost@x.com" in proc.stdout
+
+
+def test_chunk_dry_run_writes_nothing():
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json", [{"name": "A", "email": "a@x.com"}])
+        csv_path = write(tmp, "e.csv", CHUNK_HEADERS
+                         + "a@x.com,PASS,https://linkedin.com/in/a,,,,clear,PCC,Dubai\n")
+        out = Path(tmp) / "out"
+        proc = run("chunk", leads, "--enriched", csv_path,
+                   "--out-dir", str(out), "--dry-run")
+        assert proc.returncode == 0, proc.stdout
+        assert not out.exists()
+
+
+def test_chunk_writes_four_files_and_the_held_one_carries_a_reason():
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json",
+                      [{"name": "A", "email": "a@x.com"},
+                       {"name": "B", "email": "b@x.com"}])
+        csv_path = write(tmp, "e.csv", CHUNK_HEADERS
+                         + "a@x.com,PASS,https://linkedin.com/in/a,,,,clear,PCC,Dubai\n"
+                         + "b@x.com,FAIL,,,,,clear,ACC,Dubai\n")
+        out = Path(tmp) / "out"
+        proc = run("chunk", leads, "--enriched", csv_path,
+                   "--out-dir", str(out), "--prefix", "t")
+        assert proc.returncode == 0, proc.stdout
+        assert len(list(out.glob("t-*.json"))) == 4
+        held = json.loads((out / "t-held-out.json").read_text())
+        assert held and "dead address" in held[0]["reason"]
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

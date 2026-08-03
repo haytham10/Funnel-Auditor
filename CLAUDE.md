@@ -53,6 +53,9 @@ channel-find the LinkedIn / Instagram / website a directory list arrives
             stays blank
 icf-export  the enrichment joined back onto the workbook, plus the committed
             CSV and leads.json
+chunk       an enriched list -> the chunks a batch actually runs, cut by
+            evidence rather than by row number, and the leads it holds out with
+            a written reason. A list is not a batch
 triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
@@ -201,6 +204,15 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   for sliding under the cost gate. The state file keeps the raw SERP rows beside
   each verdict, so a rule change is **re-scorable without re-paying** — which is
   how three real defects were fixed after the live run at zero cost.
+- `python main.py chunk <leads.json> --enriched <csv>` — who a batch is made of.
+  **Cut by evidence, not by row number** (D34): a dead address produces no row
+  and a lead with no channel has nowhere for research to look, so thirds of the
+  file pay for both groups three times. Chunks 1 and 2 are stratified halves of
+  one pool so the first one's yield **predicts** the second's rather than
+  describing the easy end of the list. **Held out is not dropped** — every
+  excluded lead is in a committed file with its reason, which is `qualify`'s
+  false-kill rule one stage earlier. Exit 1 on a lead the enrichment does not
+  carry, named; exit 2 on an enrichment it could not read.
 - `python main.py icf-intake <x.xlsx>` / `icf-export` — the directory source
   reader and the join back. The values that matter are cell hyperlinks, and the
   ICP prefill is a **hint file that settles no floor**.

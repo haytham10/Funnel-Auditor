@@ -805,6 +805,47 @@ mean the corroboration ladder is costing coverage it does not buy back; or by a
 hook stage that re-confirms identity on the page it scrapes, which would move
 this check downstream to where the content already is.
 
+---
+
+### D34 · A batch is cut by evidence, and the leads it leaves out are written down
+
+**2026-08-03.** A list larger than a batch is split by what each lead's evidence
+can support, not by row number, and every lead the split excludes lands in a
+committed file carrying the reason it was excluded.
+
+**Thirds of the file is the obvious cut and it pays three times for the same
+mistake.** Of the 300 clear leads on the ICF UAE list, 33 have an address the
+paid verifier calls dead and 76 have no LinkedIn, no Instagram and no website. A
+dead address produces no row however good the hook is. A lead with no channel
+has nowhere for research to look, so the activity floor cannot settle and no
+hook can be cited — and the agent passes spent discovering that are the batch's
+actual bill, which is the arithmetic `plan --addresses` already runs one stage
+later. Cutting by row number puts a third of both groups into all three chunks.
+
+**The two halves exist so the second chunk is a decision.** Chunks 1 and 2 are
+stratified halves of one pool — a PASS-verified address and a LinkedIn URL —
+balanced on credential, emirate and whether a second channel exists. Taking the
+first 62 instead would make chunk 1 the easy end of the list and its yield a
+number that predicts nothing, which matters because **chunk 1's yield is the only
+thing that decides whether chunk 2 runs at all.** No prior batch has measured
+what share of a directory list is still active, and q3's 182M tokens on 34 raw
+rows is what a wrong guess costs.
+
+**The held-out file is the decision's receipt.** Nothing is deleted. 120 leads
+sit out with one of three reasons attached, so a later reader sees a decision
+somebody made rather than an oversight, and a future source that supplies a
+channel makes them runnable without re-deriving who they were. This is
+`qualify`'s rule that a false kill is permanent and invisible, applied one stage
+earlier — and the same argument that puts `data/contacted-before.csv` in the
+repo: membership is cheap to store and expensive to reconstruct. The file is
+deliberately not shaped like a leads file, because a file that loads as leads is
+a file somebody eventually runs.
+
+**Reversed by** a measured yield showing the held-out leads ship at a rate worth
+their agent passes — most plausibly the no-channel 76, if a research pass on the
+name alone turns out to date them — or by a batch size large enough that the
+evidence tiers stop being the binding constraint on what a run can hold.
+
 ## What is unknown
 
 - **Nothing here has been reversed yet.** The reversal conditions are untested,

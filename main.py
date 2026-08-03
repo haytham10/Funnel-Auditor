@@ -15,6 +15,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
                 coach filled in themselves. The values are cell hyperlinks
     icf-export  the enrichment joined back onto that workbook, plus the
                 committed CSV and leads.json
+    chunk       an enriched list -> the chunks a batch runs, and the leads it
+                holds out with a written reason. Cut by evidence, not row number
     triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
     corpus      attach a corpus somebody else retrieved to the list being run
     dedupe      the Contacted-Before wall, both passes
@@ -212,6 +214,61 @@ def cmd_icf_intake(args) -> None:
               f"{len(leads)}. A count of what was found is not a count of what "
               f"should exist.")
         sys.exit(1)
+
+
+def cmd_chunk(args) -> None:
+    """An enriched list -> the chunks a batch runs, and the leads it holds out.
+
+    A 300-lead list is not a batch. q3 spent 182M tokens on 34 raw rows, so the
+    size and the membership of a run are decisions worth writing down once and
+    deterministically rather than re-deciding by hand at the top of every run.
+
+    The cut is by evidence because the leads are not interchangeable: a dead
+    address produces no row however good the hook is, and a lead with no channel
+    has nowhere for research to look. Thirds of the file would pay for both
+    groups three times over.
+
+    **Nothing is dropped.** Every excluded lead lands in the held-out file
+    carrying its reason, so a hundred missing rows read as a decision somebody
+    made rather than as an oversight — `qualify`'s rule that a false kill is
+    permanent and invisible, applied one stage earlier.
+
+    Exit 2 when the enrichment cannot be read — an unreadable file is not a list
+    of zero coaches. Exit 1 on a lead the enrichment does not carry, named:
+    silently holding it out and deliberately holding it out look identical in
+    the output and differ by whether anybody decided anything.
+    """
+    from outbound import chunk as chunk_mod
+
+    leads = _load_leads(args.leads)
+    try:
+        enriched = chunk_mod.load_enriched(args.enriched)
+    except chunk_mod.ChunkError as exc:
+        print(f"CHUNK: FAIL — {exc}")
+        sys.exit(2)
+
+    groups, reasons, unjoined = chunk_mod.assign(
+        leads, enriched, seed=args.seed)
+    print(chunk_mod.report(groups, reasons, enriched))
+
+    if unjoined:
+        print(f"CHUNK: FAIL — {len(unjoined)} lead(s) are not in "
+              f"{args.enriched}, so nothing decided where they go:")
+        for lead in unjoined[:10]:
+            print(f"    {getattr(lead, 'name', '?')} "
+                  f"<{getattr(lead, 'email', '')}>")
+        if len(unjoined) > 10:
+            print(f"    ... and {len(unjoined) - 10} more")
+        sys.exit(1)
+
+    if args.dry_run:
+        print("  --dry-run: wrote nothing")
+        return
+    for path in chunk_mod.write(groups, reasons, args.out_dir,
+                                prefix=args.prefix):
+        print(f"  wrote {path}")
+    print("  commit all four — membership is the record, and a held-out lead "
+          "with no file is a lead nobody can explain later")
 
 
 def cmd_ig_intake(args) -> None:
@@ -3228,6 +3285,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--expect", type=int, default=0,
                    help="fail closed if this many leads do not arrive")
     p.set_defaults(func=cmd_icf_intake)
+
+    p = sub.add_parser("chunk",
+                       help="an enriched list -> the chunks a batch runs, cut "
+                            "by evidence rather than by row number")
+    p.add_argument("leads", help="Leads from `icf-intake --out` or `icf-export`")
+    p.add_argument("--enriched", required=True,
+                   help="the enriched CSV `icf-export --csv` wrote")
+    p.add_argument("--out-dir", default="data/lists",
+                   help="where the four files go (default: data/lists)")
+    p.add_argument("--prefix", default="icf",
+                   help="filename prefix (default: icf)")
+    p.add_argument("--seed", type=int, default=20260803,
+                   help="the halving seed. Same seed, same two halves")
+    p.add_argument("--dry-run", action="store_true",
+                   help="print the composition and write nothing")
+    p.set_defaults(func=cmd_chunk)
 
     p = sub.add_parser("corpus",
                        help="attach a corpus somebody else retrieved to the "
