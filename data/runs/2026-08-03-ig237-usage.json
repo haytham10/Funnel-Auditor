@@ -1,0 +1,91 @@
+{
+  "batch": "2026-08-03-ig237",
+  "measured": true,
+  "totals": {
+    "input_tokens": 234,
+    "cache_write": 231360,
+    "cache_read": 20387076,
+    "output_tokens": 82263,
+    "cache_write_5m": 0,
+    "cache_write_1h": 231360,
+    "requests": 124,
+    "tokens": 20700933
+  },
+  "orchestrator": {
+    "input_tokens": 234,
+    "cache_write": 231360,
+    "cache_read": 20387076,
+    "output_tokens": 82263,
+    "cache_write_5m": 0,
+    "cache_write_1h": 231360,
+    "requests": 124,
+    "tokens": 20700933
+  },
+  "subagents": {
+    "input_tokens": 0,
+    "cache_write": 0,
+    "cache_read": 0,
+    "output_tokens": 0,
+    "cache_write_5m": 0,
+    "cache_write_1h": 0,
+    "requests": 0,
+    "tokens": 0
+  },
+  "by_model": {
+    "claude-opus-5": {
+      "requests": 124,
+      "tokens": 20700933
+    }
+  },
+  "by_agent": {},
+  "agents": 0,
+  "orchestrator_share": 1.0,
+  "sources": {
+    "root": "/root/.claude/projects/-home-user-Outbound-Machine",
+    "main": [
+      "/root/.claude/projects/-home-user-Outbound-Machine/732461ee-cad6-5450-a8b0-3e9dc52d876f.jsonl"
+    ],
+    "subagents": []
+  },
+  "gaps": [],
+  "blocks": {
+    "chars": {
+      "thinking": 92151,
+      "tool_use": 174354,
+      "text": 2093,
+      "tool_result": 226239,
+      "other": 430
+    },
+    "blocks": {
+      "thinking": 59,
+      "tool_use": 136,
+      "text": 8,
+      "tool_result": 135,
+      "other": 3
+    },
+    "total_chars": 495267,
+    "chars_per_token": 4,
+    "share": {
+      "thinking": 0.18606327496077874,
+      "tool_use": 0.3520404145642653,
+      "text": 0.004226003347689226,
+      "tool_result": 0.4568020885704075,
+      "other": 0.0008682185568592294
+    }
+  },
+  "price": {
+    "usd": 14.56,
+    "by_model": {
+      "claude-opus-5": {
+        "tokens": 20700933,
+        "usd": 14.56
+      }
+    },
+    "basis": [
+      "claude-opus-5 list rate"
+    ],
+    "unpriceable": [],
+    "as_of": "2026-06-24",
+    "priced_on": "2026-08-03"
+  }
+}
