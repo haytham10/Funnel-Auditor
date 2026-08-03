@@ -12,6 +12,7 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     ig-intake   an Instagram profile dump -> Leads AND the observations it
                 already carries, so the paid posts rung buys nothing new
     triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
+    corpus      attach a corpus somebody else retrieved to the list being run
     dedupe      the Contacted-Before wall, both passes
     wall-add    append a shipped batch to the wall, after it is uploaded
     qualify     the three floors, run over a research JSON
@@ -99,6 +100,7 @@ def cmd_intake(args) -> None:
     print(f"  social only       {shape['social_only']}")
     print(f"  email on the row  {shape['with_email']}")
     print(f"  nothing to work   {shape['no_research_target']}")
+    print(_reachability_note(shape))
     if shape["parked_names"]:
         print("  parked: " + ", ".join(shape["parked_names"]))
     # Silence here is expensive. The first real list used `companyWebsite`,
@@ -114,6 +116,29 @@ def cmd_intake(args) -> None:
             json.dumps([l.to_dict() for l in leads], indent=2, default=str),
             encoding="utf-8")
         print(f"  wrote {args.out}")
+
+
+def _reachability_note(shape: dict) -> str:
+    """Whether this list can produce emails at all, said at intake.
+
+    D32's number. A lead with no branded domain has nothing for `email-enrich`
+    to guess against and usually nothing for `email-find` to find, so a list's
+    own-domain rate predicts its yield before a cent is spent. The Instagram
+    list where 13% of the ICP owned a domain shipped 2 emails from 237 rows, and
+    every count printed above it looked fine.
+    """
+    total = shape.get("total") or 0
+    if not total:
+        return "  no rows to profile"
+    rate = (shape.get("with_site") or 0) / total
+    line = (f"  own domain        {shape.get('with_site', 0)}/{total} "
+            f"({rate:.0%}) — the number that predicts whether this list can be "
+            f"emailed")
+    if rate < 0.20:
+        line += ("\n                    LOW. Under about 20%, most leads will "
+                 "end unreachable however good the research is (D32). Say so "
+                 "before spending.")
+    return line
 
 
 def cmd_ig_intake(args) -> None:
@@ -158,6 +183,9 @@ def cmd_ig_intake(args) -> None:
     print(f"  with a corpus        {shape['with_observations']} "
           f"({shape['posts']} posts, {shape['observations']} observations)")
     print(f"  no posts in the dump {shape['no_posts']}")
+    print(_reachability_note(shape))
+    print("  a dump is a CORPUS, not a source list (D32) — attach it to a list "
+          "that arrives reachable with `corpus attach`")
 
     if args.out:
         Path(args.out).write_text(
@@ -170,6 +198,59 @@ def cmd_ig_intake(args) -> None:
                        default=str),
             encoding="utf-8")
         print(f"  wrote {args.observations}")
+
+
+def cmd_corpus(args) -> None:
+    """Attach a corpus somebody else retrieved to the list actually being run.
+
+    D32: an Instagram dump is evidence, not a source list — 237 profiles shipped
+    2 emails because the ICP there does not own a domain and cannot be emailed.
+    Its hooks were the best on record. So the dump belongs beside a list that
+    arrives reachable, and until now it could not be: `ig-intake` keys every
+    observation by the IG lead's own `fetch.lead_key`, and a queue CSV's row for
+    the same human has a different site and therefore a different key.
+
+    **Never exits 1 on a routing decision** — only on an unmet `--expect`, which
+    is a claim the caller made about coverage, not a judgement this makes.
+    """
+    from outbound import corpus, observe
+    from outbound.normalize import Lead
+
+    data = _load_json(args.observations, "CORPUS")
+    if isinstance(data, list) and any(
+            isinstance(e, dict) and "observations" in e for e in data):
+        data = [obs for entry in data for obs in (entry.get("observations") or [])]
+    try:
+        observations = observe.load(data)
+    except (TypeError, ValueError, AttributeError) as exc:
+        print(f"CORPUS: FAIL — {args.observations} is not a corpus "
+              f"({type(exc).__name__}).")
+        sys.exit(2)
+
+    rows = _load_json(args.leads, "CORPUS")
+    if not isinstance(rows, list):
+        print("CORPUS: FAIL — expected a Leads array from `intake --out`.")
+        sys.exit(2)
+    leads = [Lead(**{k: v for k, v in row.items()
+                     if k in Lead.__dataclass_fields__}) for row in rows]
+
+    result = corpus.attach(leads, observations)
+    print(corpus.report(result, total_leads=len(leads), expect=args.expect))
+
+    problems = observe.validate_all(result.observations)
+    if problems:
+        print(f"CORPUS: FAIL — {len(problems)} re-keyed observation(s) no longer "
+              f"pass the schema, nothing written:")
+        for problem in problems[:10]:
+            print(f"  {problem}")
+        sys.exit(2)
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([o.to_dict() for o in result.observations], indent=2,
+                       default=str), encoding="utf-8")
+        print(f"  wrote {args.out}")
+    sys.exit(1 if corpus.short(result, args.expect) else 0)
 
 
 def cmd_triage(args) -> None:
@@ -201,6 +282,9 @@ def cmd_triage(args) -> None:
     results = triage_mod.triage_all(leads, observations,
                                     complete_corpus=args.complete_corpus)
     print(triage_mod.report(results))
+    note = triage_mod.reachability(leads, results)
+    if note:
+        print(note)
 
     if args.out:
         Path(args.out).write_text(
@@ -2664,6 +2748,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fetched-at", default="",
                    help="when the dump was scraped, ISO (default: now)")
     p.set_defaults(func=cmd_ig_intake)
+
+    p = sub.add_parser("corpus",
+                       help="attach a corpus somebody else retrieved to the "
+                            "list you are actually running (D32)")
+    p.add_argument("action", choices=["attach"])
+    p.add_argument("observations",
+                   help="observations from `ig-intake --observations`, or a "
+                        "research file carrying them")
+    p.add_argument("--leads", required=True,
+                   help="the Leads this corpus should be re-keyed onto")
+    p.add_argument("--out", help="write the re-keyed observations")
+    p.add_argument("--expect", type=int,
+                   help="the number of leads that SHOULD match. Exit 1 below it "
+                        "— a corpus that joined 3 of 40 reads like one that "
+                        "joined all 40 if only the total is printed")
+    p.set_defaults(func=cmd_corpus)
 
     p = sub.add_parser("triage",
                        help="RUN / HOLD / DROP before anything is spent "

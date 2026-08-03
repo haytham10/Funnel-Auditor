@@ -107,6 +107,20 @@ A dump like this is not input to the retrieval stage, it **is** a retrieval,
 made outside this repo. `cost_usd` is 0.0 because nothing here paid for it, and
 the ledger records what a fetch cost *here*. See D30.
 
+**It is a corpus, not a source list** (D32). Run as the list itself, 237
+profiles shipped 2 emails, because on Instagram owning a domain is
+anti-correlated with being our ICP and 74% of the coaches had no address
+anywhere. Attach it with `corpus attach` to a list that arrives reachable.
+
+### `corpus attach`
+**In** observations from `ig-intake --observations` (or a research file) and the
+Leads of a *different* list. **Out** the same observations re-keyed onto that
+list's `fetch.lead_key`. **Guarantees** a handle match is tried before a name
+match, and that **an ambiguous match attaches nothing** — putting one coach's
+posts on another produces a hook that is verified, quotable and about a
+stranger. **Exit 1** when `--expect` is not met. **Exit 2** if either file
+cannot be read.
+
 ### `triage`
 **In** Leads, optionally their observations. **Out** a tier per lead — RUN,
 HOLD or DROP — each carrying all three floor verdicts and the source that

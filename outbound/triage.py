@@ -53,12 +53,41 @@ from outbound import qualify
 RUN, HOLD, DROP = "RUN", "HOLD", "DROP"
 
 # An account name that is a place or an organisation rather than a person. Used
-# ONLY to confirm a `no` that `check_coach` already returned — never to produce
-# one. A coach may perfectly well name their practice "The Studio".
+# to LABEL a row, and to confirm a `no` that `check_coach` already returned —
+# never to produce one. A coach may perfectly well name their practice "The
+# Studio", which is why this is a label and not a verdict.
 _ORGANISATION = (
     "studio", "gym", "clinic", "centre", "center", "academy", "community",
     "hub", "agency", "salon", "spa", "cafe", "restaurant", "collective",
-    "club", "society", "school", "institute",
+    "club", "society", "school", "institute", "wellness co", "experiences",
+    "facility", "sanctuary", "lab", "tribe",
+)
+
+PERSON, ORGANISATION, KIND_UNCLEAR = "person", "organisation", "unclear"
+
+# Instagram's own account category, which `ig-intake` carries into the headline.
+# Measured on the 237-profile dump against a hand-labelled set: these two lists
+# separate 22 organisations from 16 people with exactly one collision
+# ("Health/beauty", which lands on both and is therefore in neither list) and
+# nine organisations carrying no category at all, which fall through to the name.
+#
+# `isBusinessAccount` looks like the field for this and is worthless: it was
+# true for 22 of 22 organisations AND 13 of 16 people. A coach who taps
+# "professional account" is not a gym.
+_ORG_CATEGORIES = (
+    "gym", "fitness center", "fitness centre", "yoga studio", "health spa",
+    "massage service", "social club", "community", "website", "medical",
+    "rehab", "clinic", "hospital", "holistic health service",
+)
+# Nouns that turn a two-word name into a brand. Nobody is called "Wellness".
+_BRAND_WORDS = frozenset((
+    "wellness", "health", "fitness", "dubai", "uae", "performance", "nutrition",
+    "training", "therapy", "yoga", "pilates", "coaching", "co", "group",
+))
+_PERSON_CATEGORIES = (
+    "coach", "trainer", "athlete", "entrepreneur", "model", "practitioner",
+    "therapist", "consultant", "mentor", "dietitian", "nutritionist",
+    "instructor", "healer", "blogger", "author", "speaker", "sports",
 )
 
 
@@ -76,6 +105,15 @@ class Triage:
     coach_source: str = ""
     active: str = qualify.UNCLEAR
     active_source: str = ""
+    # person | organisation | unclear. A LABEL, never a tier and never a drop —
+    # the offer is "ten names for your buyer profile", which a gym's marketing
+    # inbox is the wrong reader for, but a solo coach trading as "The Chi Room"
+    # is exactly the right one and no rule here can tell them apart reliably.
+    # It exists because reachability has to be measured over people: on the
+    # 237-profile IG dump, 77% of the venues owned a domain against 13% of the
+    # coaches, so a rate over the mixed set points the wrong way (D32).
+    kind: str = KIND_UNCLEAR
+    kind_source: str = ""
     observations: int = 0
     notes: list[str] = field(default_factory=list)
 
@@ -86,6 +124,46 @@ class Triage:
         return (f"{self.tier:5} {self.name[:34]:34} "
                 f"uae={self.uae:7} coach={self.coach:7} active={self.active:7} "
                 f"| {self.reason}")
+
+
+def classify_kind(lead) -> tuple[str, str]:
+    """Is this account a person or a place? A label, on the name only.
+
+    The name and the handle, never the bio or the captions: a solo coach writes
+    "sessions at the studio" all the time and is still a person. Read off the
+    same field a human reads when they scan a list and think "that is a gym".
+    """
+    name = (getattr(lead, "name", "") or "").lower()
+    headline = (getattr(lead, "headline", "") or "").lower()
+    handle = (getattr(lead, "instagram_url", "") or "").lower().rstrip("/")
+    handle = handle.rsplit("/", 1)[-1]
+    for word in _ORGANISATION:
+        if word in name:
+            return ORGANISATION, f"name contains {word!r}"
+    # The platform's own category, before any guess at the name's shape. A
+    # person-role category outranks a venue one: an account calling itself a
+    # Coach that also mentions a studio is a coach who works in a studio.
+    for word in _PERSON_CATEGORIES:
+        if word in headline:
+            return PERSON, f"category/headline says {word!r}"
+    for word in _ORG_CATEGORIES:
+        if word in headline:
+            return ORGANISATION, f"category/headline says {word!r}"
+    first = (getattr(lead, "first_name", "") or "").strip()
+    last = (getattr(lead, "last_name", "") or "").strip()
+    words = name.split()
+    # Exactly two name-shaped words. Allowing up to four called "Soul Side
+    # Wellness", "Zero Dark 30", "TiE Dubai" and "DNA Health & Wellness"
+    # people, which is the direction that costs something: a brand labelled a
+    # person re-enters the reachability rate it was meant to be kept out of.
+    # A three-word human name falls to `unclear`, which is the honest answer
+    # and the one this module is built to prefer.
+    if (first and last and first.lower() != last.lower() and len(words) == 2
+            and not any(w in _BRAND_WORDS for w in words)):
+        return PERSON, "reads as a personal name"
+    if handle and any(word in handle for word in _ORGANISATION):
+        return ORGANISATION, f"handle contains an organisation word"
+    return KIND_UNCLEAR, "no tell either way"
 
 
 def _text_of(lead, observations) -> str:
@@ -155,8 +233,9 @@ def triage_lead(lead, observations, *, complete_corpus: bool = False,
     active = _activity(observations, complete_corpus=complete_corpus, today=today)
 
     name = getattr(lead, "name", "") or ""
+    kind, kind_source = classify_kind(lead)
     result = Triage(
-        lead_key=key_of(lead), name=name,
+        lead_key=key_of(lead), name=name, kind=kind, kind_source=kind_source,
         uae=uae.value, uae_source=f"{uae.source}: {uae.evidence}".strip(": "),
         coach=coach.value,
         coach_source=f"{coach.source}: {coach.evidence}".strip(": "),
@@ -243,3 +322,34 @@ def report(results: list[Triage], *, show_drops: int = 60) -> str:
 
 def selected(results: list[Triage], tier: str = RUN) -> set[str]:
     return {r.lead_key for r in results if r.tier == tier}
+
+
+def reachability(leads, results: list[Triage], tier: str = RUN) -> str:
+    """The own-domain rate of the leads that survived the ICP filter.
+
+    D32's number, and it has to be measured **here** rather than at intake. On
+    the 237-profile Instagram dump the whole-list rate was 62% and the figure
+    that decided the batch was 13%, because the accounts with websites were the
+    gyms, studios and clinics that triage then dropped as not-a-person. The two
+    populations are anti-correlated, so the raw-list rate is not merely noisier
+    — it points the wrong way.
+    """
+    from outbound.fetch import lead_key as key_of
+
+    keep = {r.lead_key for r in results
+            if r.tier == tier and r.kind != ORGANISATION}
+    orgs = sum(1 for r in results if r.tier == tier and r.kind == ORGANISATION)
+    kept = [lead for lead in leads or [] if key_of(lead) in keep]
+    if not kept:
+        return ""
+    owned = sum(1 for lead in kept if getattr(lead, "site_url", ""))
+    rate = owned / len(kept)
+    line = (f"  {tier}: {len(kept)} person or unclear, {orgs} organisation\n"
+            f"  own domain, people only: {owned}/{len(kept)} ({rate:.0%}) — what "
+            f"predicts whether these leads can be emailed at all")
+    if rate < 0.20:
+        line += ("\n    LOW (D32). The ICP here mostly has no branded domain, so "
+                 "`email-enrich` has nothing to guess against and most of these "
+                 "will end unreachable however good the research is. On the "
+                 "Instagram list that was 13%, and 237 rows shipped 2 emails.")
+    return line

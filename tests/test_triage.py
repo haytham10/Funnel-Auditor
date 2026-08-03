@@ -160,6 +160,69 @@ def test_the_report_prints_every_drop_rather_than_a_count():
         assert f"Coach {i}" in text
 
 
+# ------------------------------------------------- person or place (D32)
+
+
+def test_a_venue_category_labels_the_account_an_organisation():
+    """Instagram's own category is the strong tell. Measured on the 237-profile
+    dump: the venue and role category lists separate 22 organisations from 16
+    people with one collision."""
+    lead = _lead(name="Trident Wellness", headline="Yoga Studio")
+    kind, source = triage.classify_kind(lead)
+    assert kind == triage.ORGANISATION
+    assert "yoga studio" in source
+
+
+def test_a_role_category_outranks_a_venue_word_in_the_same_headline():
+    """An account calling itself a Coach that also mentions a studio is a coach
+    who works in a studio."""
+    lead = _lead(name="Emanuela", headline="Coach, Yoga Studio")
+    assert triage.classify_kind(lead)[0] == triage.PERSON
+
+
+def test_a_brand_of_two_words_is_not_a_personal_name():
+    """Allowing up to four words called "Soul Side Wellness", "Zero Dark 30"
+    and "DNA Health & Wellness" people, which puts a brand back into the
+    reachability rate it was meant to be kept out of."""
+    for brand in ("Soul Side", "Prime Performance", "Elite Wellness"):
+        assert triage.classify_kind(_lead(name=brand, headline=""))[0] != \
+            triage.PERSON
+
+
+def test_a_three_word_human_name_is_unclear_not_an_organisation():
+    """The honest answer. `unclear` is what this module prefers everywhere
+    else and the label is no exception."""
+    lead = _lead(name="Abdul Hadi Mazloum", headline="")
+    assert triage.classify_kind(lead)[0] == triage.KIND_UNCLEAR
+
+
+def test_the_kind_is_a_label_and_never_a_tier():
+    """A gym that clears all three floors still runs. The offer is wrong for a
+    marketing inbox, and that is Haytham's call at the preview, not a drop."""
+    lead = _lead(name="Wellness Hub", headline="Gym", city="Dubai")
+    result = triage.triage_lead(
+        lead, [_obs("2026-08-01", text="the coach who runs this is in Dubai")],
+        complete_corpus=True, today=TODAY)
+    assert result.kind == triage.ORGANISATION
+    assert result.tier == triage.RUN
+
+
+def test_reachability_is_measured_over_people_only():
+    """On the IG dump, 77% of venues owned a domain against 13% of coaches, so
+    a rate over the mixed set points the wrong way."""
+    coach = _lead(name="Maria Fenton", headline="Coach", city="Dubai")
+    coach.site_url = ""
+    gym = _lead(name="Wellness Hub", headline="Gym", city="Dubai")
+    gym.site_url = "https://wellnesshub.ae"
+    results = triage.triage_all([coach, gym], [], complete_corpus=False,
+                                today=TODAY)
+    for r, lead in zip(results, (coach, gym)):
+        r.tier = triage.RUN
+    note = triage.reachability([coach, gym], results)
+    assert "0/1 (0%)" in note
+    assert "LOW" in note
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

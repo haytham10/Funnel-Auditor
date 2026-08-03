@@ -154,6 +154,15 @@ JUNK_HOSTS = (
     "sites.google.com", "wa.me", "api.whatsapp.com", "t.me",
     "paperbell.me", "calendly.com", "cal.com", "zoom.us",
     "eventbrite.com", "meetup.com", "gmail.com", "example.com",
+    # Hosted booking and landing pages. The same family as calendly above, and
+    # they were missing, so `classify_site` called `subscribepage.io` and
+    # `tejomaya.setmore.com` a coach's own site on 2026-08-03. Two costs: the
+    # list's own-domain rate — the number that predicts whether it can produce
+    # emails at all — reads high, and `email-enrich` is invited to guess
+    # `name@setmore.com`, which is a real domain belonging to a SaaS company.
+    "setmore.com", "subscribepage.io", "onlinecoaching.io", "mailchi.mp",
+    "trainerize.com", "everfit.io", "practicebetter.io", "acuityscheduling.com",
+    "square.site", "wixsite.com", "app.link",
 )
 
 _ASSET_RE = re.compile(r"\.(png|jpe?g|gif|webp|svg|css|js|pdf|zip)(\?|$)", re.I)
@@ -411,7 +420,14 @@ def load_csv(path: str, *, source: str = "") -> list[Lead]:
 
 
 def profile(leads: list[Lead]) -> dict:
-    """Batch shape before anything is spent. Print this, then decide."""
+    """Batch shape before anything is spent. Print this, then decide.
+
+    **`with_site` is the reachability number and nobody was reading it.** A lead
+    with no branded domain has nothing for `email-enrich` to guess against, and
+    on 2026-08-03 an Instagram list where 13% of the ICP owned a domain shipped
+    2 emails from 237 rows. Whether a list can produce emails at all is a
+    property of the list, knowable here, before a cent.
+    """
     parked = [lead for lead in leads if not lead.has_research_target()]
     return {
         "total": len(leads),

@@ -686,6 +686,61 @@ a kill with a nicer name; or by a dropped lead turning out to be active on a
 channel the dump does not cover, which would mean a stale IG account is not
 evidence of a stale coach.
 
+### D32 · Instagram is a corpus, not a source list
+
+**2026-08-03.** A list is sourced from somewhere that carries addresses — a
+directory export, a queue CSV, anything arriving with a name, a site and ideally
+a LinkedIn. An Instagram profile dump is attached to such a list as **evidence**,
+never run as the list itself.
+
+**The measurement.** `2026-08-03-ig237` put 237 profiles through the whole
+machine and shipped 2 emails.
+
+| batch | source | raw | shipped | per raw row |
+|---|---|---|---|---|
+| q1 | queue CSV | 20 | 5 | 25% |
+| q2 | queue CSV | 20 | 9 | 45% |
+| q3 | queue CSV | 34 | 13 | 38% |
+| ig237 | IG dump | 237 | 2 | **0.8%** |
+
+**And the machine's middle was not the problem** — it was the best it has been:
+`hook_yield` 83% against 60-63%, `null_hook_rate` 17%, the cheapest
+`cost_per_verified_hook` on record — `data/runs/*-metrics.json` owns those
+figures — every hook quoted from the ingested corpus and every one held on the
+verifier's live re-fetch. D30 works. That is why this decision is about sourcing
+and not about `ig-intake`.
+
+**The mechanism is reachability, and it is structural.** 74% of the individual
+coaches had no address anywhere. The reason is not bad luck:
+
+| | own a real domain |
+|---|---|
+| venues, gyms and clinics (stripped as not-ICP) | 17 of 22 — **77%** |
+| solo coaches (the ICP) | 3 of 23 — **13%** |
+
+**On Instagram, owning a domain is anti-correlated with being our ICP.** The
+accounts with a website are businesses; the people we want use Instagram
+*instead of* having an email address, so `email-find` has nothing to find and
+`email-enrich` has no domain to guess at. A machine that ends at a file of email
+addresses cannot be fed from a channel whose defining feature is not having one.
+
+**The second reason is caption substance.** q1-q3's hooks came off `li_posts`
+and `li_profile`; a LinkedIn post argues a point and an Instagram caption
+captions a photo. Three of ig237's five verified hooks were empty — a real
+quote with nothing a stranger could take from it — which every mechanical gate
+passed.
+
+**What the dump is worth.** It arrives carrying up to twelve dated, verbatim,
+self-authored posts per lead, which is the `ig_posts` rung already paid for.
+Attached to a list that already has addresses, that is free hook material for
+the leads whose handles match. `corpus attach` is what makes that a join rather
+than a coincidence.
+
+**Reversed by** an Instagram-sourced list whose leads arrive reachable — a
+scrape restricted to accounts that publish an address, or a DM channel this
+machine does not have — since the hook numbers already argue the other way and
+only reachability is holding the verdict up.
+
 ---
 
 ## What is unknown

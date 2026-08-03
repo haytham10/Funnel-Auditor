@@ -44,7 +44,8 @@ and a deterministic linter made that safe.**
 ```
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 ig-intake   an IG profile dump -> Leads AND the posts it already carries, which
-            is the paid IG rung arriving with the list
+            is the paid IG rung arriving with the list. A corpus, not a source
+            list: attach it to a list that has addresses (D32)
 triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read

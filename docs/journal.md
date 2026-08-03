@@ -1,3 +1,91 @@
+## 2026-08-03 (sourcing) — Instagram is a corpus, and the join that makes it one
+
+Haytham, on the ig237 result: 2 emails for ~$53, so Instagram is not a good
+source list, right?
+
+**Right, and the numbers say something sharper than that.**
+
+| batch | source | raw | shipped | per raw row |
+|---|---|---|---|---|
+| q1 | queue CSV | 20 | 5 | 25% |
+| q2 | queue CSV | 20 | 9 | 45% |
+| q3 | queue CSV | 34 | 13 | 38% |
+| ig237 | IG dump | 237 | 2 | **0.8%** |
+
+**But the machine's middle was the best it has been** — `hook_yield` 83% against
+60-63%, `null_hook_rate` 17%, the cheapest cost per verified hook on record, and
+every hook quoted from the ingested corpus held on a live re-fetch. D30 works.
+The failure is sourcing, not retrieval, which is why D32 is about where lists
+come from and changes nothing about `ig-intake`.
+
+**The mechanism is reachability and it is structural:**
+
+| | own a real domain |
+|---|---|
+| venues, gyms, clinics (not ICP) | 17 of 22 — 77% |
+| solo coaches (the ICP) | 3 of 23 — **13%** |
+
+On Instagram, owning a domain is **anti-correlated** with being our ICP. The
+people we want use Instagram *instead of* having an email address, so
+`email-find` has nothing to find and `email-enrich` no domain to guess at. A
+machine that ends at a file of addresses cannot be fed from a channel whose
+defining feature is not having one.
+
+The `$53 / 2` figure is mostly not Instagram: fixed orchestrator cost over two
+emails, in a session that also wrote eight commits of tooling.
+
+### `corpus attach` — the join that was missing
+
+`ig-intake` keys observations by the IG lead's `fetch.lead_key`, which is
+`slug|site_url`, so the same coach on a queue CSV has a different key and the
+corpus joins to nothing. `corpus attach` re-keys it: handle first, then name.
+
+Verified on the real corpus re-keyed onto the same 23 coaches carrying different
+sites — **23/23 matched by handle, 251 observations, all still schema-valid.**
+
+**And its first live run had the bug it exists to prevent.** `handle_matches` is
+any-token — right for the advisory note it was written for — so "fenton" in
+"mariafenton" handed **Jack Fenton all of Maria Fenton's posts**. A stranger's
+mailbox verified clean on this list last week; a stranger's *posts* are worse,
+because they produce a hook that is verified, dated, quotable and about somebody
+else, and every mechanical gate passes it. The join now requires **every** name
+token, and two leads of the same name claiming one account attach nothing at
+all.
+
+### Reachability is knowable before spending, and only after the ICP filter
+
+`intake` and `ig-intake` now print the own-domain rate, and `triage` prints it
+**for the RUN tier with organisations excluded** — because the whole-dump rate
+was 62% and the number that decided the batch was 13%. The two populations are
+anti-correlated, so the raw-list rate does not merely have more noise, it points
+the wrong way.
+
+That needed a `person | organisation | unclear` label, which is the one
+judgement I made by hand this batch. Instagram's own account category does it:
+measured against a hand-labelled set, venue categories and role categories
+separate 22 organisations from 16 people with one collision. `isBusinessAccount`
+looks like the field for this and is worthless — true for 22 of 22 organisations
+**and** 13 of 16 people. After tightening the personal-name fallback to exactly
+two words with no brand noun, the label gets **16 of 16 people and 14 of 22
+organisations with zero errors in either direction**; the rest are `unclear`,
+which is the answer this module prefers everywhere else.
+
+**It is a label and never a tier.** A gym clearing all three floors still runs.
+Whether a marketing inbox is the wrong reader for "ten names for your buyer
+profile" is Haytham's call at the preview.
+
+`classify_site` also stopped calling `subscribepage.io` and `tejomaya.setmore.com`
+a coach's own site. Hosted booking and landing pages are the same family as the
+calendly entry that was already there, and they were inflating the one number
+that predicts whether a list can be emailed.
+
+### Still open
+
+Unchanged from the previous entry: `select` has no substance test, and `deal`
+can hand a lead an identity line naming that lead's own segment and city. Both
+bite any source list. The ig237 corpus and shortlist are committed under
+`data/runs/` so a substance signal can be scored rather than guessed.
+
 ## 2026-08-03 (the IG dump) — 237 profiles, 2 emails, and the four gaps it found
 
 Haytham dropped an Apify `instagram-profile-scraper` dump of 237 UAE coaches and
