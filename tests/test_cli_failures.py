@@ -825,6 +825,103 @@ def test_piping_doc_check_into_head_does_not_traceback():
     assert "BrokenPipe" not in proc.stdout + proc.stderr
 
 
+# ------------------------------------------------------------ channel-find
+#
+# The first command here that spends on a whole list at once, so its
+# preconditions are the ones worth pinning.
+
+
+def test_channel_find_without_a_readable_leads_file_exits_2():
+    """Not exit 1. A gate that could not establish its precondition could not
+    run, and the precondition here is that the wall has been checked."""
+    with tempfile.TemporaryDirectory() as tmp:
+        proc = run("channel-find", "--leads", str(Path(tmp) / "nope.json"))
+    assert proc.returncode == 2, proc.stdout
+    assert "dedupe" in proc.stdout
+
+
+def test_channel_find_refuses_a_json_object_where_the_clear_list_belongs():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "leads.json", {"leads": []})
+        proc = run("channel-find", "--leads", path)
+    assert proc.returncode == 2, proc.stdout
+
+
+def test_channel_find_without_execute_spends_nothing_and_writes_nothing():
+    """`fetch --escalate`'s rule. The plan prints, including the real query
+    strings, and no state file appears."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json",
+                      [{"name": "Sarah Khan", "city": "Dubai",
+                        "email": "sarah@khan.ae"}])
+        state = str(Path(tmp) / "state.json")
+        proc = run("channel-find", "--leads", leads, "--state", state)
+        assert proc.returncode == 0, proc.stdout
+        assert "PLAN ONLY" in proc.stdout
+        assert '"Sarah Khan" Dubai coach' in proc.stdout
+        assert not Path(state).exists(), "a plan must not write a state file"
+
+
+def test_channel_find_resumes_on_membership_not_a_counter():
+    """A chunk that died halfway leaves the leads it answered for. The next
+    invocation owes exactly the remainder."""
+    with tempfile.TemporaryDirectory() as tmp:
+        from outbound.fetch import lead_key
+        from outbound.normalize import Lead
+
+        done = Lead(name="Sarah Khan", city="Dubai", email="sarah@khan.ae")
+        leads = write(tmp, "leads.json",
+                      [done.to_dict(),
+                       Lead(name="Dana Zaarour", city="Dubai",
+                            email="dana@z.ae").to_dict()])
+        state = write(tmp, "state.json",
+                      {"batch": "t", "shape": "one", "chunks": [],
+                       "leads": {lead_key(done): {"name": "Sarah Khan",
+                                                  "verdict": "FOUND"}}})
+        proc = run("channel-find", "--leads", leads, "--state", state)
+    assert proc.returncode == 0, proc.stdout
+    assert "1 lead(s)" in proc.stdout
+    assert "Dana Zaarour" in proc.stdout
+    assert "Sarah Khan" not in proc.stdout
+
+
+def test_channel_find_says_so_when_every_lead_is_already_done():
+    with tempfile.TemporaryDirectory() as tmp:
+        from outbound.fetch import lead_key
+        from outbound.normalize import Lead
+
+        done = Lead(name="Sarah Khan", city="Dubai", email="sarah@khan.ae")
+        leads = write(tmp, "leads.json", [done.to_dict()])
+        state = write(tmp, "state.json",
+                      {"batch": "t", "shape": "one", "chunks": [],
+                       "leads": {lead_key(done): {"name": "Sarah Khan",
+                                                  "verdict": "FOUND"}}})
+        proc = run("channel-find", "--leads", leads, "--state", state)
+    assert proc.returncode == 0, proc.stdout
+    assert "nothing to search" in proc.stdout
+
+
+def test_icf_intake_on_a_missing_sheet_exits_2():
+    with tempfile.TemporaryDirectory() as tmp:
+        import openpyxl
+
+        path = Path(tmp) / "book.xlsx"
+        book = openpyxl.Workbook()
+        book.active.title = "NotCoaches"
+        book.save(path)
+        proc = run("icf-intake", str(path))
+    assert proc.returncode == 2, proc.stdout
+    assert "Coaches" in proc.stdout
+
+
+def test_icf_intake_on_a_file_that_is_not_a_workbook_exits_2():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "book.xlsx", "definitely not a zip archive")
+        proc = run("icf-intake", path)
+    assert proc.returncode == 2, proc.stdout
+    assert "Traceback" not in proc.stdout + proc.stderr
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

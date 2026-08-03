@@ -79,6 +79,35 @@ def same_site(url_a: str, url_b: str) -> bool:
     return registrable_domain(url_a) == registrable_domain(url_b)
 
 
+# Hosts that are somebody else's brand. A coach's "website" column is full of
+# them — link-in-bio pages, storefronts, booking pages, the social networks
+# themselves — and two different callers need the same list for two different
+# reasons: `email_find.build_query` must not put one in a search query
+# (searching `whop.com` searches for Whop, not for the lead), and
+# `channel_find` must never accept one as the lead's own site.
+#
+# It lives here rather than in either caller because it was already about to be
+# copied. `normalize.PODCAST_HOSTS`' own comment complains about exactly this
+# drift with `dedupe._NON_IDENTIFYING_HOSTS`, and a second copy of "hosts that
+# are not a person's brand" would go stale the first time somebody adds a new
+# link-in-bio service to one of them.
+PLATFORM_BRANDS = {
+    "whop.com", "linktr.ee", "beacons.ai", "bio.link", "stan.store",
+    "milkshake.app", "taplink.cc", "carrd.co", "about.me", "solo.to",
+    "linkin.bio", "calendly.com", "typeform.com", "instagram.com",
+    "facebook.com", "linkedin.com", "youtube.com", "tiktok.com", "wa.me",
+    "t.me", "zoom.us", "google.com", "notion.site", "substack.com",
+    # Added 2026-08-03 from a live SERP over 300 coaches, which returned every
+    # one of these as a candidate "website": the newer social networks, the
+    # booking and course storefronts, and the podcast hosts.
+    "threads.com", "threads.net", "x.com", "twitter.com", "skool.com",
+    "topmate.io", "clarity.fm", "libsyn.com", "podbean.com", "buzzsprout.com",
+    "anchor.fm", "spotify.com", "apple.com", "patreon.com", "gumroad.com",
+    "teachable.com", "kajabi.com", "thinkific.com", "eventbrite.ae",
+    "wa.link", "linktree.com", "flowcode.com", "pinterest.com", "threads.app",
+}
+
+
 def slugify(value: str) -> str:
     """The one slug function, shared by the CLI (evidence folder name), the
     evidence packet builder, and the vision gate. Used to live duplicated in

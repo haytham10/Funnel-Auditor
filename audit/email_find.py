@@ -81,7 +81,7 @@ import re
 from typing import Any
 
 from audit.email_check import name_tokens
-from audit.urls import registrable_domain
+from audit.urls import PLATFORM_BRANDS, registrable_domain
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
@@ -189,13 +189,11 @@ def build_query(name: str, headline: str = "", location: str = "",
 # Hosts that are somebody else's brand, so putting one in a query searches for
 # the platform instead of the lead. The link-in-bio and storefront hosts a
 # coach's "website" column actually contains.
-_NOT_A_BRAND = {
-    "whop.com", "linktr.ee", "beacons.ai", "bio.link", "stan.store",
-    "milkshake.app", "taplink.cc", "carrd.co", "about.me", "solo.to",
-    "linkin.bio", "calendly.com", "typeform.com", "instagram.com",
-    "facebook.com", "linkedin.com", "youtube.com", "tiktok.com", "wa.me",
-    "t.me", "zoom.us", "google.com", "notion.site", "substack.com",
-}
+#
+# Moved to `audit/urls.py` 2026-08-03, when `channel_find` needed the same list
+# to decide the opposite question — not "is this a search term" but "is this the
+# lead's own site". The alias stays so this module reads as it always did.
+_NOT_A_BRAND = PLATFORM_BRANDS
 
 
 def _clean(addr: str) -> str:

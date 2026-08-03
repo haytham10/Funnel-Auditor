@@ -11,6 +11,10 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     intake      raw CSV -> profiled, junk-stripped Leads
     ig-intake   an Instagram profile dump -> Leads AND the observations it
                 already carries, so the paid posts rung buys nothing new
+    icf-intake  an ICF directory export (.xlsx) -> Leads AND the ICP fields the
+                coach filled in themselves. The values are cell hyperlinks
+    icf-export  the enrichment joined back onto that workbook, plus the
+                committed CSV and leads.json
     triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
     corpus      attach a corpus somebody else retrieved to the list being run
     dedupe      the Contacted-Before wall, both passes
@@ -38,6 +42,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
     email-verify-batch  the same, for a whole slice's addresses in one call
     email-enrich     the no-address fallback on the lead's own domain
     email-find       an address somebody else published, one batched search run
+    channel-find     the LinkedIn / Instagram / website a list arrives without,
+                     corroborated before anything is written
     ledger      what each retrieval cost and how long it took
     metrics     what the hook stage yielded, and what the leads that yielded
                 nothing cost. `?` for a count nobody supplied, never 0
@@ -139,6 +145,73 @@ def _reachability_note(shape: dict) -> str:
                  "end unreachable however good the research is (D32). Say so "
                  "before spending.")
     return line
+
+
+def icf_intake_sheet() -> str:
+    """The default sheet name, read from the module that owns it rather than
+    typed into the parser — the same rule `docs/spec/00-index.md` states for
+    docs, applied to argparse."""
+    from outbound.icf_intake import SHEET
+
+    return SHEET
+
+
+def cmd_icf_intake(args) -> None:
+    """An ICF directory export -> Leads, plus the ICP fields it already answers.
+
+    Separate from `intake` because this source's real values are not in its
+    cells. `ICF profile` reads "View profile" in all 311 rows and the URL that
+    reaches the listing lives only in the cell's hyperlink target, so a CSV
+    conversion produces a fully-populated column carrying nothing.
+
+    The second output is a **hint file, never a verdict**. A directory listing
+    is the coach's own words, which is what `sells_to` requires — and it is also
+    stale by construction, so nothing in it settles a floor. It is written to
+    its own path, every value carrying `icf_directory`, precisely so no later
+    stage can mistake it for something a worker fetched.
+
+    Exit 2 when the workbook, the sheet or openpyxl cannot be read — a list
+    nobody could open is not a list of zero coaches. Exit 1 on an unmet
+    `--expect`, which is `collect`'s rule: a count of what was found is not a
+    count of what should exist.
+    """
+    from outbound import icf_intake
+
+    try:
+        leads, prefills = icf_intake.ingest(
+            args.path, sheet=args.sheet, source=args.source or icf_intake.SOURCE)
+        unmapped = icf_intake.unmapped_columns(args.path, sheet=args.sheet)
+    except icf_intake.ICFIntakeError as exc:
+        print(f"ICF INTAKE: FAIL — {exc}")
+        sys.exit(2)
+
+    print(icf_intake.report(leads, prefills))
+    if unmapped:
+        print(f"  columns the alias table does not map: {', '.join(unmapped)}")
+        print("                    (they are carried in the prefill, not lost — "
+              "add one to COLUMN_ALIASES only if it belongs on a Lead)")
+
+    arriving = [l for l in leads if l.linkedin_url or l.instagram_url]
+    if arriving:
+        print(f"  {len(arriving)} lead(s) arrived with a social URL in the "
+              f"website column, already routed — that is a channel nobody has "
+              f"to search for")
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([l.to_dict() for l in leads], indent=2, default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.prefill:
+        Path(args.prefill).write_text(
+            json.dumps(prefills, indent=1, default=str), encoding="utf-8")
+        print(f"  wrote {args.prefill}")
+
+    if args.expect and len(leads) != args.expect:
+        print(f"ICF INTAKE: FAIL — expected {args.expect} lead(s), got "
+              f"{len(leads)}. A count of what was found is not a count of what "
+              f"should exist.")
+        sys.exit(1)
 
 
 def cmd_ig_intake(args) -> None:
@@ -1491,6 +1564,25 @@ def cmd_email_verify_batch(args) -> None:
     verifier looking like catch-alls."""
     from audit import email_check
     from audit.apify import ApifyCostApprovalRequired
+
+    addresses = list(args.addresses)
+    if getattr(args, "leads", ""):
+        # A whole list's addresses do not fit on a command line, and typing 311
+        # of them by hand is a transcription error waiting to happen.
+        try:
+            rows_in = json.loads(Path(args.leads).read_text(encoding="utf-8"))
+            addresses += [r["email"] for r in rows_in
+                          if isinstance(r, dict) and r.get("email")
+                          and r["email"] not in addresses]
+        except (OSError, ValueError, TypeError) as exc:
+            print(f"EMAIL VERIFY: FAIL — cannot read {args.leads} "
+                  f"({type(exc).__name__}: {exc})")
+            sys.exit(2)
+    if not addresses:
+        print("EMAIL VERIFY: nothing to verify — no addresses given")
+        sys.exit(2)
+    args.addresses = addresses
+
     verify_fn, error_cls, note = _email_verifier(approved=args.approve_cost)
     try:
         rows = verify_fn(args.addresses)
@@ -1509,6 +1601,23 @@ def cmd_email_verify_batch(args) -> None:
         code = email_check.print_verify(
             addr, by_email.get(addr.strip().lower()), note=note or "")
         worst = max(worst, code)
+
+    if getattr(args, "out", ""):
+        # Keyed by address, carrying the verifier's own row plus the PASS /
+        # WARN / FAIL the classifier settled on, so a later stage reads the
+        # verdict rather than re-deriving it from `result`.
+        payload = {}
+        for addr in args.addresses:
+            row = by_email.get(addr.strip().lower()) or {}
+            status, detail = email_check.classify_verification(row or None)
+            payload[addr] = dict(row, status=status, detail=detail)
+        Path(args.out).write_text(json.dumps(payload, indent=1, default=str),
+                                  encoding="utf-8")
+        counts: dict[str, int] = {}
+        for entry in payload.values():
+            counts[entry["status"]] = counts.get(entry["status"], 0) + 1
+        print(f"  wrote {args.out} — " + ", ".join(
+            f"{n} {s}" for s, n in sorted(counts.items())))
 
     suspect = email_check.batch_health(list(rows) if rows else [])
     if suspect:
@@ -1739,6 +1848,364 @@ def _write_find_verdicts(args, targets: list, results: dict,
               f"{' ...' if len(unreachable) > 12 else ''}")
         print(f"  pass it to `plan --addresses {args.out}` — it declines "
               f"PAID retrieval for these and never drops them")
+
+
+def cmd_channel_find(args) -> None:
+    """The channels a directory list arrives without, in batched search runs.
+
+    A row with an email and no LinkedIn is a lead the machine can contact and
+    cannot hook. q1-q3's hooks came off `li_posts` and `li_profile`, so finding
+    the URL is what turns a directory row into a lead with a rung.
+
+    **Three properties, each with a precedent.**
+
+    `--execute` is `fetch --escalate`'s rule: without it the plan is printed and
+    nothing is spent, including the exact query strings, so the shape can be
+    read before it is bought 300 times.
+
+    `--leads` is the CLEAR list from `dedupe --stage early`, and its absence is
+    exit 2 rather than exit 1. This is the first command here that spends on a
+    whole list at once and the hard rule is dedupe before any paid call; a gate
+    that could not establish its precondition could not run.
+
+    **Chunking is for resume and blast radius, never for evading the gate.**
+    45 leads is $0.11 and trips `ApifyCostApprovalRequired` every time. That is
+    correct and it stays — sizing a chunk at 39 to slide under the threshold
+    would be routing around an approval a human should give once.
+
+    The state file keeps the raw organic rows beside each verdict, which is
+    `select --batch`'s rule: a later change to the corroboration rule is then
+    re-scorable against the corpus that produced the first answer, rather than
+    a reason to pay for the same search twice.
+
+    Exit 0 when every searched lead reached FOUND, 1 when any is still open,
+    2 when the search layer could not run — a dead SERP must never read as
+    "these coaches have no LinkedIn" — and 3 for cost approval.
+    """
+    from audit import apify, channel_find
+    from outbound import ledger
+
+    try:
+        leads = json.loads(Path(args.leads).read_text(encoding="utf-8"))
+        if not isinstance(leads, list):
+            raise ValueError("not an array")
+    except (OSError, ValueError) as exc:
+        print(f"CHANNEL FIND: FAIL — cannot read {args.leads} "
+              f"({type(exc).__name__}: {exc}). It must be the CLEAR list from "
+              f"`dedupe --stage early` — nothing here spends on a list that has "
+              f"not been checked against the wall.")
+        sys.exit(2)
+
+    batch = ledger.batch_label(getattr(args, "batch", "") or None)
+    state_path = Path(args.state or f"data/runs/{batch}-channels.json")
+    state = _channel_state(state_path, batch, args.shape)
+
+    targets = _channel_targets(leads, state, args)
+    if not targets:
+        print(f"CHANNEL FIND: nothing to search — "
+              f"{len(state['leads'])}/{len(leads)} lead(s) already have a "
+              f"verdict in {state_path}. Use --refresh to re-query them.")
+        _write_channel_out(args, state)
+        sys.exit(0)
+
+    plan = []
+    for target in targets:
+        queries = channel_find.build_queries(
+            target["name"], city=target["city"], domains=tuple(target["domains"]),
+            shape=args.shape)
+        if queries:
+            plan.append(dict(target, queries=queries))
+
+    pages = sum(len(p["queries"]) for p in plan) * max(1, args.pages)
+    estimate = pages * 0.0025
+    print(f"CHANNEL FIND: {len(plan)} lead(s), {pages} search page(s), "
+          f"~${estimate:.3f} — shape {args.shape!r}, batch {batch}")
+    print(f"  state {state_path} ({len(state['leads'])} lead(s) already done)")
+
+    if not args.execute:
+        for entry in plan[:args.show]:
+            print(f"    {entry['name']}: {' | '.join(entry['queries'])}")
+        if len(plan) > args.show:
+            print(f"    ... and {len(plan) - args.show} more")
+        print("  PLAN ONLY — nothing spent. Add --execute to run it.")
+        sys.exit(0)
+
+    ledger.set_context(stage="channel-find", batch=batch)
+    queries = [q for entry in plan for q in entry["queries"]]
+    try:
+        items = apify.google_search(queries, country_code=args.country,
+                                    max_pages=args.pages,
+                                    approved=args.approve_cost)
+    except apify.ApifyCostApprovalRequired as exc:
+        print(f"CHANNEL FIND: APPROVAL REQUIRED — {exc}")
+        print("  Chunking below the threshold would be routing around an "
+              "approval, not earning one. Re-run with --approve-cost.")
+        sys.exit(3)
+    except apify.ApifyError as exc:
+        print(f"CHANNEL FIND: could not search ({exc}) — this says nothing "
+              f"about these {len(plan)} lead(s), who have not been looked up. "
+              f"Nothing was written.")
+        sys.exit(2)
+
+    by_term = {}
+    for item in items:
+        term = ((item.get("searchQuery") or {}).get("term") or "").strip()
+        if term:
+            by_term.setdefault(term, []).append(item)
+
+    worst, found = 0, 0
+    for entry in plan:
+        records = [i for q in entry["queries"] for i in by_term.get(q.strip(), [])]
+        if not records:
+            # A query the run did not answer is not a coach with no LinkedIn.
+            state["leads"][entry["lead_key"]] = {
+                "name": entry["name"], "verdict": "NONE", "queries": entry["queries"],
+                "accepted": {"linkedin_url": "", "instagram_url": "", "site_url": ""},
+                "candidates": [], "unrelated": [],
+                "reason": "the run returned no record for this query",
+                "organic": [],
+            }
+            print(f"CHANNEL FIND: NONE — {entry['name']}: the run returned no "
+                  f"record for this query, so nothing was looked at")
+            worst = max(worst, 1)
+            continue
+
+        result = channel_find.find_channels(
+            entry["name"], records, lead_domains=tuple(entry["domains"]),
+            city=entry["city"], known=entry["known"])
+        print(channel_find.report(entry["name"], result))
+        worst = max(worst, 0 if result["verdict"] == "FOUND" else 1)
+        found += 1 if result["verdict"] == "FOUND" else 0
+        state["leads"][entry["lead_key"]] = {
+            "name": entry["name"],
+            "verdict": result["verdict"],
+            "queries": entry["queries"],
+            "accepted": result["accepted"],
+            "ambiguous": result["ambiguous"],
+            "from_row": result["from_row"],
+            "candidates": result["candidates"],
+            "unrelated": result["unrelated"],
+            "reason": result["reason"],
+            # The corpus beside the verdict, `select --batch`'s rule: a later
+            # rule change is re-scorable rather than re-payable.
+            "organic": [r for i in records for r in (i.get("organicResults") or [])],
+        }
+
+    state["chunks"].append({
+        "leads": len(plan), "pages": pages, "shape": args.shape,
+        "cost_usd_estimate": round(estimate, 4),
+    })
+    _write_channel_state(state_path, state)
+    print(f"  {found}/{len(plan)} FOUND, wrote {state_path} "
+          f"({len(state['leads'])} lead(s) total)")
+    _write_channel_out(args, state)
+    sys.exit(worst)
+
+
+def cmd_icf_export(args) -> None:
+    """Everything the enrichment learned, joined back onto the source workbook.
+
+    Three artifacts from one join: the workbook with its original 31 columns
+    untouched, a committed CSV, and a `leads.json` carrying the found channels
+    merged in, so `intake` never has to run on this list again.
+
+    **It prints coverage for every added column, not the ones anybody expects.**
+    That is `crm-rows`' lesson: twenty rows went into the CRM with no First Name
+    on any of them, and the check that passed them looked at four populated
+    fields and reported 20/20.
+
+    **Exit 1 on an unmet `--expect` or a row that does not join.** A silent
+    partial join is the failure that produces a file which looks complete.
+    """
+    from outbound import icf_intake
+    from outbound.fetch import lead_key
+    from outbound.normalize import Lead
+
+    def read(path, what):
+        if not path:
+            return {}
+        try:
+            return json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"ICF EXPORT: FAIL — cannot read {what} at {path} "
+                  f"({type(exc).__name__}: {exc})")
+            sys.exit(2)
+
+    try:
+        raw = json.loads(Path(args.leads).read_text(encoding="utf-8"))
+        leads = [Lead(**{k: v for k, v in r.items()
+                         if k in Lead.__dataclass_fields__}) for r in raw]
+    except (OSError, ValueError, TypeError) as exc:
+        print(f"ICF EXPORT: FAIL — cannot read {args.leads} "
+              f"({type(exc).__name__}: {exc})")
+        sys.exit(2)
+
+    prefills = read(args.prefill, "the prefill")
+    channels = read(args.channels, "the channel verdicts")
+    verify = read(args.addresses, "the address verdicts")
+    contacted = set(read(args.contacted, "the contacted list") or [])
+    batch = ledger_batch_label(getattr(args, "batch", ""))
+    at = args.at or _today()
+
+    by_key, rows, enriched_leads = {}, {}, []
+    missing = []
+    for lead in leads:
+        key = lead_key(lead)
+        prefill = prefills.get(key) or {}
+        icf_key = prefill.get("icf_key") or ""
+        if not icf_key:
+            missing.append(lead.name)
+            continue
+        channel = channels.get(key) or {}
+        row = icf_intake.enriched_row(
+            lead, prefill=prefill, channels=channel,
+            verify=verify.get(lead.email) or {},
+            contacted=key in contacted or lead.name in contacted,
+            batch=batch, at=at)
+        rows[icf_key] = row
+        by_key[key] = row
+        found = (channel.get("accepted") or {})
+        merged = lead.to_dict()
+        merged["linkedin_url"] = found.get("linkedin_url") or lead.linkedin_url
+        merged["instagram_url"] = found.get("instagram_url") or lead.instagram_url
+        merged["site_url"] = lead.site_url or found.get("site_url", "")
+        enriched_leads.append(merged)
+
+    if missing:
+        print(f"ICF EXPORT: FAIL — {len(missing)} lead(s) carry no ICF key, so "
+              f"they cannot be joined back to the workbook: "
+              f"{', '.join(missing[:8])}")
+        sys.exit(1)
+
+    print(f"ICF EXPORT: {len(rows)} row(s), batch {batch}")
+    for column in icf_intake.ENRICHED_COLUMNS:
+        filled = sum(1 for r in rows.values() if str(r.get(column, "")).strip())
+        print(f"  {column:26s} {filled:4d}/{len(rows)}")
+
+    if args.out_xlsx:
+        try:
+            icf_intake.write_enriched(args.workbook, rows, args.out_xlsx)
+        except icf_intake.ICFIntakeError as exc:
+            print(f"ICF EXPORT: FAIL — {exc}")
+            sys.exit(1)
+        print(f"  wrote {args.out_xlsx}")
+
+    if args.out_csv:
+        import csv
+
+        source_columns = ["Name", "Email", "Phone", "City", "Emirate",
+                          "Credential", "Website (listed)"]
+        with open(args.out_csv, "w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(
+                handle, fieldnames=source_columns + list(icf_intake.ENRICHED_COLUMNS))
+            writer.writeheader()
+            for lead in leads:
+                key = lead_key(lead)
+                row = by_key.get(key)
+                if not row:
+                    continue
+                prefill = prefills.get(key) or {}
+                writer.writerow({
+                    "Name": lead.name, "Email": lead.email, "Phone": lead.phone,
+                    "City": lead.city, "Emirate": prefill.get("emirate", ""),
+                    "Credential": prefill.get("credential", ""),
+                    "Website (listed)": lead.site_url, **row})
+        print(f"  wrote {args.out_csv}")
+
+    if args.out_leads:
+        Path(args.out_leads).write_text(
+            json.dumps(enriched_leads, indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.out_leads}")
+
+    if args.expect and len(rows) != args.expect:
+        print(f"ICF EXPORT: FAIL — expected {args.expect} row(s), joined "
+              f"{len(rows)}. A count of what joined is not a count of what "
+              f"should have.")
+        sys.exit(1)
+
+
+def ledger_batch_label(label: str) -> str:
+    from outbound import ledger
+
+    return ledger.batch_label(label or None)
+
+
+def _today() -> str:
+    from datetime import date
+
+    return date.today().isoformat()
+
+
+def _channel_state(path: Path, batch: str, shape: str) -> dict:
+    """The resume file. A lead present in `leads` is never re-queried.
+
+    Membership, not a chunk counter: a chunk that died halfway leaves the leads
+    it did answer for, and the next invocation picks up exactly the remainder.
+    """
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(state, dict) and isinstance(state.get("leads"), dict):
+            state.setdefault("chunks", [])
+            return state
+    except (OSError, ValueError):
+        pass
+    return {"batch": batch, "shape": shape, "leads": {}, "chunks": []}
+
+
+def _write_channel_state(path: Path, state: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=1, default=str), encoding="utf-8")
+
+
+def _channel_targets(leads: list, state: dict, args) -> list:
+    """Which leads this invocation owes a search, in list order."""
+    from outbound.fetch import lead_key
+    from outbound.normalize import Lead
+
+    wanted = None
+    if getattr(args, "keys", ""):
+        try:
+            wanted = set(json.loads(Path(args.keys).read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            wanted = None
+
+    out = []
+    for raw in leads:
+        lead = Lead(**{k: v for k, v in raw.items()
+                       if k in Lead.__dataclass_fields__})
+        key = lead_key(lead)
+        if wanted is not None and key not in wanted:
+            continue
+        if key in state["leads"] and not args.refresh:
+            continue
+        out.append({
+            "lead_key": key,
+            "name": lead.name,
+            "city": lead.city,
+            "domains": [lead.site_url] if lead.site_url else [],
+            "known": {"linkedin_url": lead.linkedin_url,
+                      "instagram_url": lead.instagram_url,
+                      "site_url": lead.site_url},
+        })
+        if args.chunk and len(out) >= args.chunk:
+            break
+    if args.limit:
+        out = out[:args.limit]
+    return out
+
+
+def _write_channel_out(args, state: dict) -> None:
+    if not getattr(args, "out", ""):
+        return
+    flat = {key: {k: v for k, v in entry.items() if k != "organic"}
+            for key, entry in state["leads"].items()}
+    Path(args.out).write_text(json.dumps(flat, indent=1, default=str),
+                              encoding="utf-8")
+    verdicts = {}
+    for entry in flat.values():
+        verdicts[entry["verdict"]] = verdicts.get(entry["verdict"], 0) + 1
+    print(f"  wrote {args.out} — " + ", ".join(
+        f"{count} {name}" for name, count in sorted(verdicts.items())))
 
 
 def cmd_email_enrich(args) -> None:
@@ -2749,6 +3216,19 @@ def build_parser() -> argparse.ArgumentParser:
                    help="when the dump was scraped, ISO (default: now)")
     p.set_defaults(func=cmd_ig_intake)
 
+    p = sub.add_parser("icf-intake",
+                       help="an ICF directory export (.xlsx) -> Leads AND the "
+                            "ICP fields the coach filled in themselves")
+    p.add_argument("path", help="the ICF Coach Finder export (.xlsx)")
+    p.add_argument("--sheet", default=icf_intake_sheet(),
+                   help="worksheet to read (default: Coaches)")
+    p.add_argument("--source", default="", help="label for where this list came from")
+    p.add_argument("--out", help="write the Leads as JSON")
+    p.add_argument("--prefill", help="write the sourced ICP hints, keyed by lead_key")
+    p.add_argument("--expect", type=int, default=0,
+                   help="fail closed if this many leads do not arrive")
+    p.set_defaults(func=cmd_icf_intake)
+
     p = sub.add_parser("corpus",
                        help="attach a corpus somebody else retrieved to the "
                             "list you are actually running (D32)")
@@ -2982,7 +3462,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("email-verify-batch",
                        help="deliverability confirm for a whole slice, one call")
-    p.add_argument("addresses", nargs="+")
+    p.add_argument("addresses", nargs="*")
+    p.add_argument("--leads", default="",
+                   help="take the addresses off a Leads JSON as well — a whole "
+                        "list does not fit on a command line")
+    p.add_argument("--out", default="",
+                   help="write the verdicts, keyed by address")
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_verify_batch)
 
@@ -2991,6 +3476,56 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("domain", help="domain or site URL")
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_enrich)
+
+    p = sub.add_parser("icf-export",
+                       help="join the enrichment back onto the source workbook")
+    p.add_argument("--workbook", required=True, help="the original .xlsx")
+    p.add_argument("--leads", required=True, help="Leads from `icf-intake --out`")
+    p.add_argument("--prefill", default="", help="from `icf-intake --prefill`")
+    p.add_argument("--channels", default="", help="from `channel-find --out`")
+    p.add_argument("--addresses", default="",
+                   help="from `email-verify-batch --out`")
+    p.add_argument("--contacted", default="",
+                   help="JSON array of lead_keys or names already on the wall")
+    p.add_argument("--out-xlsx", default="", help="the enriched workbook")
+    p.add_argument("--out-csv", default="", help="the committed CSV")
+    p.add_argument("--out-leads", default="",
+                   help="Leads with the found channels merged in")
+    p.add_argument("--expect", type=int, default=0,
+                   help="fail closed if this many rows do not join")
+    p.add_argument("--at", default="", help="the enrichment date (default today)")
+    p.add_argument("--batch", default="", help="batch label")
+    p.set_defaults(func=cmd_icf_export)
+
+    p = sub.add_parser("channel-find",
+                       help="the LinkedIn / Instagram / website a list arrives "
+                            "without, in batched search runs")
+    p.add_argument("--leads", required=True,
+                   help="the CLEAR list from `dedupe --stage early`")
+    p.add_argument("--shape", choices=["one", "two"], default="one",
+                   help="one plain query per lead, or that plus a LinkedIn-"
+                        "scoped one (default: one)")
+    p.add_argument("--chunk", type=int, default=0,
+                   help="stop after this many leads, for resume and blast radius")
+    p.add_argument("--limit", type=int, default=0, help="cap the leads searched")
+    p.add_argument("--keys", default="",
+                   help="JSON array of lead_keys to search, for a chosen slice")
+    p.add_argument("--state", default="",
+                   help="resume file (default data/runs/<batch>-channels.json)")
+    p.add_argument("--refresh", action="store_true",
+                   help="re-query leads that already have a verdict")
+    p.add_argument("--country", default="ae", help="SERP country code")
+    p.add_argument("--pages", type=int, default=1, help="pages per query")
+    p.add_argument("--show", type=int, default=12,
+                   help="queries to print in the plan")
+    p.add_argument("--execute", action="store_true",
+                   help="actually run it. Without this the plan prints and "
+                        "nothing is spent")
+    p.add_argument("--approve-cost", action="store_true",
+                   help="approve a run above the cost threshold")
+    p.add_argument("--out", default="", help="write the merged verdicts")
+    p.add_argument("--batch", default="", help="batch label (ledger)")
+    p.set_defaults(func=cmd_channel_find)
 
     p = sub.add_parser("email-find",
                        help="an address somebody else published, one batched search run")

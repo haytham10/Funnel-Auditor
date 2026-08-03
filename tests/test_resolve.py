@@ -142,7 +142,7 @@ def test_the_report_leads_with_what_their_own_pages_link():
     identities = [resolve.resolve_lead(lead, read)]
     first, second = resolve.report(identities).splitlines()[1:3]
 
-    assert first.strip().startswith("1/2 channel(s) linked from their own pages")
+    assert first.strip().startswith("1/2 discovered channel(s) name somebody else")
     assert "(50%)" in first and "1 confirmed" in first
     # The vendor-measuring number survives, one line down and labelled.
     assert "1/1 lead(s) have at least one confirmed" in second
@@ -205,6 +205,52 @@ def test_the_enums_are_enforced():
                                     evidence="x")])
     problems = resolve.validate(identity)
     assert len(problems) == 4, problems
+
+
+def test_a_searched_channel_is_a_legal_source():
+    """`serp` joined SOURCES with `channel-find`. Without it a SERP-discovered
+    channel cannot be written into an Identity at all, and the only alternatives
+    are lying about where it came from."""
+    assert "serp" in resolve.SOURCES
+    identity = resolve.Identity(
+        lead_key="a@x.ae",
+        channels=[resolve.Channel(platform="linkedin",
+                                  url="https://linkedin.com/in/sarah-khan",
+                                  handle="sarahkhan", confidence="confirmed",
+                                  source="serp", evidence="handle names her")])
+    assert resolve.validate(identity) == []
+
+
+def test_the_report_counts_a_searched_channel_as_discovered():
+    """Adding `serp` to SOURCES without adding it to `discovered` would leave
+    the headline excluding the riskiest source in the machine."""
+    identity = resolve.Identity(
+        lead_key="a@x.ae", name="Sarah Khan",
+        channels=[resolve.Channel(platform="instagram",
+                                  url="https://instagram.com/dubailifecoach",
+                                  handle="dubailifecoach", confidence="absent",
+                                  source="serp",
+                                  evidence="handle carries no part of her name")])
+    assert "1/1 discovered channel(s) name somebody else" in resolve.report([identity])
+
+
+def test_instagrams_reserved_words_are_opaque_not_a_mismatch():
+    """`instagram.com/explore/people/` folded to the 7-letter handle `explore`
+    and rule 4 called it `absent` — a verdict about Instagram's routing rather
+    than about a person. Latent until a SERP started handing these in."""
+    for url in ("https://instagram.com/explore/people/",
+                "https://instagram.com/reel/DGlSPUpPfx4/",
+                "https://instagram.com/stories/somebody/123/",
+                "https://instagram.com/accounts/login/"):
+        assert resolve.handle_of(url, "instagram") == "", url
+        _, confidence, _ = resolve.score_channel(url, "instagram", ["sarah", "khan"])
+        assert confidence == "unknown", url
+
+
+def test_a_real_instagram_handle_still_resolves():
+    """The guard above must not swallow the ordinary case."""
+    assert resolve.handle_of("https://instagram.com/sarahkhancoach",
+                             "instagram") == "sarahkhancoach"
 
 
 def test_an_identity_with_no_lead_key_is_rejected():

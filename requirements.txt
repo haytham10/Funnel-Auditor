@@ -2,3 +2,8 @@ beautifulsoup4
 requests
 python-dateutil
 dnspython
+# `icf-intake` only, and imported inside the function that needs it. A
+# directory export's load-bearing values are cell HYPERLINKS, not cell text —
+# `ICF profile` reads "View profile" in every row and the URL lives only in
+# `cell.hyperlink.target`. Reading that needs a real xlsx parser.
+openpyxl

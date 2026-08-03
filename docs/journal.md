@@ -1,3 +1,58 @@
+## 2026-08-03 (ICF enrichment) — the list that arrives reachable, and the three
+ways a found URL lied
+
+311 UAE coaches scraped from the ICF Credentialed Coach Finder, enriched before
+any batch runs. **It is D32's mirror.** ig237 shipped 2 emails from 237 profiles
+because 74% had no address anywhere; this list is 311/311 with an address, every
+one unique. What it has none of is channels — no LinkedIn, no Instagram, and a
+website on only 91 rows after `classify_site` rejected 10 of the 101 listed.
+
+New: `icf-intake`, `channel-find`, `icf-export`, `audit/channel_find.py`,
+`outbound/icf_intake.py`. `resolve.SOURCES` gains `serp`.
+
+**What the run produced.** 300 clear leads (the wall caught 11, as predicted
+before a cent was spent), 170 LinkedIn, 33 Instagram, 9 new websites, 311
+addresses verified. $2.09 all in, no duplicate fetches.
+
+**Every interesting thing came from reading the output, not the counters.** The
+first cut reported 216 FOUND and 117 "discovered" websites. Both numbers were
+wrong and both looked excellent:
+
+- 84 of the 117 websites were copies of the website the sheet already listed.
+  The command was writing `from_row` nowhere and the export believed it.
+- 6 of 14 sampled FOUND leads held two or three LinkedIn profiles all carrying
+  the name, first one silently kept. Gitanjali Sharma had three, belonging to
+  three different real people.
+- `idcrawl.com/christine-harb` was accepted as her website, because
+  `_candidate` computed a handle for site candidates out of the URL **path**.
+  A people-search index of a person is not that person.
+- `madeleine-scott-956a6a20` was accepted on an exact name match and belongs to
+  a Dance Professor Emerita in Athens, Ohio.
+
+**All four were fixed at zero cost**, because `channel-find` stores the raw SERP
+rows beside each verdict and the whole 300 was re-scored offline. That is
+`select --batch`'s argument and this is the batch that paid it back. Worth
+remembering the next time storing the corpus looks like overhead.
+
+**The Arabic place words are load-bearing.** `google_search` runs
+`countryCode=ae`, so Google renders a UAE person's location as `دبي`, not
+`Dubai`. Six of the nine profiles that stated a location at all stated it that
+way, and an ASCII-only word list read every one as "does not say UAE" — the
+location rule would have dropped six correct leads to catch two wrong ones.
+
+**Two findings to carry forward.** Website discovery on this kind of list yields
+almost nothing and that is the true answer: for the 220 leads with no listed
+site, every non-platform host the SERP returned was a page that merely mentions
+them. And email verification inverts the intuition — free-mail verifies cleanly
+(188/222 PASS, Gmail is not catch-all) while **branded domains mostly answer
+`catch_all`** (49 WARN of 89), so the addresses that look most professional are
+the ones the verifier can say least about. 33 addresses are dead: directory
+staleness, made visible.
+
+Everything triages HOLD on the activity floor, which is correct — a directory
+cannot prove activity, and finding the channel is what gives `research`
+somewhere to look.
+
 ## 2026-08-03 (after the upload) — the CRM described an email nobody received
 
 Wall and copy-usage ran for `2026-08-03-ig237`: 117 -> 119 contacts, both at
