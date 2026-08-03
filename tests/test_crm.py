@@ -177,10 +177,15 @@ def test_the_certified_wording_moves_to_notes_rather_than_being_lost():
 
 
 def test_a_held_lead_still_gets_a_row_with_its_blocker():
-    """A lead that vanished with no record is worse than a kill you can read."""
+    """A lead that vanished with no record is worse than a kill you can read.
+
+    It reads `Held` now rather than `Drafted`/`Qualified`, which is what the
+    Status field has always said it should be — every way a lead can stop short
+    is Held, with the actual reason in Blockers.
+    """
     built = crm.build([lead()], [research(hook_verified="refuted")])
     row = built.rows[0]
-    assert row["Status"] == "Drafted" or row["Status"] == "Qualified"
+    assert row["Status"] == "Held"
     assert "no verified hook" in row["Blockers"]
 
 
@@ -240,6 +245,52 @@ def test_the_batch_is_reported_and_never_put_in_a_row():
     built = crm.build([lead()], [research()], batch="2026-08-01-q1")
     assert "Batch" not in built.rows[0]
     assert "2026-08-01-q1" in built.report()
+
+
+def test_a_row_with_a_blocker_is_held():
+    """The Status field's own description: every way a lead can stop short is
+    Held with the reason in Blockers. `_status` said `Drafted` for a verified
+    hook with no shipped draft, which describes how far the lead GOT — right
+    mid-run and wrong in the row that outlives the run. ig237 would have written
+    Drafted for three leads a cold reader stopped."""
+    from outbound import crm
+
+    got = crm.build(
+        [{"name": "Coach Zee", "slug": "coach-zee", "email": "z@z.com"}],
+        [{"name": "Coach Zee", "slug": "coach-zee", "email": "z@z.com",
+          "hook_verified": "verified", "uae_based": "yes", "is_coach": "yes",
+          "active_recent": "yes"}],
+        drafts=[])
+    row = got.rows[0]
+    assert row["Blockers"]
+    assert row["Status"] == "Held"
+
+
+def test_a_shipped_row_is_exported_and_carries_no_blocker():
+    from outbound import crm
+
+    got = crm.build(
+        [{"name": "Coach Zee", "slug": "coach-zee", "email": "z@z.com"}],
+        [{"name": "Coach Zee", "slug": "coach-zee", "email": "z@z.com",
+          "hook_verified": "verified", "uae_based": "yes", "is_coach": "yes",
+          "active_recent": "yes"}],
+        drafts=[{"slug": "coach-zee", "email": "z@z.com", "subject": "hi",
+                 "body": "hello", "beats": {"hook": "you wrote"},
+                 "anchor_ids": {}}])
+    row = got.rows[0]
+    assert row["Status"] == "Exported"
+    assert not row["Blockers"]
+
+
+def test_a_clear_no_on_a_floor_still_outranks_held():
+    from outbound import crm
+
+    got = crm.build(
+        [{"name": "Nope", "slug": "nope", "email": "n@n.com"}],
+        [{"name": "Nope", "slug": "nope", "email": "n@n.com",
+          "uae_based": "no", "is_coach": "yes", "active_recent": "yes"}],
+        drafts=[])
+    assert got.rows[0]["Status"] == "Disqualified"
 
 
 if __name__ == "__main__":

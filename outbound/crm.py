@@ -233,6 +233,7 @@ def _row(lead: dict, research: dict, draft: dict | None, *, batch: str) -> dict:
     """
     failed = [FLOOR_LABELS[floor] for floor in FLOOR_LABELS
               if (research.get(floor) or "unclear") == "no"]
+    blockers = _blockers(research, draft, failed)
     row = {
         "Name": lead.get("name") or research.get("name") or "",
         "First Name": lead.get("first_name") or "",
@@ -243,7 +244,7 @@ def _row(lead: dict, research: dict, draft: dict | None, *, batch: str) -> dict:
         "LinkedIn": lead.get("linkedin_url") or "",
         "Instagram": lead.get("instagram_url") or "",
         "City": lead.get("city") or "",
-        "Status": _status(research, draft),
+        "Status": _status(research, draft, blocked=bool(blockers)),
         "Coach Type": research.get("coach_type") or "",
         "Sells To": research.get("sells_to") or "",
         "Solo": research.get("solo") or "",
@@ -258,7 +259,7 @@ def _row(lead: dict, research: dict, draft: dict | None, *, batch: str) -> dict:
         "Subject": draft.get("subject") if draft else "",
         "Body": draft.get("body") if draft else "",
         "Anchor Lines": _anchor_ids(draft),
-        "Blockers": _blockers(research, draft, failed),
+        "Blockers": blockers,
         "Notes": _notes(research, draft),
     }
     # On an exported lead the CRM's `Hook` must be the sentence that shipped.
@@ -274,16 +275,31 @@ def _row(lead: dict, research: dict, draft: dict | None, *, batch: str) -> dict:
     return row
 
 
-def _status(research: dict, draft: dict | None) -> str:
+def _status(research: dict, draft: dict | None, blocked: bool = False) -> str:
     """One of `LEAD_STATUSES`, derived rather than reported.
 
     A lead that vanished with no record is worse than a kill you can read, so
     every research object gets a status — including a disqualified one.
+
+    **A row with a Blocker is `Held`.** The field's own description in the base
+    says every way a lead can stop short is Held with the reason in Blockers, and
+    this function said otherwise: a verified hook and no shipped draft read
+    `Drafted`, an address and no hook read `Qualified`. Both describe how far the
+    lead GOT, which is right mid-run and wrong in the row that outlives the run —
+    `2026-08-03-ig237` would have written `Drafted` for three leads a cold reader
+    stopped, and left `Held` unused on the first batch that ever had holds.
+
+    `_blockers` already computes exactly this and nothing else could: it is the
+    only thing here that knows the batch is over, because it is only ever asked
+    at the end of one. So the two fields are coupled rather than a third source
+    of truth being invented.
     """
     if any((research.get(floor) or "unclear") == "no" for floor in FLOOR_LABELS):
         return "Disqualified"
     if draft:
         return "Exported"
+    if blocked:
+        return "Held"
     if (research.get("hook_verified") or "") == "verified":
         return "Drafted"
     if research.get("email"):
