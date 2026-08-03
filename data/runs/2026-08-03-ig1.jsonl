@@ -8,3 +8,7 @@
 {"lead_key": "lana-ave|https://whop.com/lanaaveinnercircle", "stage": "fetch", "platform": "site", "url": "https://whop.com/network", "retrieved_by": "tier0", "cost_usd": 0.0, "secs": 0.84, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T09:34:26+00:00"}
 {"lead_key": "", "stage": "", "platform": "email", "url": "", "retrieved_by": "apify:email", "cost_usd": 0.012, "secs": 30.46, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T09:36:31+00:00"}
 {"lead_key": "", "stage": "", "platform": "email", "url": "", "retrieved_by": "apify:email", "cost_usd": 0.008, "secs": 34.8, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T09:37:09+00:00"}
+{"lead_key": "", "stage": "", "platform": "email", "url": "jendemel@icloud.com", "retrieved_by": "apify:email", "cost_usd": 0.001, "secs": 4.12, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T09:50:30+00:00"}
+{"lead_key": "", "stage": "research", "platform": "instagram", "url": "", "retrieved_by": "apify:ig_profile", "cost_usd": 0.0115, "secs": 35.37, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T09:52:16+00:00"}
+{"lead_key": "", "stage": "", "platform": "email", "url": "info@fitbridge.ae", "retrieved_by": "apify:email", "cost_usd": 0.001, "secs": 7.02, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T09:53:42+00:00"}
+{"lead_key": "", "stage": "", "platform": "email", "url": "", "retrieved_by": "apify:email", "cost_usd": 0.008, "secs": 15.0, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T09:54:00+00:00"}

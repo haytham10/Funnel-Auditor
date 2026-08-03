@@ -1,3 +1,87 @@
+## 2026-08-03 (IG list probe, part 2) — the bio link is an array, and we read one
+
+Haytham, on reading the 0-of-5 result: what's the most straightforward way to
+look someone up? A web search. He searched `jen de mel Strength & Breath
+Coaching for Mothers email address` and got her site, her Instagram and an
+address, for free, without touching a paid rung.
+
+**He was right about the hole.** The probe went tier 0 straight to paid
+`email-enrich` and never touched **tier 1 — the agent's own WebSearch and
+WebFetch** — which is the documented middle of the fetch ladder. In a real batch
+`research-worker` owns that rung and holds both tools. Running the Python stages
+by hand skipped the agent stage entirely, and then reported "0 of 5 reachable" as
+though the ladder had been walked. It had not. **A hand-run of the commands is
+not a run of the machine**, and the missing stage was the free one.
+
+### The address he found does not verify
+
+    EMAIL CHECK:  PASS — jendemel@icloud.com: MX ok, personal, matches lead name
+    EMAIL VERIFY: FAIL — jendemel@icloud.com: mailbox does not exist [via apify]
+
+Shape-perfect, name-matched, hard-bounce. A search for the literal string returns
+nothing indexed. Two readings and they are not distinguishable from here: a real
+address on a page the verifier false-negatived (Apple does block SMTP probes), or
+an address that a search summary composed. **Asked Haytham for the source rather
+than picking one.** Unresolved at the time of writing, and it is the whole reason
+`observe` keeps text verbatim and `hook-verifier` re-fetches: a plausible string
+with no page behind it is the failure mode this repo is built around.
+
+### The finding that paid: `externalUrls` is an array
+
+Ran `apify ig --mode details` on all five handles in one batched run to test
+whether the profile actor returns a public contact email. **It does not** — no
+`publicEmail`, no `businessEmail`, no email field of any kind. That hypothesis
+was wrong.
+
+What it does return is `externalUrls`, a **list**, alongside the singular
+`externalUrl`. Instagram allows several bio links. The source spreadsheet
+captured the primary one. On 2 of 5 leads the primary was the wrong link or
+absent:
+
+| lead | sheet's Link in bio | what `externalUrls` held |
+|---|---|---|
+| trainwithjeffdxb | *(blank)* | a WhatsApp deep link **and `fitbridge.ae`** |
+| thehealersyurt | `thehealersyurt.com` | that, **plus `stan.store/Ladeuxifemme`, `whiteantlergroup.com`, and a Calendly** |
+
+**Jeff Maingi went from unreachable to confirmed.** He was written off as "no
+site, no domain to enrich against". His real domain yields `info@fitbridge.ae`:
+
+    EMAIL VERIFY: PASS — info@fitbridge.ae: mailbox confirmed deliverable (valid)
+    EMAIL ENRICH: NONE — fitbridge.ae: no candidate verified deliverable
+
+The first confirmed-deliverable address of the whole exercise. A role account, so
+WARN-quality under the Email OS rule — but the `NONE` from enrich is the useful
+half: `fitbridge.ae` is **not** catch-all, it rejects unknown mailboxes, and no
+personal address exists on it. `info@` is the only door and that is measured
+rather than assumed.
+
+**Sandra Spencer is misfiled.** She has a Calendly booking link in her bio, which
+is tier A's entire definition, and the sheet has her in tier C, "weak funnel
+signal". Her second domain `whiteantlergroup.com` also explains the template junk
+on `thehealersyurt.com` from part 1 — that site is the neglected one.
+
+### Two smaller things from the same run
+
+- **The post captions are already in the profile actor.** All five returned 12
+  `latestPosts` with timestamps. The read-me offers to pull captions separately
+  for a named shortlist; they come free with the profile scrape already paid for.
+  Four of five leads posted within 30 days, which settles the activity floor from
+  a real publication date — F3's missing evidence, for nothing.
+- No emails in any caption or bio across five leads. Captions are a hook source,
+  not an address source.
+
+### Where the sample landed
+
+0 confirmed addresses became 1, plus two recovered domains and a re-tiering, for
+about $0.05. **The cheapest next move is not more searching**: re-export the
+existing 527-profile dataset reading all of `externalUrls` instead of the
+primary. It is free, it touches every row, and it was wrong on 2 of the 5
+sampled. Tier-1 search then runs on whatever still has no domain.
+
+Nothing was built. `data/runs/*-apify-*.json` is now ignored — a raw actor dump
+is process state, and what a batch keeps from one is the ledger line and whatever
+a later stage read out of it.
+
 ## 2026-08-03 (IG list probe) — two harvested addresses, both junk, neither gate stopped them
 
 Haytham asked how good this machine is at finding emails, then handed it a real
