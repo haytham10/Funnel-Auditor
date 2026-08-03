@@ -217,6 +217,76 @@ def _apply(row: dict, verdict: dict, proposal: dict) -> None:
             row[field_name] = value
 
 
+# What a draft needs to become a Smartlead row, and where it comes from. A
+# draft-worker writes the words; every one of these is a fact about the lead
+# that it neither knows nor should invent.
+JOINED_FIELDS = (
+    "name", "first_name", "last_name", "email", "website", "linkedin_url",
+    "city", "company", "coach_type", "sells_to",
+    "hook_type", "hook_source_url", "hook_quote",
+)
+
+
+def join_identity(members: list, leads: list | None = None,
+                  research: list | None = None) -> list[str]:
+    """Put the lead's own facts onto each draft, explicitly and failing closed.
+
+    A `draft-worker` returns `slug`, `subject`, `beats` and `anchor_ids` — the
+    words, which is its whole job. `export` needs an address, a name and a
+    website, and gets `KeyError: 'email'` without them. The skill's stage 5 runs
+    `export work/drafts.json` as though that file already carried them, which
+    was true only while a human was assembling it by hand.
+
+    **`crm-rows` is the precedent and the warning.** Twenty CRM rows once went in
+    with no First Name, Last Name, Website, LinkedIn or City on any of them,
+    because the joining was implicit and the check that passed them counted
+    four populated fields. So this names every field it could not fill.
+
+    Research wins over the lead row on the fields research is the authority for
+    — the address especially, since a scraped list arrives with none and the
+    address is found three stages later.
+    """
+    by_slug: dict[str, dict] = {}
+    for row in (leads or []):
+        slug = str(row.get("slug") or "").strip()
+        if slug:
+            by_slug.setdefault(slug, {}).update(
+                {k: v for k, v in row.items() if v not in (None, "")})
+    for row in (research or []):
+        slug = str(row.get("slug") or "").strip()
+        if slug:
+            by_slug.setdefault(slug, {}).update(
+                {k: v for k, v in row.items() if v not in (None, "")})
+
+    problems: list[str] = []
+    for draft in members:
+        slug = str(draft.get("slug") or "").strip()
+        source = by_slug.get(slug)
+        if source is None:
+            problems.append(f"{slug}: no lead or research row to join — a draft "
+                            f"for a lead nothing knows about")
+            continue
+        for field_name in JOINED_FIELDS:
+            if draft.get(field_name):
+                continue
+            value = source.get(field_name)
+            if field_name == "website" and not value:
+                value = source.get("site_url")
+            if value:
+                draft[field_name] = value
+        if not draft.get("body") and draft.get("beats"):
+            # `export` assembles the body to write the CSV and keeps it there,
+            # so `crm-rows` read `Body 0/6` on a batch that shipped: the CRM
+            # would carry every fact about the email except the email.
+            from outbound.export import assemble_body
+            draft["body"] = assemble_body(
+                draft["beats"], greeting_name=draft.get("first_name", ""))
+        if not draft.get("email"):
+            problems.append(f"{slug}: joined, and still no address — the machine "
+                            f"ends at a file of email addresses")
+    return problems
+
+
 def write(got: Collected, target: str | Path | None = None) -> Path:
     path = Path(target or got.out)
     path.parent.mkdir(parents=True, exist_ok=True)

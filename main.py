@@ -2407,6 +2407,12 @@ def cmd_collect(args) -> None:
                   if isinstance(r, dict)]
 
     got = co.collect(args.where, args.stage, expect=expect)
+    if args.stage == "drafts" and (args.leads or args.research):
+        gaps = co.join_identity(
+            got.members,
+            leads=_load_json(args.leads, "COLLECT") if args.leads else None,
+            research=_load_json(args.research, "COLLECT") if args.research else None)
+        got.skipped.extend(gaps)
     print(co.report(got))
     if got.members:
         print(f"  wrote {co.write(got, args.out)}")
@@ -3003,6 +3009,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--expect", help="a JSON list carrying the slugs this stage "
                                     "should produce. 'found six' and 'found six "
                                     "of seventeen' are the whole check")
+    p.add_argument("--leads", help="drafts only: the Leads file, to join each "
+                                   "draft to its lead's own facts")
+    p.add_argument("--research", help="drafts only: the research file, which is "
+                                      "the authority on the address")
     p.set_defaults(func=cmd_collect)
 
     p = sub.add_parser("verdict",

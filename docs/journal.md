@@ -1,3 +1,133 @@
+## 2026-08-03 (the IG dump) — 237 profiles, 2 emails, and the four gaps it found
+
+Haytham dropped an Apify `instagram-profile-scraper` dump of 237 UAE coaches and
+asked to work it IG-native, filtering to the ICP before spending anything.
+
+### The funnel
+
+| | n |
+|---|---|
+| profiles in the dump | 237 |
+| triage RUN / HOLD / DROP | 45 / 141 / 51 |
+| individuals after the venues and brands came out | 23 |
+| reachable, address verified | 6 |
+| hooks verified (0 refuted) | 5 |
+| **shipped** | **2** |
+
+**Apify $0.1415 for the whole batch. Claude 55.7M tokens, $40.12 equivalent, 78%
+orchestrator.** `tokens_per_email` is 27.8M against q3's 18.6M — worse, and the
+honest reason is that two emails carry the same fixed cost as twenty. The batch
+also shipped five commits of machinery, which the number does not separate out.
+
+### The dump is a retrieval, not input (D30)
+
+205 of 237 leads arrived carrying up to 12 posts each with verbatim captions,
+real dates and post URLs — the material `plan`'s `ig_posts` rung pays Apify to
+fetch. `ig-intake` reads it into Leads **and** `observe.Observation` records, so
+the activity floor settles from a date instead of `unclear` (F3), `select` ranks
+a real corpus, and no stage re-fetched Instagram to write a hook.
+
+**Every one of the 5 hooks was quoted from that stored corpus and every one held
+on the verifier's live re-fetch.** That was D30's stated exposure — a caption
+edited or deleted since the scrape — and it did not bite on this batch.
+
+### `unclear` is HOLD, and only a complete corpus may drop (D31)
+
+Triage sorts on `qualify`'s own floors, called rather than re-implemented. 141
+leads are HOLD: no location word, no coach word, no dated posts. None of them is
+a kill and all keep their verdicts.
+
+48 of the 51 drops are a stale activity date, which is the one place absence may
+read as a `no` — and only with `--complete-corpus`, because `latestPosts` is
+what the account HAS, not a sample of what a worker happened to fetch.
+`activity_from_observations` keeps its upward-only rule untouched for everybody
+else.
+
+### Four gaps, all found by running the thing
+
+**1. The address they published themselves.** `email-find` searches for what
+somebody else published and its failure mode is a stranger's mailbox that
+verifies clean. Two of the four addresses that survived corroboration here were
+in bio text the dump already carried — `misosuphtarot@gmail.com` and
+`hadimazlom6@gmail.com`, both PASS, neither findable by the SERP. `extract`
+harvests the lead's own *pages* and this list has almost no sites, so nothing
+would have found them. `--observations` now harvests first and skips the query
+for any lead it finds.
+
+**2. The hook verdicts were never merged.** The skill has said "merge them in
+one step" since `hook-verifier` got `Write`, and `collect.py` never read a
+verdict file. Every lead in a verified wave still said `hook_verified:
+proposed`, which `metrics` reads as `hook_yield 0%` — a measurement, not a `?`,
+which defeats the `?`-not-`0` rule from underneath. Now merged in code, joined
+fail-closed, because placing a certification on the wrong lead ships a verified
+hook about somebody else.
+
+**3. A draft carried none of the lead's facts.** `export` wants an address and
+got `KeyError: 'email'`; the skill's stage 5 assumed `drafts.json` already
+carried them, true only while a human assembled it. `collect drafts --leads
+--research` joins them explicitly and names every field it could not fill, which
+is `crm-rows`' lesson.
+
+**4. A working file matched the glob.** `draft-observations.json` collected 67
+observations as drafts, all with slug `None`, every one of which would have
+reached `export` as a row with no lead. A member with no slug is not a member.
+
+### The SERP is not deterministic, measured on one lead
+
+`ig73` searched 18 of these names this morning. **Coach Zee came back ABSENT
+then and FOUND now** — `hello@thecoachzee.com`, hours apart, same query shape.
+Tony Barrak moved ABSENT to CLAIMED. Kristina Duffkova reproduced exactly,
+including her hard bounce.
+
+So **caching address verdicts across batches would have cost a lead rather than
+saved a search.** A prior ABSENT is a measurement of one SERP draw. Re-searching
+an already-searched lead is cheap; skipping one is not.
+
+### And there is nothing off Instagram
+
+Haytham, on the three held drafts: explore other ways to get hooks, you have
+Google search. Fair, and it had not been tried — every hook came from one
+channel because the dump made it free.
+
+Swept four leads across WebSearch, WebFetch, their own sites, podcasts, press
+and LinkedIn. **Two new observations, both undated profile text.** Kayleigh
+Green has no blog, no podcast, no press, and the LinkedIn of her name is a hotel
+employee. A search snippet put Tony Barrak in a weekly qigong class at SEVA and
+the live pages do not carry it, so the worker refused to cite it — correctly.
+
+**These coaches have essentially no public footprint outside Instagram.** That
+is the strongest argument for the ingest and it also means "search harder" has a
+floor in this niche.
+
+### The repair moved the failure across the seam
+
+3 of 5 drafts came back REWRITE on the hook, so `redraft` issued one shared
+correction instead of three private ones — its whole reason for existing. All
+three repairs passed the linter, and **all three then failed the cold read on
+the identity beat.**
+
+That is the correction's fault, not the leads'. It said the hook must hand
+forward into the identity line; three drafters did exactly that and the seam
+broke on the other side of the joint. The one-repair cap held them, which is
+right as a loop bound and was not written for the case where one instruction
+fails three times rather than three leads failing twice.
+
+**The next correction about a seam has to name both beats.** A hook and an
+identity line are one joint and repairing one side of it moves the break.
+
+### Still open
+
+- **`hook.py` cannot represent a null hook with its reason.** `quote` and `line`
+  are unconditionally required, so Kayleigh Green's honest "nothing here is
+  quotable" had to be written as an empty list, and the reason lives nowhere a
+  later stage can read. `collect` now records `hook_verified: none` from the
+  empty file, which is the status but not the why.
+- **The three held drafts.** Verified hooks, no email. They keep their rows and
+  their Blockers and go to the next batch, where the fix is the correction
+  above rather than a third attempt.
+- `cta-04` opens on a question ("Worth 15 minutes?") and both `copy-check` and
+  the drafter flagged it. That is an Airtable edit, not a draft fix.
+
 ## 2026-08-03 (the orchestrator share) — narration was 7%, and the rule chased it
 
 Haytham: now go after the orchestrator share. It is 75% of the bill and the
