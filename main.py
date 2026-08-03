@@ -9,6 +9,10 @@ printed as a line the skill quotes verbatim rather than paraphrases.
 Every gate fails closed. A check that cannot run is a failure, never a pass.
 
     intake      raw CSV -> profiled, junk-stripped Leads
+    ig-intake   an Instagram profile dump -> Leads AND the observations it
+                already carries, so the paid posts rung buys nothing new
+    triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
+    corpus      attach a corpus somebody else retrieved to the list being run
     dedupe      the Contacted-Before wall, both passes
     wall-add    append a shipped batch to the wall, after it is uploaded
     qualify     the three floors, run over a research JSON
@@ -96,6 +100,7 @@ def cmd_intake(args) -> None:
     print(f"  social only       {shape['social_only']}")
     print(f"  email on the row  {shape['with_email']}")
     print(f"  nothing to work   {shape['no_research_target']}")
+    print(_reachability_note(shape))
     if shape["parked_names"]:
         print("  parked: " + ", ".join(shape["parked_names"]))
     # Silence here is expensive. The first real list used `companyWebsite`,
@@ -111,6 +116,189 @@ def cmd_intake(args) -> None:
             json.dumps([l.to_dict() for l in leads], indent=2, default=str),
             encoding="utf-8")
         print(f"  wrote {args.out}")
+
+
+def _reachability_note(shape: dict) -> str:
+    """Whether this list can produce emails at all, said at intake.
+
+    D32's number. A lead with no branded domain has nothing for `email-enrich`
+    to guess against and usually nothing for `email-find` to find, so a list's
+    own-domain rate predicts its yield before a cent is spent. The Instagram
+    list where 13% of the ICP owned a domain shipped 2 emails from 237 rows, and
+    every count printed above it looked fine.
+    """
+    total = shape.get("total") or 0
+    if not total:
+        return "  no rows to profile"
+    rate = (shape.get("with_site") or 0) / total
+    line = (f"  own domain        {shape.get('with_site', 0)}/{total} "
+            f"({rate:.0%}) — the number that predicts whether this list can be "
+            f"emailed")
+    if rate < 0.20:
+        line += ("\n                    LOW. Under about 20%, most leads will "
+                 "end unreachable however good the research is (D32). Say so "
+                 "before spending.")
+    return line
+
+
+def cmd_ig_intake(args) -> None:
+    """An Instagram profile dump -> Leads AND the corpus it already carries.
+
+    `intake` maps a CSV and maps nothing here: the last IG probe returned 0 rows
+    on the dump's own shape and continued by hand. The second output is the
+    reason this is a command rather than a converter — a profile record carries
+    the account's recent posts with verbatim captions, real timestamps and their
+    own URLs, which is what `plan`'s `ig_posts` rung pays to fetch. Ingesting
+    them means the activity floor settles from a date and the hook stage quotes
+    something already retrieved.
+
+    **Both outputs are validated before either is written.** A malformed dump
+    must not seed a corpus a later stage will quote; that is `observe`'s gate
+    used at the moment the records are made rather than discovered by the stage
+    that finally needs them.
+    """
+    from outbound import ig_intake, observe
+
+    try:
+        leads, observations = ig_intake.ingest(
+            args.path, source=args.source or args.path,
+            fetched_at=args.fetched_at or "")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"IG-INTAKE: FAIL — cannot read {args.path}: {exc}")
+        sys.exit(2)
+
+    problems = observe.validate_all(observations)
+    if problems:
+        print(f"IG-INTAKE: FAIL — {len(problems)} observation problem(s), "
+              f"nothing written:")
+        for problem in problems[:20]:
+            print(f"  {problem}")
+        sys.exit(1)
+
+    shape = ig_intake.profile(leads, observations)
+    print(f"IG-INTAKE {args.path}: {shape['total']} profiles")
+    print(f"  live site            {shape['with_site']}")
+    print(f"  social only          {shape['social_only']}")
+    print(f"  nothing to work      {shape['no_research_target']}")
+    print(f"  with a corpus        {shape['with_observations']} "
+          f"({shape['posts']} posts, {shape['observations']} observations)")
+    print(f"  no posts in the dump {shape['no_posts']}")
+    print(_reachability_note(shape))
+    print("  a dump is a CORPUS, not a source list (D32) — attach it to a list "
+          "that arrives reachable with `corpus attach`")
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([l.to_dict() for l in leads], indent=2, default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.observations:
+        Path(args.observations).write_text(
+            json.dumps([o.to_dict() for o in observations], indent=2,
+                       default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.observations}")
+
+
+def cmd_corpus(args) -> None:
+    """Attach a corpus somebody else retrieved to the list actually being run.
+
+    D32: an Instagram dump is evidence, not a source list — 237 profiles shipped
+    2 emails because the ICP there does not own a domain and cannot be emailed.
+    Its hooks were the best on record. So the dump belongs beside a list that
+    arrives reachable, and until now it could not be: `ig-intake` keys every
+    observation by the IG lead's own `fetch.lead_key`, and a queue CSV's row for
+    the same human has a different site and therefore a different key.
+
+    **Never exits 1 on a routing decision** — only on an unmet `--expect`, which
+    is a claim the caller made about coverage, not a judgement this makes.
+    """
+    from outbound import corpus, observe
+    from outbound.normalize import Lead
+
+    data = _load_json(args.observations, "CORPUS")
+    if isinstance(data, list) and any(
+            isinstance(e, dict) and "observations" in e for e in data):
+        data = [obs for entry in data for obs in (entry.get("observations") or [])]
+    try:
+        observations = observe.load(data)
+    except (TypeError, ValueError, AttributeError) as exc:
+        print(f"CORPUS: FAIL — {args.observations} is not a corpus "
+              f"({type(exc).__name__}).")
+        sys.exit(2)
+
+    rows = _load_json(args.leads, "CORPUS")
+    if not isinstance(rows, list):
+        print("CORPUS: FAIL — expected a Leads array from `intake --out`.")
+        sys.exit(2)
+    leads = [Lead(**{k: v for k, v in row.items()
+                     if k in Lead.__dataclass_fields__}) for row in rows]
+
+    result = corpus.attach(leads, observations)
+    print(corpus.report(result, total_leads=len(leads), expect=args.expect))
+
+    problems = observe.validate_all(result.observations)
+    if problems:
+        print(f"CORPUS: FAIL — {len(problems)} re-keyed observation(s) no longer "
+              f"pass the schema, nothing written:")
+        for problem in problems[:10]:
+            print(f"  {problem}")
+        sys.exit(2)
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([o.to_dict() for o in result.observations], indent=2,
+                       default=str), encoding="utf-8")
+        print(f"  wrote {args.out}")
+    sys.exit(1 if corpus.short(result, args.expect) else 0)
+
+
+def cmd_triage(args) -> None:
+    """Sort a list into RUN / HOLD / DROP before anything is spent.
+
+    The floors are `qualify`'s, called rather than re-implemented, and `unclear`
+    is HOLD and never DROP — a false kill is permanent and invisible. The only
+    `no` this stage can reach on evidence nobody fetched twice is a stale
+    activity date, and only with `--complete-corpus`, which asserts that the
+    observations are everything the channel has rather than a sample of it.
+
+    **It never exits 1 on a routing decision.** A triage is a description, the
+    same as a plan is, and the operator reading the DROP list is the gate.
+    """
+    from outbound import observe, triage as triage_mod
+    from outbound.normalize import Lead
+
+    leads_data = _load_json(args.leads, "TRIAGE")
+    if not isinstance(leads_data, list):
+        print("TRIAGE: FAIL — expected a Leads array from `ig-intake --out`.")
+        sys.exit(2)
+    leads = [Lead(**{k: v for k, v in row.items()
+                     if k in Lead.__dataclass_fields__}) for row in leads_data]
+
+    observations = []
+    if args.observations:
+        observations = observe.load(_load_json(args.observations, "TRIAGE"))
+
+    results = triage_mod.triage_all(leads, observations,
+                                    complete_corpus=args.complete_corpus)
+    print(triage_mod.report(results))
+    note = triage_mod.reachability(leads, results)
+    if note:
+        print(note)
+
+    if args.out:
+        Path(args.out).write_text(
+            json.dumps([r.to_dict() for r in results], indent=2, default=str),
+            encoding="utf-8")
+        print(f"  wrote {args.out}")
+    if args.run_out:
+        keep = triage_mod.selected(results, triage_mod.RUN)
+        from outbound.fetch import lead_key as key_of
+        kept = [row for lead, row in zip(leads, leads_data)
+                if key_of(lead) in keep]
+        Path(args.run_out).write_text(
+            json.dumps(kept, indent=2, default=str), encoding="utf-8")
+        print(f"  wrote {args.run_out} ({len(kept)} RUN leads)")
 
 
 # --------------------------------------------------------------------- dedupe
@@ -1329,6 +1517,18 @@ def cmd_email_verify_batch(args) -> None:
     sys.exit(worst)
 
 
+def _lead_key_of(row: dict) -> str:
+    """`fetch.lead_key` for a raw Leads row, or "" when the row is not one."""
+    from outbound.fetch import lead_key
+    from outbound.normalize import Lead
+
+    try:
+        return lead_key(Lead(**{k: v for k, v in row.items()
+                                if k in Lead.__dataclass_fields__}))
+    except (TypeError, ValueError):
+        return ""
+
+
 def _find_targets(args) -> list[dict]:
     """The leads to search for, from a file or from the command line.
 
@@ -1353,7 +1553,11 @@ def _find_targets(args) -> list[dict]:
             domains = [d for d in (row.get("site_url"), row.get("website"),
                                    row.get("domain")) if d]
             out.append({"name": name,
-                        "lead_key": row.get("lead_key") or "",
+                        # A normalized Lead carries no `lead_key` field — it is
+                        # computed. Leaving it blank keyed the whole verdict
+                        # file by name, which `plan` tolerates because it reads
+                        # both, and which nothing else can join a corpus on.
+                        "lead_key": row.get("lead_key") or _lead_key_of(row),
                         "known_email": (row.get("email") or "").strip(),
                         "headline": row.get("headline") or row.get("title") or "",
                         "location": row.get("city") or row.get("location") or "",
@@ -1389,9 +1593,27 @@ def cmd_email_find(args) -> None:
         print("EMAIL FIND: nothing to search for — no named leads")
         sys.exit(2)
 
+    # The free half, and it runs first. An address the lead printed in their own
+    # bio is better corroborated than any citation this stage can buy — it
+    # cannot be a different person of the same name — and searching for a lead
+    # who already has one is a page charged for an answer already in hand.
+    harvested = _harvest_addresses(targets, args.observations) \
+        if getattr(args, "observations", None) else {}
+    for target in targets:
+        best = harvested.get(target["name"])
+        if best:
+            print(f"EMAIL FIND: SELF-PUBLISHED — {target['name']}: "
+                  f"{best['email']} on their own channel "
+                  f"({best['source_url'] or 'bio'}) — no search bought, and "
+                  f"still a candidate a human confirms")
+
+    searchable = [t for t in targets if not harvested.get(t["name"])]
     queries = [email_find.build_query(t["name"], t["headline"], t["location"],
                                       tuple(t["domains"]))
-               for t in targets]
+               for t in searchable]
+    if not queries:
+        _write_find_verdicts(args, targets, {}, harvested)
+        sys.exit(0)
     try:
         items = apify.google_search(queries, country_code=args.country,
                                     max_pages=args.pages,
@@ -1412,8 +1634,8 @@ def cmd_email_find(args) -> None:
             by_term[term] = item
 
     worst = 0
-    verdicts = {}
-    for target, query in zip(targets, queries):
+    results: dict[str, dict] = {}
+    for target, query in zip(searchable, queries):
         item = by_term.get(query.strip())
         if item is None:
             print(f"EMAIL FIND: NONE — {target['name']}: the run returned no "
@@ -1425,32 +1647,98 @@ def cmd_email_find(args) -> None:
                 target["name"], item, lead_domains=tuple(target["domains"]))
             worst = max(worst, email_find.print_find(
                 target["name"], item, lead_domains=tuple(target["domains"])))
-        best = next((c["email"] for c in result["candidates"]
-                     if c["provenance"] == "organic"), "")
-        verdicts[target["lead_key"] or target["name"]] = {
-            "name": target["name"],
-            "verdict": result["verdict"],
+        results[target["name"]] = dict(result, query=query)
+
+    _write_find_verdicts(args, targets, results, harvested)
+    sys.exit(worst)
+
+
+def _harvest_addresses(targets: list, path: str) -> dict:
+    """Addresses the leads published on their own channel, keyed by name.
+
+    Free, offline, and it runs before a single query is bought. `email-find`'s
+    own failure mode is a stranger's mailbox that verifies clean; an address in
+    the lead's own bio is the one kind this stage cannot get wrong about WHICH
+    person of that name it belongs to.
+    """
+    from audit import email_find
+    from outbound import observe
+
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+        observations = observe.load(data)
+    except (OSError, ValueError, TypeError) as exc:
+        print(f"  OBSERVATIONS: could not read {path} ({type(exc).__name__}) — "
+              f"harvesting nothing, and every lead still gets searched")
+        return {}
+
+    by_name = {t["name"]: t for t in targets}
+    pools: dict[str, list] = {}
+    for obs in observations:
+        pools.setdefault(obs.lead_key, []).append(obs)
+
+    out = {}
+    for name, target in by_name.items():
+        pool = pools.get(target.get("lead_key") or "", [])
+        if not pool:
+            # The verdict file is keyed by name because a Lead carries no
+            # lead_key of its own; the corpus is keyed by `fetch.lead_key`. Fall
+            # back to matching on the lead's own URLs rather than guessing a key.
+            urls = {u for u in target.get("domains", []) if u}
+            pool = [o for o in observations
+                    if urls and any(o.url.startswith(u) for u in urls)]
+        found = email_find.from_observations(
+            name, pool, lead_domains=tuple(target.get("domains") or ()))
+        if found:
+            out[name] = found[0]
+    return out
+
+
+def _write_find_verdicts(args, targets: list, results: dict,
+                         harvested: dict) -> None:
+    """One verdict per lead, searched or harvested, for `plan --addresses`."""
+    verdicts = {}
+    for target in targets:
+        name = target["name"]
+        hit = harvested.get(name)
+        result = results.get(name, {"verdict": "NONE", "candidates": []})
+        if hit:
+            best, verdict = hit["email"], "FOUND"
+        else:
+            best = next((c["email"] for c in result["candidates"]
+                         if c["provenance"] == "organic"), "")
+            verdict = result["verdict"]
+        verdicts[target["lead_key"] or name] = {
+            "name": name,
+            "verdict": verdict,
             "found_email": best,
             # The whole point of the file. `plan` declines paid retrieval for a
             # lead nothing can be sent to, and "nothing can be sent to" is a
             # measurement over every cheap path, never the AI Overview's guess.
             "reachable": bool(best or target["known_email"]),
             "known_email": target["known_email"],
-            "query": query,
+            "provenance": hit["provenance"] if hit else "search",
+            "source_url": hit["source_url"] if hit else "",
+            "query": result.get("query", ""),
         }
 
-    if args.out:
-        with open(args.out, "w", encoding="utf-8") as handle:
-            json.dump(verdicts, handle, indent=1)
-        unreachable = [v["name"] for v in verdicts.values() if not v["reachable"]]
-        print(f"  wrote {args.out} — {len(verdicts) - len(unreachable)}/"
-              f"{len(verdicts)} reachable")
-        if unreachable:
-            print(f"  no address anywhere: {', '.join(unreachable[:12])}"
-                  f"{' ...' if len(unreachable) > 12 else ''}")
-            print(f"  pass it to `plan --addresses {args.out}` — it declines "
-                  f"PAID retrieval for these and never drops them")
-    sys.exit(worst)
+    if not args.out:
+        return
+    with open(args.out, "w", encoding="utf-8") as handle:
+        json.dump(verdicts, handle, indent=1)
+    unreachable = [v["name"] for v in verdicts.values() if not v["reachable"]]
+    self_published = sum(1 for v in verdicts.values()
+                         if v["provenance"] == "self_published")
+    print(f"  wrote {args.out} — {len(verdicts) - len(unreachable)}/"
+          f"{len(verdicts)} reachable"
+          + (f", {self_published} of them self-published and free"
+             if self_published else ""))
+    if unreachable:
+        print(f"  no address anywhere: {', '.join(unreachable[:12])}"
+              f"{' ...' if len(unreachable) > 12 else ''}")
+        print(f"  pass it to `plan --addresses {args.out}` — it declines "
+              f"PAID retrieval for these and never drops them")
 
 
 def cmd_email_enrich(args) -> None:
@@ -2203,6 +2491,12 @@ def cmd_collect(args) -> None:
                   if isinstance(r, dict)]
 
     got = co.collect(args.where, args.stage, expect=expect)
+    if args.stage == "drafts" and (args.leads or args.research):
+        gaps = co.join_identity(
+            got.members,
+            leads=_load_json(args.leads, "COLLECT") if args.leads else None,
+            research=_load_json(args.research, "COLLECT") if args.research else None)
+        got.skipped.extend(gaps)
     print(co.report(got))
     if got.members:
         print(f"  wrote {co.write(got, args.out)}")
@@ -2443,6 +2737,47 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="print JSON instead of a profile")
     p.set_defaults(func=cmd_intake)
 
+    p = sub.add_parser("ig-intake",
+                       help="an Instagram profile dump -> Leads AND the "
+                            "observations it already carries")
+    p.add_argument("path", help="the Apify instagram-profile-scraper dataset (JSON)")
+    p.add_argument("--source", help="label for where this list came from")
+    p.add_argument("--out", help="write the Leads as JSON")
+    p.add_argument("--observations",
+                   help="write the posts and bios as observe.Observation records")
+    p.add_argument("--fetched-at", default="",
+                   help="when the dump was scraped, ISO (default: now)")
+    p.set_defaults(func=cmd_ig_intake)
+
+    p = sub.add_parser("corpus",
+                       help="attach a corpus somebody else retrieved to the "
+                            "list you are actually running (D32)")
+    p.add_argument("action", choices=["attach"])
+    p.add_argument("observations",
+                   help="observations from `ig-intake --observations`, or a "
+                        "research file carrying them")
+    p.add_argument("--leads", required=True,
+                   help="the Leads this corpus should be re-keyed onto")
+    p.add_argument("--out", help="write the re-keyed observations")
+    p.add_argument("--expect", type=int,
+                   help="the number of leads that SHOULD match. Exit 1 below it "
+                        "— a corpus that joined 3 of 40 reads like one that "
+                        "joined all 40 if only the total is printed")
+    p.set_defaults(func=cmd_corpus)
+
+    p = sub.add_parser("triage",
+                       help="RUN / HOLD / DROP before anything is spent "
+                            "(unclear is HOLD, never DROP)")
+    p.add_argument("leads", help="Leads JSON from `intake --out` / `ig-intake --out`")
+    p.add_argument("--observations", help="the corpus, for the activity floor")
+    p.add_argument("--complete-corpus", action="store_true",
+                   help="the observations are everything the channel has, not a "
+                        "sample — the ONLY thing that lets a stale date drop a "
+                        "lead. True of a profile scrape, false of a research pass")
+    p.add_argument("--out", help="write every lead's tier and its verdicts")
+    p.add_argument("--run-out", help="write just the RUN leads, as a Leads file")
+    p.set_defaults(func=cmd_triage)
+
     p = sub.add_parser("dedupe", help="the Contacted-Before wall (exits 1 on a warm hit)")
     p.add_argument("leads", help="Leads JSON from `intake --out`")
     p.add_argument("--contacts", help="override the wall: a CSV, or a JSON array "
@@ -2673,6 +3008,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="add the AI Overview: +$0.002/query (nearly doubles the rung) "
                         "for an ABSENT verdict measured wrong on 2 of 5 leads")
     p.add_argument("--out", help="write the per-lead address verdicts for `plan --addresses`")
+    p.add_argument("--observations",
+                   help="a corpus from `ig-intake --observations`. Addresses the "
+                        "lead published on their own channel are harvested free "
+                        "FIRST, and those leads are not searched at all")
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_find)
 
@@ -2770,6 +3109,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--expect", help="a JSON list carrying the slugs this stage "
                                     "should produce. 'found six' and 'found six "
                                     "of seventeen' are the whole check")
+    p.add_argument("--leads", help="drafts only: the Leads file, to join each "
+                                   "draft to its lead's own facts")
+    p.add_argument("--research", help="drafts only: the research file, which is "
+                                      "the authority on the address")
     p.set_defaults(func=cmd_collect)
 
     p = sub.add_parser("verdict",

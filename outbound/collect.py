@@ -72,12 +72,32 @@ def collect(where: str | Path, stage: str, *, expect: list | None = None,
         except (OSError, ValueError) as exc:
             got.skipped.append(f"{path.name}: {type(exc).__name__}")
             continue
-        for row in _rows(data):
+        rows = _rows(data)
+        # A member with no slug cannot be joined to anything downstream, so it
+        # is not a member. The glob is a filename pattern and a working file
+        # will eventually match it: `draft-observations.json` collected 67
+        # observations as drafts, and every one of them would have reached
+        # `export` as a row with no lead. Named rather than dropped quietly,
+        # because a file the caller thought was a slice is worth knowing about.
+        slugless = [r for r in rows if not str(r.get("slug") or "").strip()]
+        if slugless and len(slugless) == len(rows):
+            got.skipped.append(
+                f"{path.name}: {len(rows)} row(s), none carrying a slug — "
+                f"matched the {glob} pattern but is not a {stage} file")
+            continue
+        for row in rows:
             slug = str(row.get("slug") or "").strip()
+            if not slug:
+                got.skipped.append(
+                    f"{path.name}: a row with no slug, which joins to nothing")
+                continue
             if keep is not None and slug not in keep:
                 continue
             got.members.append(row)
         got.files.append(str(path))
+
+    if stage in ("research", "draftable"):
+        got.skipped.extend(merge_hooks(base, got.members))
 
     if stage == "draftable":
         got.members = [r for r in got.members if r.get("passes_floors")
@@ -86,6 +106,185 @@ def collect(where: str | Path, stage: str, *, expect: list | None = None,
     seen = {str(r.get("slug") or "").strip() for r in got.members}
     got.missing = sorted(s for s in (expect or []) if s and s not in seen)
     return got
+
+
+def _slug_of(row: dict) -> str:
+    return str(row.get("slug") or "").strip().lower()
+
+
+def _match(row_slug: str, file_slug: str) -> bool:
+    """Is this verdict about this lead?
+
+    A worker names its own file — `hook-zee.json` for `coach-zee`, `hook-hadi`
+    for `abdul-hadi-mazloum` — so the slug in a verdict is a nickname, not the
+    lead's key. Containment either way covers that, and ambiguity is refused
+    below rather than resolved: **merging a certification onto the wrong lead
+    would ship a verified hook about somebody else**, which is the one mistake
+    in this file that reaches a reader.
+    """
+    if not row_slug or not file_slug:
+        return False
+    return (row_slug == file_slug or file_slug in row_slug
+            or row_slug in file_slug)
+
+
+def merge_hooks(where: Path, rows: list) -> list[str]:
+    """Fold `hook-*.json` and `hookverdict-*.json` onto their research objects.
+
+    The skill has said "merge them in one step" since the verifier was given
+    `Write`, and nothing did it — so every lead in a verified batch still read
+    `hook_verified: proposed`, which is a legal value that looks like an answer.
+    `metrics` then computes `hook_yield 0%` and `null_hook_rate 100%` off it, and
+    those are measurements rather than `?`, which defeats the `?`-not-`0` rule
+    from underneath. Both gates that catch it run after the send file.
+
+    **The verdict is authoritative and the proposal fills in what it does not
+    carry** — `hook_type` and `observation_id` live on the worker's proposal, and
+    a verdict that never saw the proposal cannot restate them.
+
+    Returns a list of problems, which the caller adds to `skipped` so
+    `failed()` is true: an unmatched or ambiguous verdict is a certification
+    nobody can place, and it must not pass quietly.
+    """
+    problems: list[str] = []
+    proposals: dict[str, dict] = {}
+    for path in sorted(Path(where).glob("hook-*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            problems.append(f"{path.name}: {type(exc).__name__}")
+            continue
+        key = path.stem[len("hook-"):].lower()
+        entries = _rows(data)
+        if not entries:
+            # An empty proposal IS the answer: the worker looked and wrote no
+            # hook. `proposed` is a legal value that reads like a pending one,
+            # so a null hook left at the default is counted by `metrics` as a
+            # lead nobody got to rather than as the good answer it is.
+            for row in rows:
+                if _match(_slug_of(row), key):
+                    row["hook_verified"], row["hook"] = "none", ""
+            continue
+        for entry in entries:
+            proposals[key] = entry
+
+    for path in sorted(Path(where).glob("hookverdict-*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            problems.append(f"{path.name}: {type(exc).__name__}")
+            continue
+        for verdict in _rows(data):
+            key = path.stem[len("hookverdict-"):].lower()
+            file_slug = str(verdict.get("slug") or key).strip().lower()
+            hits = [r for r in rows if _match(_slug_of(r), file_slug)]
+            if not hits:
+                url = str(verdict.get("hook_source_url") or "")
+                hits = [r for r in rows if url and any(
+                    url.rstrip("/") == str(o.get("url") or "").rstrip("/")
+                    for o in r.get("observations") or [])]
+            if len(hits) != 1:
+                problems.append(
+                    f"{path.name}: names slug {file_slug!r}, which matches "
+                    f"{len(hits)} research object(s) — a certification nobody "
+                    f"can place is never merged")
+                continue
+            _apply(hits[0], verdict, proposals.get(key, {}))
+    return problems
+
+
+def _apply(row: dict, verdict: dict, proposal: dict) -> None:
+    """One lead's six fields, from the verdict first and the proposal after.
+
+    A REFUTED or INCONCLUSIVE verdict writes the status and **not the hook**.
+    Keeping the text of a hook an independent reader refused would leave the
+    one field a drafter reads populated and the one a gate reads failing.
+    """
+    status = str(verdict.get("verdict") or "").strip().lower()
+    row["hook_verified"] = status or "proposed"
+    if status != "verified":
+        row["hook"] = ""
+        return
+    row["hook"] = verdict.get("resolved_hook") or proposal.get("line") or ""
+    row["hook_quote"] = verdict.get("quote_found") or proposal.get("quote") or ""
+    row["hook_source_url"] = (verdict.get("hook_source_url")
+                              or proposal.get("source_url") or "")
+    row["hook_date"] = verdict.get("hook_date") or proposal.get("published_at") or ""
+    for field_name, source in (("hook_type", "hook_type"),
+                               ("observation_id", "observation_id")):
+        value = proposal.get(source)
+        if value:
+            row[field_name] = value
+
+
+# What a draft needs to become a Smartlead row, and where it comes from. A
+# draft-worker writes the words; every one of these is a fact about the lead
+# that it neither knows nor should invent.
+JOINED_FIELDS = (
+    "name", "first_name", "last_name", "email", "website", "linkedin_url",
+    "city", "company", "coach_type", "sells_to",
+    "hook_type", "hook_source_url", "hook_quote",
+)
+
+
+def join_identity(members: list, leads: list | None = None,
+                  research: list | None = None) -> list[str]:
+    """Put the lead's own facts onto each draft, explicitly and failing closed.
+
+    A `draft-worker` returns `slug`, `subject`, `beats` and `anchor_ids` — the
+    words, which is its whole job. `export` needs an address, a name and a
+    website, and gets `KeyError: 'email'` without them. The skill's stage 5 runs
+    `export work/drafts.json` as though that file already carried them, which
+    was true only while a human was assembling it by hand.
+
+    **`crm-rows` is the precedent and the warning.** Twenty CRM rows once went in
+    with no First Name, Last Name, Website, LinkedIn or City on any of them,
+    because the joining was implicit and the check that passed them counted
+    four populated fields. So this names every field it could not fill.
+
+    Research wins over the lead row on the fields research is the authority for
+    — the address especially, since a scraped list arrives with none and the
+    address is found three stages later.
+    """
+    by_slug: dict[str, dict] = {}
+    for row in (leads or []):
+        slug = str(row.get("slug") or "").strip()
+        if slug:
+            by_slug.setdefault(slug, {}).update(
+                {k: v for k, v in row.items() if v not in (None, "")})
+    for row in (research or []):
+        slug = str(row.get("slug") or "").strip()
+        if slug:
+            by_slug.setdefault(slug, {}).update(
+                {k: v for k, v in row.items() if v not in (None, "")})
+
+    problems: list[str] = []
+    for draft in members:
+        slug = str(draft.get("slug") or "").strip()
+        source = by_slug.get(slug)
+        if source is None:
+            problems.append(f"{slug}: no lead or research row to join — a draft "
+                            f"for a lead nothing knows about")
+            continue
+        for field_name in JOINED_FIELDS:
+            if draft.get(field_name):
+                continue
+            value = source.get(field_name)
+            if field_name == "website" and not value:
+                value = source.get("site_url")
+            if value:
+                draft[field_name] = value
+        if not draft.get("body") and draft.get("beats"):
+            # `export` assembles the body to write the CSV and keeps it there,
+            # so `crm-rows` read `Body 0/6` on a batch that shipped: the CRM
+            # would carry every fact about the email except the email.
+            from outbound.export import assemble_body
+            draft["body"] = assemble_body(
+                draft["beats"], greeting_name=draft.get("first_name", ""))
+        if not draft.get("email"):
+            problems.append(f"{slug}: joined, and still no address — the machine "
+                            f"ends at a file of email addresses")
+    return problems
 
 
 def write(got: Collected, target: str | Path | None = None) -> Path:

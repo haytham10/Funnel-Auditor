@@ -1,0 +1,55 @@
+{
+  "batch": "",
+  "leads": 6,
+  "attempted": 6,
+  "verified": 5,
+  "refuted": 0,
+  "proposed": 0,
+  "none_found": 1,
+  "hook_yield": 0.833,
+  "refute_rate": 0.0,
+  "null_hook_rate": 0.167,
+  "yield_by_rung": {
+    "ig_posts": {
+      "verified": 5
+    }
+  },
+  "by_hook_type": {
+    "LIFE": 3,
+    "WORK": 2
+  },
+  "escalated": 0,
+  "escalation_rate": 0.0,
+  "declined_leads": 20,
+  "declined_and_verified": 0,
+  "declined_and_dry": 0,
+  "ledger_read": true,
+  "retrievals": 54,
+  "cost_usd": 0.1415,
+  "unpriced": 1,
+  "cost_per_verified_hook": 0.0283,
+  "wasted_retrieval_n": 10,
+  "wasted_retrieval_usd": 0.134,
+  "duplicates": 1,
+  "raw": 237,
+  "after_dedupe": 44,
+  "warm": 0,
+  "passed_floors": 6,
+  "written": 2,
+  "rejected": 0,
+  "tier0_rate": 88.0,
+  "source_list": "IG profile dump 2026-08-02 (237 profiles)",
+  "agent_passes": "?",
+  "passes_by_stage": {},
+  "passes_by_model": {},
+  "tokens_total": 55699261,
+  "tokens_orchestrator": 43255066,
+  "tokens_subagents": 12444195,
+  "orchestrator_share": 0.7766,
+  "tokens_per_shipped": 27849630,
+  "model_cost_usd": 40.12,
+  "cost_per_shipped_usd": 20.06,
+  "gaps": [
+    "1 run(s) could not be priced \u2014 compute-billed actors are not a lookup failure, so the cost figures are a floor"
+  ]
+}

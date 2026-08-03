@@ -123,6 +123,15 @@ FOREIGN_PLACES = (
 COACH_MARKERS = (
     "coach", "coaching", "mentor", "mentoring", "consultant to founders",
     "therapist", "practitioner", "facilitator",
+    # The same shape under another job title: someone selling one-to-one change
+    # work who never writes the word "coach". Added when a 237-profile IG list
+    # held "Personal Trainer Dubai" at `unclear` while `COACH_TYPES` has carried
+    # Fitness and Health since the ICP was written. Widening this tuple can only
+    # turn `unclear` into `yes` — it cannot reach a `no`, which needs a stated
+    # non-coach occupation AND no marker anywhere — so the cost of a wrong entry
+    # is one research call and the cost of a missing one is a lead nobody sees.
+    "personal trainer", "hypnotherapist", "psychotherapist",
+    "nutritionist", "dietitian", "counsellor", "counselor",
 )
 # Evidence they SELL it, rather than that the word appears. A hobby, a job
 # title containing "coach", or a page about coaching all match the markers

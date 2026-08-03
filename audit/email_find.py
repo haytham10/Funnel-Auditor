@@ -85,6 +85,11 @@ from audit.urls import registrable_domain
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
+# Provenance for an address the lead published on their own channel. It ranks
+# above an organic citation because it settles the question a citation cannot:
+# whether this is the right person of that name.
+SELF_PUBLISHED = "self_published"
+
 # Local parts that belong to an organisation rather than a person. Shared in
 # spirit with email_check._ROLE_LOCALS, kept separate because this list is used
 # for a different decision: not "is this a weaker address" but "is this the
@@ -330,7 +335,7 @@ def _rank(cand: dict) -> tuple:
     """Most-likely-theirs first. A citation always outranks a claim, because
     only one of the two can be confirmed."""
     return (
-        0 if cand["provenance"] == "organic" else 1,
+        {SELF_PUBLISHED: 0, "organic": 1}.get(cand["provenance"], 2),
         0 if cand["name_match"] else 1,
         0 if cand["on_lead_domain"] else 1,
         0 if not cand["role_account"] else 1,
@@ -354,6 +359,45 @@ def _ai_text(item: dict) -> str:
         if isinstance(val, str) and val.strip():
             return val
     return " ".join(str(v) for v in ao.values() if isinstance(v, str))
+
+
+def from_observations(name: str, observations, *, lead_domains: tuple = ()) -> list[dict]:
+    """The addresses the lead printed on their own channel, for free.
+
+    A coach who wants to be emailed often writes the address in their Instagram
+    bio, and it is the best-corroborated address there is: self-published, on a
+    channel already confirmed as theirs, with no question of which person of
+    that name it belongs to. This module's whole failure mode — a stranger's
+    real mailbox that verifies clean — cannot happen here.
+
+    **Measured on `2026-08-03-ig237`.** The SERP found 6 addresses across 23
+    leads and 2 of the 4 that survived corroboration were not among them: they
+    were sitting in the bio text the dump already carried, and no stage read it.
+    `extract` harvests the lead's own *pages* and this list has almost no
+    sites; the corpus was the only place those two existed.
+
+    It is a harvest and not a verdict. The address is a candidate a human
+    confirms, exactly as a FOUND one is, and it still goes to the verifier.
+    """
+    tokens = name_tokens(name, min_len=3)
+    domains = {registrable_domain(d) for d in lead_domains if d}
+    domains.discard("")
+    seen, out = set(), []
+    for obs in observations or []:
+        text = (obs.get("text") if isinstance(obs, dict)
+                else getattr(obs, "text", "")) or ""
+        url = (obs.get("url") if isinstance(obs, dict)
+               else getattr(obs, "url", "")) or ""
+        for raw in _EMAIL_RE.findall(text):
+            addr = _clean(raw)
+            if not addr or _is_junk(addr) or addr in seen:
+                continue
+            seen.add(addr)
+            cand = _candidate(addr, source_url=url, source_title="",
+                              provenance=SELF_PUBLISHED, tokens=tokens,
+                              lead_domains=domains, source_blob=text)
+            out.append(cand)
+    return sorted(out, key=_rank)
 
 
 def find_addresses(name: str, item: dict, *, lead_domains: tuple = ()) -> dict:

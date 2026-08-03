@@ -473,6 +473,40 @@ def test_accented_latin_is_not_flagged():
             assert "not Latin script" not in out["report"], f"{first} {last}"
 
 
+def test_shipped_json_carries_what_actually_went_into_the_csv():
+    """`--rebalance-ps` swaps a ps line in export's own memory and never writes
+    it back, so `work/drafts.json` keeps the old one. On 2026-08-03-ig237 the
+    CRM said ps=ps-04 while the reader got ps-05 — the "row describing an email
+    nobody received" failure, arriving from the allocator rather than a
+    drafter."""
+    import json as _json
+
+    with tempfile.TemporaryDirectory() as tmp:
+        drafts = [draft()]
+        export.write_batch(drafts, lint_all(drafts), out_dir=tmp, batch="t")
+        rows = _json.loads((Path(tmp) / "shipped.json").read_text(encoding="utf-8"))
+        csv_rows = list(csv.DictReader(open(Path(tmp) / "leads.csv",
+                                            encoding="utf-8")))
+        assert [r["email"] for r in rows] == [c["email"] for c in csv_rows]
+        assert rows[0]["body"] == csv_rows[0]["body"]
+        assert rows[0]["anchor_ids"] == drafts[0].anchor_ids
+
+
+def test_a_rejected_draft_is_absent_from_shipped_json_too():
+    """Same rule as leads.csv: it never reached a reader, so no CRM row may
+    describe it as sent."""
+    import json as _json
+
+    with tempfile.TemporaryDirectory() as tmp:
+        good, bad = draft("good", "Good Coach"), draft(
+            "bad", "Bad Coach", subject="second subject",
+            identity="9 meetings in 6 weeks for a health coach in Dubai.")
+        drafts = [good, bad]
+        export.write_batch(drafts, lint_all(drafts), out_dir=tmp)
+        rows = _json.loads((Path(tmp) / "shipped.json").read_text(encoding="utf-8"))
+        assert [r["email"] for r in rows] == ["good@site.ae"]
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

@@ -629,6 +629,118 @@ verifier at a materially higher rate than dated ones, which would mean the
 recency the date was standing in for was load-bearing after all, and the
 fallback should be narrowed rather than dated honestly.
 
+### D30 · A dump that already carries the corpus is a retrieval, not input
+
+**2026-08-03.** An Apify `instagram-profile-scraper` dataset is read by
+`ig-intake` into Leads **and** `observe.Observation` records — the account's own
+posts, kept verbatim, with their real publication dates and URLs. That is the
+material `plan`'s `ig_posts` rung pays to fetch, so a list that arrives this way
+arrives with its retrieval already done and paid for somewhere else.
+
+**Why it is a decision and not a converter.** The alternative was to flatten the
+dump to a CSV that `intake` understands, which is what the last IG probe did by
+hand. It works, and it throws away twelve posts per lead — so the activity floor
+stays `unclear` (F3, where `latest_activity_date` found zero usable dates across
+nine sites), `select` ranks nothing, and the hook stage pays Apify for the file
+Haytham already has.
+
+**What it does not claim.** `cost_usd` is 0.0 because this repo did not pay it,
+and the ledger's number is what a retrieval cost *here* — inventing a price for
+somebody else's run would be a fabricated measurement. Freshness is the real
+exposure: an ingested caption is true as of the dump's date, and a stale dump
+would put a hook stage quote out of step with the live post. The spot-check
+against live post URLs before the hook wave is what covers that, and it is a
+check a human runs.
+
+**Reversed by** a hook-verifier refuting ingested quotes at a materially higher
+rate than fetched ones, which would mean a dump's corpus is not good enough to
+quote from and the paid rung should be walked after all.
+
+### D31 · Only a complete corpus may settle the activity floor downward
+
+**2026-08-03.** `triage --complete-corpus` may drop a lead whose newest post is
+outside the 30-day window. Without the flag, and everywhere else in the machine,
+a stale set of observations is `unclear` and never a kill.
+
+**The distinction is the evidence, not the stage.**
+`qualify.activity_from_observations` moves the floor upward only, and is right
+to: a research worker's observations are a sample of what it happened to fetch,
+so an old set means the retrieval was old. A profile scrape's `latestPosts` is
+not a sample — it is what the account has, read off the platform on the dump's
+own date. "The newest of twelve is eight months old" is then a measurement of
+the lead.
+
+**Why the flag rather than the loosening.** `activity_from_observations` is
+untouched, so every existing caller gets exactly what it got before, and the
+assertion is made by the one caller that can actually make it. A caller that
+sets the flag without a complete corpus opens a kill surface on the floor built
+not to have one; that is the risk, and it is stated here rather than guarded,
+because nothing in Python can tell a complete corpus from a lucky sample.
+
+**The rest of triage drops nothing.** `unclear` is HOLD — no UAE word, no coach
+word, no posts at all. On the 237-profile list that is 141 leads held and 51
+dropped, 48 of them on a stale date.
+
+**Reversed by** a HOLD queue that never gets worked, which would mean triage is
+a kill with a nicer name; or by a dropped lead turning out to be active on a
+channel the dump does not cover, which would mean a stale IG account is not
+evidence of a stale coach.
+
+### D32 · Instagram is a corpus, not a source list
+
+**2026-08-03.** A list is sourced from somewhere that carries addresses — a
+directory export, a queue CSV, anything arriving with a name, a site and ideally
+a LinkedIn. An Instagram profile dump is attached to such a list as **evidence**,
+never run as the list itself.
+
+**The measurement.** `2026-08-03-ig237` put 237 profiles through the whole
+machine and shipped 2 emails.
+
+| batch | source | raw | shipped | per raw row |
+|---|---|---|---|---|
+| q1 | queue CSV | 20 | 5 | 25% |
+| q2 | queue CSV | 20 | 9 | 45% |
+| q3 | queue CSV | 34 | 13 | 38% |
+| ig237 | IG dump | 237 | 2 | **0.8%** |
+
+**And the machine's middle was not the problem** — it was the best it has been:
+`hook_yield` 83% against 60-63%, `null_hook_rate` 17%, the cheapest
+`cost_per_verified_hook` on record — `data/runs/*-metrics.json` owns those
+figures — every hook quoted from the ingested corpus and every one held on the
+verifier's live re-fetch. D30 works. That is why this decision is about sourcing
+and not about `ig-intake`.
+
+**The mechanism is reachability, and it is structural.** 74% of the individual
+coaches had no address anywhere. The reason is not bad luck:
+
+| | own a real domain |
+|---|---|
+| venues, gyms and clinics (stripped as not-ICP) | 17 of 22 — **77%** |
+| solo coaches (the ICP) | 3 of 23 — **13%** |
+
+**On Instagram, owning a domain is anti-correlated with being our ICP.** The
+accounts with a website are businesses; the people we want use Instagram
+*instead of* having an email address, so `email-find` has nothing to find and
+`email-enrich` has no domain to guess at. A machine that ends at a file of email
+addresses cannot be fed from a channel whose defining feature is not having one.
+
+**The second reason is caption substance.** q1-q3's hooks came off `li_posts`
+and `li_profile`; a LinkedIn post argues a point and an Instagram caption
+captions a photo. Three of ig237's five verified hooks were empty — a real
+quote with nothing a stranger could take from it — which every mechanical gate
+passed.
+
+**What the dump is worth.** It arrives carrying up to twelve dated, verbatim,
+self-authored posts per lead, which is the `ig_posts` rung already paid for.
+Attached to a list that already has addresses, that is free hook material for
+the leads whose handles match. `corpus attach` is what makes that a join rather
+than a coincidence.
+
+**Reversed by** an Instagram-sourced list whose leads arrive reachable — a
+scrape restricted to accounts that publish an address, or a DM channel this
+machine does not have — since the hook numbers already argue the other way and
+only reachability is holding the verdict up.
+
 ---
 
 ## What is unknown

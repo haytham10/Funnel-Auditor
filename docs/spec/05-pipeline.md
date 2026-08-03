@@ -7,7 +7,8 @@ docstring, which is where someone reading the code will actually find it._
 
 **Owns:** the stage boundaries, the exit-code contract, and the orderings that
 are load-bearing.
-**Defers to:** `outbound/normalize.py`, `outbound/dedupe.py`, `outbound/fetch.py`,
+**Defers to:** `outbound/normalize.py`, `outbound/ig_intake.py`,
+`outbound/triage.py`, `outbound/dedupe.py`, `outbound/fetch.py`,
 `outbound/resolve.py`, `outbound/plan.py`, `outbound/select.py`,
 `outbound/qualify.py`, `outbound/research.py`,
 `outbound/anchors.py`, `outbound/lint.py`, `outbound/export.py` — the eleven
@@ -39,6 +40,9 @@ Every gate fails closed: a check that cannot run is a failure, never a pass.
 
 ```
 intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
+ig-intake   the same for an Instagram profile dump, which also arrives with the
+            posts the paid IG rung would have fetched
+triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
 resolve     which channels are plausibly theirs, typed and evidenced
@@ -88,6 +92,46 @@ squeezed afterwards is a citation drifting from its source. See D24.
 domains classified rather than dropped silently, platform URLs routed to their
 social columns, and unmapped headers reported. **Exit 2** if the CSV cannot be
 read.
+
+### `ig-intake`
+**In** an Apify `instagram-profile-scraper` dataset. **Out** Leads *and*
+`observe.Observation` records — the account's own posts, captions verbatim,
+with the dates they were published and the URLs they live at. **Guarantees**
+every observation passes `observe.validate_all` before either file is written,
+`author=self` proven against the post's `ownerUsername` rather than assumed,
+and `retrieved_by` naming `apify:ig_profile`, the actor that really produced
+the dump. **Exit 1** if any observation fails the schema — nothing is written.
+**Exit 2** if the dataset cannot be read or is not an array.
+
+A dump like this is not input to the retrieval stage, it **is** a retrieval,
+made outside this repo. `cost_usd` is 0.0 because nothing here paid for it, and
+the ledger records what a fetch cost *here*. See D30.
+
+**It is a corpus, not a source list** (D32). Run as the list itself, 237
+profiles shipped 2 emails, because on Instagram owning a domain is
+anti-correlated with being our ICP and 74% of the coaches had no address
+anywhere. Attach it with `corpus attach` to a list that arrives reachable.
+
+### `corpus attach`
+**In** observations from `ig-intake --observations` (or a research file) and the
+Leads of a *different* list. **Out** the same observations re-keyed onto that
+list's `fetch.lead_key`. **Guarantees** a handle match is tried before a name
+match, and that **an ambiguous match attaches nothing** — putting one coach's
+posts on another produces a hook that is verified, quotable and about a
+stranger. **Exit 1** when `--expect` is not met. **Exit 2** if either file
+cannot be read.
+
+### `triage`
+**In** Leads, optionally their observations. **Out** a tier per lead — RUN,
+HOLD or DROP — each carrying all three floor verdicts and the source that
+settled them. **Guarantees** the floors are `qualify`'s, called rather than
+re-implemented, and that **`unclear` is HOLD and never DROP**. **Never exits 1
+on a routing decision**: a triage is a description, the same as a plan is, and
+the operator reading the DROP list is the gate.
+
+**`--complete-corpus` is the only thing that lets a stale date drop a lead**, and
+it is an assertion the caller makes about the evidence, not a preference. See
+D31.
 
 ### `dedupe`
 **In** Leads and the wall at `data/contacted-before.csv`. **Out** the clear list
@@ -501,11 +545,17 @@ leaks into the identity beat. A hook carrying a figure with no quote passed is a
 warning, never a silent pass.
 
 ### `export`
-**In** drafts. **Out** `out/leads.csv`, `out/preview.txt`,
+**In** drafts. **Out** `out/leads.csv`, `out/preview.txt`, `out/shipped.json`,
 `out/wall-additions.csv`, `out/line-usage.csv`, `out/rejected.txt`.
 **Guarantees** an email that failed the lint is *absent* from the upload file,
-not flagged in it; and that all five outputs are cleared first, so a blocked
-batch cannot leave a stale uploadable file behind. `--anchors` additionally
+not flagged in it; and that all six outputs are cleared first, so a blocked
+batch cannot leave a stale uploadable file behind.
+
+**`shipped.json` is the drafts exactly as they entered `leads.csv`, and it is
+what `crm-rows --drafts` must read.** `--rebalance-ps` swaps a ps line in this
+command's own memory and never writes it back, so the working drafts file keeps
+the old one — on `2026-08-03-ig237` the CRM said `ps=ps-04` while the reader got
+`ps-05`. Same rule as `Hook`: the row says what the reader saw. `--anchors` additionally
 checks the drafts really used the lines the batch deal assigned, on both the
 reported id and the written text.
 
@@ -641,6 +691,16 @@ the lead. A coach's address is routinely printed by an accreditation body, a
 directory, or a company page and nowhere else, which is why on the probe that
 justified this stage four of five addresses were found off-site and two were on
 domains the machine had never seen.
+
+**`--observations` harvests before it searches, and that half is free.** An
+address the lead printed in their own bio is better corroborated than anything
+this stage can buy — it cannot be a different person of the same name, which is
+this stage's own failure mode. A lead with one is not searched at all, so the
+harvest saves the query as well as finding the address. Measured on
+`2026-08-03-ig237`: the SERP found 6 addresses across 23 leads, and **2 of the 4
+that survived corroboration were not among them** — they were in bio text the
+dump already carried and no stage read. It is still a candidate a human
+confirms, and it still goes to the verifier.
 
 **An organic result is a citation; an AI Overview is a claim**, and the verdicts
 keep them apart. `FOUND` carries a URL that can be re-fetched, which is the

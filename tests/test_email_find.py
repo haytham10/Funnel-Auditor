@@ -270,3 +270,45 @@ def test_exit_code_treats_a_confirmed_absence_as_an_answer(verdict_item, expecte
     exit 1 there would make a correct finding look like a failed command."""
     assert email_find.print_find("Somebody", verdict_item) == expected
     assert "EMAIL FIND:" in capsys.readouterr().out
+
+
+# ------------------------------------------- the address they published themselves
+
+
+def test_an_address_in_their_own_bio_is_harvested_free():
+    """`2026-08-03-ig237`: the SERP found 6 addresses across 23 leads, and 2 of
+    the 4 that survived corroboration were not among them — they were in the bio
+    text the dump already carried, and no stage read it."""
+    from audit import email_find
+
+    obs = [{"lead_key": "k", "url": "https://www.instagram.com/misosuph",
+            "text": "Sound Healing • Reiki\nCollab misosuphtarot@gmail.com"}]
+    found = email_find.from_observations("Sophia Suph", obs)
+    assert [c["email"] for c in found] == ["misosuphtarot@gmail.com"]
+    assert found[0]["provenance"] == email_find.SELF_PUBLISHED
+
+
+def test_a_self_published_address_outranks_a_citation():
+    """It settles the question a citation cannot: WHICH person of that name.
+    `matt.wright@gmail.com` verified PASS for a stranger on the last list."""
+    from audit import email_find
+
+    cited = {"provenance": "organic", "name_match": True, "on_lead_domain": False,
+             "role_account": False, "email": "a@b.com"}
+    theirs = {"provenance": email_find.SELF_PUBLISHED, "name_match": False,
+              "on_lead_domain": False, "role_account": True, "email": "z@y.com"}
+    assert email_find._rank(theirs) < email_find._rank(cited)
+
+
+def test_junk_in_a_caption_is_not_an_address():
+    from audit import email_find
+
+    obs = [{"lead_key": "k", "url": "https://instagram.com/x",
+            "text": "shot on hello@example.com and name@sentry.io"}]
+    assert email_find.from_observations("Some Coach", obs) == []
+
+
+def test_no_observations_harvests_nothing_rather_than_failing():
+    from audit import email_find
+
+    assert email_find.from_observations("Some Coach", None) == []
