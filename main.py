@@ -1433,6 +1433,18 @@ def cmd_email_verify_batch(args) -> None:
     sys.exit(worst)
 
 
+def _lead_key_of(row: dict) -> str:
+    """`fetch.lead_key` for a raw Leads row, or "" when the row is not one."""
+    from outbound.fetch import lead_key
+    from outbound.normalize import Lead
+
+    try:
+        return lead_key(Lead(**{k: v for k, v in row.items()
+                                if k in Lead.__dataclass_fields__}))
+    except (TypeError, ValueError):
+        return ""
+
+
 def _find_targets(args) -> list[dict]:
     """The leads to search for, from a file or from the command line.
 
@@ -1457,7 +1469,11 @@ def _find_targets(args) -> list[dict]:
             domains = [d for d in (row.get("site_url"), row.get("website"),
                                    row.get("domain")) if d]
             out.append({"name": name,
-                        "lead_key": row.get("lead_key") or "",
+                        # A normalized Lead carries no `lead_key` field — it is
+                        # computed. Leaving it blank keyed the whole verdict
+                        # file by name, which `plan` tolerates because it reads
+                        # both, and which nothing else can join a corpus on.
+                        "lead_key": row.get("lead_key") or _lead_key_of(row),
                         "known_email": (row.get("email") or "").strip(),
                         "headline": row.get("headline") or row.get("title") or "",
                         "location": row.get("city") or row.get("location") or "",
@@ -1493,9 +1509,27 @@ def cmd_email_find(args) -> None:
         print("EMAIL FIND: nothing to search for — no named leads")
         sys.exit(2)
 
+    # The free half, and it runs first. An address the lead printed in their own
+    # bio is better corroborated than any citation this stage can buy — it
+    # cannot be a different person of the same name — and searching for a lead
+    # who already has one is a page charged for an answer already in hand.
+    harvested = _harvest_addresses(targets, args.observations) \
+        if getattr(args, "observations", None) else {}
+    for target in targets:
+        best = harvested.get(target["name"])
+        if best:
+            print(f"EMAIL FIND: SELF-PUBLISHED — {target['name']}: "
+                  f"{best['email']} on their own channel "
+                  f"({best['source_url'] or 'bio'}) — no search bought, and "
+                  f"still a candidate a human confirms")
+
+    searchable = [t for t in targets if not harvested.get(t["name"])]
     queries = [email_find.build_query(t["name"], t["headline"], t["location"],
                                       tuple(t["domains"]))
-               for t in targets]
+               for t in searchable]
+    if not queries:
+        _write_find_verdicts(args, targets, {}, harvested)
+        sys.exit(0)
     try:
         items = apify.google_search(queries, country_code=args.country,
                                     max_pages=args.pages,
@@ -1516,8 +1550,8 @@ def cmd_email_find(args) -> None:
             by_term[term] = item
 
     worst = 0
-    verdicts = {}
-    for target, query in zip(targets, queries):
+    results: dict[str, dict] = {}
+    for target, query in zip(searchable, queries):
         item = by_term.get(query.strip())
         if item is None:
             print(f"EMAIL FIND: NONE — {target['name']}: the run returned no "
@@ -1529,32 +1563,98 @@ def cmd_email_find(args) -> None:
                 target["name"], item, lead_domains=tuple(target["domains"]))
             worst = max(worst, email_find.print_find(
                 target["name"], item, lead_domains=tuple(target["domains"])))
-        best = next((c["email"] for c in result["candidates"]
-                     if c["provenance"] == "organic"), "")
-        verdicts[target["lead_key"] or target["name"]] = {
-            "name": target["name"],
-            "verdict": result["verdict"],
+        results[target["name"]] = dict(result, query=query)
+
+    _write_find_verdicts(args, targets, results, harvested)
+    sys.exit(worst)
+
+
+def _harvest_addresses(targets: list, path: str) -> dict:
+    """Addresses the leads published on their own channel, keyed by name.
+
+    Free, offline, and it runs before a single query is bought. `email-find`'s
+    own failure mode is a stranger's mailbox that verifies clean; an address in
+    the lead's own bio is the one kind this stage cannot get wrong about WHICH
+    person of that name it belongs to.
+    """
+    from audit import email_find
+    from outbound import observe
+
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+        observations = observe.load(data)
+    except (OSError, ValueError, TypeError) as exc:
+        print(f"  OBSERVATIONS: could not read {path} ({type(exc).__name__}) — "
+              f"harvesting nothing, and every lead still gets searched")
+        return {}
+
+    by_name = {t["name"]: t for t in targets}
+    pools: dict[str, list] = {}
+    for obs in observations:
+        pools.setdefault(obs.lead_key, []).append(obs)
+
+    out = {}
+    for name, target in by_name.items():
+        pool = pools.get(target.get("lead_key") or "", [])
+        if not pool:
+            # The verdict file is keyed by name because a Lead carries no
+            # lead_key of its own; the corpus is keyed by `fetch.lead_key`. Fall
+            # back to matching on the lead's own URLs rather than guessing a key.
+            urls = {u for u in target.get("domains", []) if u}
+            pool = [o for o in observations
+                    if urls and any(o.url.startswith(u) for u in urls)]
+        found = email_find.from_observations(
+            name, pool, lead_domains=tuple(target.get("domains") or ()))
+        if found:
+            out[name] = found[0]
+    return out
+
+
+def _write_find_verdicts(args, targets: list, results: dict,
+                         harvested: dict) -> None:
+    """One verdict per lead, searched or harvested, for `plan --addresses`."""
+    verdicts = {}
+    for target in targets:
+        name = target["name"]
+        hit = harvested.get(name)
+        result = results.get(name, {"verdict": "NONE", "candidates": []})
+        if hit:
+            best, verdict = hit["email"], "FOUND"
+        else:
+            best = next((c["email"] for c in result["candidates"]
+                         if c["provenance"] == "organic"), "")
+            verdict = result["verdict"]
+        verdicts[target["lead_key"] or name] = {
+            "name": name,
+            "verdict": verdict,
             "found_email": best,
             # The whole point of the file. `plan` declines paid retrieval for a
             # lead nothing can be sent to, and "nothing can be sent to" is a
             # measurement over every cheap path, never the AI Overview's guess.
             "reachable": bool(best or target["known_email"]),
             "known_email": target["known_email"],
-            "query": query,
+            "provenance": hit["provenance"] if hit else "search",
+            "source_url": hit["source_url"] if hit else "",
+            "query": result.get("query", ""),
         }
 
-    if args.out:
-        with open(args.out, "w", encoding="utf-8") as handle:
-            json.dump(verdicts, handle, indent=1)
-        unreachable = [v["name"] for v in verdicts.values() if not v["reachable"]]
-        print(f"  wrote {args.out} — {len(verdicts) - len(unreachable)}/"
-              f"{len(verdicts)} reachable")
-        if unreachable:
-            print(f"  no address anywhere: {', '.join(unreachable[:12])}"
-                  f"{' ...' if len(unreachable) > 12 else ''}")
-            print(f"  pass it to `plan --addresses {args.out}` — it declines "
-                  f"PAID retrieval for these and never drops them")
-    sys.exit(worst)
+    if not args.out:
+        return
+    with open(args.out, "w", encoding="utf-8") as handle:
+        json.dump(verdicts, handle, indent=1)
+    unreachable = [v["name"] for v in verdicts.values() if not v["reachable"]]
+    self_published = sum(1 for v in verdicts.values()
+                         if v["provenance"] == "self_published")
+    print(f"  wrote {args.out} — {len(verdicts) - len(unreachable)}/"
+          f"{len(verdicts)} reachable"
+          + (f", {self_published} of them self-published and free"
+             if self_published else ""))
+    if unreachable:
+        print(f"  no address anywhere: {', '.join(unreachable[:12])}"
+              f"{' ...' if len(unreachable) > 12 else ''}")
+        print(f"  pass it to `plan --addresses {args.out}` — it declines "
+              f"PAID retrieval for these and never drops them")
 
 
 def cmd_email_enrich(args) -> None:
@@ -2802,6 +2902,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="add the AI Overview: +$0.002/query (nearly doubles the rung) "
                         "for an ABSENT verdict measured wrong on 2 of 5 leads")
     p.add_argument("--out", help="write the per-lead address verdicts for `plan --addresses`")
+    p.add_argument("--observations",
+                   help="a corpus from `ig-intake --observations`. Addresses the "
+                        "lead published on their own channel are harvested free "
+                        "FIRST, and those leads are not searched at all")
     p.add_argument("--approve-cost", action="store_true")
     p.set_defaults(func=cmd_email_find)
 

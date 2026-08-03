@@ -672,6 +672,16 @@ directory, or a company page and nowhere else, which is why on the probe that
 justified this stage four of five addresses were found off-site and two were on
 domains the machine had never seen.
 
+**`--observations` harvests before it searches, and that half is free.** An
+address the lead printed in their own bio is better corroborated than anything
+this stage can buy — it cannot be a different person of the same name, which is
+this stage's own failure mode. A lead with one is not searched at all, so the
+harvest saves the query as well as finding the address. Measured on
+`2026-08-03-ig237`: the SERP found 6 addresses across 23 leads, and **2 of the 4
+that survived corroboration were not among them** — they were in bio text the
+dump already carried and no stage read. It is still a candidate a human
+confirms, and it still goes to the verifier.
+
 **An organic result is a citation; an AI Overview is a claim**, and the verdicts
 keep them apart. `FOUND` carries a URL that can be re-fetched, which is the
 standard `hook-verifier` already holds a quote to. `CLAIMED` means only the
