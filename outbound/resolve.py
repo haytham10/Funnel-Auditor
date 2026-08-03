@@ -80,7 +80,16 @@ CONFIDENCE = ("confirmed", "absent", "unknown")
 
 # Where the URL was discovered. `row` is the intake CSV, `site` is the tier-0
 # harvest, `linkinbio` is a page this module read itself.
-SOURCES = ("row", "site", "linkinbio")
+#
+# `serp` joined 2026-08-03 and is different in kind from the other three. Those
+# all mean "somebody showed us this link" — the list did, or a page the lead
+# owns did. A search result means nobody did: a stranger's page merely mentioned
+# them, which is the weakest provenance in the machine and the only one that has
+# ever attributed a channel to the wrong person of the same name. It is also the
+# first source here that COST something, and `plan` declines paid rungs on the
+# strength of these verdicts, so "which of this lead's channels did we buy" has
+# to be answerable. Labelling a bought search hit `row` would answer it wrongly.
+SOURCES = ("row", "site", "linkinbio", "serp")
 
 # `check_owner` uses min_len=3 so a single initial cannot match everything. A
 # handle shorter than this after folding is not something to judge a person on.
@@ -92,8 +101,18 @@ _LINKEDIN_COMPANY = re.compile(r"^/company/", re.I)
 
 # Path segments that carry no name even when they carry characters. Every one of
 # these folds to something a token test would call a mismatch.
+#
+# The Instagram words joined 2026-08-03 with `channel-find`, and they were
+# latent before it. Nothing had ever handed this function an Instagram URL
+# picked off a search page, so `instagram.com/explore/people/` quietly folded to
+# the 7-letter handle `explore` and rule 4 called it `absent` — "this handle
+# contains no part of their name", which is true and is a verdict about
+# Instagram's own routing rather than about a person. A reserved word is an
+# opaque id that happens to be pronounceable.
 _OPAQUE_SEGMENTS = re.compile(
-    r"^(uc[\w\-]{10,}|profile\.php|pages|people|show|episode|podcast|id\d+)$",
+    r"^(uc[\w\-]{10,}|profile\.php|pages|people|show|episode|podcast|id\d+"
+    r"|explore|reel|reels|stories|accounts|direct|tv|about|legal|developer"
+    r"|challenge|privacy)$",
     re.I)
 
 
@@ -623,7 +642,12 @@ def report(identities: list[Identity]) -> str:
     # part nobody chose in advance, and 9 of the 21 channels harvested there
     # belonged to somebody else: a vendor's YouTube, a charity's Twitter, a
     # brand account. Those are the paid scrapes `plan` will decline.
-    discovered = [c for c in channels if c.source in ("site", "linkinbio")]
+    # `serp` belongs in this set and adding it to SOURCES without adding it here
+    # would be worse than not adding it at all: the headline below would go on
+    # reading "N of M channels linked from their own pages name somebody else"
+    # while silently excluding the riskiest source in the machine — the one
+    # where nobody linked anything and a stranger's page merely mentioned them.
+    discovered = [c for c in channels if c.source in ("site", "linkinbio", "serp")]
     found_absent = sum(1 for c in discovered if c.confidence == "absent")
     found_confirmed = sum(1 for c in discovered if c.confidence == "confirmed")
     share = f"{found_absent / len(discovered):.0%}" if discovered else "n/a"
@@ -631,9 +655,10 @@ def report(identities: list[Identity]) -> str:
     lines = [
         f"RESOLVE: {head}, {len(identities)} identity(s), "
         f"{len(channels)} channel(s)",
-        f"  {found_absent}/{len(discovered)} channel(s) linked from their own "
-        f"pages name somebody else ({share}) — {found_confirmed} confirmed, "
-        f"the rest carry no name to check",
+        f"  {found_absent}/{len(discovered)} discovered channel(s) name "
+        f"somebody else ({share}) — {found_confirmed} confirmed, the rest carry "
+        f"no name to check. Discovered means harvested from their own pages or "
+        f"found by search, never handed over on the row",
         f"  {confirmed}/{len(identities)} lead(s) have at least one confirmed "
         f"channel, {len(nothing)} have no channel at all. **A row that arrives "
         f"with a LinkedIn URL confirms itself**, so read the line above first",

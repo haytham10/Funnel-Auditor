@@ -46,6 +46,13 @@ intake      raw CSV -> Leads, junk stripped, platform URLs routed to social
 ig-intake   an IG profile dump -> Leads AND the posts it already carries, which
             is the paid IG rung arriving with the list. A corpus, not a source
             list: attach it to a list that has addresses (D32)
+icf-intake  an ICF directory export (.xlsx) -> Leads AND the ICP fields the
+            coach filled in themselves. The values are cell hyperlinks, not text
+channel-find the LinkedIn / Instagram / website a directory list arrives
+            without. A URL needs a reason to be believed theirs, or the field
+            stays blank
+icf-export  the enrichment joined back onto the workbook, plus the committed
+            CSV and leads.json
 triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
 dedupe      name/domain BEFORE any paid call; email again after research
 fetch       free local HTTP first; ONE batched Apify run for what it can't read
@@ -78,6 +85,15 @@ repair path.
 - **Never invent a hook.** It is a citation or it is nothing. A hook that cannot
   be re-fetched and confirmed means the lead holds and gets no row. No hook
   found is a good answer.
+- **Never invent a channel**, which is the same rule one stage earlier and with
+  worse consequences. A found LinkedIn or Instagram URL needs a stated reason to
+  be believed this lead's, and an uncorroborated one is a **blank field, never a
+  best guess**. A wrong address bounces and `email-verify` catches it; a wrong
+  LinkedIn verifies clean, scrapes clean and produces a real, re-fetchable,
+  quotable hook about a stranger, because `hook`, `hook-verifier` and `lint` all
+  check the content and none of them checks *whose*. **Two people of the same
+  name is not a find either** — an ambiguous match attaches nothing, the rule
+  `corpus attach` already holds.
 - **Never invent a number, and never relabel one.** Every number in an email
   must be true of a real client result in `copy/results.csv`. A number sitting
   next to a named segment must belong to that segment: widening to "coaches
@@ -175,6 +191,19 @@ Skills run these and quote the literal output line rather than paraphrasing it.
   lines the batch deal assigned, checked on both the reported id and the written
   text. A drafter that drew its own line ships an email that reads perfectly and
   a CRM row naming a sentence the reader never saw.
+- `python main.py channel-find --leads <clear.json>` — the LinkedIn, Instagram
+  and website a directory list arrives without. **Without `--execute` the plan
+  prints and nothing is spent**, and `--leads` must be the CLEAR list from
+  `dedupe --stage early` or it exits 2. Four verdicts, and three of them leave a
+  field blank for different reasons: `NONE` found nothing, `UNCORROBORATED`
+  found somebody and rejected them, `AMBIGUOUS` found two people of that name
+  and nothing separating them. Chunking is for resume and blast radius, never
+  for sliding under the cost gate. The state file keeps the raw SERP rows beside
+  each verdict, so a rule change is **re-scorable without re-paying** — which is
+  how three real defects were fixed after the live run at zero cost.
+- `python main.py icf-intake <x.xlsx>` / `icf-export` — the directory source
+  reader and the join back. The values that matter are cell hyperlinks, and the
+  ICP prefill is a **hint file that settles no floor**.
 - `python main.py email-check|email-verify|email-enrich` — address shape,
   deliverability, and the no-address fallback on their own branded domain.
 - `python main.py dedupe` — exits 1 on a warm hit, exit 2 if the wall is

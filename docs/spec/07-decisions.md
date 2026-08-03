@@ -743,6 +743,68 @@ only reachability is holding the verdict up.
 
 ---
 
+### D33 · A found channel is a citation, and two of them are neither
+
+**2026-08-03.** A LinkedIn, Instagram or website URL found in search results is
+written to a lead only with a stated reason to believe it is theirs. Where no
+reason holds, or where two people of that name are equally well supported, the
+field stays **blank** and says which kind of blank it is.
+
+**This is D-for-hooks one stage earlier, and the consequences are worse.** A
+hook must be a citation because an invented one cannot be re-fetched. A channel
+must be a citation because an invented one *can* — and that is the problem. A
+wrong address bounces and `email-verify` catches it. A wrong LinkedIn URL
+verifies clean, scrapes clean, and produces a real, dated, re-fetchable,
+verbatim-quotable hook about a real person who is not the lead. `hook` confirms
+the quote is on the page. `hook-verifier` re-fetches and confirms it is still
+there. `lint` confirms no number was invented. **All four gates pass**, because
+every one of them checks the content and none of them checks whose it is. The
+email ships, correct in every mechanical respect, describing a stranger.
+
+**The measurement.** A 20-lead pilot on the ICF UAE list, then 300 leads:
+
+| | first cut | after the rules |
+|---|---|---|
+| LinkedIn accepted | 216 "found" | **170** |
+| of which a coin flip between real people | 6 of 14 sampled | **0** |
+| websites "discovered" | 117 | **9** |
+| of those, copies of the listed website | 84 | 0 |
+
+Three defects, each found by reading the output rather than the counters, and
+each fixed **for free** because `channel-find` stores the raw SERP rows beside
+its verdict — `select --batch`'s rule, and this is the batch that proved it pays:
+
+- **Ambiguity read as confidence.** Six of fourteen FOUND leads held two or
+  three LinkedIn profiles all carrying the name, and the first was silently
+  kept. One lead had three. The fix is `corpus attach`'s rule — an ambiguous
+  match attaches nothing — broken only by the vanity slug, since a plain slug is
+  one its owner claimed and a digit-suffixed one is what LinkedIn generated.
+- **A path segment read as a handle.** `idcrawl.com/christine-harb` folded to
+  `christineharb` and was accepted at the strongest tier. A people-search index
+  of a person is not their website; a path on somebody else's domain says who a
+  page is **about**, never whose channel it is.
+- **A stated location nobody read.** `madeleine-scott-956a6a20` matched the name
+  exactly and belonged to a Dance Professor Emerita in Athens, Ohio. Every lead
+  on a UAE directory is in the UAE, so a profile that prints a location and
+  prints somewhere else is a different person. It fires only on a **stated**
+  location — `resolve`'s rule 4, where only an available tell may say no — and
+  the Arabic place words are load-bearing, because `countryCode=ae` makes Google
+  render six of nine locations as `دبي` rather than `Dubai`.
+
+**Recall is not the target and the blanks are the deliverable.** 170 of 300 have
+a LinkedIn, 33 an Instagram, and nine of the 220 with no listed website have one
+findable. That last number is the honest one: for the leads with no site, every
+non-platform host the SERP returned was a page that merely mentions them — a
+university catalog, a Scribd PDF, a podcast host, a cat magazine, an HR summit,
+all naming the coach in full. A looser rule would have called `cats.com` a
+coach's website.
+
+**Reversed by** a measured reply rate showing that leads whose channel was a
+tier-`corroborated` guess perform no worse than tier-`handle` ones, which would
+mean the corroboration ladder is costing coverage it does not buy back; or by a
+hook stage that re-confirms identity on the page it scrapes, which would move
+this check downstream to where the content already is.
+
 ## What is unknown
 
 - **Nothing here has been reversed yet.** The reversal conditions are untested,

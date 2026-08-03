@@ -112,6 +112,125 @@ profiles shipped 2 emails, because on Instagram owning a domain is
 anti-correlated with being our ICP and 74% of the coaches had no address
 anywhere. Attach it with `corpus attach` to a list that arrives reachable.
 
+### `icf-intake`
+**In** an ICF Credentialed Coach Finder export (`.xlsx`). **Out** normalized
+Leads *and* a prefill file of the ICP fields the coach filled in themselves,
+keyed by `fetch.lead_key`. **Guarantees** the three hyperlink-bearing columns
+are read from their targets rather than their text, and that nothing in the
+prefill settles a floor. **Exit 2** if the workbook, the sheet or `openpyxl`
+cannot be read. **Exit 1** on an unmet `--expect`.
+
+**It exists because this source's load-bearing values are not in its cells.**
+`ICF profile` reads the literal string "View profile" in every row and the URL
+that reaches the listing lives only in `cell.hyperlink.target`. A CSV conversion
+produces a fully-populated column carrying nothing, and it looks fine — which is
+`crm-rows`' lesson, where twenty rows went in with no First Name and the check
+that passed them looked at four fields and reported 20/20.
+
+**The prefill is a hint file and never a verdict.** A directory listing is the
+coach's own words, which is exactly what `sells_to` requires; it is also stale
+by construction, so a coach who left the UAE two years ago still reads `Dubai`.
+Every value carries `icf_directory` and lives in its own file precisely so no
+later stage can mistake it for something a worker fetched. The activity floor is
+untouched — it settles on dated observations and this source has none.
+
+Three mappings are decisions rather than transcription, and
+`outbound/icf_intake.py` owns them: `Personal and Organizational` maps to `""`
+because `qualify.classify_sells_to` already rules that a source saying both says
+nothing; `Rate (listed)` is a USD hourly band and never becomes
+`top_program_price_aed`, which is an AED program price and a different number;
+and the ICF profile URL never becomes `site_url`, because it is a directory
+listing and putting it there would point tier-0 fetch at ICF's own page for
+every lead on the list.
+
+### `channel-find`
+**In** the CLEAR list from `dedupe --stage early`. **Out** a LinkedIn,
+Instagram and website verdict per lead, each accepted only with a stated reason
+to believe it is theirs. **Guarantees** every query in a chunk goes in one run,
+correlation back to leads is on `searchQuery.term` and never on position, and a
+lead already carrying a verdict is not re-queried. **Exit 0** when every
+searched lead reached FOUND, **1** when any is still open, **2** when the search
+layer could not run or `--leads` is missing, **3** for cost approval.
+
+**A URL needs a reason to be believed this lead's, and the stakes are higher
+than for an address.** `email-find` shipped without that rule and reported FOUND
+four times in five on strangers' addresses. A wrong address at least bounces. A
+wrong LinkedIn URL verifies clean, scrapes clean, and produces a real,
+re-fetchable, quotable hook about a real person who is not the lead — `hook`,
+`hook-verifier` and `lint` all check the content and none of them checks
+*whose*. So an uncorroborated URL is a blank field, never a best guess, and
+there is deliberately no rule that accepts on circumstance alone.
+
+**Three verdicts leave a field blank and they are different answers.** `NONE`
+means nothing was found. `UNCORROBORATED` means something was found and dropped
+as probably somebody else's. `AMBIGUOUS` means two or more people of that name
+were found and nothing separates them. The first is a fact about the coach, the
+second a fact about this filter, and the third is the only one a human could
+settle in thirty seconds — which is why it has to be tellable apart. Every drop
+is kept with its reason, because the filter is a heuristic and the count is how
+anybody notices it going wrong.
+
+**An ambiguous match attaches nothing**, which is `corpus attach`'s rule for
+`corpus attach`'s reason. The pilot is why it is here: six of fourteen FOUND
+leads came back holding two or three LinkedIn profiles that all carried the
+name, and the first was silently kept — for one lead a one-in-three guess
+between three real people, shipped as a confirmed channel. The only honest
+tiebreak is the vanity slug, since a plain slug is one its owner claimed and a
+digit-suffixed one is what LinkedIn generated when the plain one was taken.
+Where that does not separate them, nothing does, and the output is a blank field
+naming the competitors.
+
+**Without `--execute` the plan is printed and nothing is spent**, including the
+exact query strings — `fetch --escalate`'s rule, so a query shape can be read
+before it is bought three hundred times. **`--leads` must be the clear list and
+its absence is exit 2**, because this is the first command here that spends on a
+whole list at once and the hard rule is dedupe before any paid call.
+
+**Chunking is for resume and blast radius, never for evading the gate.** A
+chunk of any useful size trips the cost gate every time — `audit/apify.py` owns
+the event prices and the threshold, and the ledger records what a run actually
+cost. Sizing a chunk to slide under that threshold would be routing around an
+approval a human should give once. Resume is a membership test rather than a
+chunk counter, so a chunk that died halfway leaves the leads it did answer for.
+
+The state file keeps the raw organic rows beside each verdict, which is
+`select --batch`'s rule: a later change to the corroboration rule is re-scorable
+against the corpus that produced the first answer, rather than a reason to pay
+for the same search twice.
+
+**No AI Overview and no observations.** The overview is not bought here at all —
+there is no absence verdict worth paying for, since "this coach has no LinkedIn"
+is a fact the organic results state by not containing one. And a SERP snippet
+never becomes an `observe.Observation`: a snippet is Google's excerpt, not
+verbatim page text, so minting one would put an unverifiable quote into the
+corpus `hook-worker` quotes from — the fabrication class `hook-verifier` exists
+to catch, arriving through the one door it does not watch.
+
+The logic lives in `audit/channel_find.py` and **fetches nothing**, the same
+property that made `audit/footprint.py`'s retirement a deletion rather than a
+rewrite.
+
+### `icf-export`
+**In** the Leads, the prefill, the channel verdicts and the address verdicts.
+**Out** the source workbook with its original columns untouched and the
+enrichment appended, a committed CSV, and a `leads.json` carrying the found
+channels merged in so `intake` never runs on this list again. **Guarantees**
+coverage printed for **every** added column, and that a found website never
+overwrites the sheet's listed one. **Exit 1** on an unmet `--expect` or a row
+that cannot be joined, **exit 2** on an unreadable input.
+
+**Coverage is printed for every column and not the ones anybody expects**, which
+is `crm-rows`' lesson: twenty rows once went into the CRM with no First Name on
+any of them, and the check that passed them looked at four populated fields and
+reported 20/20. It caught its own version of that here — a "found website"
+column reading 117 of 311 that contained 33 discoveries and 84 copies of the
+website the sheet already listed.
+
+**Provenance is derived from the Lead, not read off the channel file.** The
+`ICF row` / `search` label answers "did we buy this or did it arrive free", and
+deriving it from the authority in hand rather than trusting a key the upstream
+command might not have written is what makes it true.
+
 ### `corpus attach`
 **In** observations from `ig-intake --observations` (or a research file) and the
 Leads of a *different* list. **Out** the same observations re-keyed onto that
