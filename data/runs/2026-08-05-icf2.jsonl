@@ -350,3 +350,6 @@
 {"lead_key": "cnarabi@gmail.com", "stage": "verify", "platform": "linkedin", "url": "https://linkedin.com/in/alaahamade", "retrieved_by": "apify:li_posts", "cost_usd": 0.01, "secs": 5.05, "outcome": "ok", "purpose": "verify", "at": "2026-08-04T11:50:24+00:00"}
 {"lead_key": "cnarabi@gmail.com", "stage": "verify", "platform": "linkedin", "url": "https://linkedin.com/posts/sprivina_tedxhult-ashridge-2026-activity-7482684990258925568-JotF", "retrieved_by": "apify:li_posts", "cost_usd": 0.01, "secs": 15.91, "outcome": "ok", "purpose": "verify", "at": "2026-08-04T11:50:27+00:00"}
 {"kind": "pass", "stage": "hook", "agent": "hook-verifier", "model": "sonnet", "count": 12, "at": "2026-08-04T11:51:40+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 6, "at": "2026-08-04T11:57:47+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 6, "at": "2026-08-04T12:00:43+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 12, "at": "2026-08-04T12:01:37+00:00"}
