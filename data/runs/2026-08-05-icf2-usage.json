@@ -1,0 +1,91 @@
+{
+  "batch": "2026-08-05-icf2",
+  "measured": true,
+  "totals": {
+    "input_tokens": 53,
+    "cache_write": 269136,
+    "cache_read": 2394878,
+    "output_tokens": 6231,
+    "cache_write_5m": 0,
+    "cache_write_1h": 269136,
+    "requests": 27,
+    "tokens": 2670298
+  },
+  "orchestrator": {
+    "input_tokens": 53,
+    "cache_write": 269136,
+    "cache_read": 2394878,
+    "output_tokens": 6231,
+    "cache_write_5m": 0,
+    "cache_write_1h": 269136,
+    "requests": 27,
+    "tokens": 2670298
+  },
+  "subagents": {
+    "input_tokens": 0,
+    "cache_write": 0,
+    "cache_read": 0,
+    "output_tokens": 0,
+    "cache_write_5m": 0,
+    "cache_write_1h": 0,
+    "requests": 0,
+    "tokens": 0
+  },
+  "by_model": {
+    "claude-sonnet-5": {
+      "requests": 27,
+      "tokens": 2670298
+    }
+  },
+  "by_agent": {},
+  "agents": 0,
+  "orchestrator_share": 1.0,
+  "sources": {
+    "root": "/root/.claude/projects/-home-user-Outbound-Machine",
+    "main": [
+      "/root/.claude/projects/-home-user-Outbound-Machine/9d706835-c5be-54bb-9e2f-2b3c1c6e26b4.jsonl"
+    ],
+    "subagents": []
+  },
+  "gaps": [],
+  "blocks": {
+    "chars": {
+      "thinking": 13377,
+      "tool_use": 8237,
+      "text": 1236,
+      "tool_result": 38828,
+      "other": 55067
+    },
+    "blocks": {
+      "thinking": 13,
+      "tool_use": 27,
+      "text": 11,
+      "tool_result": 26,
+      "other": 2
+    },
+    "total_chars": 116745,
+    "chars_per_token": 4,
+    "share": {
+      "thinking": 0.11458306565591674,
+      "tool_use": 0.07055548417491113,
+      "text": 0.01058717718103559,
+      "tool_result": 0.332588119405542,
+      "other": 0.4716861535825945
+    }
+  },
+  "price": {
+    "usd": 1.62,
+    "by_model": {
+      "claude-sonnet-5": {
+        "tokens": 2670298,
+        "usd": 1.62
+      }
+    },
+    "basis": [
+      "claude-sonnet-5 introductory rate, through 2026-08-31"
+    ],
+    "unpriceable": [],
+    "as_of": "2026-06-24",
+    "priced_on": "2026-08-04"
+  }
+}
