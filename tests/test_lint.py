@@ -293,6 +293,74 @@ def test_second_person_after_the_number_still_fails():
     assert not result.passed
 
 
+def test_a_figure_handed_to_a_bare_possessive_fails():
+    """`2026-08-03-icf1`, ten of thirty drafts, and the third batch to carry it.
+
+    The bank's line is `30 signed clients this year across 8 coaching practices
+    here. That's the whole job.` The drafter replaces the grounding sentence
+    with its own opener and the noun leaves with it, so the reader gets a number
+    counting nothing. `check_identity_claim` passes it — every licensed figure
+    is present — which is exactly why this needed its own check.
+    """
+    from outbound.lint import check_dangling_figure
+
+    problems = check_dangling_figure(
+        "Who's right for your September is my job. 30 of mine signed this "
+        "year, across 8 practices.")
+    assert problems
+    assert "keep the noun with the figure" in problems[0]
+
+
+def test_the_ones_i_picked_is_the_same_defect():
+    from outbound.lint import check_dangling_figure
+
+    assert check_dangling_figure("30 of the ones I picked signed this year.")
+    assert check_dangling_figure(
+        "30 of the ones I picked this year turned into signed clients.")
+
+
+def test_them_fails_only_when_the_sentence_named_nothing():
+    """`them` is legitimate and shipped. "12 meetings, 7 of them signed" reads
+    fine because the antecedent is right there; "30 of them signed this year"
+    after a sentence about something else does not."""
+    from outbound.lint import check_dangling_figure
+
+    assert not check_dangling_figure(
+        "You have the standing already. I booked a career coach in Dubai 12 "
+        "meetings, 7 of them signed.")
+    assert check_dangling_figure(
+        "I decide who you should be talking to. 30 of them signed this year.")
+
+
+def test_an_antecedent_in_the_previous_sentence_does_not_rescue_it():
+    """A noun two sentences back is a different sentence's noun, and a cold
+    reader hitting the figure has already left it."""
+    from outbound.lint import check_dangling_figure
+
+    assert check_dangling_figure(
+        "I book meetings for coaches here. 30 of them signed this year.")
+
+
+def test_a_figure_keeping_its_noun_passes():
+    from outbound.lint import check_dangling_figure
+
+    assert not check_dangling_figure(
+        "My job is finding your next client. 30 signed clients this year "
+        "across 8 coaching practices here.")
+    assert not check_dangling_figure(
+        "Finding them is my job. About AED 400k in signed business for the "
+        "coaches I worked with this year.")
+
+
+def test_the_dangling_check_is_a_failure_not_a_warning():
+    beats = good_beats()
+    beats["identity"] = ("Deciding who is worth your time is my job. 30 of "
+                         "mine signed this year.")
+    result = run(beats)
+    assert not result.passed
+    assert any("keep the noun with the figure" in f for f in result.failures)
+
+
 def test_gendered_pronoun_in_identity_fails():
     beats = good_beats()
     beats["identity"] = ("My job is finding your next client. A health coach "

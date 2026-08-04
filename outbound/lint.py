@@ -659,6 +659,70 @@ def check_identity_pronouns(identity: str) -> list[str]:
     return [f'gendered pronoun "{match.group(0)}" in the identity beat'] if match else []
 
 
+# A figure handed to a pronoun. `mine`, `theirs` and `the ones` can never have
+# an antecedent a stranger reaches, because the thing being counted was only
+# ever in the reference line the reader never saw. `them` and `those` are
+# legitimate when the sentence already named a plural — "12 meetings, 7 of them
+# signed" is fine and shipped — so those two are checked against what precedes
+# them rather than banned.
+_DANGLING_ALWAYS = re.compile(
+    r"\b\d[\d,.]*\s*(?:k\b|%)?\s+of\s+(?:mine|theirs|the\s+ones?)\b", re.I)
+_DANGLING_IF_BARE = re.compile(
+    r"\b\d[\d,.]*\s*(?:k\b|%)?\s+of\s+(?:them|those|these|it)\b", re.I)
+# The nouns a figure can be counted in. Deliberately not a vocabulary: any
+# plural word, or any of the bank's own singular collectives, counts as an
+# antecedent. The check is "was anything named", not "was the right thing named"
+# — binding a figure to the correct noun is what `check_identity_claim`'s own
+# docstring calls mechanically unreachable, and that is still true.
+_PLURAL = re.compile(r"\b\w{3,}s\b", re.I)
+
+
+def check_dangling_figure(identity: str) -> list[str]:
+    """A figure in the identity beat that lost the noun it counts.
+
+    **The failure this exists for, measured three times.** The bank's identity
+    lines carry their noun and close on a grounding clause — `30 signed clients
+    this year across 8 coaching practices here. That's the whole job.` The
+    drafter is licensed to re-voice, replaces the grounding sentence with its
+    own opener, and the noun goes out with it: `Who's right for your September
+    is my job. 30 of mine signed this year, across 8 practices.`
+
+    The claim survives, so `check_identity_claim` passes it — every licensed
+    figure is present. What a stranger reads is a number counting nothing.
+    `.claude/agents/draft-worker.md` has named this shape since 2026-08-01 and
+    it recurred on q3 and again on `2026-08-03-icf1`, where **ten of thirty
+    drafts** carried it and every cold reader stopped on the same words: "'30 of
+    mine' has no antecedent a cold reader can resolve."
+
+    Three batches of prose did not fix it, so it is a gate. It is a **FAIL**
+    rather than a warning because the cold readers were unanimous, and because
+    catching it here costs nothing while catching it at the cold read costs a
+    drafting pass and a verifier pass per lead.
+
+    **Scoped narrowly on purpose.** It fires on one shape — a figure handed
+    straight to a bare pronoun — and not on the other ways this beat goes flat
+    (stacked figures, verbless fragments, a noun-stack where the reference had a
+    person). Those are real and they are the cold read's job. A gate that tried
+    to judge all of them would refuse good sentences, which is the more
+    expensive mistake.
+    """
+    text = identity or ""
+    problems = []
+    for match in _DANGLING_ALWAYS.finditer(text):
+        problems.append(
+            f'identity beat: "{match.group(0)}" counts nothing a reader can '
+            f'reach — keep the noun with the figure')
+    for match in _DANGLING_IF_BARE.finditer(text):
+        # Only the text before it, and only within this sentence: an antecedent
+        # in the previous sentence is a different sentence's noun.
+        before = re.split(r"[.!?]", text[:match.start()])[-1]
+        if not _PLURAL.search(before):
+            problems.append(
+                f'identity beat: "{match.group(0)}" has no plural noun before '
+                f'it in the sentence — keep the noun with the figure')
+    return problems
+
+
 def check_subject(subject: str) -> list[str]:
     problems = []
     raw = subject or ""
@@ -886,6 +950,7 @@ def check_email(*, name: str, subject: str, body: str, beats: dict[str, str],
     result.failures.extend(check_seam(beats))
     result.failures.extend(check_bridge(beats.get("identity", "")))
     result.failures.extend(check_identity_pronouns(beats.get("identity", "")))
+    result.failures.extend(check_dangling_figure(beats.get("identity", "")))
     result.warnings.extend(check_ask(beats.get("cta", "")))
 
     hook = beats.get("hook", "")
