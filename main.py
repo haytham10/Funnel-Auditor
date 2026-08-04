@@ -54,6 +54,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
                 one note that covers a beat several drafts failed on
     collect     assemble a stage's state file from the per-lead files, instead
                 of out of the orchestrator's context
+    brief       where the run got to, read off disk — what makes a stage
+                boundary a place to stop rather than a place to keep going
     usage       what the batch cost in Claude tokens, MEASURED from the session
                 transcript — the half `ledger pass` cannot see, including the
                 orchestrator, which reports no passes and is usually the largest
@@ -3048,6 +3050,59 @@ def cmd_collect(args) -> None:
     sys.exit(1 if co.failed(got) else 0)
 
 
+def cmd_brief(args) -> None:
+    """Where the run has got to, so a session does not have to remember.
+
+    A batch is one long session today and that is the largest line item in the
+    machine: on `2026-08-03-icf1` the orchestrator's own context was 166.5M of
+    261.0M tokens, 79.6% of the Opus bucket, against 40M for both Opus agents
+    combined. `cache_read` is the sum of that context over every turn, so the
+    growth from 30k to 600k is paid for hundreds of times.
+
+    This is what makes a stage boundary a place to **stop and start again**
+    rather than a place to keep going. Nearly all the state was already on disk;
+    what was not was the residue of counts each stage printed and nothing kept —
+    which is the same residue `metrics` has been asking a tired orchestrator to
+    retype at the end of every run.
+
+    **Never exits 1.** Same rule as `ledger` and `metrics`: it observes, it does
+    not gate, and a command that can halt a send file over an accounting line is
+    one people learn to route around. Exit 2 only when `work/` cannot be read.
+    """
+    from outbound import brief as br
+
+    if args.note:
+        for pair in args.note:
+            key, _, value = pair.partition("=")
+            key, value = key.strip(), value.strip()
+            if not value:
+                print(f"BRIEF BLOCKED: `--note {pair}` has no value. A note with "
+                      f"no value is not a measurement of zero.")
+                sys.exit(2)
+            try:
+                br.write_note(args.where, key, value)
+            except KeyError:
+                known = ", ".join(sorted(br.NOTE_KEYS))
+                print(f"BRIEF BLOCKED: unknown note {key!r}. Known keys: {known}")
+                sys.exit(2)
+            except OSError as exc:
+                print(f"BRIEF BLOCKED: could not write the note — {exc}")
+                sys.exit(2)
+            print(f"  noted {key}={value}")
+
+    if not Path(args.where).is_dir():
+        print(f"BRIEF BLOCKED: {args.where}/ is not a directory. A run state "
+              f"that cannot be read is not an empty run.")
+        sys.exit(2)
+
+    got = br.derive(args.where, args.out)
+    print(br.report(got))
+    if args.metrics_command:
+        print()
+        print(br.metrics_command(got))
+    sys.exit(0)
+
+
 def cmd_verdict(args) -> None:
     """Validate what the cold read decided, before anything routes on it.
 
@@ -3751,6 +3806,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--research", help="drafts only: the research file, which is "
                                       "the authority on the address")
     p.set_defaults(func=cmd_collect)
+
+    p = sub.add_parser("brief",
+                       help="where the run has got to, read off disk — run it "
+                            "first in a fresh session at a stage boundary")
+    p.add_argument("--where", default="work",
+                   help="the run's working directory (default work/)")
+    p.add_argument("--out", default="out",
+                   help="the export directory (default out/)")
+    p.add_argument("--note", action="append", metavar="KEY=VALUE",
+                   help="record a count no file can prove (source-list, warm, "
+                        "copy, apify-budget, chunk). Repeatable")
+    p.add_argument("--metrics-command", action="store_true",
+                   help="also print the `metrics` call this run has earned, "
+                        "carrying only the counts something proved")
+    p.set_defaults(func=cmd_brief)
 
     p = sub.add_parser("verdict",
                        help="validate a cold read before anything routes on it")

@@ -1202,6 +1202,40 @@ in with no First Name, Last Name, Website, LinkedIn or City on any of them, and
 the check that passed them looked at four populated fields and reported 20/20. A
 count of what was found is not a count of what should exist.
 
+### `brief`
+**In** the run's `work/` and `out/` directories. **Out** how far the run got,
+each count for the final brief with the file that proved it, the next command,
+and — with `--metrics-command` — the `metrics` call this run has earned.
+**Guarantees** a count no file proves prints `?` and is left off the generated
+command line; an unknown `--note` key is refused rather than stored. **Exit 2**
+when `work/` cannot be read or a note is malformed. **Never exit 1.** Owned by
+`outbound/brief.py`.
+
+**This is what makes a stage boundary a place to stop.** A batch ran as one
+session because nothing could tell a fresh one where it had got to, and that
+session's own context is the largest line item in the machine: 166.5M of icf1's
+261.0M tokens, 79.6% of the Opus bucket, against 40M for both Opus agents
+combined. `cache_read` is the sum of the context over every turn, so the growth
+from 30k to 600k is paid for hundreds of times. Six short sessions cost a
+fraction of one long one and change no gate, no verifier and no tier.
+
+**Almost all the state was already on disk.** What was not was the residue of
+counts each stage printed and nothing kept — every flag `metrics` takes. Those
+reached `metrics` by being retyped at the end of a long run, which is the exact
+habit the `?`-not-`0` rule exists against, performed by the reader the rule was
+written for.
+
+**It derives and it does not infer.** `warm` is the case that defines the line:
+`dedupe` exits 1 on a warm hit and stops the run, so a `clear.json` on disk
+implies nobody was warm. That inference is available, correct almost always, and
+refused — it prints `?` and takes a note. The five note keys are closed
+(`source-list`, `warm`, `copy`, `apify-budget`, `chunk`); a free-form note file
+would be a second state store with no schema, which is the shape of the problem
+this command removes.
+
+**Fails open, like `ledger` and `metrics`.** An observer that can halt a send
+file over an accounting line is one people learn to route around.
+
 ### `usage`
 **In** the session's own transcripts. **Out** what the batch cost in Claude
 tokens — totals by bucket and model, the orchestrator/subagent split, a
