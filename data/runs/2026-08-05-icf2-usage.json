@@ -2,83 +2,98 @@
   "batch": "2026-08-05-icf2",
   "measured": true,
   "totals": {
-    "input_tokens": 53,
-    "cache_write": 269136,
-    "cache_read": 2394878,
-    "output_tokens": 6231,
-    "cache_write_5m": 0,
-    "cache_write_1h": 269136,
-    "requests": 27,
-    "tokens": 2670298
+    "input_tokens": 10159,
+    "cache_write": 1578055,
+    "cache_read": 45753703,
+    "output_tokens": 39278,
+    "cache_write_5m": 1179801,
+    "cache_write_1h": 398254,
+    "requests": 436,
+    "tokens": 47381195
   },
   "orchestrator": {
-    "input_tokens": 53,
-    "cache_write": 269136,
-    "cache_read": 2394878,
-    "output_tokens": 6231,
+    "input_tokens": 199,
+    "cache_write": 398254,
+    "cache_read": 11939923,
+    "output_tokens": 34022,
     "cache_write_5m": 0,
-    "cache_write_1h": 269136,
-    "requests": 27,
-    "tokens": 2670298
+    "cache_write_1h": 398254,
+    "requests": 102,
+    "tokens": 12372398
   },
   "subagents": {
-    "input_tokens": 0,
-    "cache_write": 0,
-    "cache_read": 0,
-    "output_tokens": 0,
-    "cache_write_5m": 0,
+    "input_tokens": 9960,
+    "cache_write": 1179801,
+    "cache_read": 33813780,
+    "output_tokens": 5256,
+    "cache_write_5m": 1179801,
     "cache_write_1h": 0,
-    "requests": 0,
-    "tokens": 0
+    "requests": 334,
+    "tokens": 35008797
   },
   "by_model": {
     "claude-sonnet-5": {
-      "requests": 27,
-      "tokens": 2670298
+      "requests": 436,
+      "tokens": 47381195
     }
   },
-  "by_agent": {},
-  "agents": 0,
-  "orchestrator_share": 1.0,
+  "by_agent": {
+    "research-worker": {
+      "agents": 7,
+      "requests": 334,
+      "tokens": 35008797
+    }
+  },
+  "agents": 7,
+  "orchestrator_share": 0.2611,
   "sources": {
     "root": "/root/.claude/projects/-home-user-Outbound-Machine",
     "main": [
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/9d706835-c5be-54bb-9e2f-2b3c1c6e26b4.jsonl"
     ],
-    "subagents": []
+    "subagents": [
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375/subagents/agent-a351df6dd8154715c.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375/subagents/agent-a3d9808a5afb06379.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375/subagents/agent-a47d677b69d548783.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375/subagents/agent-a6c9f297a133e1034.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375/subagents/agent-a8a3615e8968a1a02.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375/subagents/agent-a8b1239fbfbc37bea.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/387f7957-9209-4971-b8d1-433aa2625375/subagents/agent-ad447314962d5cf1d.jsonl"
+    ]
   },
   "gaps": [],
   "blocks": {
     "chars": {
-      "thinking": 13377,
-      "tool_use": 8237,
-      "text": 1236,
-      "tool_result": 38828,
-      "other": 55067
+      "thinking": 69890,
+      "tool_use": 44816,
+      "text": 8538,
+      "tool_result": 203870,
+      "other": 64165
     },
     "blocks": {
-      "thinking": 13,
-      "tool_use": 27,
-      "text": 11,
-      "tool_result": 26,
-      "other": 2
+      "thinking": 50,
+      "tool_use": 97,
+      "text": 41,
+      "tool_result": 96,
+      "other": 15
     },
-    "total_chars": 116745,
+    "total_chars": 391279,
     "chars_per_token": 4,
     "share": {
-      "thinking": 0.11458306565591674,
-      "tool_use": 0.07055548417491113,
-      "text": 0.01058717718103559,
-      "tool_result": 0.332588119405542,
-      "other": 0.4716861535825945
+      "thinking": 0.1786193483422315,
+      "tool_use": 0.11453719724288806,
+      "text": 0.021820746832822615,
+      "tool_result": 0.5210348625916545,
+      "other": 0.16398784499040328
     }
   },
   "price": {
-    "usd": 1.62,
+    "usd": 14.11,
     "by_model": {
       "claude-sonnet-5": {
-        "tokens": 2670298,
-        "usd": 1.62
+        "tokens": 47381195,
+        "usd": 14.11
       }
     },
     "basis": [
