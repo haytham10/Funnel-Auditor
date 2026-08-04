@@ -100,8 +100,15 @@ def collect(where: str | Path, stage: str, *, expect: list | None = None,
         got.skipped.extend(merge_hooks(base, got.members))
 
     if stage == "draftable":
-        got.members = [r for r in got.members if r.get("passes_floors")
-                       or not r.get("failed_floors")]
+        # A worker's on-disk research object never carries `passes_floors` —
+        # `Research.to_dict()` is `asdict()`, which serialises fields, not the
+        # `@property` the floors are computed by. Filtering on the literal key
+        # was a no-op against every real file: it always returned `None`, and
+        # `None or not None` is `True`, so nothing was ever excluded here. Build
+        # the real object and ask it, the same way `research`/`observe` do.
+        from outbound.research import Research
+        got.members = [r for r in got.members
+                       if Research.from_dict(r).passes_floors]
 
     seen = {str(r.get("slug") or "").strip() for r in got.members}
     got.missing = sorted(s for s in (expect or []) if s and s not in seen)

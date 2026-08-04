@@ -84,10 +84,17 @@ def test_a_slice_holding_an_array_contributes_every_member():
 
 
 def test_draftable_keeps_only_what_passed_the_floors():
+    """A real research object never carries `passes_floors` as a literal key —
+    it is a `@property`, so `Research.to_dict()` never serialises it. Filtering
+    on the raw dict key was a no-op against every file a worker actually
+    writes; this fixture uses the fields floors are computed FROM, the way a
+    worker's file really looks."""
     with tempfile.TemporaryDirectory() as tmp:
         (Path(tmp) / "research-1.json").write_text(json.dumps(
-            [{"slug": "a", "passes_floors": True},
-             {"slug": "b", "passes_floors": False, "failed_floors": ["uae_based"]}]),
+            [{"slug": "a", "uae_based": "yes", "is_coach": "yes",
+              "active_recent": "unclear"},
+             {"slug": "b", "uae_based": "no", "is_coach": "yes",
+              "active_recent": "yes"}]),
             encoding="utf-8")
         got = collect.collect(tmp, "draftable")
         assert [r["slug"] for r in got.members] == ["a"]
