@@ -1,3 +1,76 @@
+## 2026-08-04 (platform) — the answer to "which LLM" was "stop running the
+batch as one session"
+
+Haytham is stranded 2 days a week: Max 5x weekly limit, 80% burned by Monday,
+reset Friday. He asked whether to move to GPT-5.6 ($100), Kimi K3 ($40) or
+Grok 4.5 ($30). The answer is none of them yet, and the reason is measured.
+
+**Repricing icf1's actual shape settles the vendor question.** 261.0M tokens,
+**95.6% of it `cache_read`**, output 701,701 tokens — 0.27% of the bill. When
+cached input is the whole spend, the only rate that matters is the cached-input
+rate, and every vendor prices it at ~10% of input. GPT-5.6 Sol comes out at
+**102% of Opus 5** on our own numbers. Grok's headline $2/$6 collapses too: its
+cached rate is $0.50/M, identical to Sol and Opus, and its advantage is on the
+0.27%. The whole spread in the table is *tier*, not vendor — Terra 41%, Luna 4%.
+
+**And the subscription math kills the cheap tiers outright.** icf1 was 2,850
+requests. SuperGrok's $30 is one shared weekly pool at ~400 messages/day: one
+batch is a week of allowance. These are not cheaper platforms, they are plans
+that stop mid-chunk.
+
+**I got the first recommendation wrong and the file corrected me.** I proposed
+"push the fleet to Sonnet" — the fleet has been on Sonnet since the tier table
+was written. `research-worker`, `hook-worker` and `hook-verifier` are already
+`model: sonnet`. The accounting closes exactly and leaves nowhere else to look:
+
+| | tokens | share of the Opus bucket |
+|---|---|---|
+| orchestrator | 166.5M | **79.6%** |
+| draft-worker | 31.4M | 15.0% |
+| draft-verifier | 8.7M | 4.2% |
+| Plan + Explore | 2.8M | 1.3% |
+
+The two Opus agents are 40M combined and both are defended in writing —
+`draft-verifier` caught 11 of 12 identity beats the linter passed. Downgrading
+them buys 19% and costs the check that makes the machine worth running.
+
+**So the only lever is that a batch is one session.** The context grows from
+~30k to 600k+ over 546 turns and never comes back down, and `cache_read` is the
+sum of it over every turn: 546 × ~305k ≈ 166M. Six short sessions that each
+start near empty and pick the state up off disk cost a fraction, with every
+gate, verifier and tier untouched.
+
+**The audit said that was ~95% already possible.** Every stage leaves a typed
+file — `clear.json`, `sites.json`, `identity.json`, `addresses.json`,
+`plan.json`, `researched.json`, `draftable.json`, `anchors.json`, `select.json`,
+the per-lead hook/verdict/draft files, `redraft.json`, `drafts.json`, `out/`.
+What was *not* on disk was the residue of counts each stage printed and nothing
+kept — which is every flag `metrics` takes, reaching it by being retyped at hour
+nine out of a 600k context. That is the `?`-not-`0` rule being defeated by the
+reader it was written for, so `brief` is a correctness fix before it is a cost
+one.
+
+**`python main.py brief`** derives what the files prove, names what proved each
+count, prints the next command, and with `--metrics-command` emits the `metrics`
+call the run has earned with unproven flags **left off** rather than zeroed.
+Five closed `--note` keys cover the residue. It fails open like `ledger` and
+`metrics` — exit 2 when it cannot look, never exit 1.
+
+**`warm` is where the design line sits.** `dedupe` exits 1 on a warm hit and
+stops the run, so a `clear.json` on disk implies nobody was warm. That inference
+is available, almost always right, and refused: it prints `?` and takes a note.
+A reasonable-sounding zero is the only kind this repo has ever been wrong about.
+
+SKILL.md now says a stage boundary is where you **stop** — `usage --quiet`,
+`brief`, commit, `/clear`, reopen with `brief`. The four habits became five with
+the session break at #1, and a fourth was added from the block measurement:
+tool calls are 28% of the context and **a heredoc lives in the run as long as
+the run does**.
+
+Not done, deliberately: usage credits (Haytham is short on cash, so the valve
+stays shut and the fix has to be real). Unmeasured: whether the split actually
+lands the 70%. Chunk 2 is the test, against icf1's 261.0M/166.5M.
+
 ## 2026-08-04 (icf1) — the repair round, and three ways a hook lied after it
 was certified
 

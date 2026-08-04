@@ -39,6 +39,13 @@ Read the profile out loud to Haytham. If more than about half the rows have no
 research target at all, say so before continuing — that is a list quality
 problem and no amount of research fixes it.
 
+Then note the list's name, which nothing on disk can prove and `metrics` asks
+for at the end of the run:
+
+```
+python main.py brief --note source-list=<the raw list's name>
+```
+
 **If the list is an Apify Instagram profile dump, use `ig-intake` instead** —
 `intake` maps a CSV and returned 0 rows on a dump's own shape:
 
@@ -93,6 +100,16 @@ must never read as "nobody has been contacted".
 landing on a live conversation is the one failure here that destroys something
 rather than wasting something, and it has already happened twice.
 
+```
+python main.py brief --note warm=<n>
+```
+
+**Note it even when it is zero**, and note it here rather than at the end. `brief`
+will not infer this one: a `clear.json` on disk implies the run was not stopped,
+which implies nobody was warm — and that is a reasonable-sounding zero, the only
+kind this repo has ever been wrong about. A zero you measured is worth recording;
+a zero nobody measured must stay `?`.
+
 Finally, check the Apify budget **once for the whole batch**, not once per
 worker:
 
@@ -103,24 +120,75 @@ python main.py apify limits
 Pass the answer into every worker prompt. If it is near cap, tell the workers to
 prefer `unclear` over a paid call.
 
-## Checkpoint the token bill at every stage boundary
+```
+python main.py brief --note apify-budget=<what limits said>
+```
 
-At the end of stage 2, 3b, 4, 5 and 6 — one line, and move on:
+That is one number the next session would otherwise re-fetch or, worse, guess at.
+
+## A stage boundary is where you STOP
+
+**A batch is not one session. It is a short session per stage.**
+
+This is the single most expensive thing in the machine and it is not close. On
+`2026-08-03-icf1`: 261.0M tokens for 20 emails, of which **166.5M was this
+loop's own context** — 63.8% of the batch, and **79.6% of the Opus bucket**
+against 40M for both Opus agents combined. `cache_read` is the sum of the
+context over every turn, so a session that grows from 30k to 600k across 546
+turns pays for that growth hundreds of times. Nothing a worker does comes close.
+
+Run the whole batch in one session and you spend that. Run it as six sessions
+that each start near empty and pick the state up off disk and you spend a
+fraction, **with every gate, every verifier and every tier exactly where it is**.
+The money was never in the work.
+
+So at the end of stage 2, 3b, 4, 5 and 6 — four commands, in this order:
 
 ```
 python main.py usage --batch <label> --quiet
+python main.py brief
+git add -A work data && git commit -m "<batch> through <stage>"
 ```
 
-It rewrites `data/runs/<label>-usage.json` each time, so **a run that dies in
-stage 3 still leaves its accounting**. That is the ledger's rule applied to the
-model side, and it is the one way the two differ: the retrieval ledger appends a
-line at the moment of each fetch and is committed, while this is computed from
-transcripts that **die with the container**. Run it only at the end and a session
-that closes early leaves no record of its largest cost at all.
+then **`/clear`, and open the next stage with `python main.py brief`.**
 
-`--quiet` is one line on purpose. Eleven lines five times over is sixty lines of
-your own context spent watching yourself, which would be a small version of the
-thing being measured.
+`usage` rewrites `data/runs/<label>-usage.json` each time, so **a run that dies
+in stage 3 still leaves its accounting**. That is the ledger's rule applied to
+the model side, and it is the one way the two differ: the retrieval ledger
+appends a line at the moment of each fetch and is committed, while this is
+computed from transcripts that **die with the container**. `--quiet` is one line
+on purpose — eleven lines five times over is sixty lines of your own context
+spent watching yourself, a small version of the thing being measured.
+
+**`brief` is what makes the clear safe.** It reads `work/` and `out/` and prints
+how far the run got, what proved each count, and the next command. Everything
+this machine needs between stages was already on disk — `clear.json`,
+`sites.json`, `identity.json`, `addresses.json`, `plan.json`, `researched.json`,
+`draftable.json`, `anchors.json`, `select.json`, the per-lead hook, verdict and
+draft files, `redraft.json`, `drafts.json`. What was *not* on disk was the
+residue of counts each stage printed to Haytham and nothing kept, which is the
+same residue `metrics` has been asking you to retype at the end of every run.
+
+**Note the counts nothing can derive, at the moment they are printed**, not at
+the end:
+
+```
+python main.py brief --note source-list=<the raw list's name>
+python main.py brief --note warm=<n>            # after dedupe
+python main.py brief --note copy=live|cached    # after copy-check / deal
+python main.py brief --note apify-budget=<what limits said>
+```
+
+Five keys, all closed — an unknown one exits 2 rather than being stored. Every
+other `metrics` flag is derived from a file and carries the file that proved it.
+
+**`brief` never fails a run.** Same rule as `ledger` and `metrics`: exit 0 when
+it could look, exit 2 when `work/` is unreadable, never exit 1. An observer that
+can halt a send file is one people learn to route around.
+
+**If you are starting mid-run, `brief` is your first command.** Do not
+reconstruct where the batch got to by reading state files into this context —
+that is the thing being avoided, done at the worst possible moment.
 
 ## Stage 1 — the free site read
 
@@ -337,6 +405,13 @@ and the cache matches it. `FAIL` names either a live line that fails the linter
 — fix it in Airtable, nothing here can — or a cache that drifted, fixed with
 `python main.py copy-sync --live` and a commit of `copy/*.csv`. `BLOCKED`
 (exit 2) means there is no key or no network, so the check could not look.
+
+```
+python main.py brief --note copy=live|cached
+```
+
+The brief has to say which, always, and by stage 5 this session may not be the
+one that ran the check.
 
 Then deal the whole draftable set at once:
 
@@ -790,6 +865,23 @@ inside an agent, so it used to be narrated into the brief from memory and lost
 when the session ended — which is why every cost claim in the proposal had to be
 reconstructed from a hand-written journal entry. Run this instead:
 
+**Do not type the flags from memory. Ask for them:**
+
+```
+python main.py brief --metrics-command
+```
+
+It prints the `metrics` call this run has actually earned — every count carrying
+the file that proved it, every count nothing proved simply **left off**, so
+`metrics` prints `?` for it. Run that command, adding `--passes <n>` if you did
+not use `ledger pass`.
+
+That is the whole point of the boundary notes. Every flag below is a number an
+earlier stage already printed, and until now the way it reached `metrics` was an
+orchestrator at hour nine retyping it out of a 600k-token context — which is the
+exact habit the `?`-not-`0` rule was written against, defeated by the person the
+rule was written for:
+
 ```
 python main.py metrics work/draftable.json --batch <YYYY-MM-DD> \
   --plan work/plan.json \
@@ -931,27 +1023,48 @@ agent pass.
 **Your own context is the largest single cost in a run, and it is not close.**
 This used to be an assertion. It was measured on 2026-08-02: across `q2` and
 `q3`, **75% of every token spent was this loop** — not the drafters, not the
-researchers, not the verifiers. Two batches, 410M tokens, 22 emails. The context
-reached 578k-684k and every turn re-read all of it, and about two-thirds of what
-was being re-read was the orchestrator's own writing.
+researchers, not the verifiers. Two batches, 410M tokens, 22 emails. Measured
+again on `2026-08-03-icf1`: **63.8% of 261.0M, and 79.6% of the Opus bucket**,
+against 40M for `draft-worker` and `draft-verifier` combined. The context
+reached 578k-684k and every turn re-read all of it.
 
-Four habits follow from that number, in order of what they cost:
+**What that context is made of is measured too**, not guessed — `usage` prints
+it. On 2026-08-03: thinking 34%, tool results 31%, your own tool calls 28%, and
+**prose to Haytham 7%**. Narration is the smallest of the four. The three that
+matter are turns, what you put into a tool call, and what you read back.
 
-1. **Fan out a whole wave in one message.** Turns are the multiplier: every turn
+Five habits follow, in order of what they cost:
+
+1. **Stop at the stage boundary.** A short session per stage beats one long one
+   by more than every other item here combined, because it resets the number
+   that all the others only slow the growth of. `brief` makes it safe; the state
+   was already on disk.
+2. **Fan out a whole wave in one message.** Turns are the multiplier: every turn
    pays for the entire context again. One message with six tool calls costs one
    turn; six messages cost six, each more expensive than the last.
-2. **Let a command read the files.** `redraft`, `collect`, `select` and `metrics`
-   exist so that a decision over twelve objects costs one tool result instead of
-   twelve. Reading twelve research objects into this loop to decide something a
-   command already answered is the most expensive way to be sure.
-3. **Do not restate what a worker just told you.** A summary of a reply you
-   already have is a second copy of it, and you will carry both to the end of the
-   run. The workers' replies are one line each now for exactly this reason.
-4. **Do not narrate per lead.** Seventeen individual rewrite notes on `q3` cost
-   more than the drafting they were correcting.
+3. **Let a command read the files.** `redraft`, `collect`, `select`, `brief` and
+   `metrics` exist so that a decision over twelve objects costs one tool result
+   instead of twelve. Reading twelve research objects into this loop to decide
+   something a command already answered is the most expensive way to be sure.
+4. **Keep the tool call small.** Your own tool calls are 28% of the context and
+   they are permanent: **a heredoc lives in the run as long as the run does**.
+   Write the file with `Write` and pass its path, or have the command read what
+   is already on disk. A 200-line heredoc costs its own length times every turn
+   that follows it.
+5. **Do not restate what a worker just told you, and do not narrate per lead.**
+   A summary of a reply you already have is a second copy of it and you carry
+   both to the end. The workers' replies are one line each for exactly this
+   reason. Seventeen individual rewrite notes on `q3` cost more than the
+   drafting they were correcting.
 
 None of this trades away a check. Every gate, every verifier and every tier stays
 where it is — the money was never in the work, it was in the coordination.
+
+**And the tiers are not where to look for it.** The fleet has been on Sonnet
+since the table above was written, so the remaining Opus spend is this loop
+(166.5M) plus the two agents the repo refuses to downgrade in writing (40M).
+Anyone arriving at this file to make a batch cheaper should read those two
+numbers in that order.
 
 ## The rules that do not bend
 
