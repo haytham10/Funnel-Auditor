@@ -9,11 +9,11 @@ skills just never noticed because that environment exported the keys.
 
 **Fix: `.opencode/plugins/load-env.js`**, the docs' own `shell.env` pattern —
 fires on every shell execution (agent tool calls and Haytham's terminal
-alike), parses `.env` from the worktree root once per server process, injects
-the keys unless already set... actually, plain `Object.assign` over `output.env`:
-keys in `.env` win. Fails open (missing file = empty injection, never a
-blocked session), never logs the values, handles `export ` prefixes and
-quoted values. Restart of `opencode serve` required to pick it up.
+alike), parses `.env` from the worktree root once per server process, and
+injects the keys via `Object.assign` — `.env` wins over whatever the server
+inherited. Fails open (missing file = empty injection, never a blocked
+session), never logs the values, handles `export ` prefixes and quoted
+values. Restart of `opencode serve` required to pick it up.
 
 **Also committed the whole migration that had sat untracked since 08-04:**
 `opencode.jsonc` (server block, skills path, Airtable MCP, permission mirror),
