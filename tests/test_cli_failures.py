@@ -305,15 +305,22 @@ def test_qualify_settles_activity_from_the_page_when_no_date_is_given():
 
 
 def test_qualify_prefers_a_date_the_worker_supplied():
+    """And it says so. This used to assert the opposite — that the worker branch
+    printed no `activity settled from` line — which left the one branch that
+    could kill a lead as the one that explained itself least. See
+    `test_qualify_does_not_kill_a_lead_on_a_stale_last_activity`."""
+    from datetime import date, timedelta
+
+    supplied = (date.today() - timedelta(days=9)).isoformat()
     with tempfile.TemporaryDirectory() as tmp:
         lead = write(tmp, "lead.json", {
             "name": "Test Coach", "city": "Dubai", "headline": "Life Coach",
-            "last_activity": "2026-07-25",
+            "last_activity": supplied,
             "site_text": "Latest article 2020-01-01.",
         })
         result = run("qualify", lead)
-        assert "2026-07-25" in result.stdout
-        assert "activity settled from" not in result.stdout
+        assert supplied in result.stdout
+        assert "the worker's last_activity" in result.stdout
 
 
 def _days_ago(n: int) -> str:
@@ -736,6 +743,60 @@ def test_escalate_only_when_every_plan_has_already_run():
         assert "already run" in result.stdout
 
 
+def test_escalate_only_writes_back_without_being_told_where():
+    """The 2026-08-03 icf1 defect: paid pages fetched, reported, and discarded.
+
+    `--out` was optional and the write was behind it, so a run with no `--out`
+    bought two container boots, printed `ESCALATED site_render: 9 page(s) back`
+    and exited 0 having written nothing. Every signal said success. A paid fetch
+    whose result reaches no disk is worse than the duplicate this command exists
+    to prevent — a duplicate at least leaves the pages behind.
+    """
+    import argparse
+
+    import main as cli
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [{"actor_key": "site_render",
+                                "urls": ["https://b.ae"], "why": "1 url(s)"}]})
+        original = cli._run_escalations
+        cli._run_escalations = lambda plans, approved: (
+            {"site_render": [{"url": "https://b.ae", "text": "hello"}]}, [])
+        try:
+            cli.cmd_escalate_only(argparse.Namespace(
+                leads=sites, out=None, approve_cost=True))
+        finally:
+            cli._run_escalations = original
+        payload = json.loads(Path(sites).read_text())
+    assert payload["escalated"]["site_render"][0]["text"] == "hello"
+
+
+def test_escalate_only_honours_an_explicit_out_over_the_input():
+    import argparse
+
+    import main as cli
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sites = write(tmp, "sites.json", {
+            "tier0_rate": 0.5, "sites": {},
+            "escalate_plans": [{"actor_key": "site_static",
+                                "urls": ["https://a.ae"], "why": "1 url(s)"}]})
+        out = str(Path(tmp) / "merged.json")
+        original = cli._run_escalations
+        cli._run_escalations = lambda plans, approved: (
+            {"site_static": [{"url": "https://a.ae", "text": "x"}]}, [])
+        try:
+            cli.cmd_escalate_only(argparse.Namespace(
+                leads=sites, out=out, approve_cost=True))
+        finally:
+            cli._run_escalations = original
+        assert "escalated" in json.loads(Path(out).read_text())
+        # The input is left exactly as it was.
+        assert "escalated" not in json.loads(Path(sites).read_text())
+
+
 def test_escalate_only_with_no_plans_is_not_an_error():
     """A batch whose tier 0 read everything has nothing to retry, and that is a
     success rather than a missing file."""
@@ -920,6 +981,135 @@ def test_icf_intake_on_a_file_that_is_not_a_workbook_exits_2():
         proc = run("icf-intake", path)
     assert proc.returncode == 2, proc.stdout
     assert "Traceback" not in proc.stdout + proc.stderr
+
+
+# ----------------------------------------------------------------- qualify
+#
+# The one floor built not to have a kill surface, and the second route into it.
+
+
+def _stale_lead(days_ago=65):
+    from datetime import date, timedelta
+    return {"name": "A Coach", "city": "Dubai",
+            "last_activity": (date.today() - timedelta(days=days_ago)).isoformat(),
+            "site_text": "I am an executive coach in Dubai."}
+
+
+def test_qualify_does_not_kill_a_lead_on_a_stale_last_activity():
+    """`2026-08-03-icf1`: 9 of 62 leads killed this way.
+
+    Their workers had recorded `active_recent: unclear` and the real, older date
+    they actually found. `cmd_qualify` handed that date straight to
+    `check_active`, which answers NO to a stale one — so the floor overrode the
+    worker's own verdict with a harsher one derived from the worker's own
+    evidence. A false kill is permanent and invisible; better evidence buys a
+    `yes` and never a kill.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead())
+        proc = run("qualify", path)
+    assert proc.returncode == 0, proc.stdout
+    assert "UNCLEAR" in proc.stdout
+    assert "too old to settle the floor" in proc.stdout
+
+
+def test_qualify_still_kills_on_a_stale_date_when_the_corpus_is_asserted_complete():
+    """D31's rule, kept reachable. A caller that has genuinely seen everything
+    the lead's channels carry may read an old date as evidence of absence."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead())
+        proc = run("qualify", path, "--complete-corpus")
+    assert proc.returncode == 1, proc.stdout
+    assert "active in 30 days" in proc.stdout
+
+
+def test_qualify_still_passes_a_fresh_last_activity():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead(days_ago=3))
+        proc = run("qualify", path)
+    assert proc.returncode == 0, proc.stdout
+    assert "YES" in proc.stdout
+
+
+def test_qualify_always_says_where_the_activity_verdict_came_from():
+    """It printed this line only on the observations path, so the branch that
+    could kill a lead was the one that explained itself least."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write(tmp, "lead.json", _stale_lead())
+        proc = run("qualify", path)
+    assert "activity settled from:" in proc.stdout
+
+
+# ------------------------------------------------------------------- chunk
+#
+# The command that decides who a batch is made of. Its two failure modes are
+# both "a lead vanished and nobody decided that".
+
+CHUNK_HEADERS = ("Email,Email status,LinkedIn URL,Instagram URL,"
+                 "Website (listed),Website (found),Dedupe,Credential,Emirate\n")
+
+
+def test_chunk_without_a_readable_enrichment_exits_2():
+    """A file nobody could open is not a list of zero coaches."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json", [{"name": "A", "email": "a@x.com"}])
+        proc = run("chunk", leads, "--enriched", str(Path(tmp) / "nope.csv"),
+                   "--dry-run")
+    assert proc.returncode == 2, proc.stdout
+    assert "could not read" in proc.stdout
+
+
+def test_chunk_on_an_enrichment_missing_a_column_exits_2_naming_it():
+    """Not a silent tiering of every lead into held-out."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json", [{"name": "A", "email": "a@x.com"}])
+        csv_path = write(tmp, "e.csv", "Email,Dedupe\na@x.com,clear\n")
+        proc = run("chunk", leads, "--enriched", csv_path, "--dry-run")
+    assert proc.returncode == 2, proc.stdout
+    assert "Email status" in proc.stdout
+
+
+def test_chunk_exits_1_on_a_lead_the_enrichment_does_not_carry():
+    """Exit 1, not a silent hold-out. An unjoined lead and an excluded one look
+    identical in the output and differ by whether anybody decided anything."""
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json",
+                      [{"name": "A", "email": "a@x.com"},
+                       {"name": "Ghost", "email": "ghost@x.com"}])
+        csv_path = write(tmp, "e.csv", CHUNK_HEADERS
+                         + "a@x.com,PASS,https://linkedin.com/in/a,,,,clear,PCC,Dubai\n")
+        proc = run("chunk", leads, "--enriched", csv_path, "--dry-run")
+    assert proc.returncode == 1, proc.stdout
+    assert "ghost@x.com" in proc.stdout
+
+
+def test_chunk_dry_run_writes_nothing():
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json", [{"name": "A", "email": "a@x.com"}])
+        csv_path = write(tmp, "e.csv", CHUNK_HEADERS
+                         + "a@x.com,PASS,https://linkedin.com/in/a,,,,clear,PCC,Dubai\n")
+        out = Path(tmp) / "out"
+        proc = run("chunk", leads, "--enriched", csv_path,
+                   "--out-dir", str(out), "--dry-run")
+        assert proc.returncode == 0, proc.stdout
+        assert not out.exists()
+
+
+def test_chunk_writes_four_files_and_the_held_one_carries_a_reason():
+    with tempfile.TemporaryDirectory() as tmp:
+        leads = write(tmp, "leads.json",
+                      [{"name": "A", "email": "a@x.com"},
+                       {"name": "B", "email": "b@x.com"}])
+        csv_path = write(tmp, "e.csv", CHUNK_HEADERS
+                         + "a@x.com,PASS,https://linkedin.com/in/a,,,,clear,PCC,Dubai\n"
+                         + "b@x.com,FAIL,,,,,clear,ACC,Dubai\n")
+        out = Path(tmp) / "out"
+        proc = run("chunk", leads, "--enriched", csv_path,
+                   "--out-dir", str(out), "--prefix", "t")
+        assert proc.returncode == 0, proc.stdout
+        assert len(list(out.glob("t-*.json"))) == 4
+        held = json.loads((out / "t-held-out.json").read_text())
+        assert held and "dead address" in held[0]["reason"]
 
 
 if __name__ == "__main__":

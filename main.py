@@ -15,6 +15,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
                 coach filled in themselves. The values are cell hyperlinks
     icf-export  the enrichment joined back onto that workbook, plus the
                 committed CSV and leads.json
+    chunk       an enriched list -> the chunks a batch runs, and the leads it
+                holds out with a written reason. Cut by evidence, not row number
     triage      RUN / HOLD / DROP before anything is spent. `unclear` is HOLD
     corpus      attach a corpus somebody else retrieved to the list being run
     dedupe      the Contacted-Before wall, both passes
@@ -212,6 +214,61 @@ def cmd_icf_intake(args) -> None:
               f"{len(leads)}. A count of what was found is not a count of what "
               f"should exist.")
         sys.exit(1)
+
+
+def cmd_chunk(args) -> None:
+    """An enriched list -> the chunks a batch runs, and the leads it holds out.
+
+    A 300-lead list is not a batch. q3 spent 182M tokens on 34 raw rows, so the
+    size and the membership of a run are decisions worth writing down once and
+    deterministically rather than re-deciding by hand at the top of every run.
+
+    The cut is by evidence because the leads are not interchangeable: a dead
+    address produces no row however good the hook is, and a lead with no channel
+    has nowhere for research to look. Thirds of the file would pay for both
+    groups three times over.
+
+    **Nothing is dropped.** Every excluded lead lands in the held-out file
+    carrying its reason, so a hundred missing rows read as a decision somebody
+    made rather than as an oversight — `qualify`'s rule that a false kill is
+    permanent and invisible, applied one stage earlier.
+
+    Exit 2 when the enrichment cannot be read — an unreadable file is not a list
+    of zero coaches. Exit 1 on a lead the enrichment does not carry, named:
+    silently holding it out and deliberately holding it out look identical in
+    the output and differ by whether anybody decided anything.
+    """
+    from outbound import chunk as chunk_mod
+
+    leads = _load_leads(args.leads)
+    try:
+        enriched = chunk_mod.load_enriched(args.enriched)
+    except chunk_mod.ChunkError as exc:
+        print(f"CHUNK: FAIL — {exc}")
+        sys.exit(2)
+
+    groups, reasons, unjoined = chunk_mod.assign(
+        leads, enriched, seed=args.seed)
+    print(chunk_mod.report(groups, reasons, enriched))
+
+    if unjoined:
+        print(f"CHUNK: FAIL — {len(unjoined)} lead(s) are not in "
+              f"{args.enriched}, so nothing decided where they go:")
+        for lead in unjoined[:10]:
+            print(f"    {getattr(lead, 'name', '?')} "
+                  f"<{getattr(lead, 'email', '')}>")
+        if len(unjoined) > 10:
+            print(f"    ... and {len(unjoined) - 10} more")
+        sys.exit(1)
+
+    if args.dry_run:
+        print("  --dry-run: wrote nothing")
+        return
+    for path in chunk_mod.write(groups, reasons, args.out_dir,
+                                prefix=args.prefix):
+        print(f"  wrote {path}")
+    print("  commit all four — membership is the record, and a held-out lead "
+          "with no file is a lead nobody can explain later")
 
 
 def cmd_ig_intake(args) -> None:
@@ -538,12 +595,22 @@ def cmd_qualify(args) -> None:
     activity_source = ""
     if last:
         try:
-            last_activity = date.fromisoformat(str(last))
+            supplied = date.fromisoformat(str(last))
         except ValueError:
             print(f"QUALIFY: FAIL — last_activity {last!r} is not an ISO date "
                   f"(YYYY-MM-DD).")
             sys.exit(2)
-        activity_source = "worker"
+        # The same upward-only rule the observations path has always had.
+        # This branch used to hand the date straight to `check_active`, which
+        # answers NO to a stale one — so a worker that honestly recorded
+        # `active_recent: unclear` and the older date it actually found had its
+        # own verdict overridden with a harsher one derived from its own
+        # evidence. On 2026-08-03-icf1 that killed 9 of 62 leads.
+        if args.complete_corpus:
+            last_activity, activity_source = supplied, "worker (complete corpus)"
+        else:
+            last_activity, activity_source = q.activity_within_window(
+                supplied, label="the worker's last_activity")
     else:
         # The observations the worker already retrieved come first: they carry
         # real publication dates, which is the evidence this floor has never
@@ -577,8 +644,7 @@ def cmd_qualify(args) -> None:
         solo=data.get("solo", "unclear"),
     )
     print(result.report(data.get("name", "lead")))
-    if not last:
-        print(f"  activity settled from: {activity_source}")
+    print(f"  activity settled from: {activity_source}")
     sys.exit(0 if result.passed else 1)
 
 
@@ -2282,6 +2348,17 @@ def cmd_escalate_only(args) -> None:
     meant calling `fetch.run_plan` by hand and nothing in the CLI offered it.
 
     A retry must not be able to pollute the measurement it is retrying.
+
+    **`--out` defaults to the input file, because the alternative was silent
+    loss.** This command took `--out` optionally and wrote nothing without it:
+    the 2026-08-03 icf1 run bought two container boots, printed
+    `ESCALATED site_render: 9 page(s) back`, exited 0, and discarded all twelve
+    pages. Every signal said success. There is only one file a completed
+    escalation belongs in — the sites.json it was read out of, which already
+    carries the plans and the `escalated` merge slot — so defaulting there is
+    not a guess. A paid fetch whose result reaches no disk is the worst outcome
+    this command has, worse than the duplicate it was written to prevent:
+    a duplicate at least leaves the pages behind.
     """
     payload = _load_json(args.leads, "FETCH")
     if not isinstance(payload, dict) or "escalate_plans" not in payload:
@@ -2323,10 +2400,11 @@ def cmd_escalate_only(args) -> None:
     payload["escalated"] = merged
     print("  no tier-0 read happened, so no page in this run can be a "
           "duplicate of one already in the ledger.")
-    if args.out:
-        Path(args.out).write_text(json.dumps(payload, indent=2, default=str),
-                                  encoding="utf-8")
-        print(f"  wrote {args.out}")
+    destination = args.out or args.leads
+    Path(destination).write_text(json.dumps(payload, indent=2, default=str),
+                                 encoding="utf-8")
+    pages = sum(len(v) for v in escalated.values())
+    print(f"  wrote {destination} ({pages} escalated page(s) merged in)")
     if failures:
         sys.exit(1)
 
@@ -3229,6 +3307,22 @@ def build_parser() -> argparse.ArgumentParser:
                    help="fail closed if this many leads do not arrive")
     p.set_defaults(func=cmd_icf_intake)
 
+    p = sub.add_parser("chunk",
+                       help="an enriched list -> the chunks a batch runs, cut "
+                            "by evidence rather than by row number")
+    p.add_argument("leads", help="Leads from `icf-intake --out` or `icf-export`")
+    p.add_argument("--enriched", required=True,
+                   help="the enriched CSV `icf-export --csv` wrote")
+    p.add_argument("--out-dir", default="data/lists",
+                   help="where the four files go (default: data/lists)")
+    p.add_argument("--prefix", default="icf",
+                   help="filename prefix (default: icf)")
+    p.add_argument("--seed", type=int, default=20260803,
+                   help="the halving seed. Same seed, same two halves")
+    p.add_argument("--dry-run", action="store_true",
+                   help="print the composition and write nothing")
+    p.set_defaults(func=cmd_chunk)
+
     p = sub.add_parser("corpus",
                        help="attach a corpus somebody else retrieved to the "
                             "list you are actually running (D32)")
@@ -3271,6 +3365,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("input", help="JSON file, or '-' for stdin. Pass the lead's "
                                  "`observations` alongside its text and the "
                                  "activity floor settles from a real date")
+    p.add_argument("--complete-corpus", dest="complete_corpus",
+                   action="store_true",
+                   help="assert that the evidence is EVERYTHING the lead's "
+                        "channels carry, which is the only thing that lets a "
+                        "stale last_activity kill a lead (D31). Never true of "
+                        "a research pass")
     p.set_defaults(func=cmd_qualify)
 
     p = sub.add_parser("research", help="validate a worker's research object")
@@ -3311,7 +3411,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("leads", help="Leads JSON from `intake --out`")
     p.add_argument("--max-pages", type=int, default=5)
     p.add_argument("--with-text", action="store_true", help="include page text in the output")
-    p.add_argument("--out", help="write the reads as JSON")
+    p.add_argument("--out", help="write the reads as JSON. With --escalate-only "
+                                 "it defaults to the input file, which is the "
+                                 "only place a completed escalation belongs")
     p.add_argument("--workers", type=int, default=fetch_defaults.DEFAULT_WORKERS,
                    help="concurrent site reads (network-bound; 1 restores the "
                         "serial loop that could not finish 151 sites)")

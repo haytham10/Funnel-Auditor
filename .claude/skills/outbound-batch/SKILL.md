@@ -67,6 +67,17 @@ list in full and stop for Haytham's read before the first paid call.** HOLD is
 not a kill: `unclear` is HOLD, it is a queue, and it is where a lead with no
 "Dubai" in their bio goes. Everything after this runs on `work/run.json`.
 
+**Except when nothing is RUN, and on a directory list nothing is.** `--run-out`
+writes the RUN tier only, and a list whose leads arrive without dated evidence
+triages 100% HOLD on the activity floor — correctly, because a directory cannot
+prove anybody is still working. Measured on the 2026-08-03 ICF list: **311 of
+311 HOLD, `run.json` would have held zero leads, and the batch would have run to
+completion on an empty file.** Read the count `--run-out` prints. If it is zero,
+or far below what the tiers say you have, **run the rest of the batch on
+`work/clear.json`** — HOLD is a queue and here the queue is the whole list. The
+floor is not being skipped; it settles at stage 2 on what research actually
+retrieves, which is the only thing that can settle it.
+
 Then the wall, which runs **before any paid call**:
 
 ```

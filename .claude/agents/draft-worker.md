@@ -118,7 +118,31 @@ of my job" — the only place a stranger learns what Haytham actually does — a
 "the ones I picked", which is what makes the 30 proof of a judgement rather than
 a floating statistic.
 
-Four shapes to keep out, each of which a cold reader named unprompted:
+**The one rule that is now mechanical: a figure keeps its noun.** This section
+already named the verbless fragment twice and it happened a third time, on
+`2026-08-03-icf1`, to **ten of thirty drafts** — so it stopped being advice.
+`main.py lint` fails a draft whose identity beat carries a figure followed by a
+bare pronoun.
+
+```
+reference   30 signed clients this year across 8 coaching practices here.
+            That's the whole job.
+drafted     Who's right for your September is my job. 30 of mine signed this
+            year, across 8 practices.
+```
+
+`30 signed clients` became `30 of mine`. The claim survived, the linter passed
+it, and every cold reader stopped on it: *"'30 of mine' has no antecedent a cold
+reader can resolve."* The same move produced `30 of them`, `30 of the ones I
+picked`, and `67 meetings across 8 practices this year, 30 of them signed`.
+
+It happens because the reference's **second** sentence is the grounding one
+(`That's the whole job`, `That's what I do`), you replace it with your own
+opener, and the noun goes out with it. **If you cut the grounding clause, the
+noun moves into the sentence that survives.** `30 signed clients this year` is
+five words and needs no rescue.
+
+Four more shapes to keep out, each of which a cold reader named unprompted:
 
 - **A colon standing in for a verb.** "Your job is coaching. Mine: 9 meetings in
   6 weeks." Zero of the 33 lines in `copy/identity.csv` use a colon. A reader
@@ -185,6 +209,28 @@ Two more, learned the same day:
 - **Whose fact is it.** A clause about the recipient's co-founder, or their
   spouse's job title, is unswappable and still wrong. The test is unswappable
   AND about them.
+
+Three more, from `2026-08-03-icf1`, where this beat cost **ten of thirty
+drafts**. All three are about the *quote*, not the clause, and all three are
+reasons to **pick a different quote rather than write around a bad one**:
+
+- **A quote broken mid-clause.** `"Our session explored how universities can
+  move beyond simply teaching AI and instead…"` — the ellipsis withholds the
+  only thing he actually said, so the clause can only restate the half that
+  survived. If the sentence does not end inside your hook room, it is the wrong
+  sentence.
+- **A citation frame nobody speaks.** `You described leaving your 17-year
+  corporate career with "No backup plan, no financial security…"` —
+  *"You described X with Y"* is how a footnote reads, and a capitalised quote
+  fragment stapled mid-sentence makes the seam visible on the first line a
+  stranger sees. Either let the quote open the email on its own, or paraphrase
+  and drop the quote marks.
+- **A clause that restates the quote.** She said the topic *"has driven my work
+  for years"*; the clause said *"Long enough to be yours."* Nothing moved. This
+  is the delete-your-clause test failing in the other direction: the clause is
+  removable because the quote already said it. A tautology is the same defect —
+  *"you're one of the judges"* answered with *"so you help decide who earned
+  it"* tells a judge that judges judge.
 
 ## The bridge, which is the whole reason you exist
 

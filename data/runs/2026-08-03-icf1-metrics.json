@@ -1,0 +1,61 @@
+{
+  "batch": "2026-08-03-icf1",
+  "leads": 62,
+  "attempted": 57,
+  "verified": 30,
+  "refuted": 2,
+  "proposed": 0,
+  "none_found": 25,
+  "hook_yield": 0.526,
+  "refute_rate": 0.035,
+  "null_hook_rate": 0.439,
+  "yield_by_rung": {
+    "li_posts": {
+      "verified": 24
+    },
+    "li_profile": {
+      "verified": 3
+    },
+    "about": {
+      "verified": 3
+    }
+  },
+  "by_hook_type": {
+    "LIFE": 5,
+    "WORK": 25
+  },
+  "escalated": 0,
+  "escalation_rate": 0.0,
+  "declined_leads": 0,
+  "declined_and_verified": 0,
+  "declined_and_dry": 0,
+  "ledger_read": true,
+  "retrievals": 282,
+  "cost_usd": 1.3799,
+  "unpriced": 2,
+  "cost_per_verified_hook": 0.046,
+  "wasted_retrieval_n": 114,
+  "wasted_retrieval_usd": 0.5993,
+  "duplicates": 27,
+  "raw": 62,
+  "after_dedupe": 62,
+  "warm": 0,
+  "passed_floors": 59,
+  "written": 20,
+  "rejected": 1,
+  "tier0_rate": 0.647,
+  "source_list": "icf-chunk-1",
+  "agent_passes": "?",
+  "passes_by_stage": {},
+  "passes_by_model": {},
+  "tokens_total": 261001210,
+  "tokens_orchestrator": 166527204,
+  "tokens_subagents": 94474006,
+  "orchestrator_share": 0.638,
+  "tokens_per_shipped": 13050060,
+  "model_cost_usd": 195.44,
+  "cost_per_shipped_usd": 9.77,
+  "gaps": [
+    "2 run(s) could not be priced \u2014 compute-billed actors are not a lookup failure, so the cost figures are a floor"
+  ]
+}

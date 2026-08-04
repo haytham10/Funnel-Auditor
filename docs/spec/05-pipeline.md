@@ -231,6 +231,35 @@ website the sheet already listed.
 deriving it from the authority in hand rather than trusting a key the upstream
 command might not have written is what makes it true.
 
+### `chunk`
+**In** the Leads and the enriched CSV `icf-export` wrote. **Out** four committed
+files: three chunks a batch can run, and a held-out record carrying a written
+reason per lead. **Guarantees** every lead lands in exactly one group, that the
+two halves of the strong pool are equal to within one and balanced on the strata
+they are cut on, and that the same seed reproduces the same split. **Exit 1** on
+a lead the enrichment does not carry, named. **Exit 2** on an unreadable
+enrichment — a file nobody could open is not a list of zero coaches.
+
+**The cut is by evidence, not by row number**, because the leads are not
+interchangeable. A dead address produces no row however good the hook is, and a
+lead with no channel has nowhere for research to look, so the activity floor
+cannot settle and no hook can be cited. Thirds of the file would put a third of
+both groups in every chunk and pay for them three times.
+
+**Chunk 1 and chunk 2 are two halves of one pool**, so chunk 1's measured yield
+predicts chunk 2's and the second chunk is a decision rather than a hope. The
+alternation counter carries **across** strata; resetting it inside each one
+hands every odd stratum's extra lead to the same half, which on the live list
+produced 67/57 instead of 62/62.
+
+**Held out is not dropped.** Every excluded lead is in the held-out file with
+its reason, so a hundred missing rows read as a decision somebody made rather
+than an oversight — `qualify`'s rule that a false kill is permanent and
+invisible, applied one stage earlier. That file is deliberately **not** shaped
+like a leads file: a held-out lead is a decision, not an input.
+
+Defers to: `docs/spec/07-decisions.md` (D34).
+
 ### `corpus attach`
 **In** observations from `ig-intake --observations` (or a research file) and the
 Leads of a *different* list. **Out** the same observations re-keyed onto that
@@ -455,6 +484,15 @@ characters — so every lead read `unclear` and the floor did nothing, and the
 repair was a write-back from the hook stage that an orchestrator had to
 remember. The dates existed one line earlier: research workers have returned
 schema-checked observations since the contract landed.
+
+**Two routes reach the activity floor and both are upward-only.** A stale date
+returns `unclear`, never `no` — from a list of observations, and from a research
+object's own `last_activity` field, which had no such guard and killed 9 of 62
+leads on `2026-08-03-icf1`. Their workers had recorded `active_recent: unclear`
+beside the real older date they found, and the floor overrode that verdict with
+a harsher one derived from the same evidence. `--complete-corpus` is the only
+thing that re-opens the kill, and it is an assertion about the evidence rather
+than a preference. See D31.
 
 ### `research`
 **In** a worker's returned object, or an array of them. **Out** a schema verdict.
