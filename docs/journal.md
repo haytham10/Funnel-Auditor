@@ -1,3 +1,61 @@
+## 2026-08-04 (icf1) — the repair round, and three ways a hook lied after it
+was certified
+
+Chunk 1 of the ICF 300: 62 leads in, **20 emails out**. Round 1 of the cold read
+shipped 8 of 30. One capped repair round with a **shared note per beat** took
+that to 20.
+
+**The identity beat, a third time.** 15 of 21 held drafts failed on it, and the
+mechanism was specific: the bank's line carries its noun and closes on a
+grounding sentence ("30 signed clients this year across 8 coaching practices
+here. That's the whole job."). The drafter replaces the grounding sentence with
+its own opener and the noun leaves with it — "30 of mine". `check_identity_claim`
+passes that correctly, every licensed figure present. `draft-worker.md` had named
+the shape since 2026-08-01 and it recurred on q3 and again here, so it stopped
+being prose: `check_dangling_figure` FAILS a figure handed to a bare pronoun.
+Measured on the real batch, 0 false positives on 9 shipped drafts, catches 4 of
+21 held. It does not judge stacked figures or verbless fragments — those are the
+cold read's job.
+
+**I misdiagnosed it first.** I told Haytham the generic `id-any-*` lines were bad
+and recommended rewriting them in Airtable. Reading the failing sentences beside
+the library lines showed the opposite: the lines are well-formed and `id-any`
+merely drew the most leads. `redraft` had it right — fix the stage, not the leads.
+
+**A repair round is where the certification chain breaks.** Four drafters moved
+to a different observation, one paraphrased past the quote that was certified,
+and one relaunch of mine overwrote a draft that had already been cold-read SEND.
+All three shapes were caught by re-running `hook-verifier` on anything whose
+quote changed, and two came back REFUTED:
+
+- **Jay Tasanyurek**: "you argued universities should build ecosystems" — the
+  post is a joint panel, "Our session explored... We discussed...", with three
+  named colleagues. The paraphrase invented individual authorship. A verbatim
+  quote would have been safe.
+- **Shoneli Kamal Chhabra**: the quote is verbatim and correctly dated and is
+  **hers**, while the hook credited it to the leader she was describing. The post
+  says "I didn't say that. She did." — the exact reverse.
+
+Both refutes are the same family as D33's wrong-LinkedIn: mechanically perfect,
+about the wrong person. **A changed quote must be re-certified**, and a
+paraphrase is a claim, not a quote.
+
+**The batch cap held.** Dropping Shoneli pushed `cta-01` to 36% against a 35%
+cap and `export` blocked the whole file. `--rebalance-ps` cannot fix it and must
+not be extended to the cta: the ps is library copy alone at the end, the cta is
+the ask and drafters re-voice it. Oliver Wirth was held instead — export had
+already flagged his address as being on a different domain than his site, so one
+hold answered both.
+
+**Measured:** hook_yield 53%, refute_rate 4%, escalation_rate 0%, $1.38 Apify,
+261M tokens at 64% orchestrator. `yield_by_rung` li_posts 24 / li_profile 3 /
+about 3 — LinkedIn posts carried this list nearly alone.
+
+**Known gap:** `SasS` shipped through `hook --against`, `hook-verifier` and
+`lint` in round 1 because all three ask whether the words are on the page and
+none asks whether a quoted token is a typo. A spell-check over quoted material
+would refute real quotes, so this stays a reading job.
+
 ## 2026-08-03 (ICF enrichment) — the list that arrives reachable, and the three
 ways a found URL lied
 

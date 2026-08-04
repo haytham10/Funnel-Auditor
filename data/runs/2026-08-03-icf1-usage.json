@@ -2,95 +2,98 @@
   "batch": "2026-08-03-icf1",
   "measured": true,
   "totals": {
-    "input_tokens": 30783,
-    "cache_write": 8210525,
-    "cache_read": 193502581,
-    "output_tokens": 506450,
-    "cache_write_5m": 6008447,
-    "cache_write_1h": 2202078,
-    "requests": 2346,
-    "tokens": 202250339
+    "input_tokens": 31791,
+    "cache_write": 10731743,
+    "cache_read": 249535975,
+    "output_tokens": 701701,
+    "cache_write_5m": 7476806,
+    "cache_write_1h": 3254937,
+    "requests": 2850,
+    "tokens": 261001210
   },
   "orchestrator": {
-    "input_tokens": 1322,
-    "cache_write": 2202078,
-    "cache_read": 120042395,
-    "output_tokens": 353555,
+    "input_tokens": 1490,
+    "cache_write": 3254937,
+    "cache_read": 162861107,
+    "output_tokens": 409670,
     "cache_write_5m": 0,
-    "cache_write_1h": 2202078,
-    "requests": 462,
-    "tokens": 122599350
+    "cache_write_1h": 3254937,
+    "requests": 546,
+    "tokens": 166527204
   },
   "subagents": {
-    "input_tokens": 29461,
-    "cache_write": 6008447,
-    "cache_read": 73460186,
-    "output_tokens": 152895,
-    "cache_write_5m": 6008447,
+    "input_tokens": 30301,
+    "cache_write": 7476806,
+    "cache_read": 86674868,
+    "output_tokens": 292031,
+    "cache_write_5m": 7476806,
     "cache_write_1h": 0,
-    "requests": 1884,
-    "tokens": 79650989
+    "requests": 2304,
+    "tokens": 94474006
   },
   "by_model": {
     "claude-opus-5": {
-      "requests": 1189,
-      "tokens": 152571735
+      "requests": 1631,
+      "tokens": 209394122
     },
     "claude-sonnet-5": {
-      "requests": 1157,
-      "tokens": 49678604
+      "requests": 1219,
+      "tokens": 51607088
     }
   },
   "by_agent": {
+    "draft-worker": {
+      "agents": 58,
+      "requests": 724,
+      "tokens": 31429617
+    },
     "hook-worker": {
       "agents": 65,
       "requests": 652,
-      "tokens": 23146480
-    },
-    "draft-worker": {
-      "agents": 37,
-      "requests": 499,
-      "tokens": 22075139
+      "tokens": 23189663
     },
     "research-worker": {
       "agents": 6,
       "requests": 192,
-      "tokens": 17835030
+      "tokens": 17850137
     },
     "hook-verifier": {
-      "agents": 43,
-      "requests": 313,
-      "tokens": 8697094
+      "agents": 49,
+      "requests": 375,
+      "tokens": 10567288
     },
     "draft-verifier": {
-      "agents": 36,
-      "requests": 202,
-      "tokens": 5128218
+      "agents": 55,
+      "requests": 335,
+      "tokens": 8667978
     },
     "Plan": {
       "agents": 1,
       "requests": 15,
-      "tokens": 1605153
+      "tokens": 1605222
     },
     "Explore": {
       "agents": 1,
       "requests": 11,
-      "tokens": 1163875
+      "tokens": 1164101
     }
   },
-  "agents": 189,
-  "orchestrator_share": 0.6062,
+  "agents": 235,
+  "orchestrator_share": 0.638,
   "sources": {
     "root": "/root/.claude/projects/-home-user-Outbound-Machine",
     "main": [
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7.jsonl"
     ],
     "subagents": [
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a004b75f2b5d67de7.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a0112586210e392f5.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a0302b7b9363a797c.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a035c8fd1e317738d.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a0390ac4967e2f65c.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a0399383b78e153a0.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a0511f7584110ec8e.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a057f0b29cd4862d1.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a06a992ef93fe27ce.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a0ae86d37b389d0f6.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a0b89130432642e58.jsonl",
@@ -112,14 +115,18 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a1851dc2ebddad0a7.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a18a0c3758e7bb3c9.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a18b9c27c0945ef94.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a1b0404360d89b6d1.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a1bbec7f7c2ed35dd.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a1be433fee34ee5cc.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a1c1e7ba56a513589.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a1e1ef8f5ed1ddd62.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a1e7b0a9b094ac3ff.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a200d0723e63ff4cd.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a2134157e882a200c.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a21a18e286ef8ee35.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a22782a49489c378e.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a22ae24fc61740a2e.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a24d509b9a48c6413.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a26461e0a4d80b523.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a27d9aab4272dfe9e.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a286bb393de54b0cd.jsonl",
@@ -140,6 +147,7 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a3880ee6fd3bebe21.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a38ded9403d02659e.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a390a584397c51777.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a390ea1e88c866dfd.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a39e096a7d7301946.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a3a64e4664194ddef.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a3c04d6220cfeaafa.jsonl",
@@ -153,21 +161,32 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a4b7ee435c6e52b7c.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a4d238fcad24df94e.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a4f7655d718f6f08e.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a4f8bd9b162a70365.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a506afdd980ea2fd4.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a507ee47617b7bbbc.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a52a4189c85c94f82.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a53ab397b31762b40.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a53bf3c751fd33dba.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a5486d35cc5440853.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a56b24b4f60bbb4a8.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a573b5e2778cde02d.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a591ae20af20aac29.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a5926376d900c7a97.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a59b33c18cfb8ecca.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a59d2c4ef4a237cbe.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a5e689bdb7bb2dccb.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a5fb586b834389705.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a6232884b892f5dd1.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a62fed423eddde955.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a6398cd9d56c9eba7.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a63ac5582ae05a912.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a63d800e8241c24d2.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a63e1009860021ff7.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a654a936cff067a5d.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a6562a80df0aac64e.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a656a0c6f646636fc.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a664066eb6d8b7c6f.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a66c8a7096861f3ad.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a6843faff31b00a69.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a6aa8541536f0d205.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a6c6b7417adfe8cca.jsonl",
@@ -179,15 +198,22 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a76afb5f3971054ed.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a77078f5340622a7a.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a772c8dceaf8acfbf.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a779746b1f1630836.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a7859311f5458f877.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a78a2d505e47a6d62.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a7912bc988f1609d3.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a79367934052a254f.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a7abc472eb86e2334.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a7bd0bb6dd3c62011.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a7c2bc83392285936.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a7c709bfabc500d7c.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a7ce320b6a2b65bd3.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a825cff2aacbb2709.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a8269e42ba9698b91.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a83e6daa20bcc8503.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a83f74c9f676c2621.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a84397b06b033820e.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a857ac8cb54df413e.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a862ed60bbeeb745d.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a871e202752da2efb.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a8adf0600a978eda4.jsonl",
@@ -208,6 +234,8 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a9d497daf1de35525.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a9e3d1c194b95abb1.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-a9e8c04e31886945f.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aa227a9d15d4a8fdd.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aa5ccab924da46d62.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aa6ba1fb747680da8.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aa8a168b09a11cfac.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aa8bfa42d229fe62f.jsonl",
@@ -219,17 +247,21 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab12b6758cb71d8ee.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab1ce47b0e4053a7b.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab3405abf45b132ec.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab38cfd56e73a38a7.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab3c9ef9f030d7082.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab57f0896d2157ce1.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab616425a78f80dca.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab64e43ce22802d97.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ab9182d13fc015343.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aba9222e9b6058763.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-abb224342ed9a898a.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-abbe1231c593afc40.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-abc02f01f3396e351.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-abd6dc05676292b99.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac0c55d4b65e7a465.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac1606cf6ce2bc89c.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac1750937d4766cd4.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac229eca6cabd4309.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac3009b5954e98813.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac30f6abc01c4ad26.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac46da4314030d99e.jsonl",
@@ -240,11 +272,14 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac6c2a9db793a3952.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac90100de3eae5c33.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac937136acf0e957b.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ac93c88a4877e7dc6.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aca8a35a85dc66c76.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-acca73ed698f78c77.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-acdc46621eb34b300.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-acedcf0ab3b5a1ec8.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-acefa4a223327be39.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-acf50eaa304d162d5.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-acf7f296eda54624d.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad04b5ae41e353dfa.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad09de76c6a0860a1.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad1b0122c38a96ef4.jsonl",
@@ -252,19 +287,27 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad47e8e25f9b1eeb8.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad4bbbf69f04f10a4.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad4f31d82d4b08677.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad54ec5b4886319e5.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad5ae5ded94166726.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad95bc7f0115549d3.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ad9af402ecc9ab9bd.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-adb8d2f7d7c8f3c7a.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-adbf6b76abe7ff71e.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-add2d42febb911bec.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-add31dbda5baf07a0.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-addd64e7d0c7cc4ef.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ade74876c5b4ae632.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ade8512738931b291.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ae1c8510e0d6a338d.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ae1fdc7a027c7aa71.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ae332af83422eb81a.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ae3e41c5f824d0583.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ae83bd3817fd840af.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ae84b9e113d461902.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-ae8a83814ee747301.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aebdaad65aed2cdcb.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aec34e8375f1dde8b.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aeec64b5889158550.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-af1004a2904082d30.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-af1cc0f3a18d2289c.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-af5b798d2aa8f9dff.jsonl",
@@ -273,46 +316,49 @@
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-af8ab5f31d4ed83b4.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-afa34963a0a8a7818.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-afb022ff2c7e51048.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-afb36cf1961b51a48.jsonl",
       "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-afb95aae5f7c5eb46.jsonl",
-      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aff39a43fa6fb12e7.jsonl"
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aff39a43fa6fb12e7.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aff51b63b24bc755d.jsonl",
+      "/root/.claude/projects/-home-user-Outbound-Machine/f1770b35-2ebc-5c43-aa5b-af58077c21a7/subagents/agent-aff6e89b49d3d06ac.jsonl"
     ]
   },
   "gaps": [],
   "blocks": {
     "chars": {
-      "thinking": 305814,
-      "tool_use": 693699,
-      "text": 45982,
-      "tool_result": 713059,
-      "other": 41173
+      "thinking": 344888,
+      "tool_use": 806092,
+      "text": 57448,
+      "tool_result": 859452,
+      "other": 48195
     },
     "blocks": {
-      "thinking": 174,
-      "tool_use": 616,
-      "text": 185,
-      "tool_result": 615,
-      "other": 33
+      "thinking": 196,
+      "tool_use": 728,
+      "text": 230,
+      "tool_result": 726,
+      "other": 44
     },
-    "total_chars": 1799727,
+    "total_chars": 2116075,
     "chars_per_token": 4,
     "share": {
-      "thinking": 0.16992243823646586,
-      "tool_use": 0.38544679276356913,
-      "text": 0.02554943055252269,
-      "tool_result": 0.39620397982582917,
-      "other": 0.022877358621613168
+      "thinking": 0.16298477133371927,
+      "tool_use": 0.38093734862894746,
+      "text": 0.027148376120884183,
+      "tool_result": 0.40615384615384614,
+      "other": 0.022775657762602933
     }
   },
   "price": {
-    "usd": 144.21,
+    "usd": 195.44,
     "by_model": {
       "claude-opus-5": {
-        "tokens": 152571735,
-        "usd": 127.59
+        "tokens": 209394122,
+        "usd": 177.9
       },
       "claude-sonnet-5": {
-        "tokens": 49678604,
-        "usd": 16.62
+        "tokens": 51607088,
+        "usd": 17.54
       }
     },
     "basis": [
