@@ -73,13 +73,16 @@ from pathlib import Path
 
 # The corpus. Everything else in the repo is code, and code has tests.
 #
-# `.claude/agents/` joined on 2026-08-01, and the gap it left is the argument
-# for it: those five files are prompts, so nothing tested them, and the retrieval
-# window in two of them drifted apart without a single check noticing. They name
-# commands and paths exactly as the skills do — the only reason they were out was
-# that the glob was written before they mattered.
-SCAN_GLOBS = ("docs/**/*.md", ".claude/skills/**/*.md", ".claude/agents/**/*.md")
-SCAN_FILES = ("CLAUDE.md", "README.md")
+# Agent instructions are executable prose. `.claude/agents/` joined on
+# 2026-08-01 after two prompts had drifted apart unnoticed; the Codex adapters
+# carry the same risk and belong in the same checked corpus.
+SCAN_GLOBS = (
+    "docs/**/*.md",
+    ".claude/skills/**/*.md",
+    ".claude/agents/**/*.md",
+    ".agents/skills/**/*.md",
+)
+SCAN_FILES = ("AGENTS.md", "CLAUDE.md", "README.md")
 
 SPEC_DIR = "docs/spec"
 PRICE_OWNER = "docs/spec/03-offer.md"

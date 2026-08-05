@@ -1,0 +1,35 @@
+{
+  "description": "Outbound Machine lifecycle checks shared with Claude Code.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.claude/hooks/schema_drift.py\"",
+            "statusMessage": "Checking the CRM schema",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.claude/hooks/skills_authoritative.py\"",
+            "additionalContextLimit": 1500
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.claude/hooks/session_memory.py\"",
+            "additionalContextLimit": 2500
+          }
+        ]
+      }
+    ]
+  }
+}

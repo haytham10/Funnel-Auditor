@@ -1,3 +1,25 @@
+## 2026-08-06 (platform) — Codex is now a first-class host
+
+The Python machine was already host-neutral; discovery and accounting were not.
+Codex now boots from `AGENTS.md`, discovers the two repo skills under
+`.agents/skills/`, loads five project custom agents from `.codex/agents/`, and
+runs the same session-memory and pre-push schema checks through
+`.codex/hooks.json`. The adapters point back to the full `.claude` skill and
+agent specifications, so the evidence-backed workflow still has one source of
+truth.
+
+`usage` now sniffs both Claude Code and Codex transcript shapes. On Codex it
+selects rollouts for this repository since `work/BATCH`, separates cached input
+without double-counting it, and preserves the orchestrator/subagent split.
+An unknown model remains counted and unpriced rather than inheriting a Claude
+rate. The parser was exercised against a real Codex rollout.
+
+The repository gate scans the Codex skill adapters and `AGENTS.md` now.
+`doc-check` passed with 29 files and the full suite passed: **1,251 tests**.
+The one manual step is opening `/hooks` in a fresh Codex task and trusting the
+project hook definitions; Codex intentionally does not trust checked-in command
+hooks silently.
+
 ## 2026-08-04 (platform) — the answer to "which LLM" was "stop running the
 batch as one session"
 
@@ -550,4 +572,3 @@ largest one is a judgement call the next batch will have to test.
 **No batch has run since any of this.** `metrics --written` reads
 `tokens_per_email` out of the usage artifact and that is the control number.
 Nothing here is proven until a real batch produces one to compare.
-

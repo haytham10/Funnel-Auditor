@@ -56,8 +56,8 @@ Every gate fails closed. A check that cannot run is a failure, never a pass.
                 of out of the orchestrator's context
     brief       where the run got to, read off disk — what makes a stage
                 boundary a place to stop rather than a place to keep going
-    usage       what the batch cost in Claude tokens, MEASURED from the session
-                transcript — the half `ledger pass` cannot see, including the
+    usage       what the batch cost in agent tokens, MEASURED from a Claude Code
+                or Codex transcript — the half `ledger pass` cannot see, including the
                 orchestrator, which reports no passes and is usually the largest
     replies     join a Smartlead replies export on email — reply rate by hook
                 type and by the rung the hook came from
@@ -3180,7 +3180,7 @@ def cmd_redraft(args) -> None:
 
 
 def cmd_usage(args) -> None:
-    """The Claude bill, measured from this session's transcript.
+    """The agent bill, measured from a Claude Code or Codex transcript.
 
     `ledger pass` records that an agent ran and cannot record what it cost —
     neither an orchestrator nor a worker can see its own token usage. So the
@@ -3192,8 +3192,9 @@ def cmd_usage(args) -> None:
     batch used no agents", which is the wall's asymmetry again. **Never exit 1** —
     an accounting command that can halt a send file gets routed around.
 
-    Transcripts live on the session's own container and die with it. Run this
-    before the session ends, or the batch's largest cost is unrecoverable.
+    Transcripts belong to the agent host and may die with its container. Run
+    this before the environment ends, or the batch's largest cost may be
+    unrecoverable.
     """
     from outbound import ledger, usage
 
@@ -3844,12 +3845,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_redraft)
 
     p = sub.add_parser("usage",
-                       help="what the batch cost in Claude tokens, measured "
-                            "from the session transcript")
+                       help="what the batch cost in agent tokens, measured "
+                            "from a Claude Code or Codex session transcript")
     p.add_argument("--batch", help="batch label (default OUTBOUND_BATCH, then today)")
     p.add_argument("--transcripts",
-                   help="the session's project directory, when it is not where "
-                        "this expects it (~/.claude/projects/<slug>)")
+                   help="a transcript file or directory, overriding automatic "
+                        "Claude (~/.claude/projects) or Codex "
+                        "(~/.codex/sessions) discovery")
     p.add_argument("--out", help="where to write the JSON artifact "
                                  "(default data/runs/<batch>-usage.json)")
     p.add_argument("--quiet", action="store_true",

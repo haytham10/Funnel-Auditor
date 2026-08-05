@@ -1237,12 +1237,18 @@ this command removes.
 file over an accounting line is one people learn to route around.
 
 ### `usage`
-**In** the session's own transcripts. **Out** what the batch cost in Claude
+**In** the session's own transcripts. **Out** what the batch cost in agent
 tokens — totals by bucket and model, the orchestrator/subagent split, a
 per-agent-type breakdown, and **what the orchestrator's context is made of** —
 plus `data/runs/<batch>-usage.json`. **Guarantees** a transcript it cannot parse
 is an error naming where it looked, never a zero. **Exit 2** on that. **Never
 exit 1.** Owned by `outbound/usage.py`.
+
+Claude Code discovery uses the project directory under `~/.claude/projects`.
+Codex discovery reads rollouts under `~/.codex/sessions`, restricts them to this
+repository, and when `work/BATCH` exists includes sessions written since that
+marker so `/clear` stage boundaries remain cumulative. `--transcripts` accepts
+an explicit file or directory for either host.
 
 **Totals say a batch was expensive; the block profile says what to stop putting
 in the loop.** `cache_read` is the sum of the context over every turn, so it
