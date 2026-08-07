@@ -1,4 +1,4 @@
-"""The Claude bill, measured from the session transcript rather than reported.
+"""The agent bill, measured from Claude Code or Codex session transcripts.
 
 `ledger pass` records that an agent ran. It cannot record what the agent cost,
 because neither an orchestrator nor a worker can see its own token usage — so the
@@ -12,8 +12,9 @@ all, because nobody thinks to report a pass for the thread they are typing in.
 The batches reported 99 and 185 passes and both numbers were true and neither was
 the answer.
 
-The transcript can see all of it. Every assistant record carries
-`message.usage`, and every subagent gets its own file, so the split between
+The transcript can see all of it. Claude assistant records carry
+`message.usage`; Codex rollouts carry cumulative and last-request token-count
+events. Both hosts write subagent sessions separately, so the split between
 coordination and work is measurable rather than arguable.
 
 Three decisions worth not re-litigating.
@@ -49,9 +50,12 @@ from dataclasses import dataclass, field, asdict
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-# Where Claude Code keeps a session's transcripts. Not ours, which is why it is
-# sniffed and overridable rather than assumed.
+# Where the two supported hosts keep session transcripts. Neither layout is
+# ours, which is why both are sniffed and overridable rather than assumed.
 PROJECTS_DIR = Path("~/.claude/projects").expanduser()
+CODEX_SESSIONS_DIR = Path(
+    os.environ.get("CODEX_HOME", str(Path("~/.codex").expanduser()))
+) / "sessions"
 
 # The tools that spawn a subagent. Named so a third one cannot appear here
 # without appearing in the map that gives an agent its type.
@@ -212,13 +216,109 @@ class Sources:
     """Which files were read, so a total can be argued with."""
 
     root: str = ""
+    provider: str = "claude"
     main: list = field(default_factory=list)
     subagents: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {"root": self.root,
+                "provider": self.provider,
                 "main": [str(p) for p in self.main],
                 "subagents": [str(p) for p in self.subagents]}
+
+
+def _session_meta(path: Path) -> dict:
+    """The first Codex session metadata payload, or an empty dict."""
+    try:
+        for record in _lines(path):
+            if record.get("type") == "session_meta":
+                payload = record.get("payload")
+                return payload if isinstance(payload, dict) else {}
+            if record.get("type") in {"assistant", "user"}:
+                return {}
+    except OSError:
+        return {}
+    return {}
+
+
+def _deep_named(value, names: set[str]):
+    """First non-empty value under a named key in nested JSON."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in names and item not in (None, "", [], {}):
+                return item
+            found = _deep_named(item, names)
+            if found not in (None, "", [], {}):
+                return found
+    elif isinstance(value, list):
+        for item in value:
+            found = _deep_named(item, names)
+            if found not in (None, "", [], {}):
+                return found
+    return None
+
+
+def _codex_agent(meta: dict) -> tuple[bool, str, str]:
+    """Whether a Codex rollout is a subagent, plus its id and role."""
+    source = meta.get("source")
+    thread_source = meta.get("thread_source")
+    joined = json.dumps({"source": source, "thread_source": thread_source},
+                        default=str).lower()
+    sidechain = "subagent" in joined
+    agent_id = _deep_named(meta, {"agent_id", "agentId"})
+    agent_type = _deep_named(meta, {"agent_type", "agentType", "subagent_type"})
+    if sidechain and not agent_id:
+        agent_id = meta.get("session_id") or meta.get("id") or ""
+    return sidechain, str(agent_id or ""), str(agent_type or "")
+
+
+def _codex_sources(base: Path, paths: list[Path]) -> Sources:
+    main: list[Path] = []
+    subagents: list[Path] = []
+    for path in paths:
+        sidechain, _, _ = _codex_agent(_session_meta(path))
+        (subagents if sidechain else main).append(path)
+    return Sources(root=str(base), provider="codex",
+                   main=sorted(main), subagents=sorted(subagents))
+
+
+def _discover_codex(cwd: str | Path | None = None) -> Sources:
+    """Find Codex rollouts for this repo and current batch window."""
+    base = CODEX_SESSIONS_DIR
+    if not base.is_dir():
+        raise TranscriptsUnreadable(f"no Codex session directory at {base}")
+
+    resolved = str(Path(cwd or Path.cwd()).resolve())
+    batch_marker = Path(resolved) / "work" / "BATCH"
+    thread_id = os.environ.get("CODEX_THREAD_ID", "")
+    since = batch_marker.stat().st_mtime if batch_marker.is_file() else None
+
+    candidates: list[Path] = []
+    for path in base.rglob("*.jsonl"):
+        try:
+            if since is not None and path.stat().st_mtime + 2 < since:
+                continue
+        except OSError:
+            continue
+        if since is None and thread_id and thread_id not in path.name:
+            continue
+        meta = _session_meta(path)
+        meta_cwd = meta.get("cwd")
+        try:
+            same_cwd = str(Path(str(meta_cwd)).resolve()) == resolved
+        except (OSError, TypeError, ValueError):
+            same_cwd = False
+        if same_cwd:
+            candidates.append(path)
+
+    if not candidates:
+        window = (f"since {batch_marker}" if since is not None
+                  else f"for thread {thread_id}" if thread_id
+                  else "for the current repository")
+        raise TranscriptsUnreadable(
+            f"{base} holds no Codex rollout {window} with cwd {resolved}. "
+            f"Pass --transcripts <file-or-directory> to name it explicitly")
+    return _codex_sources(base, candidates)
 
 
 def discover(root: str | Path | None = None,
@@ -229,12 +329,21 @@ def discover(root: str | Path | None = None,
     fixture, and `--transcripts` points it at another session's directory when
     the layout moves.
     """
-    base = Path(root) if root else PROJECTS_DIR / project_slug(cwd)
+    if root:
+        base = Path(root)
+        paths = [base] if base.is_file() else sorted(base.rglob("*.jsonl"))
+        codex_paths = [p for p in paths if _session_meta(p)]
+        if codex_paths:
+            return _codex_sources(base, codex_paths)
+    elif os.environ.get("CODEX_THREAD_ID"):
+        return _discover_codex(cwd)
+    else:
+        base = PROJECTS_DIR / project_slug(cwd)
     if not base.is_dir():
         raise TranscriptsUnreadable(
             f"no transcript directory at {base}. Transcripts live on the "
-            f"session's own container and do not survive it — run `usage` "
-            f"before the session ends, or pass --transcripts <dir>")
+            f"agent host and may not survive its container — run `usage` "
+            f"before the environment ends, or pass --transcripts <dir>")
 
     main = sorted(p for p in base.glob("*.jsonl") if p.is_file())
     subagents = sorted(base.glob("*/subagents/agent-*.jsonl"))
@@ -243,7 +352,8 @@ def discover(root: str | Path | None = None,
         raise TranscriptsUnreadable(
             f"{base} holds no *.jsonl transcript and no */subagents/agent-*.jsonl. "
             f"Saw: {', '.join(saw) or '(empty)'}")
-    return Sources(root=str(base), main=main, subagents=subagents)
+    return Sources(root=str(base), provider="claude",
+                   main=main, subagents=subagents)
 
 
 @dataclass
@@ -330,6 +440,9 @@ def read_turns(sources: Sources) -> list[Turn]:
     because a streaming response repeats the id with a growing `output_tokens`.
     Across files the ids are already distinct.
     """
+    if sources.provider == "codex":
+        return _read_codex_turns(sources)
+
     types = agent_types(sources.main)
     turns: list[Turn] = []
 
@@ -369,6 +482,58 @@ def read_turns(sources: Sources) -> list[Turn]:
         harvest(path)
     for path in sources.subagents:
         harvest(path, agent_id=path.stem[len("agent-"):])
+    return turns
+
+
+def _read_codex_turns(sources: Sources) -> list[Turn]:
+    """Every Codex request from token-count events in selected rollouts."""
+    turns: list[Turn] = []
+
+    def harvest(path: Path, forced_sidechain: bool = False) -> None:
+        meta = _session_meta(path)
+        meta_sidechain, meta_agent_id, meta_agent_type = _codex_agent(meta)
+        sidechain = forced_sidechain or meta_sidechain
+        agent_id = meta_agent_id or (
+            str(meta.get("session_id") or meta.get("id") or "") if sidechain else ""
+        )
+        agent_type = meta_agent_type or (UNATTRIBUTED if sidechain else "")
+        model = ""
+        index = 0
+        for record in _lines(path):
+            payload = record.get("payload")
+            payload = payload if isinstance(payload, dict) else {}
+            if record.get("type") == "turn_context":
+                model = str(payload.get("model") or model)
+                continue
+            if payload.get("type") != "token_count":
+                continue
+            info = payload.get("info")
+            info = info if isinstance(info, dict) else {}
+            raw = info.get("last_token_usage")
+            raw = raw if isinstance(raw, dict) else {}
+            if not raw:
+                continue
+            index += 1
+            input_total = _int(raw.get("input_tokens"))
+            cache_read = _int(raw.get("cached_input_tokens"))
+            cache_write = _int(raw.get("cache_write_input_tokens"))
+            turns.append(Turn(
+                request_id=f"{path.name}:{index}",
+                model=model or str(meta.get("model") or ""),
+                at=str(record.get("timestamp") or ""),
+                sidechain=sidechain,
+                agent_id=agent_id,
+                agent_type=agent_type,
+                input_tokens=max(0, input_total - cache_read - cache_write),
+                cache_write=cache_write,
+                cache_read=cache_read,
+                output_tokens=_int(raw.get("output_tokens")),
+            ))
+
+    for path in sources.main:
+        harvest(path)
+    for path in sources.subagents:
+        harvest(path, forced_sidechain=True)
     return turns
 
 
@@ -418,6 +583,9 @@ def block_profile(sources: Sources, *, main_only: bool = True) -> dict:
     blocks = {k: 0 for k in BLOCK_KINDS}
     for path in paths:
         for record in _lines(path):
+            if sources.provider == "codex":
+                _profile_codex_record(record, counts, blocks)
+                continue
             if record.get("isSidechain"):
                 continue
             message = record.get("message") or {}
@@ -438,6 +606,30 @@ def block_profile(sources: Sources, *, main_only: bool = True) -> dict:
     return {"chars": counts, "blocks": blocks, "total_chars": total,
             "chars_per_token": 4,
             "share": {k: (counts[k] / total if total else 0.0) for k in BLOCK_KINDS}}
+
+
+def _profile_codex_record(record: dict, counts: dict, blocks: dict) -> None:
+    """Add one Codex response item to the approximate context composition."""
+    if record.get("type") != "response_item":
+        return
+    payload = record.get("payload")
+    if not isinstance(payload, dict):
+        return
+    kind = payload.get("type")
+    if kind == "reasoning":
+        bucket = "thinking"
+    elif kind in {"function_call", "custom_tool_call", "local_shell_call",
+                  "web_search_call"}:
+        bucket = "tool_use"
+    elif kind in {"function_call_output", "custom_tool_call_output",
+                  "local_shell_call_output"}:
+        bucket = "tool_result"
+    elif kind == "message" and payload.get("role") == "assistant":
+        bucket = "text"
+    else:
+        bucket = "other"
+    counts[bucket] += len(json.dumps(payload, default=str))
+    blocks[bucket] += 1
 
 
 def _bucket_totals(turns: list) -> dict:
@@ -606,8 +798,7 @@ def report(out: dict) -> str:
 
 
 def write_artifact(out: dict, path: str | Path) -> Path:
-    """Persist it beside the ledger. A transcript dies with its container; this
-    is the only part of it that outlives the session."""
+    """Persist it beside the ledger; this is the portable part of a transcript."""
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")

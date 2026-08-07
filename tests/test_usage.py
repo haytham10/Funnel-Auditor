@@ -1,4 +1,4 @@
-"""The Claude bill, measured: what a batch actually spent, not how many times.
+"""The agent bill, measured: what a batch actually spent, not how many times.
 
 Run: python -m pytest tests/test_usage.py -q
  or: python tests/test_usage.py
@@ -83,6 +83,60 @@ def project(tmp: str, main: list, subs: dict | None = None) -> usage.Sources:
         write_jsonl(base / "session" / "subagents" / f"agent-{agent_id}.jsonl",
                     records)
     return usage.discover(base)
+
+
+def codex_session(*events: dict, source="cli", agent_type="") -> list:
+    meta = {"session_id": "codex-session", "cwd": "/repo",
+            "source": source, "thread_source": "user"}
+    if source == "subagent":
+        meta["thread_source"] = {"subagent": {"agent_type": agent_type}}
+        meta["agent_id"] = "codex-agent"
+    return [{"type": "session_meta", "payload": meta}, *events]
+
+
+def codex_turn(*, fresh: int, cached: int, output: int,
+               model: str = "gpt-test") -> list:
+    return [
+        {"type": "turn_context", "payload": {"model": model}},
+        {"timestamp": "2026-08-05T10:00:00Z", "type": "event_msg",
+         "payload": {"type": "token_count", "info": {
+             "last_token_usage": {
+                 "input_tokens": fresh + cached,
+                 "cached_input_tokens": cached,
+                 "cache_write_input_tokens": 0,
+                 "output_tokens": output,
+                 "reasoning_output_tokens": output // 2,
+                 "total_tokens": fresh + cached + output,
+             }}}},
+    ]
+
+
+def test_codex_rollout_is_discovered_and_cached_input_is_not_double_counted():
+    with tempfile.TemporaryDirectory() as tmp:
+        write_jsonl(Path(tmp) / "rollout.jsonl",
+                    codex_session(*codex_turn(fresh=20, cached=80, output=10)))
+        sources = usage.discover(tmp)
+        turns = usage.read_turns(sources)
+    assert sources.provider == "codex"
+    assert len(turns) == 1
+    assert turns[0].input_tokens == 20
+    assert turns[0].cache_read == 80
+    assert turns[0].output_tokens == 10
+    assert turns[0].total == 110
+
+
+def test_codex_subagent_rollout_stays_separate_and_named():
+    with tempfile.TemporaryDirectory() as tmp:
+        write_jsonl(Path(tmp) / "agent.jsonl",
+                    codex_session(*codex_turn(fresh=2, cached=3, output=4),
+                                  source="subagent", agent_type="hook_verifier"))
+        sources = usage.discover(tmp)
+        turns = usage.read_turns(sources)
+        out = usage.summarise(turns, sources=sources)
+    assert len(sources.subagents) == 1
+    assert out["orchestrator"]["tokens"] == 0
+    assert out["subagents"]["tokens"] == 9
+    assert out["by_agent"]["hook_verifier"]["agents"] == 1
 
 
 def test_a_streamed_request_is_one_request_and_its_last_output_count():
