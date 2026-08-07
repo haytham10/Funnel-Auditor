@@ -1,4 +1,0 @@
-{"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.06, "secs": 69.78, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T10:56:10+00:00"}
-{"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.06, "secs": 77.06, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T10:58:29+00:00"}
-{"lead_key": "", "stage": "", "platform": "search", "url": "", "retrieved_by": "apify:serp", "cost_usd": 0.055, "secs": 108.93, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T11:00:29+00:00"}
-{"lead_key": "", "stage": "", "platform": "email", "url": "", "retrieved_by": "apify:email", "cost_usd": 0.026, "secs": 41.9, "outcome": "ok", "purpose": "observe", "at": "2026-08-03T11:01:53+00:00"}

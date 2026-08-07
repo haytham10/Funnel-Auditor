@@ -9,7 +9,7 @@ adapters are deliberately thin so the two agent setups cannot drift.
 | Concern | Shared or Claude location | Codex location |
 |---|---|---|
 | Repository instructions | `CLAUDE.md` | `AGENTS.md`, which requires the shared map |
-| Batch workflow | `.claude/skills/outbound-batch/` | `.agents/skills/outbound-batch/` adapter |
+| Batch workflow | archived at `docs/archive/outbound-batch-SKILL.md` pending the pivot | `.agents/skills/outbound-batch/` adapter |
 | Single-email workflow | `.claude/skills/outbound-draft/` | `.agents/skills/outbound-draft/` adapter |
 | Worker role prompts | `.claude/agents/*.md` | `.codex/agents/*.toml` adapters |
 | Lifecycle configuration | `.claude/settings.json` | `.codex/hooks.json` |
