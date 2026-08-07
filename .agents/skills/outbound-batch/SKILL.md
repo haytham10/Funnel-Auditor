@@ -5,12 +5,13 @@ description: Run a raw coach list end to end into a checked Smartlead upload fil
 
 # Codex adapter for the outbound batch
 
-This is the Codex-discoverable entry point. The complete and authoritative
-workflow is in `.claude/skills/outbound-batch/SKILL.md`.
+This is the Codex-discoverable entry point. The complete workflow is archived
+at `docs/archive/outbound-batch-SKILL.md` pending the pivot plan on the
+`pivot` branch — batch work against the old target market is paused.
 
 Before taking any batch action:
 
-1. Read `.claude/skills/outbound-batch/SKILL.md` completely.
+1. Read `docs/archive/outbound-batch-SKILL.md` completely.
 2. Read `AGENTS.md` and `CLAUDE.md`.
 3. Follow the shared skill literally, with these host mappings:
    - use Codex project custom agents `research_worker`, `hook_worker`,
