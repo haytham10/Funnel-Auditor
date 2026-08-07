@@ -521,6 +521,13 @@ def test_the_agent_files_are_in_the_scanned_corpus():
     assert any(".claude/agents" in glob for glob in doc_check.SCAN_GLOBS)
 
 
+def test_the_codex_instruction_adapters_are_in_the_scanned_corpus():
+    """A second host adapter is still executable prose and must not become an
+    unchecked copy of command names and paths."""
+    assert "AGENTS.md" in doc_check.SCAN_FILES
+    assert any(".agents/skills" in glob for glob in doc_check.SCAN_GLOBS)
+
+
 # --------------------------------------------------------------- schema drift
 
 

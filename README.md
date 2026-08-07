@@ -29,8 +29,9 @@ Both of those commands run on every push and pull request
 (`.github/workflows/checks.yml`).
 
 Run a whole list end to end by handing a CSV to the `outbound-batch` skill. For
-one email, or to repair one, use `outbound-draft`. Both live in
-`.claude/skills/` and that copy is authoritative.
+one email, or to repair one, use `outbound-draft`. The full shared workflows
+live in `.claude/skills/`; Codex discovers thin adapters in `.agents/skills/`
+that load those same files.
 
 ## The gates
 
@@ -69,7 +70,9 @@ copy/              a cache of Airtable's Copy Assets, plus the client-result fac
 data/              the dedupe wall — who has already been contacted
 docs/spec/         the defining layer (start at 00-index.md)
 docs/              START-HERE, hook rules, agent orchestration, the journal
-.claude/           the skills and the worker/verifier agents
+.claude/           the shared workflow and worker/verifier specifications
+.agents/           Codex-discoverable repository skill adapters
+.codex/            Codex custom agents, hooks and project configuration
 tests/             the suite; every file also runs standalone
 ```
 
@@ -79,8 +82,11 @@ tests/             the suite; every file also runs standalone
 - **What is actually decided, and why?** `docs/spec/` — the operation, the ICP,
   the money model, the email, the pipeline contracts, who owns which value, and
   the decision log. Its index is `docs/spec/00-index.md`.
-- **Working on the code?** `CLAUDE.md`, then the module docstrings. Every module
-  carries a full one, and it is where the reasoning lives.
+- **Working on the code?** Claude Code reads `CLAUDE.md`; Codex reads
+  `AGENTS.md`, which points to the same full map. Then read the module docstrings.
+  Every module carries a full one, and it is where the reasoning lives.
+- **Using Codex?** `docs/CODEX.md` maps every Claude-native surface to its
+  Codex counterpart and gives the one-time setup checks.
 - **What happened when?** `docs/journal.md`, newest first.
 
 ## Environment

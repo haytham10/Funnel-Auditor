@@ -72,8 +72,11 @@ makes disobeying it impossible to ship rather than merely discouraged.
 
 **Least privilege.** Each agent lists only the tools its flow calls. No worker
 gets a send-capable tool. No worker spawns sub-workers — orchestration stays in
-the top-level skill. Research and hook work get `WebSearch` and `WebFetch`,
-because free fetching is the first rung of the ladder now that Firecrawl is gone.
+the top-level skill. Research and hook work get the host's read-only web search
+and page-fetch tools, because free fetching is the first rung of the ladder now
+that Firecrawl is gone. Claude Code declares those tools in agent frontmatter;
+Codex enforces the same boundary in its project custom-agent instructions while
+the user's active permission mode remains authoritative.
 
 **Least privilege is about what an agent can *do*, not about whether it can save
 its own answer.** Three agents were write-less — `draft-worker`, `draft-verifier`
