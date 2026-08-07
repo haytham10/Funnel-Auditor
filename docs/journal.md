@@ -1,5 +1,28 @@
-## 2026-08-04 (platform) — the answer to "which LLM" was "stop running the
-batch as one session"
+## 2026-08-04 (opencode) — `.env` now reaches every shell, and the opencode
+migration finally got committed
+
+Symptom: `copy-check` BLOCKED on "no AIRTABLE_API_KEY" while the key sat in
+`.env` — nothing in the repo loads it. There is no `load_dotenv` anywhere;
+every module reads `os.environ` directly, so `.env` only works if the calling
+shell sources it, and no calling shell did. That was true on Claude too; the
+skills just never noticed because that environment exported the keys.
+
+**Fix: `.opencode/plugins/load-env.js`**, the docs' own `shell.env` pattern —
+fires on every shell execution (agent tool calls and Haytham's terminal
+alike), parses `.env` from the worktree root once per server process, and
+injects the keys via `Object.assign` — `.env` wins over whatever the server
+inherited. Fails open (missing file = empty injection, never a blocked
+session), never logs the values, handles `export ` prefixes and quoted
+values. Restart of `opencode serve` required to pick it up.
+
+**Also committed the whole migration that had sat untracked since 08-04:**
+`opencode.jsonc` (server block, skills path, Airtable MCP, permission mirror),
+the five agent adapters under `.opencode/agent/`, and
+`plugins/session-memory.js` — commit `04a2d6d` on `outbound`. No new branch,
+so no PR: direct push. Verified after the fact: with the key loaded,
+`copy-check` PASSes against live Copy Assets (46 lines).
+
+
 
 Haytham is stranded 2 days a week: Max 5x weekly limit, 80% burned by Monday,
 reset Friday. He asked whether to move to GPT-5.6 ($100), Kimi K3 ($40) or

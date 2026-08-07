@@ -1,0 +1,67 @@
+{
+  // The outbound machine on opencode — the mirror of .claude/settings.json.
+  // Config is loaded at startup only: restart opencode after editing this file.
+
+  "$schema": "https://opencode.ai/config.json",
+
+  // WSL-native runtime (2026-08-04): the desktop app connects to a server
+  // running inside Ubuntu — `opencode serve` (or `opencode serve` from this
+  // directory, which picks this block up). 127.0.0.1 is reachable from
+  // Windows via WSL2's localhost forwarding and is not exposed to the
+  // network. Logs live in the tmux session "opencode".
+  "server": {
+    "port": 4096,
+    "hostname": "127.0.0.1"
+  },
+
+  // CLAUDE.md is auto-loaded as project rules (opencode's Claude Code
+  // compatibility: CLAUDE.md is used when no AGENTS.md exists — do not add
+  // an AGENTS.md, or it wins and CLAUDE.md stops loading).
+  // OPENCODE_DISABLE_CLAUDE_CODE must stay unset for this to work.
+
+  // The repo's own skills, loaded from .claude/skills/ (their frontmatter is
+  // the same format; the bodies' Claude-isms are covered by the agent
+  // adapters under .opencode/agent/).
+  "skills": {
+    "paths": [".claude/skills"]
+  },
+
+  // MCP servers.
+  "mcp": {
+    // Airtable — the orchestrator's CRM path (the reads, and the Batches /
+    // Leads rows it writes by hand). Airtable's hosted MCP requires OAuth;
+    // it supports dynamic client registration, so {} is enough. Authenticate
+    // once with:  opencode mcp auth airtable
+    "airtable": {
+      "type": "remote",
+      "url": "https://mcp.airtable.com/mcp",
+      "oauth": {}
+    }
+    // A search provider with country control (optional). The built-in
+    // websearch is Exa and has no geo control — the machine's own docs name
+    // that as the reason `email-find`/`channel-find` buy the Apify SERP rung.
+    // "tavily": {
+    //   "type": "remote",
+    //   "url": "https://<provider-host>/mcp",
+    //   "oauth": false,
+    //   "headers": { "Authorization": "Bearer {env:TAVILY_API_KEY}" }
+    // }
+  },
+
+  "permission": {
+    // The machine's free rungs. websearch needs the OpenCode provider, or
+    // OPENCODE_ENABLE_EXA=1 at launch (e.g. `$env:OPENCODE_ENABLE_EXA="1"; opencode`).
+    "websearch": "allow",
+    "webfetch": "allow",
+
+    // Mirror of .claude/settings.json: the machine's gates run without
+    // prompting; every other command asks. Last matching rule wins.
+    "bash": {
+      "*": "ask",
+      "python main.py *": "allow",
+      "python3 main.py *": "allow",
+      "python -m pytest *": "allow",
+      "python3 -m pytest *": "allow"
+    }
+  }
+}
