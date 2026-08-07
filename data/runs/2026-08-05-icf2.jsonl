@@ -353,3 +353,5 @@
 {"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 6, "at": "2026-08-04T11:57:47+00:00"}
 {"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 6, "at": "2026-08-04T12:00:43+00:00"}
 {"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 12, "at": "2026-08-04T12:01:37+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-worker", "model": "opus", "count": 35, "at": "2026-08-07T08:42:31+00:00"}
+{"kind": "pass", "stage": "draft", "agent": "draft-verifier", "model": "opus", "count": 47, "at": "2026-08-07T08:50:34+00:00"}
